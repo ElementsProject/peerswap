@@ -10,12 +10,12 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/liquid-loop/gelements"
+	"github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +32,7 @@ var lbtc = append(
 
 
 func Test_Loop_TimelockCase(t *testing.T) {
-	var preimage Preimage
+	var preimage lightning.Preimage
 
 	if _, err := rand.Read(preimage[:]); err != nil {
 		t.Fatal(err)
@@ -88,14 +88,12 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
 
 	// calc cltv
+	locktime := 5
 	blockHeight, err := getBestBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
-	spendingBlockHeight := blockHeight + 100
-	spendingBlockHeightStr := strconv.FormatInt(100, 16)
-	t.Log(spendingBlockHeight)
-	t.Log(spendingBlockHeightStr)
+	spendingBlockHeight := int64(blockHeight + locktime)
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),and(pk(B), after(100)))
 	script := txscript.NewScriptBuilder().
@@ -104,7 +102,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 		AddOp(txscript.OP_NOTIF).
 		AddData(pubkeyBob.SerializeCompressed()).
 		AddOp(txscript.OP_CHECKSIGVERIFY).
-		AddData(h2b(spendingBlockHeightStr)).
+		AddInt64(spendingBlockHeight).
 		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
 		AddOp(txscript.OP_ELSE).
 		AddOp(txscript.OP_SIZE).
@@ -123,7 +121,6 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	redeemPayment, err := payment.FromPayment(&payment.Payment{
 		Script:  redeemScript,
 		Network: &network.Regtest,
-
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +136,6 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.UnsignedTx.Locktime = uint32(blockHeight)
 
 	// Add sighash type and witness utxo to the partial input.
 	updater, err := pset.NewUpdater(p)
@@ -186,17 +182,27 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	t.Log(finalTx.TxHash())
 	t.Log(tx)
 
+	// let some block pass
+	err = generate(uint(locktime))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blockHeight, err = getBestBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// second transaction
 	firstTxHash := finalTx.WitnessHash()
 	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
+	spendingInput.Sequence = 0
 	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(satsToSpend - 500)
 	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes[:], p2pkhBob.Script)
-	spendingInput.Sequence = 0
 
 	spendingTx := &transaction.Transaction{
 		Version:  2,
 		Flag:     0,
-		Locktime: 0,
+		Locktime: uint32(spendingBlockHeight),
 		Inputs:   []*transaction.TxInput{spendingInput},
 		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
 	}
@@ -228,24 +234,14 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	}
 
 	t.Log(spendingTxHex)
-
-	_, err = broadcast(spendingTxHex)
-	if err != nil && err.Error() != "-26:non-mandatory-script-verify-flag (Locktime requirement not satisfied) (code 64)" {
-		t.Fatal(err)
-	}
-
-	t.Logf("locktime requirement not satisfied")
-	err = generate(110)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Log(spendingTx.Locktime)
 	_, err = broadcast(spendingTxHex)
 	if err != nil  {
 		t.Fatal(err)
 	}
 }
 func Test_Loop_PreimageClaim(t *testing.T) {
-	var preimage Preimage
+	var preimage lightning.Preimage
 
 	if _, err := rand.Read(preimage[:]); err != nil {
 		t.Fatal(err)
@@ -272,7 +268,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
-	// Fund Alice address with LBTC.
+	// Fund Bob address with LBTC.
 	if _, err := faucet(addressBob); err != nil {
 		t.Fatal(err)
 	}
@@ -433,18 +429,16 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	t.Log(spendingTxHex)
 
-	_, err = broadcast(spendingTxHex)
+	res, err := broadcast(spendingTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(res)
 }
 
 
 
-type signOpts struct {
-	pubkeyScript []byte
-	script       []byte
-}
+
 
 func signTransaction(
 	p *pset.Pset,
@@ -612,12 +606,33 @@ func unspents(address string) ([]map[string]interface{}, error) {
 }
 
 func broadcast(txHex string) (string, error) {
-	elements := gelements.NewElements("admin1","123")
-	elements.StartUp("http://localhost", 7041)
-
-	res, err := elements.SendRawTx(txHex)
+	//elements := gelements.NewElements("admin1","123")
+	//elements.StartUp("http://localhost", 7041)
+	//
+	//res, err := elements.SendRawTx(txHex)
+	//if err != nil {
+	//	return "",err
+	//}
+	//return res, nil
+	baseUrl, err := apiBaseUrl()
 	if err != nil {
-		return "",err
+		return "", err
+	}
+	url := fmt.Sprintf("%s/tx", baseUrl)
+
+	resp, err := http.Post(url, "text/plain", strings.NewReader(txHex))
+	if err != nil {
+		return "", err
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	res := string(data)
+	if len(res) <= 0 || strings.Contains(res, "sendrawtransaction") {
+		return "", fmt.Errorf("failed to broadcast tx: %s", res)
 	}
 	return res, nil
 }
@@ -661,7 +676,3 @@ func b2h(buf []byte) string {
 	return hex.EncodeToString(buf)
 }
 
-func h2b(str string) []byte {
-	buf, _ := hex.DecodeString(str)
-	return buf
-}

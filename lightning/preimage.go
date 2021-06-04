@@ -1,4 +1,4 @@
-package glightning
+package lightning
 
 import (
 	"crypto/sha256"
