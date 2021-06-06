@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/liquid-loop/gelements"
 	"github.com/sputn1ck/liquid-loop/lightning"
+	"github.com/sputn1ck/liquid-loop/wallet"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
@@ -29,8 +30,58 @@ var lbtc = append(
 	[]byte{0x01},
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
 )
+var (
+	alicePrivkey = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
+)
+
+func Test_Wallet(t *testing.T) {
+	//privkeyBytes, err := hex.DecodeString(alicePrivkey)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//privkey,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
+
+	privkey, err := btcec.NewPrivateKey(btcec.S256())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 
+	walletStore := wallet.DummyWalletStore{PrivKey: privkey}
+	walletService := wallet.LiquiddWallet{Store: &walletStore}
+	addresses, err := walletStore.ListAddresses()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := faucet(addresses[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("faucet res: %s",res)
+	balance, err := walletService.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantBalance := uint64(100000000)
+	if balance != wantBalance {
+		t.Fatalf("balance wanted: %v, got %v", wantBalance, balance)
+	}
+	res, err = faucet(addresses[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 5)
+	balance, err = walletService.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantBalance = uint64(200000000)
+	if balance != wantBalance {
+		t.Fatalf("balance wanted: %v, got %v", wantBalance, balance)
+	}
+
+}
 func Test_Loop_TimelockCase(t *testing.T) {
 	var preimage lightning.Preimage
 

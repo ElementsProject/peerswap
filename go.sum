@@ -16,8 +16,11 @@ github.com/btcsuite/snappy-go v0.0.0-20151229074030-0bdef8d06723/go.mod h1:8woku
 github.com/btcsuite/snappy-go v1.0.0/go.mod h1:8woku9dyThutzjeg+3xrA5iCpBRH8XEEg3lh6TiUghc=
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
+github.com/cryptogarageinc/libwally-core v0.19.5 h1:OuJBS7EkvxM4OqKH2D6KOezo70F7S97fMJvjrohWYsc=
+github.com/cryptogarageinc/libwally-core v0.19.5/go.mod h1:guLUAeNzP60wbBbErTbytAdthuTuY0540ZfSXp+o1dM=
+github.com/cryptogarageinc/libwally-core v1.0.0 h1:XtPDgvCoqNALsyDbb4Axi2pbobZDm1TR46apX/PyZqk=
+github.com/cryptogarageinc/libwally-core v1.0.0/go.mod h1:guLUAeNzP60wbBbErTbytAdthuTuY0540ZfSXp+o1dM=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -41,11 +44,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/vulpemventures/fastsha256 v0.0.0-20160815193821-637e65642941 h1:CTcw80hz/Sw8hqlKX5ZYvBUF5gAHSHwdjXxRf/cjDcI=
 github.com/vulpemventures/fastsha256 v0.0.0-20160815193821-637e65642941/go.mod h1:GXBJykxW2kUcktGdsgyay7uwwWvkljASfljNcT0mbh8=
-github.com/vulpemventures/go-elements v0.2.0 h1:rBz1nMLMyCQS5+XSjzz6MtLjwmZ2+mdtBJOFHTVhzQs=
-github.com/vulpemventures/go-elements v0.2.0/go.mod h1:O5QYFgeOmfSPX3shsV+lvEotvzcDFtLoYY0jjdT+sVw=
 github.com/vulpemventures/go-elements v0.3.0 h1:Bbo0cGnMWPVCJl/x9i/OJygMbDNNm39y7oSdq5Q9dsA=
 github.com/vulpemventures/go-elements v0.3.0/go.mod h1:efmR8L736obtcAVjMNe9lT3Z41gVJ0t+rhxwLZSbtx8=
-github.com/vulpemventures/go-secp256k1-zkp v1.1.0/go.mod h1:zo7CpgkuPgoe7fAV+inyxsI9IhGmcoFgyD8nqZaPSOM=
 github.com/vulpemventures/go-secp256k1-zkp v1.1.2 h1:ZfM0r4QtkpQbNywlT9LFXXZBuMQ1Q8QiHGUTz4QV88M=
 github.com/vulpemventures/go-secp256k1-zkp v1.1.2/go.mod h1:zo7CpgkuPgoe7fAV+inyxsI9IhGmcoFgyD8nqZaPSOM=
 golang.org/x/crypto v0.0.0-20170930174604-9419663f5a44/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=

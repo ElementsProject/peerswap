@@ -16,6 +16,15 @@ var LBTC = append(
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
 )
 
+func GetFeeOutput(fee uint64) (*transaction.TxOutput, error){
+	feeValue, err := elementsutil.SatoshiToElementsValue(fee)
+	if err != nil {
+		return nil, err
+	}
+	feeScript := []byte{}
+	feeOutput := transaction.NewTxOutput(LBTC, feeValue, feeScript)
+	return feeOutput, nil
+}
 
 
 // GetOpeningTxScript returns the script for the opening transaction of a swap,

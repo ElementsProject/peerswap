@@ -14,6 +14,10 @@ type InMemStore struct {
 	swapMap map[string]*Swap
 }
 
+func NewInMemStore() *InMemStore {
+	return &InMemStore{swapMap: make(map[string]*Swap)}
+}
+
 func (i *InMemStore) Create(ctx context.Context, swap *Swap) error {
 	if _,ok := i.swapMap[swap.Id]; ok {
 		return AlreadyExistsError
