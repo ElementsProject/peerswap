@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/sputn1ck/liquid-loop/liquid"
+	"github.com/sputn1ck/liquid-loop/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
@@ -54,13 +55,8 @@ type Swapper interface {
 type TxBuilder interface {
 }
 
-type TxBroadcaster interface {
-}
-type BlockchainService interface {
-	GetBlockHeight() (int, error)
-	BroadcastTransaction(string) (string, error)
-	FetchTx(txId string) (string,error)
-}
+
+
 type Wallet interface {
 	GetBalance() (uint64, error)
 	GetPubkey() (*btcec.PublicKey, error)
@@ -79,7 +75,7 @@ type SwapStore interface {
 type Service struct {
 	store SwapStore
 	wallet Wallet
-	blockchain BlockchainService
+	blockchain wallet.BlockchainService
 
 	network *network.Network
 	asset []byte
@@ -176,7 +172,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, takerPubkeyStrin
 		return err
 	}
 
-	bobspendingTxHash, err := s.blockchain.FetchTx(b2h(inputs[0].Hash))
+	bobspendingTxHash, err := s.blockchain.FetchTxHex(b2h(inputs[0].Hash))
 	if err != nil {
 		return err
 	}
@@ -219,7 +215,6 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScrip
 	if err != nil {
 		return err
 	}
-	script.
 
 	// get the maker pubkey and privkey
 	pubkey, err := s.wallet.GetPubkey()

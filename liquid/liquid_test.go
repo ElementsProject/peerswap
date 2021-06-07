@@ -12,6 +12,7 @@ import (
 	"github.com/niftynei/glightning/gelements"
 	"github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
@@ -32,6 +33,7 @@ var lbtc = append(
 )
 var (
 	alicePrivkey = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
+	esplora = NewEsploraClient("http://localhost:3001")
 )
 
 func Test_Wallet(t *testing.T) {
@@ -47,8 +49,8 @@ func Test_Wallet(t *testing.T) {
 	}
 
 
-	walletStore := wallet.DummyWalletStore{PrivKey: privkey}
-	walletService := wallet.LiquiddWallet{Store: &walletStore}
+	walletStore := &wallet.DummyWalletStore{PrivKey: privkey}
+	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 	addresses, err := walletStore.ListAddresses()
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +67,7 @@ func Test_Wallet(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantBalance := uint64(100000000)
-	if balance != wantBalance {
+	if !assert.Equal(t, wantBalance, balance) {
 		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
 	res, err = faucet(addresses[0], 1)
@@ -78,7 +80,8 @@ func Test_Wallet(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantBalance = uint64(200000000)
-	if balance != wantBalance {
+
+	if !assert.Equal(t, wantBalance, balance) {
 		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
 
@@ -117,15 +120,15 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	}
 
 	// Retrieve Bob utxos.
-	utxosBob, err := unspents(addressBob)
+	utxosBob, err := esplora.FetchUtxos(addressBob)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// First Transaction
 	// 1 Input
-	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0]["txid"].(string)))
-	txInputIndexBob := uint32(utxosBob[0]["vout"].(float64))
+	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
+	txInputIndexBob := utxosBob[0].VOut
 	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
 
 	// 3 outputs Script, Change, fee
@@ -195,7 +198,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bobspendingTxHash, err := fetchTx(utxosBob[0]["txid"].(string))
+	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +229,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx, err := broadcast(txHex)
+	tx, err := esplora.BroadcastTransaction(txHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,12 +290,13 @@ func Test_Loop_TimelockCase(t *testing.T) {
 
 	t.Log(spendingTxHex)
 	t.Log(spendingTx.Locktime)
-	_, err = broadcast(spendingTxHex)
+	_, err = esplora.BroadcastTransaction(spendingTxHex)
 	if err != nil  {
 		t.Fatal(err)
 	}
 }
 func Test_Loop_PreimageClaim(t *testing.T) {
+	// Generate Preimage
 	var preimage lightning.Preimage
 
 	if _, err := rand.Read(preimage[:]); err != nil {
@@ -305,6 +309,9 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	aliceStore := &wallet.DummyWalletStore{PrivKey: privkeyAlice}
+	aliceWallet := &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
+
 	pubkeyAlice := privkeyAlice.PubKey()
 	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
 	_, _ = p2pkhAlice.PubKeyHash()
@@ -315,6 +322,8 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	bobStore := &wallet.DummyWalletStore{PrivKey: privkeyBob}
+	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
 
 	pubkeyBob := privkeyBob.PubKey()
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
@@ -324,52 +333,38 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second*10)
 
-	// Retrieve Alice utxos.
-	utxosBob, err := unspents(addressBob)
+	// Retrieve bob utxos.
+	satsToSpend := uint64(60000000)
+	fee := uint64(500)
+	utxosBob,change, err := bobWallet.GetUtxos(satsToSpend)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	// First Transaction
 	// 1 Input
-	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0]["txid"].(string)))
-	txInputIndexBob := uint32(utxosBob[0]["vout"].(float64))
+	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
+	txInputIndexBob := utxosBob[0].VOut
 	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
 
 	// 3 outputs Script, Change, fee
 	// Fees
-	feeValue, _ := elementsutil.SatoshiToElementsValue(500)
+	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
 	feeScript := []byte{}
 	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
 
 	// Change from/to Bob
 	changeScriptBob := p2pkhBob.Script
-	changeValueBob, _ := elementsutil.SatoshiToElementsValue(39999500)
+	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
 	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
 
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	script := txscript.NewScriptBuilder().
-		AddData(pubkeyAlice.SerializeCompressed()).
-		AddOp(txscript.OP_CHECKSIG).
-		AddOp(txscript.OP_NOTIF).
-		AddData(pubkeyBob.SerializeCompressed()).
-		AddOp(txscript.OP_CHECKSIG).
-		AddOp(txscript.OP_ELSE).
-		AddOp(txscript.OP_SIZE).
-		AddData(h2b("20")).
-		AddOp(txscript.OP_EQUALVERIFY).
-		AddOp(txscript.OP_SHA256).
-		AddData(pHash[:]).
-		AddOp(txscript.OP_EQUAL).
-		AddOp(txscript.OP_ENDIF)
-
-	redeemScript, err := script.Script()
+	redeemScript,err := GetOpeningTxScript(pubkeyAlice, pubkeyBob, pHash[:], 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	redeemPayment, err := payment.FromPayment(&payment.Payment{
 		Script:  redeemScript,
 		Network: &network.Regtest,
@@ -378,7 +373,6 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	satsToSpend := uint64(60000000)
 	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
 	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
 
@@ -396,7 +390,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bobspendingTxHash, err := fetchTx(utxosBob[0]["txid"].(string))
+	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,11 +421,11 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx, err := broadcast(txHex)
+	tx, err := esplora.BroadcastTransaction(txHex)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	time.Sleep(time.Second*5)
 	t.Log(tx)
 
 	// second transaction
@@ -481,11 +475,20 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	t.Log(spendingTxHex)
 
-	res, err := broadcast(spendingTxHex)
+	res, err := esplora.BroadcastTransaction(spendingTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(res)
+	time.Sleep(time.Second * 5)
+	aliceBalance, err := aliceWallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := satsToSpend - uint64(500)
+	if !assert.Equal(t, expected, aliceBalance) {
+		t.Fatalf("balance incorrenct got: %v, expected %v", aliceBalance, expected)
+	}
 }
 
 
@@ -618,76 +621,19 @@ func Test_BestBlock(t *testing.T) {
 	t.Log(bestblock)
 }
 
+func Test_Esplora(t *testing.T) {
+	client := NewEsploraClient("http://localhost:3001")
 
-func unspents(address string) ([]map[string]interface{}, error) {
-	getUtxos := func(address string) ([]interface{}, error) {
-		baseUrl, err := apiBaseUrl()
-		if err != nil {
-			return nil, err
-		}
-		url := fmt.Sprintf("%s/address/%s/utxo", baseUrl, address)
-		resp, err := http.Get(url)
-		if err != nil {
-			return nil, err
-		}
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		var respBody interface{}
-		if err := json.Unmarshal(data, &respBody); err != nil {
-			return nil, err
-		}
-		return respBody.([]interface{}), nil
+	bestBlock, err := client.GetBlockHeight()
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	utxos := []map[string]interface{}{}
-	for len(utxos) <= 0 {
-		time.Sleep(1 * time.Second)
-		u, err := getUtxos(address)
-		if err != nil {
-			return nil, err
-		}
-		for _, unspent := range u {
-			utxo := unspent.(map[string]interface{})
-			utxos = append(utxos, utxo)
-		}
-	}
-
-	return utxos, nil
+	t.Logf("\n \n \n %v", bestBlock)
 }
 
-func broadcast(txHex string) (string, error) {
-	//elements := gelements.NewElements("admin1","123")
-	//elements.StartUp("http://localhost", 7041)
-	//
-	//res, err := elements.SendRawTx(txHex)
-	//if err != nil {
-	//	return "",err
-	//}
-	//return res, nil
-	baseUrl, err := apiBaseUrl()
-	if err != nil {
-		return "", err
-	}
-	url := fmt.Sprintf("%s/tx", baseUrl)
 
-	resp, err := http.Post(url, "text/plain", strings.NewReader(txHex))
-	if err != nil {
-		return "", err
-	}
 
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
 
-	res := string(data)
-	if len(res) <= 0 || strings.Contains(res, "sendrawtransaction") {
-		return "", fmt.Errorf("failed to broadcast tx: %s", res)
-	}
-	return res, nil
-}
 
 func generate(numBlocks uint) ( error) {
 	elements := gelements.NewElements("admin1","123")
@@ -720,9 +666,6 @@ func fetchTx(txId string) (string, error) {
 	return string(data), nil
 }
 
-func apiBaseUrl() (string, error) {
-	return "http://localhost:3001", nil
-}
 
 func b2h(buf []byte) string {
 	return hex.EncodeToString(buf)
