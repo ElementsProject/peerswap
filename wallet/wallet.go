@@ -41,22 +41,41 @@ func (s *LiquiddWallet) GetBalance() (uint64, error) {
 }
 
 func (s *LiquiddWallet) GetPubkey() (*btcec.PublicKey, error) {
-	panic("implement me")
+	privkey, err := s.Store.LoadPrivKey()
+	if err != nil {
+		return nil, err
+	}
+	return privkey.PubKey(), nil
 }
 
 func (s *LiquiddWallet) GetPrivKey() (*btcec.PrivateKey, error) {
-	panic("implement me")
+	return s.Store.LoadPrivKey()
 }
 
+// GetUtxos returns a slice of uxtos that match the given amount, as well as the change for the
 func (s *LiquiddWallet) GetUtxos(amount uint64) ([]*transaction.TxInput, uint64, error) {
-	balance, err := s.GetBalance()
+	addresses, err := s.Store.ListAddresses()
 	if err != nil {
 		return nil, 0, err
 	}
-	if  balance < amount {
+
+	requiredBalance := amount
+	var utxos []string
+	for _,v := range addresses {
+		addressUnspents, err := unspents(v)
+		if err != nil {
+			return nil,0, err
+		}
+		for _,tx := range addressUnspents {
+			utxoValue := uint64(tx["value"].(float64))
+			requiredBalance -= utxoValue
+			utxos = append(utxos, tx[""])
+		}
+	}
+	if  requiredBalance > 0 {
 		return nil, 0, NotEnoughBalanceError
 	}
-	panic("implement me")
+
 }
 
 func unspents(address string) ([]map[string]interface{}, error) {

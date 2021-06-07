@@ -3,8 +3,6 @@ package wallet
 import (
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/vulpemventures/go-elements/network"
-	"github.com/vulpemventures/go-elements/payment"
 	"reflect"
 	"testing"
 )
@@ -40,7 +38,7 @@ func Test_Address(t *testing.T) {
 
 	walletStore := DummyWalletStore{PrivKey: privkey}
 
-	addresses, err := walletStore.ListAddresses()
+	_, err = walletStore.ListAddresses()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -81,7 +81,7 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fatal(err)
 	}
 
-	swap2.Buyer = "foobaz"
+	swap2.TakerNodeId = "foobaz"
 	err = store.Update(ctx, swap2)
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func storeTest(t *testing.T, store SwapStore) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if swap3.Buyer != swap2.Buyer {
+	if swap3.TakerNodeId != swap2.TakerNodeId {
 		t.Fail()
 	}
 }

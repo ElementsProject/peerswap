@@ -31,10 +31,54 @@ const (
 	_OpenChannel    Hook         = "openchannel"
 	_HtlcAccepted   Hook         = "htlc_accepted"
 	_RpcCommand     Hook         = "rpc_command"
+	_CustomMsg		Hook		= "custommsg"
 )
 
 var lightningMethodRegistry map[string]*jrpc2.Method
 
+// The custommsg plugin hook is the receiving counterpart to the dev-sendcustommsg RPC method
+//and allows plugins to handle messages that are not handled internally.
+type CustomMsgReceivedEvent struct {
+	PeerId string `json:"peer_id"`
+	Payload string `json:"payload"`
+	hook func(*CustomMsgReceivedEvent) (*CustomMsgReceivedResponse, error)
+}
+
+
+
+type _CustomMsgReceivedResult string
+
+const _CustomMsgReceivedContinue _CustomMsgReceivedResult = "continue"
+const _CustomMsgReceivedFail _CustomMsgReceivedResult = "fail"
+
+type CustomMsgReceivedResponse struct {
+	Result       _CustomMsgReceivedResult `json:"result"`
+}
+func (pc *CustomMsgReceivedEvent) New() interface{} {
+	return &CustomMsgReceivedEvent{
+		hook: pc.hook,
+	}
+}
+
+func (pc *CustomMsgReceivedEvent) Name() string {
+	return string(_CustomMsg)
+}
+
+func (pc *CustomMsgReceivedEvent) Call() (jrpc2.Result, error) {
+	return pc.hook(pc)
+}
+
+func (pc *CustomMsgReceivedEvent) Continue() *CustomMsgReceivedResponse {
+	return &CustomMsgReceivedResponse{
+		Result: _CustomMsgReceivedContinue,
+	}
+}
+
+func (pc *CustomMsgReceivedEvent) Fail() *CustomMsgReceivedResponse {
+	return &CustomMsgReceivedResponse{
+		Result:       _CustomMsgReceivedFail,
+	}
+}
 // This hook is called whenever a peer has connected and successfully completed
 //   the cryptographic handshake. The parameters have the following structure if
 //   there is a channel with the peer:
@@ -1145,6 +1189,7 @@ type Hooks struct {
 	OpenChannel    func(*OpenChannelEvent) (*OpenChannelResponse, error)
 	HtlcAccepted   func(*HtlcAcceptedEvent) (*HtlcAcceptedResponse, error)
 	RpcCommand     func(*RpcCommandEvent) (*RpcCommandResponse, error)
+	CustomMsgReceived	func(*CustomMsgReceivedEvent) (*CustomMsgReceivedResponse, error)
 }
 
 func (p *Plugin) RegisterHooks(hooks *Hooks) error {
@@ -1201,6 +1246,15 @@ func (p *Plugin) RegisterHooks(hooks *Hooks) error {
 			return err
 		}
 		p.hooks = append(p.hooks, _RpcCommand)
+	}
+	if hooks.CustomMsgReceived != nil {
+		err := p.server.Register(&CustomMsgReceivedEvent{
+			hook: hooks.CustomMsgReceived,
+		})
+		if err != nil {
+			return err
+		}
+		p.hooks = append(p.hooks, _CustomMsg)
 	}
 	return nil
 }

@@ -29,8 +29,8 @@ type Swap struct {
 	Id string
 	Type SwapType
 	State SwapState
-	Buyer string
-	Seller string
+	MakerNodeId string
+	TakerNodeId string
 	Amount uint64
 
 	Invoice string
@@ -46,7 +46,7 @@ type Swap struct {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapType SwapType, buyer string, seller string, amount uint64) (*Swap, error) {
+func NewSwap(swapType SwapType, maker string, taker string, amount uint64) (*Swap, error) {
 	swapId, err := newSwapId()
 	if err != nil {
 		return nil, err
@@ -55,8 +55,8 @@ func NewSwap(swapType SwapType, buyer string, seller string, amount uint64) (*Sw
 		Id: swapId,
 		Type: swapType,
 		State: SWAPSTATE_CREATED,
-		Buyer: buyer,
-		Seller: seller,
+		MakerNodeId: maker,
+		TakerNodeId: taker,
 		Amount: amount,
 	}, nil
 }

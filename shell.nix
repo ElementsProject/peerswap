@@ -12,6 +12,7 @@ with pkgs;
         PATH_TO_LIGHTNING=$(pwd)
     fi
 
+
     if [ -z "$PATH_TO_LIGHTNING" ]; then
         # Already installed maybe?  Prints
         # shellcheck disable=SC2039
@@ -47,8 +48,8 @@ with pkgs;
 			return
 		fi
 	fi
-    
-    
+
+
     stop_nodes() {
         if [ -z "$2" ]; then
             network=regtest
@@ -180,7 +181,7 @@ with pkgs;
 
 		# Start the lightning nodes
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
-			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" "--plugin=/home/kon/clightning/liquid-loop/liquid-loop" --daemon 
+			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" "--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-loop/liquid-loop" --daemon
 		# shellcheck disable=SC2139 disable=SC2086
 		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
 		# shellcheck disable=SC2139 disable=SC2086
@@ -193,6 +194,33 @@ with pkgs;
 		echo "	l$i-cli, l$i-log,"
 	done
 
+    }
+
+    setup_alias() {
+        if [ -z "$1" ]; then
+        		node_count=2
+        	else
+        		node_count=$1
+        fi
+        if [ -z "$2" ]; then
+        		network=regtest
+        	else
+        		network=$2
+        	fi
+	    LN_NODES=$node_count
+
+	    for i in $(seq $node_count); do
+	    # shellcheck disable=SC2139 disable=SC2086
+        		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
+        		# shellcheck disable=SC2139 disable=SC2086
+        		alias l$i-log="less /tmp/l$i-$network/log"
+        		alias l$i-follow="tail -f /tmp/l$i-$network/log"
+        done
+        # Give a hint.
+        echo "Commands: "
+        for i in $(seq $node_count); do
+            echo "	l$i-cli, l$i-log, l$i-follow"
+        done
     }
 
     connect_nodes() {
