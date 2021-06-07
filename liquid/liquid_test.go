@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/sputn1ck/liquid-loop/gelements"
+	"github.com/niftynei/glightning/gelements"
 	"github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/sputn1ck/liquid-loop/wallet"
 	"github.com/vulpemventures/go-elements/payment"
@@ -53,21 +53,22 @@ func Test_Wallet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	res, err := faucet(addresses[0])
+	fmt.Println(addresses[0])
+	res, err := faucet(addresses[0], 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("faucet res: %s",res)
+	time.Sleep(time.Second * 5)
+	t.Logf("faucet res: %s \n",res)
 	balance, err := walletService.GetBalance()
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantBalance := uint64(100000000)
 	if balance != wantBalance {
-		t.Fatalf("balance wanted: %v, got %v", wantBalance, balance)
+		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
-	res, err = faucet(addresses[0])
+	res, err = faucet(addresses[0], 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +79,7 @@ func Test_Wallet(t *testing.T) {
 	}
 	wantBalance = uint64(200000000)
 	if balance != wantBalance {
-		t.Fatalf("balance wanted: %v, got %v", wantBalance, balance)
+		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
 
 }
@@ -111,7 +112,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
 	// Fund Bob address with LBTC.
-	if _, err := faucet(addressBob); err != nil {
+	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -320,7 +321,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
 	// Fund Bob address with LBTC.
-	if _, err := faucet(addressBob); err != nil {
+	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -568,13 +569,13 @@ func signTransaction(
 	return nil
 }
 
-func faucet(address string) (string, error) {
+func faucet(address string, amount float64) (string, error) {
 	baseURL, err := apiBaseUrl()
 	if err != nil {
 		return "", err
 	}
 	url := fmt.Sprintf("%s/faucet", baseURL)
-	payload := map[string]string{"address": address}
+	payload := map[string]string{"address": address, "amount": fmt.Sprintf("%v", amount)}
 	body, _ := json.Marshal(payload)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))

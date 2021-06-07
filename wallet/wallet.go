@@ -33,7 +33,7 @@ func (s *LiquiddWallet) GetBalance() (uint64, error) {
 			return 0, err
 		}
 		for _,tx := range addressUnspents {
-			balance += uint64(tx["value"].(float64))
+			balance += tx.Value
 		}
 	}
 
@@ -67,19 +67,32 @@ func (s *LiquiddWallet) GetUtxos(amount uint64) ([]*transaction.TxInput, uint64,
 			return nil,0, err
 		}
 		for _,tx := range addressUnspents {
-			utxoValue := uint64(tx["value"].(float64))
+			utxoValue := tx.Value
 			requiredBalance -= utxoValue
-			utxos = append(utxos, tx[""])
+			utxos = append(utxos, "")
 		}
 	}
 	if  requiredBalance > 0 {
 		return nil, 0, NotEnoughBalanceError
 	}
+	return nil, 0, nil
 
 }
 
-func unspents(address string) ([]map[string]interface{}, error) {
-	getUtxos := func(address string) ([]interface{}, error) {
+type GetUtxosResponse struct {
+	Utxos []*Utxo
+}
+
+type Utxo struct {
+	TxId string `json:"txid"`
+	VOut uint32 `json:"vout"`
+	Status interface{} `json:"status"`
+	Value uint64 `json:"value"`
+	Asset string `json:"asset"`
+}
+
+func unspents(address string) ([]*Utxo, error) {
+	getUtxos := func(address string) ([]*Utxo, error) {
 		baseUrl, err := apiBaseUrl()
 		if err != nil {
 			return nil, err
@@ -94,26 +107,13 @@ func unspents(address string) ([]map[string]interface{}, error) {
 			return nil, err
 		}
 		fmt.Printf("%s", data)
-		var respBody interface{}
+		var respBody []*Utxo
 		if err := json.Unmarshal(data, &respBody); err != nil {
 			return nil, err
 		}
-		return respBody.([]interface{}), nil
+		return respBody, nil
 	}
-
-	utxos := []map[string]interface{}{}
-	for len(utxos) <= 0 {
-		u, err := getUtxos(address)
-		if err != nil {
-			return nil, err
-		}
-		for _, unspent := range u {
-			utxo := unspent.(map[string]interface{})
-			utxos = append(utxos, utxo)
-		}
-	}
-
-	return utxos, nil
+	return getUtxos(address)
 }
 func apiBaseUrl() (string, error) {
 	return "http://localhost:3001", nil

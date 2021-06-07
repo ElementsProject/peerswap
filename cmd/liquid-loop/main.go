@@ -1,15 +1,19 @@
 package main
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/liquid-loop/glightning"
-	"github.com/sputn1ck/liquid-loop/jrpc2"
+	"github.com/niftynei/glightning/glightning"
+	"github.com/niftynei/glightning/jrpc2"
 	"log"
 	"math/big"
 	"os"
 )
-
+const (
+	dataType = "aaff"
+)
 
 var lightning *glightning.Lightning
 var plugin *glightning.Plugin
@@ -17,6 +21,12 @@ var plugin *glightning.Plugin
 // ok, let's try plugging this into c-lightning
 func main() {
 	plugin = glightning.NewPlugin(onInit)
+	err := plugin.RegisterHooks(&glightning.Hooks{
+		CustomMsgReceived: OnCustomMsg,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	lightning = glightning.NewLightning()
 
 	var b big.Int
@@ -27,10 +37,15 @@ func main() {
 	registerOptions(plugin)
 	registerMethods(plugin)
 	
-	err := plugin.Start(os.Stdin, os.Stdout)
+	err = plugin.Start(os.Stdin, os.Stdout)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
+	log.Printf("new custom msg. peer: %s, payload: %s", event.PeerId, event.Payload)
+	return event.Continue(), nil
 }
 
 // This is called after the plugin starts up successfully
@@ -76,6 +91,11 @@ type LoopIn struct {
 	Peer string `json:"peer"`
 }
 
+type LoopInData struct {
+	Amt int64 `json:"amt"`
+	Msg string `json:"msg"`
+}
+
 func (l *LoopIn) New() interface{} {
 	return &LoopIn{}
 }
@@ -86,14 +106,22 @@ func (l *LoopIn) Name() string {
 
 func (l *LoopIn) Call() (jrpc2.Result, error) {
 	if l.Amt <= 0 {
-		return nil, errors.New("Missing required amount parameter")
+		return nil, errors.New("Missing required amt parameter")
 	}
 	if l.Peer == "" {
 		return nil, errors.New("Missing required peer parameter")
 	}
-	hops := []glightning.OnionMessageHop{
-		{Id:     l.Peer,},
+	bytes, err := json.Marshal(&LoopInData{
+		Amt: l.Amt,
+		Msg: "Gudee",
+	})
+	if err != nil {
+		return nil, err
 	}
-	res, err := lightning.SendOnionMessage(hops)
-	return fmt.Sprintf("loop-in called! %v %v %s %s %v", l.Amt, l.Peer, res, err), nil
+	msg := dataType + hex.EncodeToString(bytes)
+	res, err := lightning.SendCustomMessage(l.Peer, msg)
+	if err != nil {
+		return nil, err
+	}
+	return fmt.Sprintf("loop-in called! %v %s %s %v %v", l.Amt, l.Peer, msg, res, err), nil
 }
