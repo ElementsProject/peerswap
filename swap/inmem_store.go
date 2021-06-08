@@ -7,7 +7,7 @@ import (
 
 var (
 	AlreadyExistsError = errors.New("Swap is already present in database")
-	DoesNotExistError = errors.New("Swap does not exist")
+	DoesNotExistError  = errors.New("Swap does not exist")
 )
 
 type InMemStore struct {
@@ -19,7 +19,7 @@ func NewInMemStore() *InMemStore {
 }
 
 func (i *InMemStore) Create(ctx context.Context, swap *Swap) error {
-	if _,ok := i.swapMap[swap.Id]; ok {
+	if _, ok := i.swapMap[swap.Id]; ok {
 		return AlreadyExistsError
 	}
 	i.swapMap[swap.Id] = swap
@@ -27,7 +27,7 @@ func (i *InMemStore) Create(ctx context.Context, swap *Swap) error {
 }
 
 func (i *InMemStore) Update(ctx context.Context, swap *Swap) error {
-	if _,ok := i.swapMap[swap.Id]; !ok {
+	if _, ok := i.swapMap[swap.Id]; !ok {
 		return DoesNotExistError
 	}
 	i.swapMap[swap.Id] = swap
@@ -35,7 +35,7 @@ func (i *InMemStore) Update(ctx context.Context, swap *Swap) error {
 }
 
 func (i *InMemStore) DeleteById(ctx context.Context, s string) error {
-	if _,ok := i.swapMap[s]; !ok {
+	if _, ok := i.swapMap[s]; !ok {
 		return DoesNotExistError
 	}
 	delete(i.swapMap, s)
@@ -43,17 +43,16 @@ func (i *InMemStore) DeleteById(ctx context.Context, s string) error {
 }
 
 func (i *InMemStore) GetById(ctx context.Context, s string) (*Swap, error) {
-	if v,ok := i.swapMap[s]; ok {
-		return v,nil
+	if v, ok := i.swapMap[s]; ok {
+		return v, nil
 	}
 	return nil, DoesNotExistError
 }
 
 func (i *InMemStore) ListAll(ctx context.Context) ([]*Swap, error) {
 	var swaps []*Swap
-	for _,v := range i.swapMap {
+	for _, v := range i.swapMap {
 		swaps = append(swaps, v)
 	}
 	return swaps, nil
 }
-

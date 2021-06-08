@@ -33,7 +33,7 @@ var lbtc = append(
 )
 var (
 	alicePrivkey = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
-	esplora = NewEsploraClient("http://localhost:3001")
+	esplora      = NewEsploraClient("http://localhost:3001")
 )
 
 func Test_Wallet(t *testing.T) {
@@ -48,7 +48,6 @@ func Test_Wallet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	walletStore := &wallet.DummyWalletStore{PrivKey: privkey}
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 	addresses, err := walletStore.ListAddresses()
@@ -61,7 +60,7 @@ func Test_Wallet(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(time.Second * 5)
-	t.Logf("faucet res: %s \n",res)
+	t.Logf("faucet res: %s \n", res)
 	balance, err := walletService.GetBalance()
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +101,6 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	pubkeyAlice := privkeyAlice.PubKey()
 	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
 	_, _ = p2pkhAlice.PubKeyHash()
-
 
 	// Generating Bob Keys and Address
 	privkeyBob, err := btcec.NewPrivateKey(btcec.S256())
@@ -280,8 +278,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	witness = append(witness, sigWithHashType[:])
 	witness = append(witness, []byte{})
 	witness = append(witness, redeemScript)
-	spendingTx.Inputs[0].Witness =  witness
-
+	spendingTx.Inputs[0].Witness = witness
 
 	spendingTxHex, err := spendingTx.ToHex()
 	if err != nil {
@@ -291,7 +288,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	t.Log(spendingTxHex)
 	t.Log(spendingTx.Locktime)
 	_, err = esplora.BroadcastTransaction(spendingTxHex)
-	if err != nil  {
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -316,7 +313,6 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
 	_, _ = p2pkhAlice.PubKeyHash()
 
-
 	// Generating Bob Keys and Address
 	privkeyBob, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
@@ -333,12 +329,12 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second*10)
+	time.Sleep(time.Second * 10)
 
 	// Retrieve bob utxos.
 	satsToSpend := uint64(60000000)
 	fee := uint64(500)
-	utxosBob,change, err := bobWallet.GetUtxos(satsToSpend)
+	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,14 +357,13 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	redeemScript,err := GetOpeningTxScript(pubkeyAlice, pubkeyBob, pHash[:], 10)
+	redeemScript, err := GetOpeningTxScript(pubkeyAlice, pubkeyBob, pHash[:], 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	redeemPayment, err := payment.FromPayment(&payment.Payment{
 		Script:  redeemScript,
 		Network: &network.Regtest,
-
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -425,7 +420,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second*5)
+	time.Sleep(time.Second * 5)
 	t.Log(tx)
 
 	// second transaction
@@ -465,8 +460,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	witness = append(witness, sigWithHashType[:])
 	//witness = append(witness, []byte{})
 	witness = append(witness, redeemScript)
-	spendingTx.Inputs[0].Witness =  witness
-
+	spendingTx.Inputs[0].Witness = witness
 
 	spendingTxHex, err := spendingTx.ToHex()
 	if err != nil {
@@ -490,10 +484,6 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 		t.Fatalf("balance incorrenct got: %v, expected %v", aliceBalance, expected)
 	}
 }
-
-
-
-
 
 func signTransaction(
 	p *pset.Pset,
@@ -573,11 +563,8 @@ func signTransaction(
 }
 
 func faucet(address string, amount float64) (string, error) {
-	baseURL, err := apiBaseUrl()
-	if err != nil {
-		return "", err
-	}
-	url := fmt.Sprintf("%s/faucet", baseURL)
+
+	url := fmt.Sprintf("%s/faucet", "http://localhost:3001")
 	payload := map[string]string{"address": address, "amount": fmt.Sprintf("%v", amount)}
 	body, _ := json.Marshal(payload)
 
@@ -603,7 +590,7 @@ func faucet(address string, amount float64) (string, error) {
 }
 
 func getBestBlock() (int, error) {
-	elements := gelements.NewElements("admin1","123")
+	elements := gelements.NewElements("admin1", "123")
 	elements.StartUp("http://localhost", 7041)
 
 	res, err := elements.GetBlockCount()
@@ -631,12 +618,8 @@ func Test_Esplora(t *testing.T) {
 	t.Logf("\n \n \n %v", bestBlock)
 }
 
-
-
-
-
-func generate(numBlocks uint) ( error) {
-	elements := gelements.NewElements("admin1","123")
+func generate(numBlocks uint) error {
+	elements := gelements.NewElements("admin1", "123")
 	elements.StartUp("http://localhost", 7041)
 
 	_, err := elements.GenerateToAddress("XYYena4XzRaexwmqv6HbDQgjfT7sEkx2y9", numBlocks)
@@ -647,10 +630,7 @@ func generate(numBlocks uint) ( error) {
 }
 
 func fetchTx(txId string) (string, error) {
-	baseUrl, err := apiBaseUrl()
-	if err != nil {
-		return "", err
-	}
+	baseUrl := "http://localhost:3001"
 	url := fmt.Sprintf("%s/tx/%s/hex", baseUrl, txId)
 
 	resp, err := http.Get(url)
@@ -666,8 +646,6 @@ func fetchTx(txId string) (string, error) {
 	return string(data), nil
 }
 
-
 func b2h(buf []byte) string {
 	return hex.EncodeToString(buf)
 }
-

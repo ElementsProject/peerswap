@@ -4,9 +4,11 @@ import (
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
 )
+
 var (
 	NotEnoughBalanceError = errors.New("Not enough balance on utxos")
 )
+
 type WalletStore interface {
 	LoadPrivKey() (*btcec.PrivateKey, error)
 	ListAddresses() ([]string, error)
@@ -14,19 +16,19 @@ type WalletStore interface {
 type BlockchainService interface {
 	GetBlockHeight() (int, error)
 	BroadcastTransaction(string) (string, error)
-	FetchTxHex(txId string) (string,error)
+	FetchTxHex(txId string) (string, error)
 	FetchUtxos(address string) ([]*Utxo, error)
 }
 type Utxo struct {
-	TxId string `json:"txid"`
-	VOut uint32 `json:"vout"`
+	TxId   string      `json:"txid"`
+	VOut   uint32      `json:"vout"`
 	Status interface{} `json:"status"`
-	Value uint64 `json:"value"`
-	Asset string `json:"asset"`
+	Value  uint64      `json:"value"`
+	Asset  string      `json:"asset"`
 }
 
 type LiquiddWallet struct {
-	Store WalletStore
+	Store      WalletStore
 	Blockchain BlockchainService
 }
 
@@ -45,7 +47,7 @@ func (s *LiquiddWallet) GetBalance() (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
-		for _,tx := range addressUnspents {
+		for _, tx := range addressUnspents {
 			balance += tx.Value
 		}
 	}
@@ -80,6 +82,7 @@ func (s *LiquiddWallet) ListUtxos() ([]*Utxo, error) {
 	}
 	return utxos, nil
 }
+
 // GetUtxos returns a slice of uxtos that match the given amount, as well as the change for the
 func (s *LiquiddWallet) GetUtxos(amount uint64) ([]*Utxo, uint64, error) {
 	addresses, err := s.Store.ListAddresses()
@@ -93,7 +96,7 @@ func (s *LiquiddWallet) GetUtxos(amount uint64) ([]*Utxo, uint64, error) {
 	for _, address := range addresses {
 		addressUnspents, err = s.Blockchain.FetchUtxos(address)
 		if err != nil {
-			return nil,0, err
+			return nil, 0, err
 		}
 		for _, utxo := range addressUnspents {
 			haveBalance += utxo.Value

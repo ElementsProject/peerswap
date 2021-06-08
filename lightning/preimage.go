@@ -6,8 +6,6 @@ import (
 	"fmt"
 )
 
-
-
 // PreimageSize of array used to store preimagees.
 const PreimageSize = 32
 

@@ -16,22 +16,22 @@ func TestInMemStore(t *testing.T) {
 func storeTest(t *testing.T, store SwapStore) {
 	ctx := context.Background()
 
-	swap1,err := NewSwap(SWAPTYPE_IN, "foo", "bar", 100)
+	swap1, err := NewSwap(SWAPTYPE_IN, "foo", "bar", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
-	swap2,err := NewSwap(SWAPTYPE_OUT, "baz", "qux", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = store.Create(ctx, swap1)
+	swap2, err := NewSwap(SWAPTYPE_OUT, "baz", "qux", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = store.Create(ctx, swap1)
-	if err != nil && err != AlreadyExistsError{
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = store.Create(ctx, swap1)
+	if err != nil && err != AlreadyExistsError {
 		t.Fatal(err)
 	}
 
@@ -65,7 +65,7 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fatal(err)
 	}
 	err = store.DeleteById(ctx, swap3.Id)
-	if err != nil && err != DoesNotExistError{
+	if err != nil && err != DoesNotExistError {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fail()
 	}
 	err = store.Update(ctx, swap1)
-	if err != nil && err != DoesNotExistError{
+	if err != nil && err != DoesNotExistError {
 		t.Fatal(err)
 	}
 
@@ -104,7 +104,7 @@ func TestNewSwapId(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%s, %s", id1,id2)
+	t.Logf("%s, %s", id1, id2)
 	if id1 == id2 {
 		t.Fail()
 	}

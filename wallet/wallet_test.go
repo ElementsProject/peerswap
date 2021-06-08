@@ -34,7 +34,7 @@ func Test_Address(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	privkey,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
+	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
 
 	walletStore := DummyWalletStore{PrivKey: privkey}
 
@@ -53,43 +53,43 @@ func Test_getUtxos(t *testing.T) {
 		haveUtxos []*Utxo
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantUtxos  []*Utxo
-		wantChange uint64
-		wantErr    bool
+		name          string
+		args          args
+		wantUtxos     []*Utxo
+		wantChange    uint64
+		wantErr       bool
 		specificError error
 	}{
 		// TODO: Add test cases.
 		{
 			name: "ez",
 			args: args{
-				amount: 1000,
+				amount:    1000,
 				haveUtxos: []*Utxo{fooUtxo},
 			},
-			wantUtxos: []*Utxo{fooUtxo},
+			wantUtxos:  []*Utxo{fooUtxo},
 			wantChange: 0,
-			wantErr: false,
+			wantErr:    false,
 		},
 		{
 			name: "ez2",
 			args: args{
-				amount: 1500,
+				amount:    1500,
 				haveUtxos: []*Utxo{fooUtxo, barUtxo},
 			},
-			wantUtxos: []*Utxo{fooUtxo, barUtxo},
+			wantUtxos:  []*Utxo{fooUtxo, barUtxo},
 			wantChange: 1500,
-			wantErr: false,
+			wantErr:    false,
 		},
 		{
 			name: "ez2",
 			args: args{
-				amount: 3500,
+				amount:    3500,
 				haveUtxos: []*Utxo{fooUtxo, barUtxo},
 			},
-			wantUtxos: nil,
-			wantChange: 0,
-			wantErr: true,
+			wantUtxos:     nil,
+			wantChange:    0,
+			wantErr:       true,
 			specificError: NotEnoughBalanceError,
 		},
 	}
@@ -113,7 +113,7 @@ func Test_getUtxos(t *testing.T) {
 	}
 }
 
-func getutxo(id string, amount uint64) (*Utxo) {
+func getutxo(id string, amount uint64) *Utxo {
 	return &Utxo{
 		TxId:  id,
 		Value: amount,

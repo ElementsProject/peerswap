@@ -22,6 +22,6 @@ func (d *DummyWalletStore) ListAddresses() ([]string, error) {
 		return nil, err
 	}
 
-	return []string{address},nil
+	return []string{address}, nil
 
 }

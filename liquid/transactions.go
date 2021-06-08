@@ -16,7 +16,7 @@ var LBTC = append(
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
 )
 
-func GetFeeOutput(fee uint64) (*transaction.TxOutput, error){
+func GetFeeOutput(fee uint64) (*transaction.TxOutput, error) {
 	feeValue, err := elementsutil.SatoshiToElementsValue(fee)
 	if err != nil {
 		return nil, err
@@ -26,15 +26,14 @@ func GetFeeOutput(fee uint64) (*transaction.TxOutput, error){
 	return feeOutput, nil
 }
 
-
 // GetOpeningTxScript returns the script for the opening transaction of a swap,
 // where the taker is the peer paying the invoice and the maker the peer providing the lbtc
-func GetOpeningTxScript(takerPubkey *btcec.PublicKey, makerPubkey *btcec.PublicKey, pHash []byte, locktimeHeight int64) ([]byte, error) {
+func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []byte, locktimeHeight int64) ([]byte, error) {
 	script := txscript.NewScriptBuilder().
-		AddData(takerPubkey.SerializeCompressed()).
+		AddData(takerPubkeyHash).
 		AddOp(txscript.OP_CHECKSIG).
 		AddOp(txscript.OP_NOTIF).
-		AddData(makerPubkey.SerializeCompressed()).
+		AddData(makerPubkeyHash).
 		AddOp(txscript.OP_CHECKSIGVERIFY).
 		AddInt64(locktimeHeight).
 		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
@@ -48,6 +47,7 @@ func GetOpeningTxScript(takerPubkey *btcec.PublicKey, makerPubkey *btcec.PublicK
 		AddOp(txscript.OP_ENDIF)
 	return script.Script()
 }
+
 type signOpts struct {
 	pubkeyScript []byte
 	script       []byte
