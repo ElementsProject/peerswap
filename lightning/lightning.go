@@ -1,9 +1,7 @@
 package lightning
 
-import "github.com/sputn1ck/liquid-loop/wallet"
-
-const (
-	customMsgType = "A455"
+import (
+	"github.com/sputn1ck/liquid-loop/wallet"
 )
 
 type WalletService interface {
@@ -13,12 +11,20 @@ type WalletService interface {
 }
 
 type PeerCommunicator interface {
-	SendMessage(peerId string, message []byte) error
-	AddMessageHandler(func(peerId string, message string) error) error
+	SendMessage(peerId string, message PeerMessage) error
+	AddMessageHandler(func(peerId string, messageType string, payload string) error) error
+}
+
+type PeerMessage interface {
+	MessageType() string
 }
 
 type Invoice struct {
-	PHash       string
+	PHash       []byte
 	Amount      uint64
 	Description string
+}
+
+type Swapper interface {
+	StartSwapIn(peerNodeId string, channelId string, amount uint64) error
 }

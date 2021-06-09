@@ -357,7 +357,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	redeemScript, err := GetOpeningTxScript(pubkeyAlice, pubkeyBob, pHash[:], 10)
+	redeemScript, err := GetOpeningTxScript(pubkeyAlice.SerializeCompressed(), pubkeyBob.SerializeCompressed(), pHash[:], 10)
 	if err != nil {
 		t.Fatal(err)
 	}

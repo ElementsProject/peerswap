@@ -3,6 +3,7 @@ package wallet
 import (
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/vulpemventures/go-elements/transaction"
 )
 
 var (
@@ -18,6 +19,7 @@ type BlockchainService interface {
 	BroadcastTransaction(string) (string, error)
 	FetchTxHex(txId string) (string, error)
 	FetchUtxos(address string) ([]*Utxo, error)
+	WalletUtxosToTxInputs(utxos []*Utxo) ([]*transaction.TxInput, error)
 }
 type Utxo struct {
 	TxId   string      `json:"txid"`

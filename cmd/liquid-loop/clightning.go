@@ -1,19 +1,23 @@
-package lightning
+package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"github.com/niftynei/glightning/glightning"
+	"github.com/sputn1ck/liquid-loop/lightning"
+	"github.com/sputn1ck/liquid-loop/swap"
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 )
 
 type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
-	msgHandlers []func(peerId string, message string) error
+	msgHandlers []func(peerId string, messageType string, payload string) error
 }
 
 func NewClightningClient() (*ClightningClient, error) {
@@ -40,8 +44,12 @@ func (c *ClightningClient) Start() error {
 	return c.plugin.Start(os.Stdin, os.Stdout)
 }
 
-func (c *ClightningClient) SendMessage(peerId string, message []byte) error {
-	msg := customMsgType + hex.EncodeToString(message)
+func (c *ClightningClient) SendMessage(peerId string, message lightning.PeerMessage) error {
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+	msg := message.MessageType() + hex.EncodeToString(messageBytes)
 	res, err := c.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
@@ -52,27 +60,54 @@ func (c *ClightningClient) SendMessage(peerId string, message []byte) error {
 	return nil
 }
 
-func (c *ClightningClient) AddMessageHandler(f func(peerId string, message string) error) error {
+func (c *ClightningClient) AddMessageHandler(f func(peerId string, messageType string, payload string) error) error {
 	c.msgHandlers = append(c.msgHandlers, f)
 	return nil
 }
 
-func (c *ClightningClient) GetPayreq(amount uint64, preImage, pHash string) (string, error) {
-	panic("implement me")
+func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string) (string, error) {
+	res, err := c.glightning.CreateInvoice(amountMsat, "liquid swap:"+label, "liquid swap", 3600, []string{}, preImage, false)
+	if err != nil {
+		return "", err
+	}
+	return res.Bolt11, nil
 }
 
-func (c *ClightningClient) DecodePayreq(payreq string) (*Invoice, error) {
-	panic("implement me")
+func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
+	res, err := c.glightning.DecodeBolt11(payreq)
+	if err != nil {
+		return nil, err
+	}
+	pHashBytes, err := hex.DecodeString(res.PaymentHash)
+	if err != nil {
+		return nil, err
+	}
+	mSatValue, err := strconv.Atoi(res.AmountMsat)
+	if err != nil {
+		return nil, err
+	}
+	return &lightning.Invoice{
+		Description: res.Description,
+		PHash:       pHashBytes,
+		Amount:      uint64(mSatValue),
+	}, nil
 }
 
 func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
-	panic("implement me")
+	res, err := c.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
+	if err != nil {
+		return "", err
+	}
+	return res.PaymentPreimage, nil
 }
 
 func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
-	log.Printf("new custom msg. peer: %s, payload: %s", event.PeerId, event.Payload)
+
+	typeString := event.Payload[:4]
+	payload := event.Payload[4:]
+	log.Printf("new custom msg. peer: %s, messageType %s messageType payload: %s", event.PeerId, typeString, payload)
 	for _, v := range c.msgHandlers {
-		err := v(event.PeerId, event.Payload)
+		err := v(event.PeerId, typeString, payload)
 		if err != nil {
 			log.Printf("\n msghandler err: %v", err)
 		}
@@ -113,10 +148,12 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-func (c *ClightningClient) RegisterMethods(wallet WalletService) error {
-	loopIn := glightning.NewRpcMethod(&LoopIn{
-		wallet: wallet,
-		pc:     c,
+func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps *swap.Service) error {
+	loopIn := glightning.NewRpcMethod(&SwapOut{
+		wallet:    wallet,
+		pc:        c,
+		lightning: c.glightning,
+		swapper:   swaps,
 	}, "Loop In")
 	loopIn.Category = "liquid-loop"
 	err := c.plugin.RegisterMethod(loopIn)
@@ -124,10 +161,19 @@ func (c *ClightningClient) RegisterMethods(wallet WalletService) error {
 		return err
 	}
 
+	listSwaps := glightning.NewRpcMethod(&ListSwaps{
+		swapper: swaps,
+	}, "list swaps")
+	listSwaps.Category = "liquid-loop"
+	err = c.plugin.RegisterMethod(listSwaps)
+	if err != nil {
+		return err
+	}
+
 	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
 		wallet: wallet,
 	}, "get new liquid address")
-	loopIn.Category = "liquid-loop"
+	getAddress.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getAddress)
 	if err != nil {
 		return err
@@ -136,7 +182,7 @@ func (c *ClightningClient) RegisterMethods(wallet WalletService) error {
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
 		wallet: wallet,
 	}, "get liquid balance")
-	loopIn.Category = "liquid-loop"
+	getBalance.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getBalance)
 	if err != nil {
 		return err
@@ -145,7 +191,7 @@ func (c *ClightningClient) RegisterMethods(wallet WalletService) error {
 	listUtxos := glightning.NewRpcMethod(&ListUtxosMethod{
 		wallet: wallet,
 	}, "list liquid utxos")
-	loopIn.Category = "liquid-loop"
+	listUtxos.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listUtxos)
 	if err != nil {
 		return err

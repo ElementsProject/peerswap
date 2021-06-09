@@ -3,9 +3,10 @@ package main
 import (
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
-	lightning2 "github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/sputn1ck/liquid-loop/liquid"
+	"github.com/sputn1ck/liquid-loop/swap"
 	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/vulpemventures/go-elements/network"
 	"log"
 	"os"
 )
@@ -36,18 +37,35 @@ func run() error {
 	walletStore := &wallet.DummyWalletStore{PrivKey: privkey}
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 
-	clightning, err := lightning2.NewClightningClient()
+	clightning, err := NewClightningClient()
 	if err != nil {
 		return err
 	}
+	swapStore := swap.NewInMemStore()
+	swapService := swap.NewService(swapStore, walletService, clightning,esplora, clightning, &network.Regtest)
 	err = clightning.RegisterOptions()
 	if err != nil {
 		return err
 	}
-	err = clightning.RegisterMethods(walletService)
+	err = clightning.RegisterMethods(walletService, swapService)
 	if err != nil {
 		return err
 	}
 
+	messageHandler := swap.NewMessageHandler(clightning, swapService)
+	err = messageHandler.Start()
+	if err != nil {
+		return err
+	}
+	addr, err := walletService.ListAddresses()
+	if err != nil {
+		return err
+	}
+	_, err = esplora.DEV_Fundaddress(addr[0])
+	if err != nil {
+		return err
+	}
 	return clightning.Start()
 }
+
+

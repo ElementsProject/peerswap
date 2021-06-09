@@ -233,11 +233,34 @@ with pkgs;
         echo $(l1-cli connect $L2_CONNECT)
     }
 
+    restart() {
+        stop_nigiri_env
+        start_nigiri_env
+    }
+    restart_plugins() {
+        l1-cli
+    }
+
     setup_channel() {
         L1_ADDR=$(l1-cli newaddr)
         echo $(bt-cli generatetoaddress 12  $L1_ADDR)
         echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
         bt-cli generatetoaddress 12  $L1_ADDR
+    }
+
+    fund_nodes() {
+        l1_liquid=$(l1-cli liquid-wallet-getaddress)
+        l1_liquid=$(sed -e 's/^"//' -e 's/"$//' <<<"$l1_liquid")
+        echo $l1_liquid
+        faucet $l1_liquid
+    }
+
+    faucet() {
+    echo $1
+        curl --header "Content-Type: application/json" \
+          --request POST \
+          --data '{"address":"$1"}' \
+          http://localhost:3001/faucet
     }
      '';
 }

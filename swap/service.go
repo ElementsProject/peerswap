@@ -1,10 +1,11 @@
 package swap
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/liquid-loop/lightning"
@@ -15,6 +16,7 @@ import (
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
+	"sync"
 )
 
 const (
@@ -22,9 +24,6 @@ const (
 	LOCKTIME  = 100
 )
 
-type Swapper interface {
-	PostOpenFundingTx(ctx context.Context, amt int64, fee int64) (txId string, err error)
-}
 
 type TxBuilder interface {
 }
@@ -33,7 +32,7 @@ type Wallet interface {
 	GetBalance() (uint64, error)
 	GetPubkey() (*btcec.PublicKey, error)
 	GetPrivKey() (*btcec.PrivateKey, error)
-	GetUtxos(amount uint64) ([]*transaction.TxInput, uint64, error)
+	GetUtxos(amount uint64) ([]*wallet.Utxo, uint64, error)
 }
 
 type SwapStore interface {
@@ -53,11 +52,31 @@ type Service struct {
 	network    *network.Network
 	asset      []byte
 
+	txWatchList map[string]string
+	sync.Mutex
 	ctx context.Context
 }
 
-func (s *Service) StartSwap(swapType SwapType, peerNodeId string, channelId string, amount uint64) error {
-	swap := NewSwap(swapType, amount, peerNodeId, channelId)
+func NewService(store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, blockchain wallet.BlockchainService, lightning LightningClient, network *network.Network) *Service {
+	watchList := make(map[string]string)
+	ctx := context.Background()
+	return &Service{
+		store: store,
+		wallet: wallet,
+		pc: pc,
+		blockchain: blockchain,
+		lightning: lightning,
+		network: network,
+		txWatchList: watchList,
+		ctx: ctx}
+}
+
+func (s *Service) ListSwaps() ([]*Swap, error) {
+	return s.store.ListAll(context.Background())
+}
+
+func (s *Service) StartSwapIn( peerNodeId string, channelId string, amount uint64) error {
+	swap := NewSwap(SWAPTYPE_IN, amount, peerNodeId, channelId)
 	err := s.store.Create(s.ctx, swap)
 	if err != nil {
 		return err
@@ -70,14 +89,10 @@ func (s *Service) StartSwap(swapType SwapType, peerNodeId string, channelId stri
 		SwapId:          swap.Id,
 		ChannelId:       channelId,
 		Amount:          amount,
-		Type:            swapType,
+		Type:            SWAPTYPE_OUT,
 		TakerPubkeyHash: hex.EncodeToString(pubkey.SerializeCompressed()),
 	}
-	req, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	err = s.pc.SendMessage(peerNodeId, req)
+	err = s.pc.SendMessage(peerNodeId, request)
 	if err != nil {
 		return err
 	}
@@ -89,7 +104,9 @@ func (s *Service) StartSwap(swapType SwapType, peerNodeId string, channelId stri
 	return nil
 }
 
+// todo implement loop in
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {
+	ctx := context.Background()
 	swap := &Swap{
 		Id:         request.SwapId,
 		Type:       request.Type,
@@ -122,7 +139,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		}
 		pHash := preimage.Hash()
 
-		payreq, err := s.lightning.GetPayreq(request.Amount+FIXED_FEE, preimage.String(), pHash.String())
+		payreq, err := s.lightning.GetPayreq((request.Amount+FIXED_FEE)*1000, preimage.String(), swap.Id)
 		if err != nil {
 			return err
 		}
@@ -134,7 +151,26 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		if err != nil {
 			return err
 		}
-
+		txId, err := s.CreateOpeningTransaction(ctx, swap)
+		if err != nil {
+			return err
+		}
+		swap.OpeningTxId = txId
+		swap.State = SWAPSTATE_OPENING_TX_BROADCASTED
+		err = s.store.Update(s.ctx, swap)
+		if err != nil {
+			return err
+		}
+		response := &MakerResponse{
+			SwapId:          swap.Id,
+			MakerPubkeyHash: swap.MakerPubkeyHash,
+			Invoice:         payreq,
+			TxId:            swap.OpeningTxId,
+		}
+		err = s.pc.SendMessage(swap.PeerNodeId, response)
+		if err != nil {
+			return err
+		}
 	} else if request.Type == SWAPTYPE_IN {
 
 	}
@@ -144,7 +180,6 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 // CreateOpeningTransaction creates and broadcasts the opening Transaction,
 // the two peers are the taker(pays the invoice) and the maker
 func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (string, error) {
-
 	// get the maker pubkey and privkey
 	makerPubkey, err := s.wallet.GetPubkey()
 	if err != nil {
@@ -214,7 +249,10 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	redeemOutput := transaction.NewTxOutput(s.asset, swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
-	inputs := txInputs
+	inputs,err := s.blockchain.WalletUtxosToTxInputs(txInputs)
+	if err != nil {
+		return "", err
+	}
 	outputs := []*transaction.TxOutput{redeemOutput, changeOutput, feeOutput}
 	p, err := pset.New(inputs, outputs, 2, 0)
 	if err != nil {
@@ -231,7 +269,10 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	if err != nil {
 		return "", err
 	}
-	bobFaucetTx, _ := transaction.NewTxFromHex(bobspendingTxHash)
+	bobFaucetTx, err := transaction.NewTxFromHex(bobspendingTxHash)
+	if err != nil {
+		return "", err
+	}
 
 	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
 	if err != nil {
@@ -265,8 +306,49 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	return txId, nil
 }
 
-func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScript []byte, txHex string) error {
-	finalTx, err := transaction.NewTxFromHex(txHex)
+func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) error {
+	swap, err := s.store.GetById(s.ctx, request.SwapId)
+	if err != nil {
+		return err
+	}
+	if swap.PeerNodeId != senderNodeId {
+		return errors.New("peer has changed, aborting")
+	}
+	swap.State = SWAPSTATE_WAITING_FOR_TX
+	swap.MakerPubkeyHash = request.MakerPubkeyHash
+	swap.Payreq = request.Invoice
+	swap.OpeningTxId = request.TxId
+
+	invoice, err := s.lightning.DecodePayreq(swap.Payreq)
+	if err != nil {
+		return err
+	}
+
+	swap.PHash = invoice.PHash
+
+	if invoice.Amount > swap.Amount+FIXED_FEE {
+		return errors.New("invoice amount is to high")
+	}
+
+	err = s.store.Update(s.ctx, swap)
+	if err != nil {
+		return err
+	}
+	s.Mutex.Lock()
+	s.txWatchList[swap.Id] = swap.OpeningTxId
+	s.Mutex.Unlock()
+	return nil
+}
+func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *transaction.Transaction) error {
+	err := s.CheckTransaction(ctx, swap, tx)
+	if err != nil {
+		return err
+	}
+	preimage, err := s.lightning.PayInvoice(swap.Payreq)
+	if err != nil {
+		return err
+	}
+	script, err := s.getSwapScript(swap)
 	if err != nil {
 		return err
 	}
@@ -284,9 +366,9 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScrip
 	p2pkh := payment.FromPublicKey(pubkey, &network.Regtest, nil)
 
 	// second transaction
-	firstTxHash := finalTx.WitnessHash()
+	firstTxHash := tx.WitnessHash()
 	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
-	firstTxSats, err := elementsutil.ElementsToSatoshiValue(finalTx.Outputs[0].Value)
+	firstTxSats, err := elementsutil.ElementsToSatoshiValue(tx.Outputs[0].Value)
 	if err != nil {
 		return err
 	}
@@ -313,8 +395,8 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScrip
 
 	sigHash = spendingTx.HashForWitnessV0(
 		0,
-		redeemScript[:],
-		finalTx.Outputs[0].Value,
+		script[:],
+		tx.Outputs[0].Value,
 		txscript.SigHashAll,
 	)
 
@@ -324,10 +406,13 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScrip
 	}
 	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)
-
+	preImageBytes, err := hex.DecodeString(preimage)
+	if err != nil {
+		return err
+	}
+	witness = append(witness, preImageBytes[:])
 	witness = append(witness, sigWithHashType[:])
-	witness = append(witness, []byte{})
-	witness = append(witness, redeemScript)
+	witness = append(witness, script)
 	spendingTx.Inputs[0].Witness = witness
 
 	spendingTxHex, err := spendingTx.ToHex()
@@ -335,11 +420,58 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, preImage, redeemScrip
 		return err
 	}
 
-	_, err = s.blockchain.BroadcastTransaction(spendingTxHex)
+	claimId, err := s.blockchain.BroadcastTransaction(spendingTxHex)
+	if err != nil {
+		return err
+	}
+	swap.ClaimTxId = claimId
+	swap.State = SWAPSTATE_CLAIMED_PREIMAGE
+
+	err = s.store.Update(s.ctx, swap)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// CheckTransaction checks if the opening transaction is according to the takers terms
+func (s *Service) CheckTransaction(ctx context.Context, swap *Swap, tx *transaction.Transaction) error {
+
+	script, err := s.getSwapScript(swap)
+	if err != nil {
+		return err
+	}
+
+	if bytes.Compare(tx.Outputs[0].Script, script) != 0 {
+		return errors.New("tx script does not match computed script")
+	}
+
+	// check value
+	value, err := elementsutil.SatoshiToElementsValue(swap.Amount)
+	if err != nil {
+		return err
+	}
+	if bytes.Compare(tx.Outputs[0].Value, value) != 0 {
+		return errors.New("tx value does not match contract")
+	}
+	return nil
+}
+
+func (s *Service) getSwapScript(swap *Swap) ([]byte, error) {
+	// check script
+	takerPubkeyHashBytes, err := hex.DecodeString(swap.TakerPubkeyHash)
+	if err != nil {
+		return nil, err
+	}
+	makerPubkeyHashBytes, err := hex.DecodeString(swap.MakerPubkeyHash)
+	if err != nil {
+		return nil, err
+	}
+	script, err := liquid.GetOpeningTxScript(makerPubkeyHashBytes, takerPubkeyHashBytes, swap.PHash, LOCKTIME)
+	if err != nil {
+		return nil, err
+	}
+	return script, nil
 }
 func b2h(buf []byte) string {
 	return hex.EncodeToString(buf)

@@ -16,16 +16,11 @@ func TestInMemStore(t *testing.T) {
 func storeTest(t *testing.T, store SwapStore) {
 	ctx := context.Background()
 
-	swap1, err := NewSwap(SWAPTYPE_IN, "foo", "bar", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	swap2, err := NewSwap(SWAPTYPE_OUT, "baz", "qux", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
+	swap1 := NewSwap(SWAPTYPE_IN, "foo", "bar", 100)
 
-	err = store.Create(ctx, swap1)
+	swap2 := NewSwap(SWAPTYPE_OUT, "baz", "qux", 100)
+
+	err := store.Create(ctx, swap1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +76,7 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fatal(err)
 	}
 
-	swap2.TakerNodeId = "foobaz"
+	swap2.PeerNodeId = "foobaz"
 	err = store.Update(ctx, swap2)
 	if err != nil {
 		t.Fatal(err)
@@ -90,22 +85,7 @@ func storeTest(t *testing.T, store SwapStore) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if swap3.TakerNodeId != swap2.TakerNodeId {
-		t.Fail()
-	}
-}
-
-func TestNewSwapId(t *testing.T) {
-	id1, err := newSwapId()
-	if err != nil {
-		t.Fatal(err)
-	}
-	id2, err := newSwapId()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("%s, %s", id1, id2)
-	if id1 == id2 {
+	if swap3.PeerNodeId != swap2.PeerNodeId {
 		t.Fail()
 	}
 }

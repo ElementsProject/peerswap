@@ -1,9 +1,12 @@
 package liquid
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -69,6 +72,31 @@ func (e *EsploraClient) FetchUtxos(address string) ([]*wallet.Utxo, error) {
 	return utxos, nil
 }
 
+func (e *EsploraClient) DEV_Fundaddress(address string) (string,error) {
+	url := fmt.Sprintf("%s/faucet", "http://localhost:3001")
+	payload := map[string]string{"address": address, "amount": fmt.Sprintf("%v", 1)}
+	body, _ := json.Marshal(payload)
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if res := string(data); len(res) <= 0 || strings.Contains(res, "sendtoaddress") {
+		return "", fmt.Errorf("cannot fund address with faucet: %s", res)
+	}
+
+	respBody := map[string]string{}
+	if err := json.Unmarshal(data, &respBody); err != nil {
+		return "", err
+	}
+
+	return respBody["txId"], nil
+}
 func (e *EsploraClient) getJsonRequest(endpoint string, returnVal interface{}) error {
 	data, err := e.getRequest(endpoint)
 	if err != nil {
@@ -84,4 +112,21 @@ func (e *EsploraClient) getRequest(endpoint string) ([]byte, error) {
 		return nil, err
 	}
 	return ioutil.ReadAll(resp.Body)
+}
+
+func (e *EsploraClient) WalletUtxosToTxInputs(utxos []*wallet.Utxo) ([]*transaction.TxInput, error) {
+	var txInputs []*transaction.TxInput
+	for _, v := range utxos {
+		rawTxHex,err := e.FetchTxHex(v.TxId)
+		if err != nil {
+			return nil, err
+		}
+		rawTx,err := hex.DecodeString(rawTxHex)
+		if err != nil {
+			return nil, err
+		}
+		input := transaction.NewTxInput(rawTx, v.VOut)
+		txInputs = append(txInputs, input)
+	}
+	return txInputs, nil
 }

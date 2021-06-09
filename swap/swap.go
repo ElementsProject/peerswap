@@ -21,9 +21,15 @@ const (
 	SWAPSTATE_REQUEST_SENT
 	SWAPSTATE_REQUEST_RECEIVED
 	SWAPSTATE_OPENING_TX_PREPARED
+	SWAPSTATE_OPENING_TX_BROADCASTED
+	SWAPSTATE_WAITING_FOR_TX
 	SWAPSTATE_CLAIMED_PREIMAGE
 	SWAPSTATE_CLAIMED_TIMELOCK
 	SWAPSTATE_CANCELED
+
+	MESSAGETYPE_SWAPREQUEST = "a455"
+	MESSAGETYPE_MAKERRESPONSE = "a456"
+	MESSAGETYPE_TAKERRESPONSE = "a457"
 )
 
 // Swap defines a swap process
@@ -35,18 +41,17 @@ type Swap struct {
 	Amount     uint64
 	ChannelId  string
 
-	Payreq string
-	PHash  []byte
+	Payreq   string
+	PreImage []byte
+	PHash    []byte
 
 	// Script
 	MakerPubkeyHash string
 	TakerPubkeyHash string
 
-	OpeningTxId  string
-	OpeningTxHex string
+	OpeningTxId string
 
-	ClaimTxId  string
-	ClaimTxHex string
+	ClaimTxId string
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
@@ -77,6 +82,10 @@ type SwapRequest struct {
 	TakerPubkeyHash string
 }
 
+func (s *SwapRequest) MessageType() string {
+	return MESSAGETYPE_SWAPREQUEST
+}
+
 // MakerResponse is the response if the requester wants to swap out.
 type MakerResponse struct {
 	SwapId          string
@@ -85,8 +94,18 @@ type MakerResponse struct {
 	TxId            string
 }
 
+func (m *MakerResponse) MessageType() string {
+	return MESSAGETYPE_TAKERRESPONSE
+}
+
 // TakerResponse is the response if the requester wants to swap in
 type TakerResponse struct {
 	SwapId          string
 	TakerPubkeyHash string
 }
+
+func (t *TakerResponse) MessageType() string {
+	return MESSAGETYPE_TAKERRESPONSE
+}
+
+// todo errors / abort response

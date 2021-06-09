@@ -1,6 +1,8 @@
 package swap
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"github.com/sputn1ck/liquid-loop/lightning"
 	"github.com/vulpemventures/go-elements/transaction"
 )
@@ -18,15 +20,20 @@ type TxCreator interface {
 }
 
 type LightningClient interface {
-	GetPayreq(amount uint64, preImage, pHash string) (string, error)
+	GetPayreq(amount uint64, preImage string, label string) (string, error)
 	DecodePayreq(payreq string) (*lightning.Invoice, error)
 	PayInvoice(payreq string) (preimage string, err error)
 }
-type SwapHandler struct {
+type MessageHandler struct {
 	pc lightning.PeerCommunicator
+	swap *Service
 }
 
-func (sh *SwapHandler) Start() error {
+func NewMessageHandler(pc lightning.PeerCommunicator, swap *Service) *MessageHandler {
+	return &MessageHandler{pc: pc, swap: swap}
+}
+
+func (sh *MessageHandler) Start() error {
 	err := sh.pc.AddMessageHandler(sh.OnMessageReceived)
 	if err != nil {
 		return err
@@ -34,6 +41,32 @@ func (sh *SwapHandler) Start() error {
 	return nil
 }
 
-func (sh *SwapHandler) OnMessageReceived(peerId string, message string) error {
+func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, message string) error {
+	messageBytes, err := hex.DecodeString(message)
+	if err != nil {
+		return err
+	}
+	switch messageType {
+	case MESSAGETYPE_SWAPREQUEST:
+		var req SwapRequest
+		err = json.Unmarshal(messageBytes, &req)
+		if err != nil {
+			return err
+		}
+		err = sh.swap.OnSwapRequest(peerId, req)
+		if err != nil {
+			return err
+		}
+	case MESSAGETYPE_MAKERRESPONSE:
+		var req MakerResponse
+		err = json.Unmarshal(messageBytes, &req)
+		if err != nil {
+			return err
+		}
+		err = sh.swap.OnMakerResponse(peerId, req)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
