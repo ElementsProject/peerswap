@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,15 @@ type ClightningClient struct {
 	plugin     *glightning.Plugin
 
 	msgHandlers []func(peerId string, messageType string, payload string) error
+}
+
+func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
+	var preimage lightning.Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		return preimage, err
+	}
+	return preimage, nil
 }
 
 func NewClightningClient() (*ClightningClient, error) {

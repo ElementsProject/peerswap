@@ -24,6 +24,7 @@ type LightningClient interface {
 	GetPayreq(amount uint64, preImage string, label string) (string, error)
 	DecodePayreq(payreq string) (*lightning.Invoice, error)
 	PayInvoice(payreq string) (preimage string, err error)
+	GetPreimage() (lightning.Preimage, error)
 }
 type MessageHandler struct {
 	pc   lightning.PeerCommunicator

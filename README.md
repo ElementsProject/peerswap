@@ -1,3 +1,3 @@
 # WIP
 
-P2P lightning channel rebalancing using atomic swaps
+P2P lightning channel rebalancing using Liquid onchain-swaps

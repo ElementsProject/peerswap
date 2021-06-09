@@ -49,6 +49,8 @@ type Swap struct {
 	MakerPubkeyHash string
 	TakerPubkeyHash string
 
+	Cltv int64
+
 	OpeningTxId string
 
 	ClaimTxId string
@@ -92,6 +94,7 @@ type MakerResponse struct {
 	MakerPubkeyHash string
 	Invoice         string
 	TxId            string
+	Cltv			int64
 }
 
 func (m *MakerResponse) MessageType() string {

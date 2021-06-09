@@ -419,7 +419,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	aliceStore.Initialize()
 	aliceWallet := &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
 
-	privkeyAlice, err := aliceStore.LoadPrivKey()
+	privkeyAlice, err := aliceWallet.GetPrivKey()
 	if err != nil {
 		t.Fatal(err)
 	}
