@@ -9,7 +9,7 @@ import (
 
 type DummyWalletStore struct {
 	privKey *btcec.PrivateKey
-	pubkey *btcec.PublicKey
+	pubkey  *btcec.PublicKey
 
 	initialized bool
 }
@@ -43,5 +43,4 @@ func (d *DummyWalletStore) ListAddresses() ([]string, error) {
 }
 
 type FileWalletStore struct {
-
 }

@@ -3,8 +3,9 @@ package swap
 import (
 	"encoding/hex"
 	"encoding/json"
-	"github.com/sputn1ck/liquid-loop/lightning"
+	"github.com/sputn1ck/sugarmama/lightning"
 	"github.com/vulpemventures/go-elements/transaction"
+	"log"
 )
 
 type TxWatcher interface {
@@ -25,7 +26,7 @@ type LightningClient interface {
 	PayInvoice(payreq string) (preimage string, err error)
 }
 type MessageHandler struct {
-	pc lightning.PeerCommunicator
+	pc   lightning.PeerCommunicator
 	swap *Service
 }
 
@@ -58,6 +59,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 			return err
 		}
 	case MESSAGETYPE_MAKERRESPONSE:
+		log.Println("incoming makerresponse")
 		var req MakerResponse
 		err = json.Unmarshal(messageBytes, &req)
 		if err != nil {

@@ -94,7 +94,6 @@ func SignTransaction(
 				return err
 			}
 		}
-
 		sig, err := prvkey.Sign(sigHash[:])
 		if err != nil {
 			return err
@@ -107,7 +106,6 @@ func SignTransaction(
 			witPubkeyScript = opts.pubkeyScript
 			witScript = opts.script
 		}
-
 		if _, err := updater.Sign(
 			i,
 			sigWithHashType,
@@ -118,7 +116,6 @@ func SignTransaction(
 			return err
 		}
 	}
-
 	valid, err := p.ValidateAllSignatures()
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-module github.com/sputn1ck/liquid-loop
+module github.com/sputn1ck/sugarmama
 
 go 1.16
 

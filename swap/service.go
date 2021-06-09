@@ -6,24 +6,26 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/sputn1ck/liquid-loop/lightning"
-	"github.com/sputn1ck/liquid-loop/liquid"
-	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/sugarmama/liquid"
+	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
+	"log"
 	"sync"
+	"time"
 )
 
 const (
 	FIXED_FEE = 500
 	LOCKTIME  = 100
 )
-
 
 type TxBuilder interface {
 }
@@ -65,22 +67,22 @@ func NewService(store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, b
 	watchList := make(map[string]string)
 	ctx := context.Background()
 	return &Service{
-		store: store,
-		wallet: wallet,
-		pc: pc,
-		blockchain: blockchain,
-		lightning: lightning,
-		network: network,
+		store:       store,
+		wallet:      wallet,
+		pc:          pc,
+		blockchain:  blockchain,
+		lightning:   lightning,
+		network:     network,
 		txWatchList: watchList,
-		ctx: ctx}
+		ctx:         ctx}
 }
 
 func (s *Service) ListSwaps() ([]*Swap, error) {
 	return s.store.ListAll(context.Background())
 }
 
-func (s *Service) StartSwapIn( peerNodeId string, channelId string, amount uint64) error {
-	swap := NewSwap(SWAPTYPE_IN, amount, peerNodeId, channelId)
+func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) error {
+	swap := NewSwap(SWAPTYPE_OUT, amount, peerNodeId, channelId)
 	err := s.store.Create(s.ctx, swap)
 	if err != nil {
 		return err
@@ -143,7 +145,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 			return err
 		}
 		pHash := preimage.Hash()
-		log.Printf("\n PREIMAGE: %s \n \n PHASH: %s", preimage.String(),pHash.String() )
+		log.Printf("\n PREIMAGE: %s \n \n PHASH: %s", preimage.String(), pHash.String())
 		payreq, err := s.lightning.GetPayreq((request.Amount+FIXED_FEE)*1000, preimage.String(), swap.Id)
 		if err != nil {
 			return err
@@ -190,15 +192,13 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	if err != nil {
 		return "", err
 	}
-	makerPubkey,err := s.wallet.GetPubkey()
+	makerPubkey, err := s.wallet.GetPubkey()
 	if err != nil {
 		return "", err
 	}
 	p2pkh := payment.FromPublicKey(makerPubkey, &network.Regtest, nil)
 
 	// Get the Inputs
-
-	log.Printf("\n get utxos")
 	txInputs, change, err := s.wallet.GetUtxos(swap.Amount + FIXED_FEE)
 	if err != nil {
 		return "", err
@@ -206,8 +206,6 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 
 	// Outputs
 	// Fees
-
-	log.Printf("\n get feeoutput")
 	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE)
 	if err != nil {
 		return "", err
@@ -239,7 +237,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	redeemOutput := transaction.NewTxOutput(LBTC, swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
-	inputs,err := s.blockchain.WalletUtxosToTxInputs(txInputs)
+	inputs, err := s.blockchain.WalletUtxosToTxInputs(txInputs)
 	if err != nil {
 		return "", err
 	}
@@ -254,17 +252,16 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 		return "", err
 	}
 
-	log.Println("got to fetchtx")
 	bobspendingTxHash, err := s.blockchain.FetchTxHex(b2h(elementsutil.ReverseBytes(inputs[0].Hash[:])))
 	if err != nil {
 		return "", err
 	}
-	log.Printf("got to %s", bobspendingTxHash)
+
 	bobFaucetTx, err := transaction.NewTxFromHex(bobspendingTxHash)
 	if err != nil {
 		return "", err
 	}
-	log.Printf("\n %s got to add utxo", bobFaucetTx.TxHash().String())
+
 	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
 	if err != nil {
 		return "", err
@@ -272,7 +269,8 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 
 	prvKeys := []*btcec.PrivateKey{makerPrivkey}
 	scripts := [][]byte{p2pkh.Script}
-	if err := liquid.SignTransaction(p, prvKeys, scripts, false, nil); err != nil {
+
+	if err := liquid.SignTransaction(p, prvKeys, scripts[:], false, nil); err != nil {
 		return "", err
 	}
 
@@ -280,7 +278,9 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	if err := pset.FinalizeAll(p); err != nil {
 		return "", err
 	}
+
 	// Extract the final signed transaction from the Pset wrapper.
+
 	finalTx, err := pset.Extract(p)
 	if err != nil {
 		return "", err
@@ -293,11 +293,10 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 
 	_, err = transaction.NewTxFromHex(txHex)
 	if err != nil {
-		log.Printf("\n err %v",err)
+		log.Printf("\n err %v", err)
 		return "", err
 	}
 
-	log.Printf("\n got to broadcast %s",txHex)
 	txId, err := s.blockchain.BroadcastTransaction(txHex)
 	if err != nil {
 		return "", err
@@ -323,10 +322,10 @@ func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) er
 		return err
 	}
 
-	swap.PHash = hex.EncodeToString(invoice.PHash)
+	swap.PHash = invoice.PHash
 
-	if invoice.Amount > (swap.Amount+FIXED_FEE) * 1000 {
-		return errors.New(fmt.Sprintf("invoice amount is to high, got: %v, expected %v",swap.Amount+FIXED_FEE, invoice.Amount))
+	if invoice.Amount > (swap.Amount+FIXED_FEE)*1000 {
+		return errors.New(fmt.Sprintf("invoice amount is to high, got: %v, expected %v", swap.Amount+FIXED_FEE, invoice.Amount))
 	}
 
 	err = s.store.Update(s.ctx, swap)
@@ -347,7 +346,7 @@ func (s *Service) StartWatchingTxs() error {
 		default:
 			var toRemove []string
 			s.Lock()
-			for k,v := range s.txWatchList {
+			for k, v := range s.txWatchList {
 				res, err := s.blockchain.FetchTxHex(v)
 				if err != nil {
 					log.Printf("watchlist err: %v", err)
@@ -375,7 +374,7 @@ func (s *Service) StartWatchingTxs() error {
 				}
 				toRemove = append(toRemove, swap.Id)
 			}
-			for _,v := range toRemove {
+			for _, v := range toRemove {
 				delete(s.txWatchList, v)
 			}
 			s.Unlock()
@@ -394,7 +393,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 			return err
 		}
 		swap.PreImage = preimage
-		err = s.store.Update(s.ctx,swap)
+		err = s.store.Update(s.ctx, swap)
 		if err != nil {
 			return err
 		}
@@ -414,6 +413,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	if err != nil {
 		return err
 	}
+
 	// Change
 	p2pkh := payment.FromPublicKey(pubkey, &network.Regtest, nil)
 

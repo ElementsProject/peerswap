@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"github.com/niftynei/glightning/glightning"
 	"github.com/niftynei/glightning/jrpc2"
-	"github.com/sputn1ck/liquid-loop/lightning"
-	"github.com/sputn1ck/liquid-loop/swap"
+	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/sugarmama/liquid"
+	"github.com/sputn1ck/sugarmama/swap"
 )
 
 type GetAddressMethod struct {
@@ -28,7 +29,7 @@ func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fmt.Sprintf("%s",res[0]), nil
+	return fmt.Sprintf("%s", res[0]), nil
 }
 
 type GetBalanceMethod struct {
@@ -75,24 +76,46 @@ func (l *ListUtxosMethod) Call() (jrpc2.Result, error) {
 	return utxos, nil
 }
 
-
-type SwapOut struct {
-	SatAmt         uint64  `json:"amt"`
-	ShortChannelId string `json:"short_channel_id"`
-
-	wallet lightning.WalletService    `json:"-"`
-	pc     lightning.PeerCommunicator `json:"-"`
-	lightning *glightning.Lightning `json:"-"`
-	swapper *swap.Service `json:"-"`
+type DevFaucet struct {
+	esplora *liquid.EsploraClient   `json:"-"`
+	wallet  lightning.WalletService `json:"-"`
 }
 
+func (d *DevFaucet) Name() string {
+	return "dev-faucet"
+}
+
+func (d *DevFaucet) New() interface{} {
+	return &DevFaucet{
+		wallet:  d.wallet,
+		esplora: d.esplora,
+	}
+}
+
+func (d *DevFaucet) Call() (jrpc2.Result, error) {
+	address, err := d.wallet.ListAddresses()
+	if err != nil {
+		return nil, err
+	}
+	return d.esplora.DEV_Fundaddress(address[0])
+}
+
+type SwapOut struct {
+	SatAmt         uint64 `json:"amt"`
+	ShortChannelId string `json:"short_channel_id"`
+
+	wallet    lightning.WalletService    `json:"-"`
+	pc        lightning.PeerCommunicator `json:"-"`
+	lightning *glightning.Lightning      `json:"-"`
+	swapper   *swap.Service              `json:"-"`
+}
 
 func (l *SwapOut) New() interface{} {
 	return &SwapOut{
-		wallet: l.wallet,
-		pc:     l.pc,
+		wallet:    l.wallet,
+		pc:        l.pc,
 		lightning: l.lightning,
-		swapper: l.swapper,
+		swapper:   l.swapper,
 	}
 }
 
@@ -109,13 +132,12 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("Missing required short_channel_id parameter")
 	}
 
-
 	funds, err := l.lightning.ListFunds()
 	if err != nil {
 		return nil, err
 	}
 	var fundingChannels *glightning.FundingChannel
-	for _,v := range funds.Channels {
+	for _, v := range funds.Channels {
 		if v.ShortChannelId == l.ShortChannelId {
 			fundingChannels = v
 			break
@@ -132,7 +154,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.swapper.StartSwapIn(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
+	err = l.swapper.StartSwapOut(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +164,6 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 type ListSwaps struct {
 	swapper *swap.Service `json:"-"`
 }
-
 
 func (l *ListSwaps) New() interface{} {
 	return &ListSwaps{
@@ -155,7 +176,7 @@ func (l *ListSwaps) Name() string {
 }
 
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
-	swaps,err := l.swapper.ListSwaps()
+	swaps, err := l.swapper.ListSwaps()
 	if err != nil {
 		return nil, err
 	}

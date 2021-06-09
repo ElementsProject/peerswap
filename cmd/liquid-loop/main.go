@@ -2,10 +2,9 @@ package main
 
 import (
 	"errors"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/sputn1ck/liquid-loop/liquid"
-	"github.com/sputn1ck/liquid-loop/swap"
-	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/sputn1ck/sugarmama/liquid"
+	"github.com/sputn1ck/sugarmama/swap"
+	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"log"
 	"os"
@@ -28,13 +27,12 @@ func run() error {
 		return errors.New("lnd is not yet supported")
 	}
 
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
+	esplora := liquid.NewEsploraClient("http://localhost:3001")
+	walletStore := &wallet.DummyWalletStore{}
+	err := walletStore.Initialize()
 	if err != nil {
 		return err
 	}
-
-	esplora := liquid.NewEsploraClient("http://localhost:3001")
-	walletStore := &wallet.DummyWalletStore{PrivKey: privkey}
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 
 	clightning, err := NewClightningClient()
@@ -42,12 +40,12 @@ func run() error {
 		return err
 	}
 	swapStore := swap.NewInMemStore()
-	swapService := swap.NewService(swapStore, walletService, clightning,esplora, clightning, &network.Regtest)
+	swapService := swap.NewService(swapStore, walletService, clightning, esplora, clightning, &network.Regtest)
 	err = clightning.RegisterOptions()
 	if err != nil {
 		return err
 	}
-	err = clightning.RegisterMethods(walletService, swapService)
+	err = clightning.RegisterMethods(walletService, swapService, esplora)
 	if err != nil {
 		return err
 	}
@@ -65,7 +63,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	go func() {
+		err := swapService.StartWatchingTxs()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	return clightning.Start()
 }
-
-

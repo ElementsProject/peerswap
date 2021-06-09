@@ -10,8 +10,8 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/niftynei/glightning/gelements"
-	"github.com/sputn1ck/liquid-loop/lightning"
-	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
@@ -42,8 +42,6 @@ func Test_Wallet(t *testing.T) {
 	//	t.Fatal(err)
 	//}
 	//privkey,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
-
-
 
 	walletStore := &wallet.DummyWalletStore{}
 	walletStore.Initialize()
@@ -118,7 +116,7 @@ func Test_InputStuff(t *testing.T) {
 	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
 	txInputIndexBob := utxosBob[0].VOut
 	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-	txinputs,err := esplora.WalletUtxosToTxInputs(utxosBob)
+	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +463,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	//txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
 	//txInputIndexBob := utxosBob[0].VOut
 	//txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-	txinputs,err := esplora.WalletUtxosToTxInputs(utxosBob)
+	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,7 @@
 package lightning
 
 import (
-	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/sputn1ck/sugarmama/wallet"
 )
 
 type WalletService interface {
@@ -20,11 +20,11 @@ type PeerMessage interface {
 }
 
 type Invoice struct {
-	PHash       []byte
+	PHash       string
 	Amount      uint64
 	Description string
 }
 
 type Swapper interface {
-	StartSwapIn(peerNodeId string, channelId string, amount uint64) error
+	StartSwapOut(peerNodeId string, channelId string, amount uint64) error
 }

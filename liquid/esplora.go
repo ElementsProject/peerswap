@@ -5,7 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sputn1ck/liquid-loop/wallet"
+	"github.com/sputn1ck/sugarmama/wallet"
+	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
 	"net/http"
@@ -72,7 +73,7 @@ func (e *EsploraClient) FetchUtxos(address string) ([]*wallet.Utxo, error) {
 	return utxos, nil
 }
 
-func (e *EsploraClient) DEV_Fundaddress(address string) (string,error) {
+func (e *EsploraClient) DEV_Fundaddress(address string) (string, error) {
 	url := fmt.Sprintf("%s/faucet", "http://localhost:3001")
 	payload := map[string]string{"address": address, "amount": fmt.Sprintf("%v", 1)}
 	body, _ := json.Marshal(payload)

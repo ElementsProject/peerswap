@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/niftynei/glightning/glightning"
-	"github.com/sputn1ck/liquid-loop/lightning"
-	"github.com/sputn1ck/liquid-loop/swap"
+	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/sugarmama/liquid"
+	"github.com/sputn1ck/sugarmama/swap"
 	"log"
 	"math/big"
 	"os"
-	"strconv"
 )
 
 type ClightningClient struct {
@@ -78,24 +78,17 @@ func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, erro
 	if err != nil {
 		return nil, err
 	}
-	pHashBytes, err := hex.DecodeString(res.PaymentHash)
-	if err != nil {
-		return nil, err
-	}
-	mSatValue, err := strconv.Atoi(res.AmountMsat)
-	if err != nil {
-		return nil, err
-	}
 	return &lightning.Invoice{
 		Description: res.Description,
-		PHash:       pHashBytes,
-		Amount:      uint64(mSatValue),
+		PHash:       res.PaymentHash,
+		Amount:      res.MilliSatoshis,
 	}, nil
 }
 
 func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
 	res, err := c.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
 	if err != nil {
+		log.Printf("got pay err: %s ", err.Error())
 		return "", err
 	}
 	return res.PaymentPreimage, nil
@@ -148,7 +141,7 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps *swap.Service) error {
+func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps *swap.Service, esplora *liquid.EsploraClient) error {
 	loopIn := glightning.NewRpcMethod(&SwapOut{
 		wallet:    wallet,
 		pc:        c,
@@ -193,6 +186,16 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}, "list liquid utxos")
 	listUtxos.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listUtxos)
+	if err != nil {
+		return err
+	}
+
+	devFaucet := glightning.NewRpcMethod(&DevFaucet{
+		wallet:  wallet,
+		esplora: esplora,
+	}, "list liquid utxos")
+	devFaucet.Category = "liquid-loop"
+	err = c.plugin.RegisterMethod(devFaucet)
 	if err != nil {
 		return err
 	}
