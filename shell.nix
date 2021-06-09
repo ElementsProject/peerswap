@@ -232,7 +232,11 @@ with pkgs;
         
         echo $(l1-cli connect $L2_CONNECT)
     }
-
+    rebuild() {
+        make build
+    	make copy
+    	restart
+    }
     restart() {
         stop_nigiri_env
         start_nigiri_env

@@ -117,15 +117,11 @@ func (e *EsploraClient) getRequest(endpoint string) ([]byte, error) {
 func (e *EsploraClient) WalletUtxosToTxInputs(utxos []*wallet.Utxo) ([]*transaction.TxInput, error) {
 	var txInputs []*transaction.TxInput
 	for _, v := range utxos {
-		rawTxHex,err := e.FetchTxHex(v.TxId)
+		txIdBytes, err := hex.DecodeString(v.TxId)
 		if err != nil {
 			return nil, err
 		}
-		rawTx,err := hex.DecodeString(rawTxHex)
-		if err != nil {
-			return nil, err
-		}
-		input := transaction.NewTxInput(rawTx, v.VOut)
+		input := transaction.NewTxInput(txIdBytes, v.VOut)
 		txInputs = append(txInputs, input)
 	}
 	return txInputs, nil
