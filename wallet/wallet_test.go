@@ -36,7 +36,7 @@ func Test_Address(t *testing.T) {
 	}
 	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
 
-	walletStore := DummyWalletStore{PrivKey: privkey}
+	walletStore := DummyWalletStore{privKey: privkey}
 
 	_, err = walletStore.ListAddresses()
 	if err != nil {

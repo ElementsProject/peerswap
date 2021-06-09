@@ -43,12 +43,10 @@ func Test_Wallet(t *testing.T) {
 	//}
 	//privkey,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
 
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	walletStore := &wallet.DummyWalletStore{PrivKey: privkey}
+
+	walletStore := &wallet.DummyWalletStore{}
+	walletStore.Initialize()
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 	addresses, err := walletStore.ListAddresses()
 	if err != nil {
@@ -84,6 +82,125 @@ func Test_Wallet(t *testing.T) {
 		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
 
+}
+func Test_InputStuff(t *testing.T) {
+
+	// Generating Bob Keys and Address
+
+	bobStore := &wallet.DummyWalletStore{}
+	bobStore.Initialize()
+	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+
+	privkeyBob, err := bobStore.LoadPrivKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pubkeyBob := privkeyBob.PubKey()
+	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
+	addressBob, _ := p2pkhBob.PubKeyHash()
+
+	// Fund Bob address with LBTC.
+	if _, err := faucet(addressBob, 1); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 5)
+
+	// Retrieve bob utxos.
+	satsToSpend := uint64(60000000)
+	fee := uint64(500)
+	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// First Transaction
+	// 1 Input
+	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
+	txInputIndexBob := utxosBob[0].VOut
+	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
+	txinputs,err := esplora.WalletUtxosToTxInputs(utxosBob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(txInputBob.Hash, txinputs[0].Hash) != 0 {
+		t.Fatal("txinputs not equal")
+	}
+	// 3 outputs Script, Change, fee
+	// Fees
+	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
+	feeScript := []byte{}
+	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
+
+	// Change from/to Bob
+	changeScriptBob := p2pkhBob.Script
+	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
+	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
+
+	// P2WSH script
+	// miniscript: or(and(pk(A),sha256(H)),pk(B))
+	redeemScript, err := GetOpeningTxScript([]byte("gude"), pubkeyBob.SerializeCompressed(), []byte("gude")[:], 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	redeemPayment, err := payment.FromPayment(&payment.Payment{
+		Script:  redeemScript,
+		Network: &network.Regtest,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
+	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
+
+	// Create a new pset
+	//inputs := []*transaction.TxInput{txinputs...}
+	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
+	p, err := pset.New(txinputs, outputs, 2, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add sighash type and witness utxo to the partial input.
+	updater, err := pset.NewUpdater(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobFaucetTx, _ := transaction.NewTxFromHex(bobspendingTxHash)
+
+	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	prvKeys := []*btcec.PrivateKey{privkeyBob}
+	scripts := [][]byte{p2pkhBob.Script}
+	if err := signTransaction(p, prvKeys, scripts, false, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// Finalize the partial transaction.
+	if err := pset.FinalizeAll(p); err != nil {
+		t.Fatal(err)
+	}
+	// Extract the final signed transaction from the Pset wrapper.
+	finalTx, err := pset.Extract(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Serialize the transaction and try to broadcast.
+	txHex, err := finalTx.ToHex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = esplora.BroadcastTransaction(txHex)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 func Test_Loop_TimelockCase(t *testing.T) {
 	var preimage lightning.Preimage
@@ -302,24 +419,29 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	pHash := preimage.Hash()
 
 	// Generating Alices Keys and Address
-	privkeyAlice, err := btcec.NewPrivateKey(btcec.S256())
+
+	aliceStore := &wallet.DummyWalletStore{}
+	aliceStore.Initialize()
+	aliceWallet := &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
+
+	privkeyAlice, err := aliceStore.LoadPrivKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceStore := &wallet.DummyWalletStore{PrivKey: privkeyAlice}
-	aliceWallet := &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
-
 	pubkeyAlice := privkeyAlice.PubKey()
 	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
 	_, _ = p2pkhAlice.PubKeyHash()
 
 	// Generating Bob Keys and Address
-	privkeyBob, err := btcec.NewPrivateKey(btcec.S256())
+
+	bobStore := &wallet.DummyWalletStore{}
+	bobStore.Initialize()
+	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+
+	privkeyBob, err := bobStore.LoadPrivKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	bobStore := &wallet.DummyWalletStore{PrivKey: privkeyBob}
-	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
 
 	pubkeyBob := privkeyBob.PubKey()
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
@@ -329,7 +451,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 
 	// Retrieve bob utxos.
 	satsToSpend := uint64(60000000)
@@ -340,10 +462,13 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	}
 	// First Transaction
 	// 1 Input
-	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
-	txInputIndexBob := utxosBob[0].VOut
-	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-
+	//txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
+	//txInputIndexBob := utxosBob[0].VOut
+	//txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
+	txinputs,err := esplora.WalletUtxosToTxInputs(utxosBob)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// 3 outputs Script, Change, fee
 	// Fees
 	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
@@ -353,7 +478,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	// Change from/to Bob
 	changeScriptBob := p2pkhBob.Script
 	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
-	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
+	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob, changeScriptBob)
 
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),pk(B))
@@ -372,9 +497,9 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
-	inputs := []*transaction.TxInput{txInputBob}
+	//inputs := []*transaction.TxInput{txinputs...}
 	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
-	p, err := pset.New(inputs, outputs, 2, 0)
+	p, err := pset.New(txinputs, outputs, 2, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,12 +523,12 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	prvKeys := []*btcec.PrivateKey{privkeyBob}
 	scripts := [][]byte{p2pkhBob.Script}
-	if err := signTransaction(p, prvKeys, scripts, false, nil); err != nil {
+	if err = signTransaction(p, prvKeys, scripts, false, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// Finalize the partial transaction.
-	if err := pset.FinalizeAll(p); err != nil {
+	if err = pset.FinalizeAll(p); err != nil {
 		t.Fatal(err)
 	}
 	// Extract the final signed transaction from the Pset wrapper.
@@ -427,7 +552,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	firstTxHash := finalTx.WitnessHash()
 	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
 	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(satsToSpend - 500)
-	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes[:], p2pkhAlice.Script)
+	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes, p2pkhAlice.Script)
 
 	spendingTx := &transaction.Transaction{
 		Version:  2,
@@ -441,7 +566,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 
 	sigHash = spendingTx.HashForWitnessV0(
 		0,
-		redeemScript[:],
+		redeemScript,
 		loopInValue,
 		txscript.SigHashAll,
 	)
@@ -457,7 +582,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	witness := make([][]byte, 0)
 
 	witness = append(witness, preimage[:])
-	witness = append(witness, sigWithHashType[:])
+	witness = append(witness, sigWithHashType)
 	//witness = append(witness, []byte{})
 	witness = append(witness, redeemScript)
 	spendingTx.Inputs[0].Witness = witness

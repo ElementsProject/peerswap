@@ -121,7 +121,7 @@ func (e *EsploraClient) WalletUtxosToTxInputs(utxos []*wallet.Utxo) ([]*transact
 		if err != nil {
 			return nil, err
 		}
-		input := transaction.NewTxInput(txIdBytes, v.VOut)
+		input := transaction.NewTxInput(elementsutil.ReverseBytes(txIdBytes), v.VOut)
 		txInputs = append(txInputs, input)
 	}
 	return txInputs, nil

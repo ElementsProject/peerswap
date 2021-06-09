@@ -13,6 +13,7 @@ var (
 type WalletStore interface {
 	LoadPrivKey() (*btcec.PrivateKey, error)
 	ListAddresses() ([]string, error)
+	Initialize() error
 }
 type BlockchainService interface {
 	GetBlockHeight() (int, error)

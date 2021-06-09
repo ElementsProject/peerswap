@@ -28,8 +28,8 @@ const (
 	SWAPSTATE_CANCELED
 
 	MESSAGETYPE_SWAPREQUEST = "a455"
-	MESSAGETYPE_MAKERRESPONSE = "a456"
-	MESSAGETYPE_TAKERRESPONSE = "a457"
+	MESSAGETYPE_MAKERRESPONSE = "a457"
+	MESSAGETYPE_TAKERRESPONSE = "a459"
 )
 
 // Swap defines a swap process
@@ -42,8 +42,8 @@ type Swap struct {
 	ChannelId  string
 
 	Payreq   string
-	PreImage []byte
-	PHash    []byte
+	PreImage string
+	PHash    string
 
 	// Script
 	MakerPubkeyHash string
@@ -95,7 +95,7 @@ type MakerResponse struct {
 }
 
 func (m *MakerResponse) MessageType() string {
-	return MESSAGETYPE_TAKERRESPONSE
+	return MESSAGETYPE_MAKERRESPONSE
 }
 
 // TakerResponse is the response if the requester wants to swap in
