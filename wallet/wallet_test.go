@@ -30,14 +30,11 @@ func Test_Privkeys(t *testing.T) {
 }
 
 func Test_Address(t *testing.T) {
-	privkeyBytes, err := hex.DecodeString(alicePrivkey)
+	walletStore := DummyWalletStore{}
+	err := walletStore.Initialize()
 	if err != nil {
 		t.Fatal(err)
 	}
-	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
-
-	walletStore := DummyWalletStore{privKey: privkey}
-
 	_, err = walletStore.ListAddresses()
 	if err != nil {
 		t.Fatal(err)

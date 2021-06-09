@@ -364,7 +364,7 @@ func (s *Service) StartWatchingTxs() error {
 				}
 				err = s.ClaimTxWithPreimage(s.ctx, swap, tx)
 				if err != nil {
-					log.Printf("err claiming transactions", err)
+					log.Printf("err claiming transactions %v", err)
 					continue
 				}
 				swap.State = SWAPSTATE_CLAIMED_PREIMAGE

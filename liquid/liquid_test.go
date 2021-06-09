@@ -201,6 +201,8 @@ func Test_InputStuff(t *testing.T) {
 	}
 }
 func Test_Loop_TimelockCase(t *testing.T) {
+	locktime := 5
+	// Generate Preimage
 	var preimage lightning.Preimage
 
 	if _, err := rand.Read(preimage[:]); err != nil {
@@ -209,7 +211,12 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	pHash := preimage.Hash()
 
 	// Generating Alices Keys and Address
-	privkeyAlice, err := btcec.NewPrivateKey(btcec.S256())
+
+	aliceStore := &wallet.DummyWalletStore{}
+	aliceStore.Initialize()
+	_ = &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
+
+	privkeyAlice, err := aliceStore.LoadPrivKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +225,12 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	_, _ = p2pkhAlice.PubKeyHash()
 
 	// Generating Bob Keys and Address
-	privkeyBob, err := btcec.NewPrivateKey(btcec.S256())
+
+	bobStore := &wallet.DummyWalletStore{}
+	bobStore.Initialize()
+	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+
+	privkeyBob, err := bobStore.LoadPrivKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,61 +243,46 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second * 5)
 
-	// Retrieve Bob utxos.
-	utxosBob, err := esplora.FetchUtxos(addressBob)
+	// Retrieve bob utxos.
+	satsToSpend := uint64(60000000)
+	fee := uint64(500)
+	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	// First Transaction
 	// 1 Input
-	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
-	txInputIndexBob := utxosBob[0].VOut
-	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-
+	//txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
+	//txInputIndexBob := utxosBob[0].VOut
+	//txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
+	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// 3 outputs Script, Change, fee
 	// Fees
-	feeValue, _ := elementsutil.SatoshiToElementsValue(500)
+	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
 	feeScript := []byte{}
 	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
 
 	// Change from/to Bob
 	changeScriptBob := p2pkhBob.Script
-	changeValueBob, _ := elementsutil.SatoshiToElementsValue(39999500)
-	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
+	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
+	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob, changeScriptBob)
 
-	// calc cltv
-	locktime := 5
-	blockHeight, err := getBestBlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	spendingBlockHeight := int64(blockHeight + locktime)
 	// P2WSH script
-	// miniscript: or(and(pk(A),sha256(H)),and(pk(B), after(100)))
-	script := txscript.NewScriptBuilder().
-		AddData(pubkeyAlice.SerializeCompressed()).
-		AddOp(txscript.OP_CHECKSIG).
-		AddOp(txscript.OP_NOTIF).
-		AddData(pubkeyBob.SerializeCompressed()).
-		AddOp(txscript.OP_CHECKSIGVERIFY).
-		AddInt64(spendingBlockHeight).
-		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
-		AddOp(txscript.OP_ELSE).
-		AddOp(txscript.OP_SIZE).
-		AddData(h2b("20")).
-		AddOp(txscript.OP_EQUALVERIFY).
-		AddOp(txscript.OP_SHA256).
-		AddData(pHash[:]).
-		AddOp(txscript.OP_EQUAL).
-		AddOp(txscript.OP_ENDIF)
-
-	redeemScript, err := script.Script()
+	// miniscript: or(and(pk(A),sha256(H)),pk(B))
+	blockHeight, err  := getBestBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	spendingBlocktimeHeight := int64(blockHeight + locktime)
+	redeemScript, err := GetOpeningTxScript(pubkeyAlice.SerializeCompressed(), pubkeyBob.SerializeCompressed(), pHash[:], spendingBlocktimeHeight)
+	if err != nil {
+		t.Fatal(err)
+	}
 	redeemPayment, err := payment.FromPayment(&payment.Payment{
 		Script:  redeemScript,
 		Network: &network.Regtest,
@@ -293,14 +290,13 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	satsToSpend := uint64(60000000)
 	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
 	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
-	inputs := []*transaction.TxInput{txInputBob}
+	//inputs := []*transaction.TxInput{txinputs...}
 	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
-	p, err := pset.New(inputs, outputs, 2, 0)
+	p, err := pset.New(txinputs, outputs, 2, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,12 +320,12 @@ func Test_Loop_TimelockCase(t *testing.T) {
 
 	prvKeys := []*btcec.PrivateKey{privkeyBob}
 	scripts := [][]byte{p2pkhBob.Script}
-	if err := signTransaction(p, prvKeys, scripts, false, nil); err != nil {
+	if err = signTransaction(p, prvKeys, scripts, false, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// Finalize the partial transaction.
-	if err := pset.FinalizeAll(p); err != nil {
+	if err = pset.FinalizeAll(p); err != nil {
 		t.Fatal(err)
 	}
 	// Extract the final signed transaction from the Pset wrapper.
@@ -346,6 +342,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second * 5)
 	t.Log(finalTx.WitnessHash())
 	t.Log(finalTx.TxHash())
 	t.Log(tx)
@@ -356,7 +353,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	blockHeight, err = getBestBlock()
+	blockHeight, err  = getBestBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +367,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	spendingTx := &transaction.Transaction{
 		Version:  2,
 		Flag:     0,
-		Locktime: uint32(spendingBlockHeight),
+		Locktime: uint32(spendingBlocktimeHeight),
 		Inputs:   []*transaction.TxInput{spendingInput},
 		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
 	}

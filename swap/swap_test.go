@@ -16,9 +16,9 @@ func TestInMemStore(t *testing.T) {
 func storeTest(t *testing.T, store SwapStore) {
 	ctx := context.Background()
 
-	swap1 := NewSwap(SWAPTYPE_IN, "foo", "bar", 100)
+	swap1 := NewSwap(SWAPTYPE_IN, 100, "bar", "foo")
 
-	swap2 := NewSwap(SWAPTYPE_OUT, "baz", "qux", 100)
+	swap2 := NewSwap(SWAPTYPE_OUT, 100, "qux", "baz")
 
 	err := store.Create(ctx, swap1)
 	if err != nil {
