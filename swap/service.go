@@ -497,18 +497,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 }
 
 // CheckTransaction checks if the opening transaction is according to the takers terms
-// todo check script
 func (s *Service) CheckTransaction(ctx context.Context, swap *Swap, tx *transaction.Transaction) error {
-
-	//script, err := s.getSwapScript(swap)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if bytes.Compare(tx.Outputs[0].Script, script) != 0 {
-	//	return errors.New("tx script does not match computed script")
-	//}
-
 	// check value
 	value, err := elementsutil.SatoshiToElementsValue(swap.Amount)
 	if err != nil {

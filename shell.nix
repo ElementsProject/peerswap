@@ -116,7 +116,10 @@ with pkgs;
         connect_nodes
         setup_channel
     }
-
+    remove_nodes() {
+         rm -rf /tmp/l2-regtest/
+         rm -rf /tmp/l1-regtest/
+    }
     stop_test_env() {
         stop_nodes "$1" regtest
         test ! -f "$PATH_TO_BITCOIN/regtest/bitcoind.pid" || \
