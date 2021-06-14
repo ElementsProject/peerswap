@@ -6,6 +6,7 @@ import (
 	"github.com/sputn1ck/sugarmama/swap"
 	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/vulpemventures/go-elements/network"
+	"go.etcd.io/bbolt"
 	"log"
 	"os"
 )
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		log.Printf("%v error:", err)
+		log.Printf("plugin quitting, error: %s", err)
 		os.Exit(1)
 	}
 
@@ -39,6 +40,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	// start clightning plugin
 	quitChan := make(chan interface{})
 	go func () {
@@ -54,14 +56,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	dir, err := os.Getwd()
+	log.Printf("Config: %s, %s, wd: %s", config.DbPath, config.EsploraUrl)
+	// setup services
+	// esplora
+	esplora := liquid.NewEsploraClient("http://localhost:3001")
+
+	// db
+	boltDb, err := bbolt.Open(config.DbPath, 0700, nil)
 	if err != nil {
 		return err
 	}
-	log.Printf("Config: %s, %s, wd: %s", config.DbPath, config.EsploraUrl, dir)
-	esplora := liquid.NewEsploraClient("http://localhost:3001")
 
-	walletStore := &wallet.DummyWalletStore{}
+	// Wallet
+	walletStore,err := wallet.NewKeyStore(boltDb)
+	if err != nil {
+		return err
+	}
 	err = walletStore.Initialize()
 	if err != nil {
 		return err
@@ -90,7 +100,8 @@ func run() error {
 	go func() {
 		err := swapService.StartWatchingTxs()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("%v",err)
+			os.Exit(1)
 		}
 	}()
 

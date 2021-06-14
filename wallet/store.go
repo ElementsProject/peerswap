@@ -1,42 +1,110 @@
 package wallet
 
 import (
+	"errors"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
+
+	"go.etcd.io/bbolt"
 )
 
-type DummyWalletStore struct {
+var (
+	keyStoreBucketName = []byte("keys")
+	privkeyId = []byte("privkey")
+	ErrDoesNotExist  = fmt.Errorf("does not exist")
+)
+
+type walletStore struct {
+	db *bbolt.DB
+
 	privKey *btcec.PrivateKey
 	pubkey  *btcec.PublicKey
-
-	initialized bool
 }
 
-func (d *DummyWalletStore) Initialize() error {
-
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
-	if err != nil {
+func (p *walletStore) Initialize() error {
+	key, err := p.LoadPrivKey()
+	if err != ErrDoesNotExist && err != nil{
 		return err
 	}
-	d.privKey = privkey
-	d.pubkey = privkey.PubKey()
+	if err == ErrDoesNotExist {
+		key, err = btcec.NewPrivateKey(btcec.S256())
+		if err != nil {
+			return err
+		}
+		err = p.savePrivkey(key)
+		if err != nil {
+			return err
+		}
+	}
+	p.privKey = key
+	p.pubkey = p.privKey.PubKey()
 	return nil
 }
 
-func (d *DummyWalletStore) LoadPrivKey() (*btcec.PrivateKey, error) {
-	return d.privKey, nil
+func (p *walletStore) savePrivkey(key *btcec.PrivateKey) error{
+	tx, err := p.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	b := tx.Bucket(keyStoreBucketName)
+	if b == nil {
+		return errors.New("bucket is nil")
+	}
+
+	err = b.Put([]byte("privkey"), key.Serialize())
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+func (p *walletStore) LoadPrivKey() (*btcec.PrivateKey, error) {
+	tx, err := p.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	b := tx.Bucket(keyStoreBucketName)
+	if b == nil {
+		return nil, fmt.Errorf("bucket nil")
+	}
+
+	jData := b.Get(privkeyId)
+	if jData == nil {
+		return nil, ErrDoesNotExist
+	}
+
+	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), jData)
+
+	return privkey, nil
 }
 
-func (d *DummyWalletStore) ListAddresses() ([]string, error) {
-	p2pkhBob := payment.FromPublicKey(d.pubkey, &network.Regtest, nil)
+func (p *walletStore) ListAddresses() ([]string, error) {
+	p2pkhBob := payment.FromPublicKey(p.pubkey, &network.Regtest, nil)
 	address, err := p2pkhBob.PubKeyHash()
 	if err != nil {
 		return nil, err
 	}
 	return []string{address}, nil
-
 }
 
-type FileWalletStore struct {
+func NewKeyStore(db *bbolt.DB) (*walletStore, error) {
+	tx, err := db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	_, err = tx.CreateBucketIfNotExists(keyStoreBucketName)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &walletStore{db: db}, nil
 }

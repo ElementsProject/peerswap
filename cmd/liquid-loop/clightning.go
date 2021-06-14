@@ -149,8 +149,13 @@ func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		dbpath = filepath.Join(wd,"swaps","db")
+		dbpath = filepath.Join(wd,"swaps")
 	}
+	err = os.MkdirAll(dbpath,0700)
+	if err != nil && err != os.ErrExist{
+		return nil, err
+	}
+	dbpath = filepath.Join(dbpath,"db")
 	esploraUrl, err := c.plugin.GetOption(esploraOption)
 	if err != nil {
 		return nil, err
@@ -184,10 +189,7 @@ func (c *ClightningClient) SetupClients(wallet lightning.WalletService, swaps *s
 }
 func (c *ClightningClient) RegisterMethods() error {
 	loopIn := glightning.NewRpcMethod(&SwapOut{
-		wallet:    c.wallet,
-		pc:        c,
-		lightning: c.glightning,
-		swapper:   c.swaps,
+		cl: c,
 	}, "Loop In")
 	loopIn.Category = "liquid-loop"
 	err := c.plugin.RegisterMethod(loopIn)
@@ -196,7 +198,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	listSwaps := glightning.NewRpcMethod(&ListSwaps{
-		swapper: c.swaps,
+		cl: c,
 	}, "list swaps")
 	listSwaps.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listSwaps)
@@ -205,7 +207,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
-		wallet: c.wallet,
+		cl: c,
 	}, "get new liquid address")
 	getAddress.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getAddress)
@@ -214,7 +216,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
-		wallet: c.wallet,
+		cl: c,
 	}, "get liquid balance")
 	getBalance.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getBalance)
@@ -223,7 +225,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	listUtxos := glightning.NewRpcMethod(&ListUtxosMethod{
-		wallet: c.wallet,
+		cl: c,
 	}, "list liquid utxos")
 	listUtxos.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listUtxos)
@@ -232,8 +234,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	devFaucet := glightning.NewRpcMethod(&DevFaucet{
-		wallet:  c.wallet,
-		esplora: c.esplora,
+		cl: c,
 	}, "add lbtc funds to wallet")
 	devFaucet.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(devFaucet)

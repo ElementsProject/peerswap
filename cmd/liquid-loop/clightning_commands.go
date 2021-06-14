@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"github.com/niftynei/glightning/glightning"
 	"github.com/niftynei/glightning/jrpc2"
-	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/liquid"
-	"github.com/sputn1ck/sugarmama/swap"
 )
 
 type GetAddressMethod struct {
-	wallet lightning.WalletService `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (g *GetAddressMethod) New() interface{} {
 	return &GetAddressMethod{
-		wallet: g.wallet,
+		cl: g.cl,
 	}
 }
 
@@ -25,7 +22,7 @@ func (g *GetAddressMethod) Name() string {
 }
 
 func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
-	res, err := g.wallet.ListAddresses()
+	res, err := g.cl.wallet.ListAddresses()
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +30,7 @@ func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
 }
 
 type GetBalanceMethod struct {
-	wallet lightning.WalletService `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (g *GetBalanceMethod) Name() string {
@@ -42,12 +39,12 @@ func (g *GetBalanceMethod) Name() string {
 
 func (g *GetBalanceMethod) New() interface{} {
 	return &GetBalanceMethod{
-		wallet: g.wallet,
+		cl: g.cl,
 	}
 }
 
 func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
-	res, err := g.wallet.GetBalance()
+	res, err := g.cl.wallet.GetBalance()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +52,7 @@ func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
 }
 
 type ListUtxosMethod struct {
-	wallet lightning.WalletService `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (l *ListUtxosMethod) Name() string {
@@ -64,12 +61,12 @@ func (l *ListUtxosMethod) Name() string {
 
 func (l *ListUtxosMethod) New() interface{} {
 	return &ListUtxosMethod{
-		wallet: l.wallet,
+		cl: l.cl,
 	}
 }
 
 func (l *ListUtxosMethod) Call() (jrpc2.Result, error) {
-	utxos, err := l.wallet.ListUtxos()
+	utxos, err := l.cl.wallet.ListUtxos()
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +74,7 @@ func (l *ListUtxosMethod) Call() (jrpc2.Result, error) {
 }
 
 type DevFaucet struct {
-	esplora *liquid.EsploraClient   `json:"-"`
-	wallet  lightning.WalletService `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (d *DevFaucet) Name() string {
@@ -87,35 +83,28 @@ func (d *DevFaucet) Name() string {
 
 func (d *DevFaucet) New() interface{} {
 	return &DevFaucet{
-		wallet:  d.wallet,
-		esplora: d.esplora,
+		cl: d.cl,
 	}
 }
 
 func (d *DevFaucet) Call() (jrpc2.Result, error) {
-	address, err := d.wallet.ListAddresses()
+	address, err := d.cl.wallet.ListAddresses()
 	if err != nil {
 		return nil, err
 	}
-	return d.esplora.DEV_Fundaddress(address[0])
+	return d.cl.esplora.DEV_Fundaddress(address[0])
 }
 
 type SwapOut struct {
 	SatAmt         uint64 `json:"amt"`
 	ShortChannelId string `json:"short_channel_id"`
 
-	wallet    lightning.WalletService    `json:"-"`
-	pc        lightning.PeerCommunicator `json:"-"`
-	lightning *glightning.Lightning      `json:"-"`
-	swapper   *swap.Service              `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (l *SwapOut) New() interface{} {
 	return &SwapOut{
-		wallet:    l.wallet,
-		pc:        l.pc,
-		lightning: l.lightning,
-		swapper:   l.swapper,
+		cl: l.cl,
 	}
 }
 
@@ -132,7 +121,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("Missing required short_channel_id parameter")
 	}
 
-	funds, err := l.lightning.ListFunds()
+	funds, err := l.cl.glightning.ListFunds()
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +143,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.swapper.StartSwapOut(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
+	err = l.cl.swaps.StartSwapOut(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +151,12 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 }
 
 type ListSwaps struct {
-	swapper *swap.Service `json:"-"`
+	cl *ClightningClient `json:"-"`
 }
 
 func (l *ListSwaps) New() interface{} {
 	return &ListSwaps{
-		swapper: l.swapper,
+		cl: l.cl,
 	}
 }
 
@@ -176,7 +165,7 @@ func (l *ListSwaps) Name() string {
 }
 
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
-	swaps, err := l.swapper.ListSwaps()
+	swaps, err := l.cl.swaps.ListSwaps()
 	if err != nil {
 		return nil, err
 	}
