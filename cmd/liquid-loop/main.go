@@ -68,7 +68,7 @@ func run() error {
 	}
 
 	// Wallet
-	walletStore,err := wallet.NewKeyStore(boltDb)
+	walletStore,err := wallet.NewBboltStore(boltDb)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,10 @@ func run() error {
 	}
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 
-	swapStore := swap.NewInMemStore()
+	swapStore,err := swap.NewBboltStore(boltDb)
+	if err != nil {
+		return err
+	}
 	swapService := swap.NewService(swapStore, walletService, clightning, esplora, clightning, &network.Regtest)
 
 
@@ -88,14 +91,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	addr, err := walletService.ListAddresses()
-	if err != nil {
-		return err
-	}
-	_, err = esplora.DEV_Fundaddress(addr[0])
-	if err != nil {
-		return err
-	}
+	// DEBUG ONLY, fund addresses
+	//addr, err := walletService.ListAddresses()
+	//if err != nil {
+	//	return err
+	//}
+	//_, err = esplora.DEV_Fundaddress(addr[0])
+	//if err != nil {
+	//	return err
+	//}
 
 	go func() {
 		err := swapService.StartWatchingTxs()

@@ -37,11 +37,11 @@ type Wallet interface {
 }
 
 type SwapStore interface {
-	Create(context.Context, *Swap) error
-	Update(context.Context, *Swap) error
-	DeleteById(context.Context, string) error
-	GetById(context.Context, string) (*Swap, error)
-	ListAll(context.Context) ([]*Swap, error)
+	Create(*Swap) error
+	Update(*Swap) error
+	DeleteById(string) error
+	GetById(string) (*Swap, error)
+	ListAll() ([]*Swap, error)
 }
 
 var LBTC = append(
@@ -77,12 +77,12 @@ func NewService(store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, b
 }
 
 func (s *Service) ListSwaps() ([]*Swap, error) {
-	return s.store.ListAll(context.Background())
+	return s.store.ListAll()
 }
 
 func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) error {
 	swap := NewSwap(SWAPTYPE_OUT, amount, peerNodeId, channelId)
-	err := s.store.Create(s.ctx, swap)
+	err := s.store.Create(swap)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint6
 		return err
 	}
 	swap.State = SWAPSTATE_REQUEST_SENT
-	err = s.store.Update(s.ctx, swap)
+	err = s.store.Update(swap)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		ChannelId:  request.ChannelId,
 	}
 
-	err := s.store.Create(s.ctx, swap)
+	err := s.store.Create(swap)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		swap.PreImage = preimage.String()
 		swap.PHash = pHash.String()
 		swap.State = SWAPSTATE_OPENING_TX_PREPARED
-		err = s.store.Update(s.ctx, swap)
+		err = s.store.Update(swap)
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		}
 		swap.OpeningTxId = txId
 		swap.State = SWAPSTATE_OPENING_TX_BROADCASTED
-		err = s.store.Update(s.ctx, swap)
+		err = s.store.Update(swap)
 		if err != nil {
 			return err
 		}
@@ -304,7 +304,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 }
 
 func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) error {
-	swap, err := s.store.GetById(s.ctx, request.SwapId)
+	swap, err := s.store.GetById(request.SwapId)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) er
 		return errors.New(fmt.Sprintf("invoice amount is to high, got: %v, expected %v", swap.Amount+FIXED_FEE, invoice.Amount))
 	}
 
-	err = s.store.Update(s.ctx, swap)
+	err = s.store.Update(swap)
 	if err != nil {
 		return err
 	}
@@ -339,6 +339,17 @@ func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) er
 }
 
 func (s *Service) StartWatchingTxs() error {
+	swaps, err := s.store.ListAll()
+	if err != nil {
+		return err
+	}
+	for _,v := range swaps {
+		if v.State == SWAPSTATE_WAITING_FOR_TX {
+			s.Lock()
+			s.txWatchList[v.Id] = v.OpeningTxId
+			s.Unlock()
+		}
+	}
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -349,30 +360,30 @@ func (s *Service) StartWatchingTxs() error {
 			for k, v := range s.txWatchList {
 				res, err := s.blockchain.FetchTxHex(v)
 				if err != nil {
-					log.Fatalf("watchlist err: %v", err)
+					log.Printf("watchlist err: %v", err)
 					continue
 				}
 				if res != res {
-					log.Fatalf("\n tx is not equal to sent tx")
+					log.Printf("\n tx is not equal to sent tx")
 				}
 				tx, err := transaction.NewTxFromHex(res)
 				if err != nil {
-					log.Fatalf("tx err %v", err)
+					log.Printf("tx err %v", err)
 					continue
 				}
 
-				swap, err := s.store.GetById(s.ctx, k)
+				swap, err := s.store.GetById(k)
 				if err != nil {
-					log.Fatalf("swap err %v", err)
+					log.Printf("swap err %v", err)
 					continue
 				}
 				err = s.ClaimTxWithPreimage(s.ctx, swap, tx)
 				if err != nil {
-					log.Fatalf("err claiming transactions %v", err)
+					log.Printf("err claiming transactions %v", err)
 					continue
 				}
 				swap.State = SWAPSTATE_CLAIMED_PREIMAGE
-				err = s.store.Update(s.ctx, swap)
+				err = s.store.Update(swap)
 				if err != nil {
 					return err
 				}
@@ -397,7 +408,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 			return err
 		}
 		swap.PreImage = preimageString
-		err = s.store.Update(s.ctx, swap)
+		err = s.store.Update(swap)
 		if err != nil {
 			return err
 		}
@@ -489,7 +500,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	swap.State = SWAPSTATE_CLAIMED_PREIMAGE
 
 	log.Printf("taker claimid %s", claimId)
-	err = s.store.Update(s.ctx, swap)
+	err = s.store.Update(swap)
 	if err != nil {
 		return err
 	}

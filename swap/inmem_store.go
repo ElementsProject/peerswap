@@ -1,7 +1,6 @@
 package swap
 
 import (
-	"context"
 	"errors"
 )
 
@@ -18,7 +17,7 @@ func NewInMemStore() *InMemStore {
 	return &InMemStore{swapMap: make(map[string]*Swap)}
 }
 
-func (i *InMemStore) Create(ctx context.Context, swap *Swap) error {
+func (i *InMemStore) Create(swap *Swap) error {
 	if _, ok := i.swapMap[swap.Id]; ok {
 		return AlreadyExistsError
 	}
@@ -26,7 +25,7 @@ func (i *InMemStore) Create(ctx context.Context, swap *Swap) error {
 	return nil
 }
 
-func (i *InMemStore) Update(ctx context.Context, swap *Swap) error {
+func (i *InMemStore) Update(swap *Swap) error {
 	if _, ok := i.swapMap[swap.Id]; !ok {
 		return DoesNotExistError
 	}
@@ -34,7 +33,7 @@ func (i *InMemStore) Update(ctx context.Context, swap *Swap) error {
 	return nil
 }
 
-func (i *InMemStore) DeleteById(ctx context.Context, s string) error {
+func (i *InMemStore) DeleteById(s string) error {
 	if _, ok := i.swapMap[s]; !ok {
 		return DoesNotExistError
 	}
@@ -42,14 +41,14 @@ func (i *InMemStore) DeleteById(ctx context.Context, s string) error {
 	return nil
 }
 
-func (i *InMemStore) GetById(ctx context.Context, s string) (*Swap, error) {
+func (i *InMemStore) GetById(s string) (*Swap, error) {
 	if v, ok := i.swapMap[s]; ok {
 		return v, nil
 	}
 	return nil, DoesNotExistError
 }
 
-func (i *InMemStore) ListAll(ctx context.Context) ([]*Swap, error) {
+func (i *InMemStore) ListAll() ([]*Swap, error) {
 	var swaps []*Swap
 	for _, v := range i.swapMap {
 		swaps = append(swaps, v)

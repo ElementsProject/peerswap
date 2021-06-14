@@ -57,7 +57,6 @@ func Test_getUtxos(t *testing.T) {
 		wantErr       bool
 		specificError error
 	}{
-		// TODO: Add test cases.
 		{
 			name: "ez",
 			args: args{

@@ -16,14 +16,14 @@ var (
 	ErrDoesNotExist  = fmt.Errorf("does not exist")
 )
 
-type walletStore struct {
+type bboltStore struct {
 	db *bbolt.DB
 
 	privKey *btcec.PrivateKey
 	pubkey  *btcec.PublicKey
 }
 
-func (p *walletStore) Initialize() error {
+func (p *bboltStore) Initialize() error {
 	key, err := p.LoadPrivKey()
 	if err != ErrDoesNotExist && err != nil{
 		return err
@@ -43,7 +43,7 @@ func (p *walletStore) Initialize() error {
 	return nil
 }
 
-func (p *walletStore) savePrivkey(key *btcec.PrivateKey) error{
+func (p *bboltStore) savePrivkey(key *btcec.PrivateKey) error{
 	tx, err := p.db.Begin(true)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (p *walletStore) savePrivkey(key *btcec.PrivateKey) error{
 	}
 	return tx.Commit()
 }
-func (p *walletStore) LoadPrivKey() (*btcec.PrivateKey, error) {
+func (p *bboltStore) LoadPrivKey() (*btcec.PrivateKey, error) {
 	tx, err := p.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -83,8 +83,8 @@ func (p *walletStore) LoadPrivKey() (*btcec.PrivateKey, error) {
 	return privkey, nil
 }
 
-func (p *walletStore) ListAddresses() ([]string, error) {
-	p2pkhBob := payment.FromPublicKey(p.pubkey, &network.Regtest, nil)
+func (p *bboltStore) ListAddresses() ([]string, error) {
+	p2pkhBob := payment.FromPublicKey(p.pubkey, &network.Liquid, nil)
 	address, err := p2pkhBob.PubKeyHash()
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (p *walletStore) ListAddresses() ([]string, error) {
 	return []string{address}, nil
 }
 
-func NewKeyStore(db *bbolt.DB) (*walletStore, error) {
+func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
 	tx, err := db.Begin(true)
 	if err != nil {
 		return nil, err
@@ -106,5 +106,5 @@ func NewKeyStore(db *bbolt.DB) (*walletStore, error) {
 		return nil, err
 	}
 
-	return &walletStore{db: db}, nil
+	return &bboltStore{db: db}, nil
 }
