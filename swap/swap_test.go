@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func Test_TransactionFromSwap(t *testing.T) {
 
 }
@@ -22,22 +21,22 @@ func storeTest(t *testing.T, store SwapStore) {
 
 	swap2 := NewSwap(SWAPTYPE_OUT, 100, "qux", "baz")
 
-	err := store.Create( swap1)
+	err := store.Create(swap1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = store.Create( swap1)
+	err = store.Create(swap1)
 	if err != nil && err != AlreadyExistsError {
 		t.Fatal(err)
 	}
 
-	err = store.Create( swap2)
+	err = store.Create(swap2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	swap3, err := store.GetById( swap1.Id)
+	swap3, err := store.GetById(swap1.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +44,7 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fail()
 	}
 
-	_, err = store.GetById( "foobar")
+	_, err = store.GetById("foobar")
 	if err != nil && err != DoesNotExistError {
 		t.Fatal(err)
 	}
@@ -57,11 +56,11 @@ func storeTest(t *testing.T, store SwapStore) {
 	if len(swaps) != 2 {
 		t.Fail()
 	}
-	err = store.DeleteById( swap3.Id)
+	err = store.DeleteById(swap3.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = store.DeleteById( swap3.Id)
+	err = store.DeleteById(swap3.Id)
 	if err != nil && err != DoesNotExistError {
 		t.Fatal(err)
 	}
@@ -73,17 +72,17 @@ func storeTest(t *testing.T, store SwapStore) {
 	if len(swaps) != 1 {
 		t.Fail()
 	}
-	err = store.Update( swap1)
+	err = store.Update(swap1)
 	if err != nil && err != DoesNotExistError {
 		t.Fatal(err)
 	}
 
 	swap2.PeerNodeId = "foobaz"
-	err = store.Update( swap2)
+	err = store.Update(swap2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	swap3, err = store.GetById( swap2.Id)
+	swap3, err = store.GetById(swap2.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,4 +90,3 @@ func storeTest(t *testing.T, store SwapStore) {
 		t.Fail()
 	}
 }
-

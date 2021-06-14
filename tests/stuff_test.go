@@ -18,7 +18,7 @@ func Test_Swap(t *testing.T) {
 	aliceCom := &TestCommunicator{
 		testing: t,
 	}
-	bobCom := &TestCommunicator{other: aliceCom, testing:t}
+	bobCom := &TestCommunicator{other: aliceCom, testing: t}
 	aliceCom.other = bobCom
 
 	// Generate Preimage

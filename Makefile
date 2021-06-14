@@ -1,7 +1,7 @@
 build:
-	go build -o liquid-loop ./cmd/liquid-loop/.
-	chmod a+x liquid-loop
+	go build -o liquid-swap ./cmd/liquid-swap/.
+	chmod a+x liquid-swap
 copy:
-	cp liquid-loop /mnt/c/Users/kon-dev/.polar/networks/9/volumes/c-lightning/alice/lightningd/plugins/
-	cp liquid-loop /mnt/c/Users/kon-dev/.polar/networks/9/volumes/c-lightning/bob/lightningd/plugins/
+	cp liquid-swap /mnt/c/Users/kon-dev/.polar/networks/9/volumes/c-lightning/alice/lightningd/plugins/
+	cp liquid-swap /mnt/c/Users/kon-dev/.polar/networks/9/volumes/c-lightning/bob/lightningd/plugins/
 

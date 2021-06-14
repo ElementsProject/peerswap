@@ -147,8 +147,8 @@ func Test_InputStuff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
+	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
+	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
 	//inputs := []*transaction.TxInput{txinputs...}
@@ -200,7 +200,7 @@ func Test_InputStuff(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func Test_Loop_TimelockCase(t *testing.T) {
+func Test_swap_TimelockCase(t *testing.T) {
 	locktime := 5
 	// Generate Preimage
 	var preimage lightning.Preimage
@@ -274,7 +274,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 
 	// P2WSH script
 	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	blockHeight, err  := getBestBlock()
+	blockHeight, err := getBestBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,8 +290,8 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
+	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
+	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
 	//inputs := []*transaction.TxInput{txinputs...}
@@ -353,7 +353,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	blockHeight, err  = getBestBlock()
+	blockHeight, err = getBestBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,7 +377,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 	sigHash = spendingTx.HashForWitnessV0(
 		0,
 		redeemScript[:],
-		loopInValue,
+		swapInValue,
 		txscript.SigHashAll,
 	)
 	sig, err := privkeyBob.Sign(sigHash[:])
@@ -404,7 +404,7 @@ func Test_Loop_TimelockCase(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func Test_Loop_PreimageClaim(t *testing.T) {
+func Test_Swap_PreimageClaim(t *testing.T) {
 	// Generate Preimage
 	var preimage lightning.Preimage
 
@@ -488,8 +488,8 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loopInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, loopInValue, redeemPayment.WitnessScript)
+	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
+	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
 	//inputs := []*transaction.TxInput{txinputs...}
@@ -562,7 +562,7 @@ func Test_Loop_PreimageClaim(t *testing.T) {
 	sigHash = spendingTx.HashForWitnessV0(
 		0,
 		redeemScript,
-		loopInValue,
+		swapInValue,
 		txscript.SigHashAll,
 	)
 	//sig, err := privkeyBob.Sign(sigHash[:])

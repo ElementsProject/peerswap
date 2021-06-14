@@ -30,6 +30,7 @@ const (
 	MESSAGETYPE_SWAPREQUEST   = "a455"
 	MESSAGETYPE_MAKERRESPONSE = "a457"
 	MESSAGETYPE_TAKERRESPONSE = "a459"
+	MESSAGETYPE_ERRORRESPONSE = "a461"
 )
 
 // Swap defines a swap process
@@ -94,7 +95,7 @@ type MakerResponse struct {
 	MakerPubkeyHash string
 	Invoice         string
 	TxId            string
-	Cltv			int64
+	Cltv            int64
 }
 
 func (m *MakerResponse) MessageType() string {
@@ -111,4 +112,11 @@ func (t *TakerResponse) MessageType() string {
 	return MESSAGETYPE_TAKERRESPONSE
 }
 
-// todo errors / abort response
+type ErrorResponse struct {
+	SwapId string
+	Error  string
+}
+
+func (e *ErrorResponse) MessageType() string {
+	return MESSAGETYPE_ERRORRESPONSE
+}

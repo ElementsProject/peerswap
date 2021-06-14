@@ -12,8 +12,8 @@ import (
 
 var (
 	keyStoreBucketName = []byte("keys")
-	privkeyId = []byte("privkey")
-	ErrDoesNotExist  = fmt.Errorf("does not exist")
+	privkeyId          = []byte("privkey")
+	ErrDoesNotExist    = fmt.Errorf("does not exist")
 )
 
 type bboltStore struct {
@@ -25,7 +25,7 @@ type bboltStore struct {
 
 func (p *bboltStore) Initialize() error {
 	key, err := p.LoadPrivKey()
-	if err != ErrDoesNotExist && err != nil{
+	if err != ErrDoesNotExist && err != nil {
 		return err
 	}
 	if err == ErrDoesNotExist {
@@ -43,7 +43,7 @@ func (p *bboltStore) Initialize() error {
 	return nil
 }
 
-func (p *bboltStore) savePrivkey(key *btcec.PrivateKey) error{
+func (p *bboltStore) savePrivkey(key *btcec.PrivateKey) error {
 	tx, err := p.db.Begin(true)
 	if err != nil {
 		return err

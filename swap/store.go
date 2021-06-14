@@ -59,7 +59,6 @@ func (p *bboltStore) Create(swap *Swap) error {
 		return err
 	}
 
-
 	if err := b.Put(h2b(swap.Id), jData); err != nil {
 		return err
 	}
@@ -177,4 +176,3 @@ func (p *bboltStore) idExists(id string) (bool, error) {
 	}
 	return true, nil
 }
-

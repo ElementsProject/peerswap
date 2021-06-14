@@ -137,7 +137,7 @@ func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64
 	return nil
 }
 
-// todo implement loop in
+// todo implement swap in
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {
 	ctx := context.Background()
 	swap := &Swap{
@@ -198,7 +198,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 			MakerPubkeyHash: swap.MakerPubkeyHash,
 			Invoice:         payreq,
 			TxId:            swap.OpeningTxId,
-			Cltv: swap.Cltv,
+			Cltv:            swap.Cltv,
 		}
 		err = s.pc.SendMessage(swap.PeerNodeId, response)
 		if err != nil {
@@ -256,7 +256,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	changeOutput := transaction.NewTxOutput(LBTC, changeValue[:], changeScript)
 
 	// Swap
-	blockHeight, err  := s.blockchain.GetBlockHeight()
+	blockHeight, err := s.blockchain.GetBlockHeight()
 	if err != nil {
 		return "", err
 	}
@@ -333,7 +333,6 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 		return "", err
 	}
 
-
 	txId, err := s.blockchain.BroadcastTransaction(txHex)
 	if err != nil {
 		return "", err
@@ -392,7 +391,7 @@ func (s *Service) OnTakerResponse(senderNodeId string, request TakerResponse) er
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         payreq,
 		TxId:            swap.OpeningTxId,
-		Cltv: swap.Cltv,
+		Cltv:            swap.Cltv,
 	}
 	err = s.pc.SendMessage(swap.PeerNodeId, response)
 	if err != nil {
@@ -440,7 +439,7 @@ func (s *Service) StartWatchingTxs() error {
 	if err != nil {
 		return err
 	}
-	for _,v := range swaps {
+	for _, v := range swaps {
 		if v.State == SWAPSTATE_WAITING_FOR_TX {
 			s.Lock()
 			s.txWatchList[v.Id] = v.OpeningTxId
@@ -575,10 +574,9 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	}
 	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
 
-
 	log.Printf("taker preimage %s", swap.PreImage)
 
-	witness := make([][]byte,0)
+	witness := make([][]byte, 0)
 	witness = append(witness, preimage[:])
 	witness = append(witness, sigWithHashType[:])
 	witness = append(witness, script[:])
