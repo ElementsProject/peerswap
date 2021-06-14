@@ -5,20 +5,32 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/niftynei/glightning/glightning"
+	"github.com/sputn1ck/sugarmama"
 	"github.com/sputn1ck/sugarmama/lightning"
 	"github.com/sputn1ck/sugarmama/liquid"
 	"github.com/sputn1ck/sugarmama/swap"
 	"log"
 	"math/big"
 	"os"
+	"path/filepath"
 )
 
+const (
+	dbOption      = "db-path"
+	esploraOption = "esplora-url"
+)
 type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
+	wallet lightning.WalletService
+	swaps *swap.Service
+	esplora *liquid.EsploraClient
+
 	msgHandlers []func(peerId string, messageType string, payload string) error
+	initChan chan interface{}
 }
 
 func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
@@ -30,14 +42,14 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 	return preimage, nil
 }
 
-func NewClightningClient() (*ClightningClient, error) {
+func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	cl := &ClightningClient{}
 	cl.plugin = glightning.NewPlugin(cl.onInit)
 	err := cl.plugin.RegisterHooks(&glightning.Hooks{
 		CustomMsgReceived: cl.OnCustomMsg,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cl.glightning = glightning.NewLightning()
@@ -47,7 +59,8 @@ func NewClightningClient() (*ClightningClient, error) {
 	cl.plugin.AddNodeFeatures(b.Bytes())
 	cl.plugin.SetDynamic(true)
 
-	return cl, nil
+	cl.initChan = make(chan interface{})
+	return cl,cl.initChan, nil
 }
 
 func (c *ClightningClient) Start() error {
@@ -121,42 +134,60 @@ func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent)
 // This is called after the plugin starts up successfully
 func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
 	log.Printf("successfully init'd! %s\n", config.RpcFile)
-
 	c.glightning.StartUp(config.RpcFile, config.LightningDir)
+	c.initChan<-true
+}
 
-	// If 'initialization' happened at the same time as the plugin starts,
-	//   then the 'startup' will be true. Otherwise, you've been
-	//   initialized by the 'dynamic' plugin command.
-	//   Note that you have to opt-into dynamic startup.
-	log.Printf("Is this initial node startup? %v\n", config.Startup)
+func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 
-	bopt, _ := plugin.GetBoolOption("bool_opt")
-	iopt, _ := plugin.GetIntOption("int_opt")
-	fopt, _ := plugin.IsOptionFlagged("flag_opt")
+	dbpath, err := c.plugin.GetOption(dbOption)
+	if err != nil {
+		return nil, err
+	}
+	if dbpath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		dbpath = filepath.Join(wd,"swaps","db")
+	}
+	esploraUrl, err := c.plugin.GetOption(esploraOption)
+	if err != nil {
+		return nil, err
+	}
+	if esploraUrl == "" {
+		return nil, errors.New(fmt.Sprintf("%s need to be set", esploraOption))
+	}
 
-	log.Printf("the bool option is set to %t", bopt)
-	log.Printf("the int option is set to %d", iopt)
-	log.Printf("the flag option is set? %t", fopt)
+	return &sugarmama.Config{
+		DbPath:     dbpath,
+		EsploraUrl: esploraUrl,
+	}, nil
 }
 
 func (c *ClightningClient) RegisterOptions() error {
-	err := c.plugin.RegisterNewOption("db_path", "path to boltdb", "~/.liquid-loop/db")
+	err := c.plugin.RegisterNewOption(dbOption, "path to boltdb", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption("esplora_url", "url to esplora api", "")
+	err = c.plugin.RegisterNewOption(esploraOption, "url to esplora api", "")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps *swap.Service, esplora *liquid.EsploraClient) error {
+func (c *ClightningClient) SetupClients(wallet lightning.WalletService, swaps *swap.Service, esplora *liquid.EsploraClient) {
+	c.wallet = wallet
+	c.swaps = swaps
+	c.esplora = esplora
+}
+func (c *ClightningClient) RegisterMethods() error {
 	loopIn := glightning.NewRpcMethod(&SwapOut{
-		wallet:    wallet,
+		wallet:    c.wallet,
 		pc:        c,
 		lightning: c.glightning,
-		swapper:   swaps,
+		swapper:   c.swaps,
 	}, "Loop In")
 	loopIn.Category = "liquid-loop"
 	err := c.plugin.RegisterMethod(loopIn)
@@ -165,7 +196,7 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}
 
 	listSwaps := glightning.NewRpcMethod(&ListSwaps{
-		swapper: swaps,
+		swapper: c.swaps,
 	}, "list swaps")
 	listSwaps.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listSwaps)
@@ -174,7 +205,7 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}
 
 	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
-		wallet: wallet,
+		wallet: c.wallet,
 	}, "get new liquid address")
 	getAddress.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getAddress)
@@ -183,7 +214,7 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}
 
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
-		wallet: wallet,
+		wallet: c.wallet,
 	}, "get liquid balance")
 	getBalance.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(getBalance)
@@ -192,7 +223,7 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}
 
 	listUtxos := glightning.NewRpcMethod(&ListUtxosMethod{
-		wallet: wallet,
+		wallet: c.wallet,
 	}, "list liquid utxos")
 	listUtxos.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(listUtxos)
@@ -201,9 +232,9 @@ func (c *ClightningClient) RegisterMethods(wallet lightning.WalletService, swaps
 	}
 
 	devFaucet := glightning.NewRpcMethod(&DevFaucet{
-		wallet:  wallet,
-		esplora: esplora,
-	}, "list liquid utxos")
+		wallet:  c.wallet,
+		esplora: c.esplora,
+	}, "add lbtc funds to wallet")
 	devFaucet.Category = "liquid-loop"
 	err = c.plugin.RegisterMethod(devFaucet)
 	if err != nil {

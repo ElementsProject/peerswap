@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"errors"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
@@ -15,9 +14,6 @@ type DummyWalletStore struct {
 }
 
 func (d *DummyWalletStore) Initialize() error {
-	if d.initialized {
-		return errors.New("already initialized")
-	}
 
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {

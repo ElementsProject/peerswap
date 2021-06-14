@@ -10,45 +10,68 @@ import (
 	"os"
 )
 
-const (
-	dataType = "aaff"
-)
 
-// ok, let's try plugging this into c-lightning
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		log.Printf("%v error:", err)
+		os.Exit(1)
 	}
 
 }
 func run() error {
 	if len(os.Args) > 1 && (os.Args[1] == "--lnd") {
 		// make lnd handler
-		return errors.New("lnd is not yet supported")
+		return errors.New("lnd mode is not yet supported")
 	}
 
+
+	// initialize
+	clightning, initChan, err := NewClightningClient()
+	if err != nil {
+		return err
+	}
+
+	err = clightning.RegisterOptions()
+	if err != nil {
+		return err
+	}
+	err = clightning.RegisterMethods()
+	if err != nil {
+		return err
+	}
+	// start clightning plugin
+	quitChan := make(chan interface{})
+	go func () {
+		err := clightning.Start()
+		if err != nil {
+			log.Fatal(err)
+		}
+		quitChan<-true
+	}()
+	<-initChan
+	log.Printf("waiting for init finished")
+	config, err := clightning.GetConfig()
+	if err != nil {
+		return err
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	log.Printf("Config: %s, %s, wd: %s", config.DbPath, config.EsploraUrl, dir)
 	esplora := liquid.NewEsploraClient("http://localhost:3001")
+
 	walletStore := &wallet.DummyWalletStore{}
-	err := walletStore.Initialize()
+	err = walletStore.Initialize()
 	if err != nil {
 		return err
 	}
 	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
 
-	clightning, err := NewClightningClient()
-	if err != nil {
-		return err
-	}
 	swapStore := swap.NewInMemStore()
 	swapService := swap.NewService(swapStore, walletService, clightning, esplora, clightning, &network.Regtest)
-	err = clightning.RegisterOptions()
-	if err != nil {
-		return err
-	}
-	err = clightning.RegisterMethods(walletService, swapService, esplora)
-	if err != nil {
-		return err
-	}
+
+
 
 	messageHandler := swap.NewMessageHandler(clightning, swapService)
 	err = messageHandler.Start()
@@ -63,11 +86,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	go func() {
 		err := swapService.StartWatchingTxs()
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
-	return clightning.Start()
+
+	clightning.SetupClients(walletService, swapService, esplora)
+	<-quitChan
+	return nil
 }
