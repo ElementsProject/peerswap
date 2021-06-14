@@ -11,18 +11,19 @@ import (
 	"github.com/vulpemventures/go-elements/transaction"
 )
 
-var LBTC = append(
-	[]byte{0x01},
-	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
-)
-
-func GetFeeOutput(fee uint64) (*transaction.TxOutput, error) {
+func getAsset(network *network.Network) []byte {
+	return append(
+		[]byte{0x01},
+		elementsutil.ReverseBytes(h2b(network.AssetID))...,
+	)
+}
+func GetFeeOutput(fee uint64, network *network.Network) (*transaction.TxOutput, error) {
 	feeValue, err := elementsutil.SatoshiToElementsValue(fee)
 	if err != nil {
 		return nil, err
 	}
 	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(LBTC, feeValue, feeScript)
+	feeOutput := transaction.NewTxOutput(getAsset(network), feeValue, feeScript)
 	return feeOutput, nil
 }
 

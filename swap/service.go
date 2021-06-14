@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	FIXED_FEE = 500
+	FIXED_FEE = 100
 	LOCKTIME  = 100
 )
 
@@ -44,10 +44,12 @@ type SwapStore interface {
 	ListAll() ([]*Swap, error)
 }
 
-var LBTC = append(
-	[]byte{0x01},
-	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
-)
+func (s *Service) getAsset() []byte {
+	return append(
+		[]byte{0x01},
+		elementsutil.ReverseBytes(h2b(s.network.AssetID))...,
+	)
+}
 
 type Service struct {
 	store      SwapStore
@@ -232,17 +234,16 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 		return "", err
 	}
 	makerPubkey := makerPrivkey.PubKey()
-	p2pkh := payment.FromPublicKey(makerPubkey, &network.Regtest, nil)
+	p2pkh := payment.FromPublicKey(makerPubkey, s.network, nil)
 
 	// Get the Inputs
 	txInputs, change, err := s.wallet.GetUtxos(swap.Amount + FIXED_FEE)
 	if err != nil {
 		return "", err
 	}
-
 	// Outputs
 	// Fees
-	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE)
+	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE, s.network)
 	if err != nil {
 		return "", err
 	}
@@ -253,7 +254,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	if err != nil {
 		return "", err
 	}
-	changeOutput := transaction.NewTxOutput(LBTC, changeValue[:], changeScript)
+	changeOutput := transaction.NewTxOutput(s.getAsset(), changeValue[:], changeScript)
 
 	// Swap
 	blockHeight, err := s.blockchain.GetBlockHeight()
@@ -265,7 +266,7 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 	redeemScript, err := s.getSwapScript(swap)
 	redeemPayment, err := payment.FromPayment(&payment.Payment{
 		Script:  redeemScript,
-		Network: &network.Regtest,
+		Network: s.network,
 	})
 	if err != nil {
 		return "", err
@@ -276,7 +277,8 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 		return "", err
 	}
 
-	redeemOutput := transaction.NewTxOutput(LBTC, swapInValue, redeemPayment.WitnessScript)
+	log.Printf("inputs: %v change: %v swapAmount: %v", txInputs, change, swap.Amount)
+	redeemOutput := transaction.NewTxOutput(s.getAsset(), swapInValue, redeemPayment.WitnessScript)
 
 	// Create a new pset
 	inputs, err := s.blockchain.WalletUtxosToTxInputs(txInputs)
@@ -529,7 +531,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	}
 
 	// Change
-	p2pkh := payment.FromPublicKey(pubkey, &network.Regtest, nil)
+	p2pkh := payment.FromPublicKey(pubkey, s.network, nil)
 
 	// second transaction
 	firstTxHash := tx.WitnessHash()
@@ -544,9 +546,9 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	if err != nil {
 		return err
 	}
-	spendingOutput := transaction.NewTxOutput(LBTC, spendingSatsBytes, p2pkh.Script)
+	spendingOutput := transaction.NewTxOutput(s.getAsset(), spendingSatsBytes, p2pkh.Script)
 
-	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE)
+	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE, s.network)
 	if err != nil {
 		return err
 	}
