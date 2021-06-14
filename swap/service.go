@@ -109,6 +109,33 @@ func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint6
 	}
 	return nil
 }
+func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64) error {
+	swap := NewSwap(SWAPTYPE_IN, amount, peerNodeId, channelId)
+	err := s.store.Create(swap)
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	request := &SwapRequest{
+		SwapId:          swap.Id,
+		ChannelId:       channelId,
+		Amount:          amount,
+		Type:            SWAPTYPE_IN,
+		TakerPubkeyHash: "",
+	}
+	err = s.pc.SendMessage(peerNodeId, request)
+	if err != nil {
+		return err
+	}
+	swap.State = SWAPSTATE_REQUEST_SENT
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // todo implement loop in
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {
@@ -178,7 +205,19 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 			return err
 		}
 	} else if request.Type == SWAPTYPE_IN {
-
+		swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+		err = s.store.Update(swap)
+		if err != nil {
+			return err
+		}
+		response := &TakerResponse{
+			SwapId:          swap.Id,
+			TakerPubkeyHash: hex.EncodeToString(pubkey.SerializeCompressed()),
+		}
+		err = s.pc.SendMessage(swap.PeerNodeId, response)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -302,7 +341,65 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (str
 
 	return txId, nil
 }
+func (s *Service) OnTakerResponse(senderNodeId string, request TakerResponse) error {
+	swap, err := s.store.GetById(request.SwapId)
+	if err != nil {
+		return err
+	}
+	if swap.PeerNodeId != senderNodeId {
+		return errors.New("peer has changed, aborting")
+	}
 
+	pubkey, err := s.wallet.GetPubkey()
+	if err != nil {
+		return err
+	}
+
+	swap.TakerPubkeyHash = request.TakerPubkeyHash
+	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+	// Generate Preimage
+	preimage, err := s.lightning.GetPreimage()
+	if err != nil {
+		return err
+	}
+	pHash := preimage.Hash()
+	log.Printf("maker preimage: %s ", preimage.String())
+	payreq, err := s.lightning.GetPayreq((swap.Amount+FIXED_FEE)*1000, preimage.String(), swap.Id)
+	if err != nil {
+		return err
+	}
+
+	swap.Payreq = payreq
+	swap.PreImage = preimage.String()
+	swap.PHash = pHash.String()
+	swap.State = SWAPSTATE_OPENING_TX_PREPARED
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	txId, err := s.CreateOpeningTransaction(context.Background(), swap)
+	if err != nil {
+		return err
+	}
+	swap.OpeningTxId = txId
+	swap.State = SWAPSTATE_OPENING_TX_BROADCASTED
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	response := &MakerResponse{
+		SwapId:          swap.Id,
+		MakerPubkeyHash: swap.MakerPubkeyHash,
+		Invoice:         payreq,
+		TxId:            swap.OpeningTxId,
+		Cltv: swap.Cltv,
+	}
+	err = s.pc.SendMessage(swap.PeerNodeId, response)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) error {
 	swap, err := s.store.GetById(request.SwapId)
 	if err != nil {

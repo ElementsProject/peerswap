@@ -53,7 +53,7 @@ func Test_Swap(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 	//Swap out
-	err = aliceSetup.swap.StartSwapOut("bob", "foo", 6000000)
+	err = aliceSetup.swap.StartSwapIn("bob", "foo", 6000000)
 	if err != nil {
 		t.Fatal(err)
 	}

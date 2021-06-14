@@ -50,6 +50,8 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 	}
 	switch messageType {
 	case MESSAGETYPE_SWAPREQUEST:
+
+		log.Printf("incoming swaprequest %s", string(messageBytes))
 		var req SwapRequest
 		err = json.Unmarshal(messageBytes, &req)
 		if err != nil {
@@ -60,13 +62,24 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 			return err
 		}
 	case MESSAGETYPE_MAKERRESPONSE:
-		log.Println("incoming makerresponse")
+		log.Printf("incoming makerresponse %s", string(messageBytes))
 		var req MakerResponse
 		err = json.Unmarshal(messageBytes, &req)
 		if err != nil {
 			return err
 		}
 		err = sh.swap.OnMakerResponse(peerId, req)
+		if err != nil {
+			return err
+		}
+	case MESSAGETYPE_TAKERRESPONSE:
+		log.Printf("incoming takerresponse %s", string(messageBytes))
+		var req TakerResponse
+		err = json.Unmarshal(messageBytes, &req)
+		if err != nil {
+			return err
+		}
+		err = sh.swap.OnTakerResponse(peerId, req)
 		if err != nil {
 			return err
 		}
