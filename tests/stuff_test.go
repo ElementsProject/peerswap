@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+// integration test without c-lightning
+// todo check balances, swap states etc.
 func Test_Swap(t *testing.T) {
 	//Setup Communicators
 	aliceCom := &TestCommunicator{

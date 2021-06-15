@@ -5,9 +5,7 @@ import (
 	"testing"
 )
 
-func Test_TransactionFromSwap(t *testing.T) {
 
-}
 func TestInMemStore(t *testing.T) {
 
 	store := NewInMemStore()

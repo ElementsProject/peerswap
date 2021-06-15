@@ -119,7 +119,6 @@ func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, erro
 func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
 	res, err := c.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
 	if err != nil {
-		log.Printf("got pay err: %s ", err.Error())
 		return "", err
 	}
 	return res.PaymentPreimage, nil

@@ -17,6 +17,7 @@ import (
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -45,35 +46,36 @@ func Test_Wallet(t *testing.T) {
 
 	walletStore := &wallet.DummyWalletStore{}
 	walletStore.Initialize()
-	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
+	walletService := wallet.NewLiquiddWallet(walletStore, esplora, &network.Regtest)
 	addresses, err := walletStore.ListAddresses()
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(addresses[0])
-	res, err := faucet(addresses[0], 1)
+
+	nextBalanceChan := make(chan uint64)
+	balance, err := waitBalanceChange(walletService, nextBalanceChan)
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
-	t.Logf("faucet res: %s \n", res)
-	balance, err := walletService.GetBalance()
+
+	_, err = faucet(addresses[0], 1)
 	if err != nil {
 		t.Fatal(err)
 	}
+	balance = <-nextBalanceChan
 	wantBalance := uint64(100000000)
 	if !assert.Equal(t, wantBalance, balance) {
 		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
 	}
-	res, err = faucet(addresses[0], 1)
+	balance, err = waitBalanceChange(walletService, nextBalanceChan)
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
-	balance, err = walletService.GetBalance()
+	_, err = faucet(addresses[0], 1)
 	if err != nil {
 		t.Fatal(err)
 	}
+	balance = <-nextBalanceChan
 	wantBalance = uint64(200000000)
 
 	if !assert.Equal(t, wantBalance, balance) {
@@ -87,7 +89,7 @@ func Test_InputStuff(t *testing.T) {
 
 	bobStore := &wallet.DummyWalletStore{}
 	bobStore.Initialize()
-	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
 
 	privkeyBob, err := bobStore.LoadPrivKey()
 	if err != nil {
@@ -98,11 +100,17 @@ func Test_InputStuff(t *testing.T) {
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
+	balanceChan := make(chan uint64)
+	_, err = waitBalanceChange(bobWallet, balanceChan)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Fund Bob address with LBTC.
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
+
+	<-balanceChan
 
 	// Retrieve bob utxos.
 	satsToSpend := uint64(60000000)
@@ -214,7 +222,6 @@ func Test_swap_TimelockCase(t *testing.T) {
 
 	aliceStore := &wallet.DummyWalletStore{}
 	aliceStore.Initialize()
-	_ = &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
 
 	privkeyAlice, err := aliceStore.LoadPrivKey()
 	if err != nil {
@@ -228,7 +235,7 @@ func Test_swap_TimelockCase(t *testing.T) {
 
 	bobStore := &wallet.DummyWalletStore{}
 	bobStore.Initialize()
-	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
 
 	privkeyBob, err := bobStore.LoadPrivKey()
 	if err != nil {
@@ -239,11 +246,17 @@ func Test_swap_TimelockCase(t *testing.T) {
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
+	nextBalanceChan := make(chan uint64)
+	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Fund Bob address with LBTC.
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
+	bobStartingBalance := <-nextBalanceChan
 
 	// Retrieve bob utxos.
 	satsToSpend := uint64(60000000)
@@ -338,11 +351,13 @@ func Test_swap_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nextBlockChan := make(chan int)
+	waitNextBlock(nextBlockChan)
 	tx, err := esplora.BroadcastTransaction(txHex)
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
+	<-nextBlockChan
 	t.Log(finalTx.WitnessHash())
 	t.Log(finalTx.TxHash())
 	t.Log(tx)
@@ -399,9 +414,23 @@ func Test_swap_TimelockCase(t *testing.T) {
 
 	t.Log(spendingTxHex)
 	t.Log(spendingTx.Locktime)
-	_, err = esplora.BroadcastTransaction(spendingTxHex)
+	t.Log(spendingTxHex)
+	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	res, err := esplora.BroadcastTransaction(spendingTxHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(res)
+	bobBalance := <-nextBalanceChan
+
+	t.Logf("bob startingBalance %v:", bobStartingBalance)
+	expected := bobStartingBalance - uint64(2*500)
+	if !assert.Equal(t, expected, bobBalance) {
+		t.Fatalf("balance incorrenct got: %v, expected %v", bobBalance, expected)
 	}
 }
 func Test_Swap_PreimageClaim(t *testing.T) {
@@ -415,9 +444,11 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 
 	// Generating Alices Keys and Address
 
-	aliceStore := &wallet.DummyWalletStore{}
+	aliceStore := &wallet.DummyWalletStore{
+
+	}
 	aliceStore.Initialize()
-	aliceWallet := &wallet.LiquiddWallet{Store: aliceStore, Blockchain: esplora}
+	aliceWallet := wallet.NewLiquiddWallet(aliceStore, esplora, &network.Regtest)
 
 	privkeyAlice, err := aliceWallet.GetPrivKey()
 	if err != nil {
@@ -431,7 +462,7 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 
 	bobStore := &wallet.DummyWalletStore{}
 	bobStore.Initialize()
-	bobWallet := &wallet.LiquiddWallet{Store: bobStore, Blockchain: esplora}
+	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
 
 	privkeyBob, err := bobStore.LoadPrivKey()
 	if err != nil {
@@ -442,11 +473,17 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
 	addressBob, _ := p2pkhBob.PubKeyHash()
 
+	nextBalanceChan := make(chan uint64)
+	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Fund Bob address with LBTC.
 	if _, err := faucet(addressBob, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
+	<-nextBalanceChan
 
 	// Retrieve bob utxos.
 	satsToSpend := uint64(60000000)
@@ -536,11 +573,13 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nextBlockChan := make(chan int)
+	waitNextBlock(nextBlockChan)
 	tx, err := esplora.BroadcastTransaction(txHex)
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second * 5)
+	<-nextBlockChan
 	t.Log(tx)
 
 	// second transaction
@@ -588,17 +627,17 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 	}
 
 	t.Log(spendingTxHex)
+	_, err = waitBalanceChange(aliceWallet, nextBalanceChan)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	res, err := esplora.BroadcastTransaction(spendingTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(res)
-	time.Sleep(time.Second * 5)
-	aliceBalance, err := aliceWallet.GetBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
+	aliceBalance := <-nextBalanceChan
 	expected := satsToSpend - uint64(500)
 	if !assert.Equal(t, expected, aliceBalance) {
 		t.Fatalf("balance incorrenct got: %v, expected %v", aliceBalance, expected)
@@ -682,7 +721,9 @@ func signTransaction(
 	return nil
 }
 
-func faucet(address string, amount float64) (string, error) {
+func faucet(address string, amount float64) (string,  error) {
+	nextBlockChan := make(chan int)
+	waitNextBlock(nextBlockChan)
 
 	url := fmt.Sprintf("%s/faucet", "http://localhost:3001")
 	payload := map[string]string{"address": address, "amount": fmt.Sprintf("%v", amount)}
@@ -690,12 +731,12 @@ func faucet(address string, amount float64) (string, error) {
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return "", err
+		return "",  err
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "",  err
 	}
 	if res := string(data); len(res) <= 0 || strings.Contains(res, "sendtoaddress") {
 		return "", fmt.Errorf("cannot fund address with faucet: %s", res)
@@ -706,14 +747,76 @@ func faucet(address string, amount float64) (string, error) {
 		return "", err
 	}
 
+
+	<-nextBlockChan
 	return respBody["txId"], nil
 }
 
-func getBestBlock() (int, error) {
-	elements := gelements.NewElements("admin1", "123")
-	elements.StartUp("http://localhost", 7041)
+func waitNextBlock(nextBlockChan chan int)  {
+	timeOut := time.After(10*time.Second)
+	bestBlock, err := getBestBlock()
+	if err != nil {
+		return
+	}
+	log.Printf("starting block %v", bestBlock)
+	go func() {
+		for {
+			select {
+			case <-timeOut:
+				close(nextBlockChan)
+				return
+			default:
+				nextBlock, err := getBestBlock()
+				if err != nil {
+					log.Printf("error getting bext block %v",err)
+					return
+				}
+				if nextBlock > bestBlock {
+					log.Printf("next block found %v", nextBlock)
+					nextBlockChan <- nextBlock
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
+	}()
 
-	res, err := elements.GetBlockCount()
+}
+
+
+func waitBalanceChange(walletService *wallet.LiquiddWallet,newBalanceChan chan uint64) (uint64, error){
+	timeOut := time.After(10*time.Second)
+	startBalance, err := walletService.GetBalance()
+	if err != nil {
+		return 0, err
+	}
+	log.Printf("starting balance %v", startBalance)
+	go func() {
+		for {
+			select {
+			case <-timeOut:
+				close(newBalanceChan)
+				return
+			default:
+				nextBalance, err := walletService.GetBalance()
+				if err != nil {
+					log.Fatalf("next balance error: %v", err)
+					return
+				}
+				if startBalance != nextBalance {
+					log.Printf("next balance %v", nextBalance)
+					newBalanceChan <- nextBalance
+					return
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+	return startBalance, nil
+}
+
+func getBestBlock() (int, error) {
+
+	res, err := esplora.GetBlockHeight()
 	if err != nil {
 		return 0, err
 	}
