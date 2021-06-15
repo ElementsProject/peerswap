@@ -4,9 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/vulpemventures/go-elements/network"
-	"github.com/vulpemventures/go-elements/payment"
-
 	"go.etcd.io/bbolt"
 )
 
@@ -83,14 +80,7 @@ func (p *bboltStore) LoadPrivKey() (*btcec.PrivateKey, error) {
 	return privkey, nil
 }
 
-func (p *bboltStore) ListAddresses() ([]string, error) {
-	p2pkhBob := payment.FromPublicKey(p.pubkey, &network.Liquid, nil)
-	address, err := p2pkhBob.PubKeyHash()
-	if err != nil {
-		return nil, err
-	}
-	return []string{address}, nil
-}
+
 
 func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
 	tx, err := db.Begin(true)

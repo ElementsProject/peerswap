@@ -2,3 +2,11 @@
 .idea/
 
 liquid-swap
+
+cluster/volumes/liquidregtest/config/regtest/
+
+cluster/volumes/liquidregtest/liquid-config/liquidregtest/
+
+cluster/volumes/signet/config/regtest/
+
+cluster/volumes/signet/liquid-config/liquidregtest/

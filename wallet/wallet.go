@@ -3,6 +3,8 @@ package wallet
 import (
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/vulpemventures/go-elements/network"
+	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/transaction"
 )
 
@@ -12,7 +14,6 @@ var (
 
 type WalletStore interface {
 	LoadPrivKey() (*btcec.PrivateKey, error)
-	ListAddresses() ([]string, error)
 	Initialize() error
 }
 type BlockchainService interface {
@@ -33,13 +34,28 @@ type Utxo struct {
 type LiquiddWallet struct {
 	Store      WalletStore
 	Blockchain BlockchainService
+
+	network *network.Network
+}
+
+func NewLiquiddWallet(store WalletStore, blockchain BlockchainService, network *network.Network) *LiquiddWallet {
+	return &LiquiddWallet{Store: store, Blockchain: blockchain, network: network}
 }
 
 func (d *LiquiddWallet) ListAddresses() ([]string, error) {
-	return d.Store.ListAddresses()
+	pubkey,err := d.GetPubkey()
+	if err != nil {
+		return nil, err
+	}
+	p2pkhBob := payment.FromPublicKey(pubkey, d.network, nil)
+	address, err := p2pkhBob.PubKeyHash()
+	if err != nil {
+		return nil, err
+	}
+	return []string{address}, nil
 }
 func (s *LiquiddWallet) GetBalance() (uint64, error) {
-	addresses, err := s.Store.ListAddresses()
+	addresses, err := s.ListAddresses()
 	if err != nil {
 		return 0, err
 	}
@@ -70,7 +86,7 @@ func (s *LiquiddWallet) GetPrivKey() (*btcec.PrivateKey, error) {
 }
 func (s *LiquiddWallet) ListUtxos() ([]*Utxo, error) {
 	var utxos []*Utxo
-	addresses, err := s.Store.ListAddresses()
+	addresses, err := s.ListAddresses()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +104,7 @@ func (s *LiquiddWallet) ListUtxos() ([]*Utxo, error) {
 
 // GetUtxos returns a slice of uxtos that match the given amount, as well as the change for the
 func (s *LiquiddWallet) GetUtxos(amount uint64) ([]*Utxo, uint64, error) {
-	addresses, err := s.Store.ListAddresses()
+	addresses, err := s.ListAddresses()
 	if err != nil {
 		return nil, 0, err
 	}
