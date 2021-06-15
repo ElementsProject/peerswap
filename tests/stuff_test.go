@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -62,13 +63,14 @@ func Test_Swap(t *testing.T) {
 }
 
 func GetTestSetup(preimage lightning.Preimage, communicator *TestCommunicator) (*Test_Setup, error) {
+	ctx := context.Background()
 	esplora := liquid.NewEsploraClient("http://localhost:3001")
 	walletStore := &wallet.DummyWalletStore{}
 	err := walletStore.Initialize()
 	if err != nil {
 		return nil, err
 	}
-	walletService := &wallet.LiquiddWallet{Store: walletStore, Blockchain: esplora}
+	walletService := wallet.NewLiquiddWallet(walletStore, esplora, &network.Regtest)
 
 	clightning := &TestLightningClient{
 		Payreq:   "gude",
@@ -77,7 +79,7 @@ func GetTestSetup(preimage lightning.Preimage, communicator *TestCommunicator) (
 	}
 	swapStore := swap.NewInMemStore()
 
-	swapService := swap.NewService(swapStore, walletService, communicator, esplora, clightning, &network.Regtest)
+	swapService := swap.NewService(ctx, swapStore, walletService, communicator, esplora, clightning, &network.Regtest)
 
 	messageHandler := swap.NewMessageHandler(communicator, swapService)
 	err = messageHandler.Start()

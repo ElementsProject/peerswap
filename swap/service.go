@@ -17,7 +17,6 @@ import (
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -58,24 +57,23 @@ type Service struct {
 	blockchain wallet.BlockchainService
 	lightning  LightningClient
 	network    *network.Network
+	txWatcher *txWatcher
 
-	txWatchList map[string]string
-	sync.Mutex
 	ctx context.Context
 }
 
-func NewService(store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, blockchain wallet.BlockchainService, lightning LightningClient, network *network.Network) *Service {
-	watchList := make(map[string]string)
-	ctx := context.Background()
-	return &Service{
+func NewService(ctx context.Context, store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, blockchain wallet.BlockchainService, lightning LightningClient, network *network.Network) *Service {
+	service := &Service{
 		store:       store,
 		wallet:      wallet,
 		pc:          pc,
 		blockchain:  blockchain,
 		lightning:   lightning,
 		network:     network,
-		txWatchList: watchList,
 		ctx:         ctx}
+	watchList := newTxWatcher(ctx, blockchain, service.swapCallback)
+	service.txWatcher = watchList
+	return service
 }
 
 func (s *Service) ListSwaps() ([]*Swap, error) {
@@ -430,9 +428,7 @@ func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) er
 	if err != nil {
 		return err
 	}
-	s.Lock()
-	s.txWatchList[swap.Id] = swap.OpeningTxId
-	s.Unlock()
+	s.txWatcher.AddTx(swap.Id, swap.OpeningTxId)
 	return nil
 }
 
@@ -441,59 +437,11 @@ func (s *Service) StartWatchingTxs() error {
 	if err != nil {
 		return err
 	}
-	for _, v := range swaps {
-		if v.State == SWAPSTATE_WAITING_FOR_TX {
-			s.Lock()
-			s.txWatchList[v.Id] = v.OpeningTxId
-			s.Unlock()
-		}
+	err = s.txWatcher.StartWatchingTxs(swaps)
+	if err != nil {
+		return err
 	}
-	for {
-		select {
-		case <-s.ctx.Done():
-			return nil
-		default:
-			var toRemove []string
-			s.Lock()
-			for k, v := range s.txWatchList {
-				res, err := s.blockchain.FetchTxHex(v)
-				if err != nil {
-					log.Printf("watchlist err: %v", err)
-					continue
-				}
-				if res != res {
-					log.Printf("\n tx is not equal to sent tx")
-				}
-				tx, err := transaction.NewTxFromHex(res)
-				if err != nil {
-					log.Printf("tx err %v", err)
-					continue
-				}
-
-				swap, err := s.store.GetById(k)
-				if err != nil {
-					log.Printf("swap err %v", err)
-					continue
-				}
-				err = s.ClaimTxWithPreimage(s.ctx, swap, tx)
-				if err != nil {
-					log.Printf("err claiming transactions %v", err)
-					continue
-				}
-				swap.State = SWAPSTATE_CLAIMED_PREIMAGE
-				err = s.store.Update(swap)
-				if err != nil {
-					return err
-				}
-				toRemove = append(toRemove, swap.Id)
-			}
-			for _, v := range toRemove {
-				delete(s.txWatchList, v)
-			}
-			s.Unlock()
-			time.Sleep(1 * time.Second)
-		}
-	}
+	return nil
 }
 func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *transaction.Transaction) error {
 	err := s.CheckTransaction(ctx, swap, tx)
@@ -597,6 +545,24 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	swap.State = SWAPSTATE_CLAIMED_PREIMAGE
 
 	log.Printf("taker claimid %s", claimId)
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
+func (s *Service) swapCallback(swapId string, tx *transaction.Transaction) error {
+	swap, err := s.store.GetById(swapId)
+	if err != nil {
+		return err
+	}
+	err = s.ClaimTxWithPreimage(s.ctx, swap, tx)
+	if err != nil {
+		return err
+	}
+	swap.State = SWAPSTATE_CLAIMED_PREIMAGE
 	err = s.store.Update(swap)
 	if err != nil {
 		return err

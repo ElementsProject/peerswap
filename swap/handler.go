@@ -4,21 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/vulpemventures/go-elements/transaction"
 	"log"
 )
 
-type TxWatcher interface {
-	GetCommitmentTx(txId string) (*transaction.Transaction, error)
-}
-
-type TxClaimer interface {
-	ClaimCommitmentTx() (string, error)
-}
-
-type TxCreator interface {
-	CreateCommitmentTx(takerPubkeyHash, makerPubkeyHash, pHash string, amount uint64) (txId string, fee int64, err error)
-}
 
 type LightningClient interface {
 	GetPayreq(amount uint64, preImage string, label string) (string, error)

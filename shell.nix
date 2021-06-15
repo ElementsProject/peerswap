@@ -184,7 +184,7 @@ with pkgs;
 
 		# Start the lightning nodes
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
-			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" "--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/liquid-swap" --daemon --esplora-url=http://localhost:3001
+			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" "--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/liquid-swap-plugin" --daemon --esplora-url=http://localhost:3001
 		# shellcheck disable=SC2139 disable=SC2086
 		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
 		# shellcheck disable=SC2139 disable=SC2086
