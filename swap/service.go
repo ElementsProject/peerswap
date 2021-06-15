@@ -439,10 +439,7 @@ func (s *Service) OnClaimedResponse(senderNodeId string, request ClaimedMessage)
 	if err != nil {
 		return err
 	}
-	if swap.PeerNodeId != senderNodeId {
-		return errors.New("peer has changed, aborting")
-	}
-	swap.State = SwapState(8 + int(request.ClaimType))
+	swap.State = SwapState(int(SWAPSTATE_CLAIMED_PREIMAGE) + int(request.ClaimType))
 	swap.ClaimTxId = request.ClaimTxId
 	err = s.store.Update(swap)
 	if err != nil {

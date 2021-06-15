@@ -18,8 +18,9 @@ func Test_Swap(t *testing.T) {
 	//Setup Communicators
 	aliceCom := &TestCommunicator{
 		testing: t,
+		Id: "alice",
 	}
-	bobCom := &TestCommunicator{other: aliceCom, testing: t}
+	bobCom := &TestCommunicator{other: aliceCom, testing: t, Id: "bob"}
 	aliceCom.other = bobCom
 
 	// Generate Preimage
@@ -30,11 +31,11 @@ func Test_Swap(t *testing.T) {
 	}
 
 	// Create Setups
-	aliceSetup, err := GetTestSetup(preimage, aliceCom)
+	aliceSetup, err := GetTestSetup("alice",preimage, aliceCom)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bobSetup, err := GetTestSetup(preimage, bobCom)
+	bobSetup, err := GetTestSetup("bob", preimage, bobCom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func Test_Swap(t *testing.T) {
 
 }
 
-func GetTestSetup(preimage lightning.Preimage, communicator *TestCommunicator) (*Test_Setup, error) {
+func GetTestSetup(id string, preimage lightning.Preimage, communicator *TestCommunicator) (*Test_Setup, error) {
 	ctx := context.Background()
 	esplora := liquid.NewEsploraClient("http://localhost:3001")
 	walletStore := &wallet.DummyWalletStore{}
@@ -73,6 +74,7 @@ func GetTestSetup(preimage lightning.Preimage, communicator *TestCommunicator) (
 	walletService := wallet.NewLiquiddWallet(walletStore, esplora, &network.Regtest)
 
 	clightning := &TestLightningClient{
+		NodeId: id,
 		Payreq:   "gude",
 		PreImage: preimage,
 		Value:    100,
@@ -129,6 +131,11 @@ type TestLightningClient struct {
 	Payreq   string
 	PreImage lightning.Preimage
 	Value    uint64
+	NodeId	string
+}
+
+func (t *TestLightningClient) GetNodeId() string {
+	return t.NodeId
 }
 
 func (t *TestLightningClient) GetPreimage() (lightning.Preimage, error) {
@@ -155,6 +162,7 @@ type TestCommunicator struct {
 	testing *testing.T
 	other   *TestCommunicator
 	F       func(peerId string, messageType string, payload string) error
+	Id string
 }
 
 func (t *TestCommunicator) SendMessage(peerId string, message lightning.PeerMessage) error {
@@ -162,7 +170,7 @@ func (t *TestCommunicator) SendMessage(peerId string, message lightning.PeerMess
 	if err != nil {
 		t.testing.Fatal(err)
 	}
-	err = t.other.F(peerId, message.MessageType(), hex.EncodeToString(msg))
+	err = t.other.F(t.Id, message.MessageType(), hex.EncodeToString(msg))
 	if err != nil {
 		t.testing.Fatal(err)
 	}

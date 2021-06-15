@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 )
 
-type SwapType byte
+type SwapType int
 
 func (s SwapType) ToString() string {
 	switch s {
@@ -43,9 +43,9 @@ func (s SwapState) ToString() string {
 	return ""
 }
 
-type SwapRole byte
+type SwapRole int
 
-type ClaimType byte
+type ClaimType int
 
 // SwapType in means the initiator wants to pay lbtc to rebalance the channel to his side
 // swap out means the initiator wants to pay an invoice to rebalance the the channel to his peer
@@ -53,6 +53,16 @@ const (
 	SWAPTYPE_IN SwapType = iota
 	SWAPTYPE_OUT
 
+
+
+	MESSAGETYPE_SWAPREQUEST   = "a455"
+	MESSAGETYPE_MAKERRESPONSE = "a457"
+	MESSAGETYPE_TAKERRESPONSE = "a459"
+	MESSAGETYPE_ERRORRESPONSE = "a461"
+	MESSAGETYPE_CLAIMED       = "a463"
+
+)
+const (
 	SWAPSTATE_CREATED SwapState = iota
 	SWAPSTATE_REQUEST_SENT
 	SWAPSTATE_REQUEST_RECEIVED
@@ -62,13 +72,8 @@ const (
 	SWAPSTATE_CLAIMED_PREIMAGE
 	SWAPSTATE_CLAIMED_TIMELOCK
 	SWAPSTATE_CANCELED
-
-	MESSAGETYPE_SWAPREQUEST   = "a455"
-	MESSAGETYPE_MAKERRESPONSE = "a457"
-	MESSAGETYPE_TAKERRESPONSE = "a459"
-	MESSAGETYPE_ERRORRESPONSE = "a461"
-	MESSAGETYPE_CLAIMED       = "a463"
-
+)
+const (
 	CLAIMTYPE_PREIMAGE = iota
 	CLAIMTYPE_CLTV
 )
