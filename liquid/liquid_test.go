@@ -228,7 +228,7 @@ func Test_swap_TimelockCase(t *testing.T) {
 	}
 	pubkeyAlice := privkeyAlice.PubKey()
 	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
-	_, _ = p2pkhAlice.PubKeyHash()
+	adressAlice, _ := p2pkhAlice.PubKeyHash()
 
 	// Generating Bob Keys and Address
 
@@ -290,6 +290,7 @@ func Test_swap_TimelockCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	spendingBlocktimeHeight := int64(blockHeight + locktime)
 	redeemScript, err := GetOpeningTxScript(pubkeyAlice.SerializeCompressed(), pubkeyBob.SerializeCompressed(), pHash[:], spendingBlocktimeHeight)
 	if err != nil {
@@ -362,10 +363,10 @@ func Test_swap_TimelockCase(t *testing.T) {
 	t.Log(tx)
 
 	// let some block pass
-	err = generate(uint(locktime))
-	if err != nil {
-		t.Fatal(err)
-	}
+	//err = generate(uint(locktime))
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
 
 	blockHeight, err = getBestBlock()
 	if err != nil {
@@ -414,18 +415,35 @@ func Test_swap_TimelockCase(t *testing.T) {
 	t.Log(spendingTxHex)
 	t.Log(spendingTx.Locktime)
 	t.Log(spendingTxHex)
+
+
+
+	for i := 0; i < locktime - 2; i++ {
+		_,err = faucet(adressAlice,1)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	res, err := esplora.BroadcastTransaction(spendingTxHex)
+	if err != nil  && !strings.Contains(err.Error(), "non-final"){
+		t.Fatalf("expected locktime error, got: %v", err)
+
+	}
+	_,err = faucet(adressAlice,1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	res, err := esplora.BroadcastTransaction(spendingTxHex)
-	if err != nil {
-		t.Fatal(err)
+	res, err = esplora.BroadcastTransaction(spendingTxHex)
+	if err != nil  {
+		t.Fatalf("expected no error: %v", err)
 	}
-	t.Log(res)
 	bobBalance := <-nextBalanceChan
 
+	t.Log(res)
 	t.Logf("bob startingBalance %v:", bobStartingBalance)
 	expected := bobStartingBalance - uint64(2*500)
 	if !assert.Equal(t, expected, bobBalance) {
@@ -757,7 +775,6 @@ func waitNextBlock(nextBlockChan chan int)  {
 	if err != nil {
 		return
 	}
-	log.Printf("starting block %v", bestBlock)
 	go func() {
 		for {
 			select {
@@ -771,7 +788,6 @@ func waitNextBlock(nextBlockChan chan int)  {
 					return
 				}
 				if nextBlock > bestBlock {
-					log.Printf("next block found %v", nextBlock)
 					nextBlockChan <- nextBlock
 				}
 				time.Sleep(10 * time.Millisecond)
@@ -814,7 +830,6 @@ func waitBalanceChange(walletService *wallet.LiquiddWallet,newBalanceChan chan u
 }
 
 func getBestBlock() (int, error) {
-
 	res, err := esplora.GetBlockHeight()
 	if err != nil {
 		return 0, err
@@ -840,16 +855,6 @@ func Test_Esplora(t *testing.T) {
 	t.Logf("\n \n \n %v", bestBlock)
 }
 
-func generate(numBlocks uint) error {
-	elements := gelements.NewElements("admin1", "123")
-	elements.StartUp("http://localhost", 7041)
-
-	_, err := elements.GenerateToAddress("XYYena4XzRaexwmqv6HbDQgjfT7sEkx2y9", numBlocks)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func fetchTx(txId string) (string, error) {
 	baseUrl := "http://localhost:3001"
