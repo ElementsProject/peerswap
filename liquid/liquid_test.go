@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/niftynei/glightning/gelements"
 	"github.com/sputn1ck/sugarmama/lightning"
 	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/stretchr/testify/assert"

@@ -4,7 +4,7 @@ in
 with pkgs;
     stdenv.mkDerivation rec {
      name = "sugarmama-environment";
-
+    buildInputs = [ act ];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
@@ -198,7 +198,10 @@ with pkgs;
 	done
 
     }
-
+    remove_swaps() {
+        rm /tmp/l1-regtest/regtest/swaps/swaps
+        rm /tmp/l2-regtest/regtest/swaps/swaps
+    }
     setup_alias() {
         if [ -z "$1" ]; then
         		node_count=2

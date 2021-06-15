@@ -144,7 +144,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.swaps.StartSwapOut(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
+	err = l.cl.swaps.StartSwapOut(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.swaps.StartSwapIn(fundingChannels.PeerId, l.ShortChannelId, l.SatAmt)
+	err = l.cl.swaps.StartSwapIn(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
