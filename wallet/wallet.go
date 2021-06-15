@@ -43,7 +43,7 @@ func NewLiquiddWallet(store WalletStore, blockchain BlockchainService, network *
 }
 
 func (d *LiquiddWallet) ListAddresses() ([]string, error) {
-	pubkey,err := d.GetPubkey()
+	pubkey, err := d.GetPubkey()
 	if err != nil {
 		return nil, err
 	}

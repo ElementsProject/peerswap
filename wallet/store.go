@@ -80,8 +80,6 @@ func (p *bboltStore) LoadPrivKey() (*btcec.PrivateKey, error) {
 	return privkey, nil
 }
 
-
-
 func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
 	tx, err := db.Begin(true)
 	if err != nil {

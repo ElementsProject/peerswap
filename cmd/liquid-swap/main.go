@@ -10,6 +10,7 @@ import (
 	"go.etcd.io/bbolt"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func run() error {
 		return errors.New("lnd mode is not yet supported")
 	}
 
-	ctx,cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// initialize
 	clightning, initChan, err := NewClightningClient()
@@ -68,15 +69,18 @@ func run() error {
 	// esplora
 	esplora := liquid.NewEsploraClient(config.EsploraUrl)
 
-	//gude
 	// db
-	boltDb, err := bbolt.Open(config.DbPath, 0700, nil)
+	walletDb, err := bbolt.Open(filepath.Join(config.DbPath, "db"), 0700, nil)
+	if err != nil {
+		return err
+	}
+	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
 	if err != nil {
 		return err
 	}
 
 	// Wallet
-	walletStore, err := wallet.NewBboltStore(boltDb)
+	walletStore, err := wallet.NewBboltStore(walletDb)
 	if err != nil {
 		return err
 	}
@@ -86,7 +90,7 @@ func run() error {
 	}
 	walletService := wallet.NewLiquiddWallet(walletStore, esplora, liquidNetwork)
 
-	swapStore, err := swap.NewBboltStore(boltDb)
+	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
 	}

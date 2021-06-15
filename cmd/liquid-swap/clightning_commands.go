@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/niftynei/glightning/glightning"
 	"github.com/niftynei/glightning/jrpc2"
+	"github.com/sputn1ck/sugarmama/swap"
 )
 
 type GetAddressMethod struct {
@@ -205,6 +206,8 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 }
 
 type ListSwaps struct {
+	PrettyPrint uint64 `json:"pretty_print"`
+
 	cl *ClightningClient `json:"-"`
 }
 
@@ -222,6 +225,13 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 	swaps, err := l.cl.swaps.ListSwaps()
 	if err != nil {
 		return nil, err
+	}
+	if l.PrettyPrint == 1 {
+		var pswasp []*swap.PrettyPrintSwap
+		for _, v := range swaps {
+			pswasp = append(pswasp, v.ToPrettyPrint())
+		}
+		return pswasp, nil
 	}
 	return swaps, nil
 }

@@ -7,12 +7,12 @@ import (
 	"log"
 )
 
-
 type LightningClient interface {
 	GetPayreq(amount uint64, preImage string, label string) (string, error)
 	DecodePayreq(payreq string) (*lightning.Invoice, error)
 	PayInvoice(payreq string) (preimage string, err error)
 	GetPreimage() (lightning.Preimage, error)
+	GetNodeId() string
 }
 type MessageHandler struct {
 	pc   lightning.PeerCommunicator
@@ -71,6 +71,18 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
+	case MESSAGETYPE_CLAIMED:
+		log.Printf("incoming claimedResponse %s", string(messageBytes))
+		var req ClaimedMessage
+		err = json.Unmarshal(messageBytes, &req)
+		if err != nil {
+			return err
+		}
+		err = sh.swap.OnClaimedResponse(peerId, req)
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 }

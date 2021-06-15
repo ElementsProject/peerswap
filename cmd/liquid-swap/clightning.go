@@ -34,6 +34,11 @@ type ClightningClient struct {
 
 	msgHandlers []func(peerId string, messageType string, payload string) error
 	initChan    chan interface{}
+	nodeId      string
+}
+
+func (c *ClightningClient) GetNodeId() string {
+	return c.nodeId
 }
 
 func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
@@ -139,6 +144,11 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 	log.Printf("successfully init'd! %s\n", config.RpcFile)
 	c.glightning.StartUp(config.RpcFile, config.LightningDir)
 
+	getInfo, err := c.glightning.GetInfo()
+	if err != nil {
+		log.Fatalf("getinfo err %v", err)
+	}
+	c.nodeId = getInfo.Id
 	c.initChan <- true
 }
 
@@ -159,7 +169,6 @@ func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 	if err != nil && err != os.ErrExist {
 		return nil, err
 	}
-	dbpath = filepath.Join(dbpath, "db")
 	esploraUrl, err := c.plugin.GetOption(esploraOption)
 	if err != nil {
 		return nil, err

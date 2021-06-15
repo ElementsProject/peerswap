@@ -10,21 +10,20 @@ import (
 )
 
 type txWatcher struct {
-
 	blockchain wallet.BlockchainService
 
 	txWatchList map[string]string
-	txCallback func(swapId string, tx *transaction.Transaction) error
+	txCallback  func(swapId string, tx *transaction.Transaction) error
 	sync.Mutex
 	ctx context.Context
 }
 
 func newTxWatcher(ctx context.Context, blockchain wallet.BlockchainService, txCallback func(swapId string, tx *transaction.Transaction) error) *txWatcher {
 	return &txWatcher{
-		blockchain: blockchain,
-		txCallback: txCallback,
+		blockchain:  blockchain,
+		txCallback:  txCallback,
 		txWatchList: make(map[string]string),
-		ctx: ctx,
+		ctx:         ctx,
 	}
 }
 
@@ -34,11 +33,10 @@ func (t *txWatcher) AddTx(swapId string, txId string) {
 	t.Unlock()
 }
 
-
 func (s *txWatcher) StartWatchingTxs(swaps []*Swap) error {
 	for _, v := range swaps {
 		if v.State == SWAPSTATE_WAITING_FOR_TX {
-			s.AddTx(v.Id,v.OpeningTxId)
+			s.AddTx(v.Id, v.OpeningTxId)
 		}
 	}
 	for {

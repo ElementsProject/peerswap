@@ -57,20 +57,20 @@ type Service struct {
 	blockchain wallet.BlockchainService
 	lightning  LightningClient
 	network    *network.Network
-	txWatcher *txWatcher
+	txWatcher  *txWatcher
 
 	ctx context.Context
 }
 
 func NewService(ctx context.Context, store SwapStore, wallet Wallet, pc lightning.PeerCommunicator, blockchain wallet.BlockchainService, lightning LightningClient, network *network.Network) *Service {
 	service := &Service{
-		store:       store,
-		wallet:      wallet,
-		pc:          pc,
-		blockchain:  blockchain,
-		lightning:   lightning,
-		network:     network,
-		ctx:         ctx}
+		store:      store,
+		wallet:     wallet,
+		pc:         pc,
+		blockchain: blockchain,
+		lightning:  lightning,
+		network:    network,
+		ctx:        ctx}
 	watchList := newTxWatcher(ctx, blockchain, service.swapCallback)
 	service.txWatcher = watchList
 	return service
@@ -81,7 +81,8 @@ func (s *Service) ListSwaps() ([]*Swap, error) {
 }
 
 func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) error {
-	swap := NewSwap(SWAPTYPE_OUT, amount, peerNodeId, channelId)
+
+	swap := NewSwap(SWAPTYPE_OUT, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
 		return err
@@ -110,7 +111,7 @@ func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint6
 	return nil
 }
 func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64) error {
-	swap := NewSwap(SWAPTYPE_IN, amount, peerNodeId, channelId)
+	swap := NewSwap(SWAPTYPE_IN, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
 		return err
@@ -141,12 +142,13 @@ func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {
 	ctx := context.Background()
 	swap := &Swap{
-		Id:         request.SwapId,
-		Type:       request.Type,
-		State:      SWAPSTATE_REQUEST_RECEIVED,
-		PeerNodeId: senderNodeId,
-		Amount:     request.Amount,
-		ChannelId:  request.ChannelId,
+		Id:              request.SwapId,
+		Type:            request.Type,
+		State:           SWAPSTATE_REQUEST_RECEIVED,
+		PeerNodeId:      senderNodeId,
+		InitiatorNodeId: senderNodeId,
+		Amount:          request.Amount,
+		ChannelId:       request.ChannelId,
 	}
 
 	err := s.store.Create(swap)
@@ -432,6 +434,23 @@ func (s *Service) OnMakerResponse(senderNodeId string, request MakerResponse) er
 	return nil
 }
 
+func (s *Service) OnClaimedResponse(senderNodeId string, request ClaimedMessage) error {
+	swap, err := s.store.GetById(request.SwapId)
+	if err != nil {
+		return err
+	}
+	if swap.PeerNodeId != senderNodeId {
+		return errors.New("peer has changed, aborting")
+	}
+	swap.State = SwapState(8 + int(request.ClaimType))
+	swap.ClaimTxId = request.ClaimTxId
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Service) StartWatchingTxs() error {
 	swaps, err := s.store.ListAll()
 	if err != nil {
@@ -552,7 +571,6 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	return nil
 }
 
-
 func (s *Service) swapCallback(swapId string, tx *transaction.Transaction) error {
 	swap, err := s.store.GetById(swapId)
 	if err != nil {
@@ -564,6 +582,15 @@ func (s *Service) swapCallback(swapId string, tx *transaction.Transaction) error
 	}
 	swap.State = SWAPSTATE_CLAIMED_PREIMAGE
 	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	claimedMessage := &ClaimedMessage{
+		SwapId:    swap.Id,
+		ClaimType: CLAIMTYPE_PREIMAGE,
+		ClaimTxId: swap.ClaimTxId,
+	}
+	err = s.pc.SendMessage(swap.PeerNodeId, claimedMessage)
 	if err != nil {
 		return err
 	}
