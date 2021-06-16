@@ -20,6 +20,7 @@ type BlockchainService interface {
 	GetBlockHeight() (int, error)
 	BroadcastTransaction(string) (string, error)
 	FetchTxHex(txId string) (string, error)
+	FetchTx(txId string) (*Transaction, error)
 	FetchUtxos(address string) ([]*Utxo, error)
 	WalletUtxosToTxInputs(utxos []*Utxo) ([]*transaction.TxInput, error)
 }
@@ -29,6 +30,47 @@ type Utxo struct {
 	Status interface{} `json:"status"`
 	Value  uint64      `json:"value"`
 	Asset  string      `json:"asset"`
+}
+type Transaction struct {
+	Txid     string `json:"txid"`
+	Version  int    `json:"version"`
+	Locktime int    `json:"locktime"`
+	Vin      []struct {
+		Txid    string `json:"txid"`
+		Vout    int    `json:"vout"`
+		Prevout struct {
+			Scriptpubkey        string `json:"scriptpubkey"`
+			ScriptpubkeyAsm     string `json:"scriptpubkey_asm"`
+			ScriptpubkeyType    string `json:"scriptpubkey_type"`
+			ScriptpubkeyAddress string `json:"scriptpubkey_address"`
+			Value               int    `json:"value"`
+			Asset               string `json:"asset"`
+		} `json:"prevout"`
+		Scriptsig             string   `json:"scriptsig"`
+		ScriptsigAsm          string   `json:"scriptsig_asm"`
+		Witness               []string `json:"witness"`
+		IsCoinbase            bool     `json:"is_coinbase"`
+		Sequence              int      `json:"sequence"`
+		InnerWitnessscriptAsm string   `json:"inner_witnessscript_asm"`
+		IsPegin               bool     `json:"is_pegin"`
+	} `json:"vin"`
+	Vout []struct {
+		Scriptpubkey        string `json:"scriptpubkey"`
+		ScriptpubkeyAsm     string `json:"scriptpubkey_asm"`
+		ScriptpubkeyType    string `json:"scriptpubkey_type"`
+		ScriptpubkeyAddress string `json:"scriptpubkey_address,omitempty"`
+		Value               int    `json:"value"`
+		Asset               string `json:"asset"`
+	} `json:"vout"`
+	Size   int `json:"size"`
+	Weight int `json:"weight"`
+	Fee    int `json:"fee"`
+	Status struct {
+		Confirmed   bool   `json:"confirmed"`
+		BlockHeight int    `json:"block_height"`
+		BlockHash   string `json:"block_hash"`
+		BlockTime   int    `json:"block_time"`
+	} `json:"status"`
 }
 
 type LiquiddWallet struct {

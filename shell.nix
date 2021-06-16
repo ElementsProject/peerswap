@@ -228,6 +228,8 @@ with pkgs;
         for i in $(seq $node_count); do
             echo "	l$i-cli, l$i-log, l$i-follow"
         done
+        alias e-cli="nigiri rpc --liquid"
+        alias b-cli="nigiri rpc"
     }
 
     connect_nodes() {

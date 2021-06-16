@@ -484,7 +484,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 		return err
 	}
 
-	// get the maker pubkey and privkey
+	// get pubkey and privkey
 	pubkey, err := s.wallet.GetPubkey()
 	if err != nil {
 		return err
@@ -494,7 +494,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 		return err
 	}
 
-	// Change
+	// get Payment
 	p2pkh := payment.FromPublicKey(pubkey, s.network, nil)
 
 	// second transaction
@@ -568,8 +568,112 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, tx *trans
 	return nil
 }
 
-func (s *Service) swapCallback(swapId string, tx *transaction.Transaction) error {
+func (s *Service) ClaimTxWithCltv(ctx context.Context, swap *Swap, tx *transaction.Transaction) error {
+	err := s.CheckTransaction(ctx, swap, tx)
+	if err != nil {
+		return err
+	}
+	script, err := s.getSwapScript(swap)
+	if err != nil {
+		return err
+	}
+
+	// get maker pubkey and privkey
+	pubkey, err := s.wallet.GetPubkey()
+	if err != nil {
+		return err
+	}
+	privkey, err := s.wallet.GetPrivKey()
+	if err != nil {
+		return err
+	}
+
+	// get Payment
+	p2pkh := payment.FromPublicKey(pubkey, s.network, nil)
+
+	// claimTx
+	firstTxHash := tx.WitnessHash()
+	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
+	firstTxSats, err := elementsutil.ElementsToSatoshiValue(tx.Outputs[0].Value)
+	if err != nil {
+		return err
+	}
+	spendingSatsBytes, err := elementsutil.SatoshiToElementsValue(firstTxSats - FIXED_FEE)
+	if err != nil {
+		return err
+	}
+	spendingOutput := transaction.NewTxOutput(s.getAsset(), spendingSatsBytes, p2pkh.Script)
+
+	feeOutput, err := liquid.GetFeeOutput(FIXED_FEE, s.network)
+	if err != nil {
+		return err
+	}
+
+	blockHeight, err := s.blockchain.GetBlockHeight()
+	if err != nil {
+		return err
+	}
+	spendingTx := &transaction.Transaction{
+		Version:  2,
+		Flag:     0,
+		Locktime: uint32(blockHeight),
+		Inputs:   []*transaction.TxInput{spendingInput},
+		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
+	}
+
+	var sigHash [32]byte
+
+	sigHash = spendingTx.HashForWitnessV0(
+		0,
+		script[:],
+		tx.Outputs[0].Value,
+		txscript.SigHashAll,
+	)
+	log.Printf("taker sighash: %s", hex.EncodeToString(sigHash[:]))
+	sig, err := privkey.Sign(sigHash[:])
+	if err != nil {
+		return err
+	}
+	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
+
+	log.Printf("taker preimage %s", swap.PreImage)
+
+	witness := make([][]byte, 0)
+	witness = append(witness, sigWithHashType[:])
+	witness = append(witness, []byte{})
+	witness = append(witness, script[:])
+	spendingTx.Inputs[0].Witness = witness
+
+	spendingTxHex, err := spendingTx.ToHex()
+	if err != nil {
+		return err
+	}
+
+	claimId, err := s.blockchain.BroadcastTransaction(spendingTxHex)
+	if err != nil {
+		return err
+	}
+	swap.ClaimTxId = claimId
+	swap.State = SWAPSTATE_CLAIMED_TIMELOCK
+
+
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) swapCallback(swapId string) error {
 	swap, err := s.store.GetById(swapId)
+	if err != nil {
+		return err
+	}
+	txHex, err := s.blockchain.FetchTxHex(swap.OpeningTxId)
+	if err != nil {
+		return err
+	}
+	tx, err := transaction.NewTxFromHex(txHex)
 	if err != nil {
 		return err
 	}
@@ -585,6 +689,40 @@ func (s *Service) swapCallback(swapId string, tx *transaction.Transaction) error
 	claimedMessage := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
+		ClaimTxId: swap.ClaimTxId,
+	}
+	err = s.pc.SendMessage(swap.PeerNodeId, claimedMessage)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) timelockCallback(swapId string) error {
+	swap, err := s.store.GetById(swapId)
+	if err != nil {
+		return err
+	}
+	txHex, err := s.blockchain.FetchTxHex(swap.OpeningTxId)
+	if err != nil {
+		return err
+	}
+	tx, err := transaction.NewTxFromHex(txHex)
+	if err != nil {
+		return err
+	}
+	err = s.ClaimTxWithPreimage(s.ctx, swap, tx)
+	if err != nil {
+		return err
+	}
+	swap.State = SWAPSTATE_CLAIMED_TIMELOCK
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	claimedMessage := &ClaimedMessage{
+		SwapId:    swap.Id,
+		ClaimType: CLAIMTYPE_CLTV,
 		ClaimTxId: swap.ClaimTxId,
 	}
 	err = s.pc.SendMessage(swap.PeerNodeId, claimedMessage)

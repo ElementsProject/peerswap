@@ -9,6 +9,7 @@ import (
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,6 +63,16 @@ func (e *EsploraClient) FetchTxHex(txId string) (string, error) {
 	return string(byteString), nil
 }
 
+func (e *EsploraClient) FetchTx(txId string) (*wallet.Transaction, error){
+	var tx wallet.Transaction
+	err := e.getJsonRequest(fmt.Sprintf("/tx/%s", txId),&tx)
+	if err != nil {
+		return nil,err
+	}
+	log.Printf("tx: %v",tx)
+	return &tx, nil
+}
+
 func (e *EsploraClient) FetchUtxos(address string) ([]*wallet.Utxo, error) {
 	var utxos []*wallet.Utxo
 
@@ -103,6 +114,7 @@ func (e *EsploraClient) getJsonRequest(endpoint string, returnVal interface{}) e
 	if err != nil {
 		return err
 	}
+	//log.Printf("%s", string(data))
 	return json.Unmarshal(data, &returnVal)
 }
 
@@ -127,3 +139,4 @@ func (e *EsploraClient) WalletUtxosToTxInputs(utxos []*wallet.Utxo) ([]*transact
 	}
 	return txInputs, nil
 }
+

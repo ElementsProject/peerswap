@@ -403,7 +403,6 @@ func Test_swap_TimelockCase(t *testing.T) {
 	witness := make([][]byte, 0)
 
 	witness = append(witness, sigWithHashType[:])
-	witness = append(witness, []byte{})
 	witness = append(witness, redeemScript)
 	spendingTx.Inputs[0].Witness = witness
 
@@ -596,8 +595,30 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	<-nextBlockChan
+	_ = <-nextBlockChan
 	t.Log(tx)
+	// Check for confirmations
+	_, err = faucet("",1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	txRes, err := esplora.FetchTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nb, err := getBestBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%v, %v", nb,txRes.Status.BlockHeight)
+	if !txRes.Status.Confirmed {
+		t.Fatal(err)
+	}
+
+	if !(nb - txRes.Status.BlockHeight >= 1) {
+		t.Fatalf("tx does not habe enough confirmations")
+	}
+	t.Logf("%v", txRes)
 
 	// second transaction
 	firstTxHash := finalTx.WitnessHash()
@@ -739,6 +760,9 @@ func signTransaction(
 }
 
 func faucet(address string, amount float64) (string,  error) {
+	if address == "" {
+		address = getRandomAddress()
+	}
 	nextBlockChan := make(chan int)
 	waitNextBlock(nextBlockChan)
 
@@ -767,6 +791,13 @@ func faucet(address string, amount float64) (string,  error) {
 
 	<-nextBlockChan
 	return respBody["txId"], nil
+}
+
+func getRandomAddress() string {
+	rWallet := &wallet.DummyWalletStore{}
+	_ = rWallet.Initialize()
+	addr, _ := rWallet.ListAddresses()
+	return addr[0]
 }
 
 func waitNextBlock(nextBlockChan chan int)  {
