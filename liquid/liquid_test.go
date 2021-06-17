@@ -3,21 +3,14 @@ package liquid
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/sugarmama/utils"
 	"github.com/sputn1ck/sugarmama/wallet"
-	"github.com/stretchr/testify/assert"
-	"github.com/vulpemventures/go-elements/address"
-	"github.com/vulpemventures/go-elements/payment"
-	"github.com/vulpemventures/go-elements/pset"
-	"github.com/vulpemventures/go-elements/transaction"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -40,12 +33,11 @@ var (
 	regtestOpReturnAddress = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 )
 
-
-func Test_RpcWallet(t *testing.T)  {
+func Test_RpcWalletPreimage(t *testing.T) {
 	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
-	walletCli := gelements.NewElements("admin1","123","swap")
+	walletCli := gelements.NewElements("admin1", "123", "swap")
 	t.Log("new walletCli")
-	err := walletCli.StartUp("http://localhost",7041)
+	err := walletCli.StartUp("http://localhost", 7041)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
@@ -67,143 +59,44 @@ func Test_RpcWallet(t *testing.T)  {
 	alicePrivkey := getRandomPrivkey()
 	bobPrivkey := getRandomPrivkey()
 
-	redeemScript, err := GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+3))
+	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+1))
 	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
+		t.Fatalf("error creating opening tx: %v", err)
 	}
-	scriptPubKey := []byte{0x00,0x20}
-	witnessProgram := sha256.Sum256(redeemScript)
-	scriptPubKey = append(scriptPubKey,witnessProgram[:]...)
-
-	redeemPayment, err := payment.FromScript(scriptPubKey, &network.Regtest, nil)
+	openingTxAddr, err := utils.CreateOpeningAddress(redeemScript)
 	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
+		t.Fatalf("error creating opening tx: %v", err)
 	}
-	addr, err := redeemPayment.WitnessScriptHash()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("%s", addr)
-
-	txId, err := walletCli.SendToAddress(addr, "0.01")
+	txId, err := walletCli.SendToAddress(openingTxAddr, "0.0001")
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
 	t.Logf("txId %s", txId)
 
-	// generate 2 blocks
-	_, err = walletCli.GenerateToAddress(regtestOpReturnAddress, 4)
+	_, err = walletCli.GenerateToAddress(regtestOpReturnAddress, 1)
 	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
+		t.Fatal(err)
 	}
 	// create output for redeemtransaction
 	newAddr, err := walletCli.GetNewAddress(gelements.Bech32)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
-	t.Logf("addr: %s", newAddr)
-	blechAddr, err := address.FromBlech32(newAddr)
+	blechScript, err := utils.Blech32ToScript(newAddr, &network.Regtest)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("error creating blechscript %v", err)
 	}
 
-	log.Printf("blech: %v %v",len(blechAddr.PublicKey), len(blechAddr.Program))
-	pk, err := btcec.ParsePubKey(blechAddr.PublicKey, btcec.S256())
-	if err != nil {
-		t.Fatal(err)
-	}
-	payment1 := payment.FromPublicKey(pk, &network.Regtest, nil)
-
-
-	blechscript, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).AddData(blechAddr.Program).Script()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-
-
-	blechPayment, err := payment.FromScript(blechscript[:], &network.Regtest, nil)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("equal scripts: %v %v %v", bytes.Compare(blechPayment.WitnessScript, payment1.WitnessScript), len(blechPayment.WitnessScript), len(payment1.WitnessScript))
 	rawTx, err := walletCli.GetRawtransaction(txId)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
-	firstTx, err := transaction.NewTxFromHex(rawTx)
+
+	spendingTxHex, err := utils.CreatePreimageSpendingTransaction(alicePrivkey, rawTx, 10000, 500, 0, lbtc, blechScript, redeemScript, preimage[:])
 	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
+		t.Fatalf("error creating spending transaction: %v", err)
 	}
-
-	swapInValue,_ := elementsutil.SatoshiToElementsValue(1000000)
-	var vout uint32
-	for i,v := range firstTx.Outputs {
-		if bytes.Compare(v.Value,swapInValue) == 0 {
-			vout = uint32(i)
-		}
-	}
-
-	//firstTxHash := firstTx.WitnessHash()
-	testHash := firstTx.TxHash()
-	spendingInput := transaction.NewTxInput(testHash[:], vout)
-	spendingInput.Sequence = 0
-	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(1000000 - 500)
-
-	//outputScript, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).Bui
-	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes[:], blechPayment.WitnessScript)
-
-
-	feeValue, _ := elementsutil.SatoshiToElementsValue(500)
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
-
-	blockCount, err = walletCli.GetBlockcount()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("blockcount %v", blockCount)
-
-	spendingTx := &transaction.Transaction{
-		Version:  2,
-		Flag:     0,
-		Locktime: uint32(blockCount),
-		Inputs:   []*transaction.TxInput{spendingInput},
-		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
-	}
-
-
-	var sigHash [32]byte
-
-	sigHash = spendingTx.HashForWitnessV0(
-		0,
-		redeemScript[:],
-		swapInValue,
-		txscript.SigHashAll,
-	)
-	sig, err := bobPrivkey.Sign(sigHash[:])
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
-	witness := make([][]byte, 0)
-	//witness = append(witness, preimage[:])
-	witness = append(witness, sigWithHashType)
-	witness = append(witness, []byte{})
-	witness = append(witness, redeemScript)
-	spendingTx.Inputs[0].Witness = witness
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("spendingtx %s", spendingTxHex)
-	testTx, err := transaction.NewTxFromHex(spendingTxHex)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("testTx %v", testTx.Inputs[0])
 	spendingTxId, err := esplora.BroadcastTransaction(spendingTxHex)
-	//spendingTxId, err := walletCli.SendRawTx(spendingTxHex)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
@@ -217,724 +110,7 @@ func Test_RpcWallet(t *testing.T)  {
 
 }
 
-func Test_Wallet(t *testing.T) {
-	//privkeyBytes, err := hex.DecodeString(alicePrivkey)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//privkey,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBytes)
-
-	walletStore := &wallet.DummyWalletStore{}
-	walletStore.Initialize()
-	walletService := wallet.NewLiquiddWallet(walletStore, esplora, &network.Regtest)
-	addresses, err := walletStore.ListAddresses()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	nextBalanceChan := make(chan uint64)
-	balance, err := waitBalanceChange(walletService, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = faucet(addresses[0], 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	balance = <-nextBalanceChan
-	wantBalance := uint64(100000000)
-	if !assert.Equal(t, wantBalance, balance) {
-		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
-	}
-	balance, err = waitBalanceChange(walletService, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = faucet(addresses[0], 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	balance = <-nextBalanceChan
-	wantBalance = uint64(200000000)
-
-	if !assert.Equal(t, wantBalance, balance) {
-		t.Fatalf("balance wanted: %v, got %v \n", wantBalance, balance)
-	}
-
-}
-func Test_InputStuff(t *testing.T) {
-
-	// Generating Bob Keys and Address
-
-	bobStore := &wallet.DummyWalletStore{}
-	bobStore.Initialize()
-	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
-
-	privkeyBob, err := bobStore.LoadPrivKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pubkeyBob := privkeyBob.PubKey()
-	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
-	addressBob, _ := p2pkhBob.PubKeyHash()
-
-	balanceChan := make(chan uint64)
-	_, err = waitBalanceChange(bobWallet, balanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Fund Bob address with LBTC.
-	if _, err := faucet(addressBob, 1); err != nil {
-		t.Fatal(err)
-	}
-
-	<-balanceChan
-
-	// Retrieve bob utxos.
-	satsToSpend := uint64(60000000)
-	fee := uint64(500)
-	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First Transaction
-	// 1 Input
-	txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
-	txInputIndexBob := utxosBob[0].VOut
-	txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(txInputBob.Hash, txinputs[0].Hash) != 0 {
-		t.Fatal("txinputs not equal")
-	}
-	// 3 outputs Script, Change, fee
-	// Fees
-	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
-
-	// Change from/to Bob
-	changeScriptBob := p2pkhBob.Script
-	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
-	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob[:], changeScriptBob)
-
-	// P2WSH script
-	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	redeemScript, err := GetOpeningTxScript([]byte("gude"), pubkeyBob.SerializeCompressed(), []byte("gude")[:], 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	redeemPayment, err := payment.FromPayment(&payment.Payment{
-		Script:  redeemScript,
-		Network: &network.Regtest,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
-
-	// Create a new pset
-	//inputs := []*transaction.TxInput{txinputs...}
-	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
-	p, err := pset.New(txinputs, outputs, 2, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add sighash type and witness utxo to the partial input.
-	updater, err := pset.NewUpdater(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bobFaucetTx, _ := transaction.NewTxFromHex(bobspendingTxHash)
-
-	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	prvKeys := []*btcec.PrivateKey{privkeyBob}
-	scripts := [][]byte{p2pkhBob.Script}
-	if err := signTransaction(p, prvKeys, scripts, false, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	// Finalize the partial transaction.
-	if err := pset.FinalizeAll(p); err != nil {
-		t.Fatal(err)
-	}
-	// Extract the final signed transaction from the Pset wrapper.
-	finalTx, err := pset.Extract(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Serialize the transaction and try to broadcast.
-	txHex, err := finalTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = esplora.BroadcastTransaction(txHex)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-func Test_swap_TimelockCase(t *testing.T) {
-	locktime := 5
-	// Generate Preimage
-	var preimage lightning.Preimage
-
-	if _, err := rand.Read(preimage[:]); err != nil {
-		t.Fatal(err)
-	}
-	pHash := preimage.Hash()
-
-	// Generating Alices Keys and Address
-
-	aliceStore := &wallet.DummyWalletStore{}
-	aliceStore.Initialize()
-
-	privkeyAlice, err := aliceStore.LoadPrivKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	pubkeyAlice := privkeyAlice.PubKey()
-	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
-	adressAlice, _ := p2pkhAlice.PubKeyHash()
-
-	// Generating Bob Keys and Address
-
-	bobStore := &wallet.DummyWalletStore{}
-	bobStore.Initialize()
-	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
-
-	privkeyBob, err := bobStore.LoadPrivKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pubkeyBob := privkeyBob.PubKey()
-	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
-	addressBob, _ := p2pkhBob.PubKeyHash()
-
-	nextBalanceChan := make(chan uint64)
-	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Fund Bob address with LBTC.
-	if _, err := faucet(addressBob, 1); err != nil {
-		t.Fatal(err)
-	}
-	bobStartingBalance := <-nextBalanceChan
-
-	// Retrieve bob utxos.
-	satsToSpend := uint64(60000000)
-	fee := uint64(500)
-	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First Transaction
-	// 1 Input
-	//txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
-	//txInputIndexBob := utxosBob[0].VOut
-	//txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// 3 outputs Script, Change, fee
-	// Fees
-	// Fees
-	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
-	// Change from/to Bob
-	changeScriptBob := p2pkhBob.Script
-	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
-	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob, changeScriptBob)
-
-	// P2WSH script
-	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	blockHeight, err := getBestBlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	spendingBlocktimeHeight := int64(blockHeight + locktime)
-	redeemScript, err := GetOpeningTxScript(pubkeyAlice.SerializeCompressed(), pubkeyBob.SerializeCompressed(), pHash[:], spendingBlocktimeHeight)
-	if err != nil {
-		t.Fatal(err)
-	}
-	redeemPayment, err := payment.FromPayment(&payment.Payment{
-		Script:  redeemScript,
-		Network: &network.Regtest,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
-
-	// Create a new pset
-	//inputs := []*transaction.TxInput{txinputs...}
-	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
-	p, err := pset.New(txinputs, outputs, 2, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add sighash type and witness utxo to the partial input.
-	updater, err := pset.NewUpdater(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bobFaucetTx, _ := transaction.NewTxFromHex(bobspendingTxHash)
-
-	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	prvKeys := []*btcec.PrivateKey{privkeyBob}
-	scripts := [][]byte{p2pkhBob.Script}
-	if err = signTransaction(p, prvKeys, scripts, false, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	// Finalize the partial transaction.
-	if err = pset.FinalizeAll(p); err != nil {
-		t.Fatal(err)
-	}
-	// Extract the final signed transaction from the Pset wrapper.
-	finalTx, err := pset.Extract(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Serialize the transaction and try to broadcast.
-	txHex, err := finalTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-	nextBlockChan := make(chan int)
-	waitNextBlock(nextBlockChan)
-	tx, err := esplora.BroadcastTransaction(txHex)
-	if err != nil {
-		t.Fatal(err)
-	}
-	<-nextBlockChan
-	t.Log(finalTx.WitnessHash())
-	t.Log(finalTx.TxHash())
-	t.Log(tx)
-
-	// let some block pass
-	//err = generate(uint(locktime))
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-
-	blockHeight, err = getBestBlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// second transaction
-	firstTxHash := finalTx.WitnessHash()
-	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
-	spendingInput.Sequence = 0
-	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(satsToSpend - 500)
-	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes[:], p2pkhBob.Script)
-
-	spendingTx := &transaction.Transaction{
-		Version:  2,
-		Flag:     0,
-		Locktime: uint32(spendingBlocktimeHeight),
-		Inputs:   []*transaction.TxInput{spendingInput},
-		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
-	}
-
-	var sigHash [32]byte
-
-	sigHash = spendingTx.HashForWitnessV0(
-		0,
-		redeemScript[:],
-		swapInValue,
-		txscript.SigHashAll,
-	)
-	sig, err := privkeyBob.Sign(sigHash[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
-	witness := make([][]byte, 0)
-
-	witness = append(witness, sigWithHashType[:])
-	witness = append(witness, redeemScript)
-	spendingTx.Inputs[0].Witness = witness
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(spendingTxHex)
-	t.Log(spendingTx.Locktime)
-	t.Log(spendingTxHex)
-
-
-
-	for i := 0; i < locktime - 2; i++ {
-		_,err = faucet(adressAlice,1)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	res, err := esplora.BroadcastTransaction(spendingTxHex)
-	if err != nil  && !strings.Contains(err.Error(), "non-final"){
-		t.Fatalf("expected locktime error, got: %v", err)
-
-	}
-	_,err = faucet(adressAlice,1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err = esplora.BroadcastTransaction(spendingTxHex)
-	if err != nil  {
-		t.Fatalf("expected no error: %v", err)
-	}
-	bobBalance := <-nextBalanceChan
-
-	t.Log(res)
-	t.Logf("bob startingBalance %v:", bobStartingBalance)
-	expected := bobStartingBalance - uint64(2*500)
-	if !assert.Equal(t, expected, bobBalance) {
-		t.Fatalf("balance incorrenct got: %v, expected %v", bobBalance, expected)
-	}
-}
-func Test_Swap_PreimageClaim(t *testing.T) {
-	// Generate Preimage
-	var preimage lightning.Preimage
-
-	if _, err := rand.Read(preimage[:]); err != nil {
-		t.Fatal(err)
-	}
-	pHash := preimage.Hash()
-
-	// Generating Alices Keys and Address
-
-	aliceStore := &wallet.DummyWalletStore{
-
-	}
-	aliceStore.Initialize()
-	aliceWallet := wallet.NewLiquiddWallet(aliceStore, esplora, &network.Regtest)
-
-	privkeyAlice, err := aliceWallet.GetPrivKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	pubkeyAlice := privkeyAlice.PubKey()
-	p2pkhAlice := payment.FromPublicKey(pubkeyAlice, &network.Regtest, nil)
-	_, _ = p2pkhAlice.PubKeyHash()
-
-	// Generating Bob Keys and Address
-
-	bobStore := &wallet.DummyWalletStore{}
-	bobStore.Initialize()
-	bobWallet := wallet.NewLiquiddWallet(bobStore, esplora, &network.Regtest)
-
-	privkeyBob, err := bobStore.LoadPrivKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pubkeyBob := privkeyBob.PubKey()
-	p2pkhBob := payment.FromPublicKey(pubkeyBob, &network.Regtest, nil)
-	addressBob, _ := p2pkhBob.PubKeyHash()
-
-	nextBalanceChan := make(chan uint64)
-	_, err = waitBalanceChange(bobWallet, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Fund Bob address with LBTC.
-	if _, err := faucet(addressBob, 1); err != nil {
-		t.Fatal(err)
-	}
-	<-nextBalanceChan
-
-	// Retrieve bob utxos.
-	satsToSpend := uint64(60000000)
-	fee := uint64(500)
-	utxosBob, change, err := bobWallet.GetUtxos(satsToSpend)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First Transaction
-	// 1 Input
-	//txInputHashBob := elementsutil.ReverseBytes(h2b(utxosBob[0].TxId))
-	//txInputIndexBob := utxosBob[0].VOut
-	//txInputBob := transaction.NewTxInput(txInputHashBob, txInputIndexBob)
-	txinputs, err := esplora.WalletUtxosToTxInputs(utxosBob)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// 3 outputs Script, Change, fee
-	// Fees
-	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
-
-	// Change from/to Bob
-	changeScriptBob := p2pkhBob.Script
-	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
-	changeOutputBob := transaction.NewTxOutput(lbtc, changeValueBob, changeScriptBob)
-
-	// P2WSH script
-	// miniscript: or(and(pk(A),sha256(H)),pk(B))
-	redeemScript, err := GetOpeningTxScript(pubkeyAlice.SerializeCompressed(), pubkeyBob.SerializeCompressed(), pHash[:], 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	redeemPayment, err := payment.FromPayment(&payment.Payment{
-		Script:  redeemScript,
-		Network: &network.Regtest,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	swapInValue, _ := elementsutil.SatoshiToElementsValue(satsToSpend)
-	output := transaction.NewTxOutput(lbtc, swapInValue, redeemPayment.WitnessScript)
-
-	// Create a new pset
-	//inputs := []*transaction.TxInput{txinputs...}
-	outputs := []*transaction.TxOutput{output, changeOutputBob, feeOutput}
-	p, err := pset.New(txinputs, outputs, 2, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add sighash type and witness utxo to the partial input.
-	updater, err := pset.NewUpdater(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bobspendingTxHash, err := fetchTx(utxosBob[0].TxId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	bobFaucetTx, _ := transaction.NewTxFromHex(bobspendingTxHash)
-
-	err = updater.AddInNonWitnessUtxo(bobFaucetTx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	prvKeys := []*btcec.PrivateKey{privkeyBob}
-	scripts := [][]byte{p2pkhBob.Script}
-	if err = signTransaction(p, prvKeys, scripts, false, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	// Finalize the partial transaction.
-	if err = pset.FinalizeAll(p); err != nil {
-		t.Fatal(err)
-	}
-	// Extract the final signed transaction from the Pset wrapper.
-	finalTx, err := pset.Extract(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Serialize the transaction and try to broadcast.
-	txHex, err := finalTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-	nextBlockChan := make(chan int)
-	waitNextBlock(nextBlockChan)
-	tx, err := esplora.BroadcastTransaction(txHex)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = <-nextBlockChan
-	t.Log(tx)
-	// Check for confirmations
-	_, err = faucet("",1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	txRes, err := esplora.FetchTx(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	nb, err := getBestBlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("%v, %v", nb,txRes.Status.BlockHeight)
-	if !txRes.Status.Confirmed {
-		t.Fatal(err)
-	}
-
-	if !(nb - txRes.Status.BlockHeight >= 1) {
-		t.Fatalf("tx does not habe enough confirmations")
-	}
-	t.Logf("%v", txRes)
-
-	// second transaction
-	firstTxHash := finalTx.WitnessHash()
-	spendingInput := transaction.NewTxInput(firstTxHash[:], 0)
-	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(satsToSpend - 500)
-	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes, p2pkhAlice.Script)
-
-	spendingTx := &transaction.Transaction{
-		Version:  2,
-		Flag:     0,
-		Locktime: 0,
-		Inputs:   []*transaction.TxInput{spendingInput},
-		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
-	}
-
-	var sigHash [32]byte
-
-	sigHash = spendingTx.HashForWitnessV0(
-		0,
-		redeemScript,
-		swapInValue,
-		txscript.SigHashAll,
-	)
-	//sig, err := privkeyBob.Sign(sigHash[:])
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	sig, err := privkeyAlice.Sign(sigHash[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
-	witness := make([][]byte, 0)
-
-	witness = append(witness, preimage[:])
-	witness = append(witness, sigWithHashType)
-	//witness = append(witness, []byte{})
-	witness = append(witness, redeemScript)
-	spendingTx.Inputs[0].Witness = witness
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(spendingTxHex)
-	_, err = waitBalanceChange(aliceWallet, nextBalanceChan)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res, err := esplora.BroadcastTransaction(spendingTxHex)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(res)
-	aliceBalance := <-nextBalanceChan
-	expected := satsToSpend - uint64(500)
-	if !assert.Equal(t, expected, aliceBalance) {
-		t.Fatalf("balance incorrenct got: %v, expected %v", aliceBalance, expected)
-	}
-}
-
-func signTransaction(p *pset.Pset, privKeys []*btcec.PrivateKey, scripts [][]byte, forWitness bool, opts *signOpts, ) error {
-	updater, err := pset.NewUpdater(p)
-	if err != nil {
-		return err
-	}
-
-	for i, in := range p.Inputs {
-		if err := updater.AddInSighashType(txscript.SigHashAll, i); err != nil {
-			return err
-		}
-
-		var prevout *transaction.TxOutput
-		if in.WitnessUtxo != nil {
-			prevout = in.WitnessUtxo
-		} else {
-			prevout = in.NonWitnessUtxo.Outputs[p.UnsignedTx.Inputs[i].Index]
-		}
-		prvkey := privKeys[i]
-		pubkey := prvkey.PubKey()
-		script := scripts[i]
-
-		var sigHash [32]byte
-		if forWitness {
-			sigHash = p.UnsignedTx.HashForWitnessV0(
-				i,
-				script,
-				prevout.Value,
-				txscript.SigHashAll,
-			)
-		} else {
-			sigHash, err = p.UnsignedTx.HashForSignature(i, script, txscript.SigHashAll)
-			if err != nil {
-				return err
-			}
-		}
-
-		sig, err := prvkey.Sign(sigHash[:])
-		if err != nil {
-			return err
-		}
-		sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
-
-		var witPubkeyScript []byte
-		var witScript []byte
-		if opts != nil {
-			witPubkeyScript = opts.pubkeyScript
-			witScript = opts.script
-		}
-
-		if _, err := updater.Sign(
-			i,
-			sigWithHashType,
-			pubkey.SerializeCompressed(),
-			witPubkeyScript,
-			witScript,
-		); err != nil {
-			return err
-		}
-	}
-
-	valid, err := p.ValidateAllSignatures()
-	if err != nil {
-		return err
-	}
-	if !valid {
-		return errors.New("invalid signatures")
-	}
-
-	return nil
-}
-
-func faucet(address string, amount float64) (string,  error) {
+func faucet(address string, amount float64) (string, error) {
 	if address == "" {
 		address = getRandomAddress()
 	}
@@ -947,12 +123,12 @@ func faucet(address string, amount float64) (string,  error) {
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return "",  err
+		return "", err
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "",  err
+		return "", err
 	}
 	if res := string(data); len(res) <= 0 || strings.Contains(res, "sendtoaddress") {
 		return "", fmt.Errorf("cannot fund address with faucet: %s", res)
@@ -962,7 +138,6 @@ func faucet(address string, amount float64) (string,  error) {
 	if err := json.Unmarshal(data, &respBody); err != nil {
 		return "", err
 	}
-
 
 	<-nextBlockChan
 	return respBody["txId"], nil
@@ -982,8 +157,8 @@ func getRandomPrivkey() *btcec.PrivateKey {
 	return privkey
 }
 
-func waitNextBlock(nextBlockChan chan int)  {
-	timeOut := time.After(10*time.Second)
+func waitNextBlock(nextBlockChan chan int) {
+	timeOut := time.After(10 * time.Second)
 	bestBlock, err := getBestBlock()
 	if err != nil {
 		return
@@ -997,7 +172,7 @@ func waitNextBlock(nextBlockChan chan int)  {
 			default:
 				nextBlock, err := getBestBlock()
 				if err != nil {
-					log.Printf("error getting bext block %v",err)
+					log.Printf("error getting bext block %v", err)
 					return
 				}
 				if nextBlock > bestBlock {
@@ -1010,9 +185,8 @@ func waitNextBlock(nextBlockChan chan int)  {
 
 }
 
-
-func waitBalanceChange(walletService *wallet.LiquiddWallet,newBalanceChan chan uint64) (uint64, error){
-	timeOut := time.After(10*time.Second)
+func waitBalanceChange(walletService *wallet.LiquiddWallet, newBalanceChan chan uint64) (uint64, error) {
+	timeOut := time.After(10 * time.Second)
 	startBalance, err := walletService.GetBalance()
 	if err != nil {
 		return 0, err
@@ -1067,7 +241,6 @@ func Test_Esplora(t *testing.T) {
 	}
 	t.Logf("\n \n \n %v", bestBlock)
 }
-
 
 func fetchTx(txId string) (string, error) {
 	baseUrl := "http://localhost:3001"
