@@ -3,15 +3,18 @@ package liquid
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/sugarmama/lightning"
 	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/stretchr/testify/assert"
+	"github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
@@ -32,9 +35,187 @@ var lbtc = append(
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
 )
 var (
-	alicePrivkey = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
-	esplora      = NewEsploraClient("http://localhost:3001")
+	alicePrivkey           = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
+	esplora                = NewEsploraClient("http://localhost:3001")
+	regtestOpReturnAddress = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 )
+
+
+func Test_RpcWallet(t *testing.T)  {
+	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
+	walletCli := gelements.NewElements("admin1","123","swap")
+	t.Log("new walletCli")
+	err := walletCli.StartUp("http://localhost",7041)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+
+	blockCount, err := walletCli.GetBlockcount()
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("blockcount %v", blockCount)
+
+	// Generate Preimage
+	var preimage lightning.Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		t.Fatal(err)
+	}
+	pHash := preimage.Hash()
+
+	alicePrivkey := getRandomPrivkey()
+	bobPrivkey := getRandomPrivkey()
+
+	redeemScript, err := GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+3))
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	scriptPubKey := []byte{0x00,0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey,witnessProgram[:]...)
+
+	redeemPayment, err := payment.FromScript(scriptPubKey, &network.Regtest, nil)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	addr, err := redeemPayment.WitnessScriptHash()
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("%s", addr)
+
+	txId, err := walletCli.SendToAddress(addr, "0.01")
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("txId %s", txId)
+
+	// generate 2 blocks
+	_, err = walletCli.GenerateToAddress(regtestOpReturnAddress, 4)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	// create output for redeemtransaction
+	newAddr, err := walletCli.GetNewAddress(gelements.Bech32)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("addr: %s", newAddr)
+	blechAddr, err := address.FromBlech32(newAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("blech: %v %v",len(blechAddr.PublicKey), len(blechAddr.Program))
+	pk, err := btcec.ParsePubKey(blechAddr.PublicKey, btcec.S256())
+	if err != nil {
+		t.Fatal(err)
+	}
+	payment1 := payment.FromPublicKey(pk, &network.Regtest, nil)
+
+
+	blechscript, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).AddData(blechAddr.Program).Script()
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+
+
+	blechPayment, err := payment.FromScript(blechscript[:], &network.Regtest, nil)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("equal scripts: %v %v %v", bytes.Compare(blechPayment.WitnessScript, payment1.WitnessScript), len(blechPayment.WitnessScript), len(payment1.WitnessScript))
+	rawTx, err := walletCli.GetRawtransaction(txId)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	firstTx, err := transaction.NewTxFromHex(rawTx)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+
+	swapInValue,_ := elementsutil.SatoshiToElementsValue(1000000)
+	var vout uint32
+	for i,v := range firstTx.Outputs {
+		if bytes.Compare(v.Value,swapInValue) == 0 {
+			vout = uint32(i)
+		}
+	}
+
+	//firstTxHash := firstTx.WitnessHash()
+	testHash := firstTx.TxHash()
+	spendingInput := transaction.NewTxInput(testHash[:], vout)
+	spendingInput.Sequence = 0
+	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(1000000 - 500)
+
+	//outputScript, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).Bui
+	spendingOutput := transaction.NewTxOutput(lbtc, spendingSatsBytes[:], blechPayment.WitnessScript)
+
+
+	feeValue, _ := elementsutil.SatoshiToElementsValue(500)
+	feeScript := []byte{}
+	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
+
+	blockCount, err = walletCli.GetBlockcount()
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("blockcount %v", blockCount)
+
+	spendingTx := &transaction.Transaction{
+		Version:  2,
+		Flag:     0,
+		Locktime: uint32(blockCount),
+		Inputs:   []*transaction.TxInput{spendingInput},
+		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
+	}
+
+
+	var sigHash [32]byte
+
+	sigHash = spendingTx.HashForWitnessV0(
+		0,
+		redeemScript[:],
+		swapInValue,
+		txscript.SigHashAll,
+	)
+	sig, err := bobPrivkey.Sign(sigHash[:])
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	sigWithHashType := append(sig.Serialize(), byte(txscript.SigHashAll))
+	witness := make([][]byte, 0)
+	//witness = append(witness, preimage[:])
+	witness = append(witness, sigWithHashType)
+	witness = append(witness, []byte{})
+	witness = append(witness, redeemScript)
+	spendingTx.Inputs[0].Witness = witness
+
+	spendingTxHex, err := spendingTx.ToHex()
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("spendingtx %s", spendingTxHex)
+	testTx, err := transaction.NewTxFromHex(spendingTxHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("testTx %v", testTx.Inputs[0])
+	spendingTxId, err := esplora.BroadcastTransaction(spendingTxHex)
+	//spendingTxId, err := walletCli.SendRawTx(spendingTxHex)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+	t.Logf("spending txId %s", spendingTxId)
+
+	// generate a blocks
+	_, err = walletCli.GenerateToAddress(regtestOpReturnAddress, 1)
+	if err != nil {
+		t.Fatalf("error testing rpc wallet %v", err)
+	}
+
+}
 
 func Test_Wallet(t *testing.T) {
 	//privkeyBytes, err := hex.DecodeString(alicePrivkey)
@@ -275,10 +456,10 @@ func Test_swap_TimelockCase(t *testing.T) {
 	}
 	// 3 outputs Script, Change, fee
 	// Fees
+	// Fees
 	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
 	feeScript := []byte{}
 	feeOutput := transaction.NewTxOutput(lbtc, feeValue, feeScript)
-
 	// Change from/to Bob
 	changeScriptBob := p2pkhBob.Script
 	changeValueBob, _ := elementsutil.SatoshiToElementsValue(change - fee)
@@ -682,13 +863,7 @@ func Test_Swap_PreimageClaim(t *testing.T) {
 	}
 }
 
-func signTransaction(
-	p *pset.Pset,
-	privKeys []*btcec.PrivateKey,
-	scripts [][]byte,
-	forWitness bool,
-	opts *signOpts,
-) error {
+func signTransaction(p *pset.Pset, privKeys []*btcec.PrivateKey, scripts [][]byte, forWitness bool, opts *signOpts, ) error {
 	updater, err := pset.NewUpdater(p)
 	if err != nil {
 		return err
@@ -798,6 +973,13 @@ func getRandomAddress() string {
 	_ = rWallet.Initialize()
 	addr, _ := rWallet.ListAddresses()
 	return addr[0]
+}
+
+func getRandomPrivkey() *btcec.PrivateKey {
+	rWallet := &wallet.DummyWalletStore{}
+	_ = rWallet.Initialize()
+	privkey, _ := rWallet.LoadPrivKey()
+	return privkey
 }
 
 func waitNextBlock(nextBlockChan chan int)  {

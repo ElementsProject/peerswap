@@ -34,8 +34,8 @@ github.com/onsi/gomega v1.4.1/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/sputn1ck/glightning v0.8.3-0.20210615195755-e19d130f2472 h1:aNxc1bRN5MPSiwlXoInk84mr36VsVnWUcVyg0NY9ltU=
-github.com/sputn1ck/glightning v0.8.3-0.20210615195755-e19d130f2472/go.mod h1:5H0LPmWqAtoDWSm8ZjK6KvyAA/P80XwGkzNHA3I3O0Y=
+github.com/sputn1ck/glightning v0.8.2 h1:igcF5q8mEf/9n17OplcGq61sH+u99veevbO1mnumago=
+github.com/sputn1ck/glightning v0.8.2/go.mod h1:06tWZ1hA9+sta3XREX2em+1q/2939wT2GujMkTfK3Z0=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
