@@ -1,117 +1,107 @@
 package wallet
 
 import (
+	"crypto/rand"
 	"encoding/hex"
-	"github.com/btcsuite/btcd/btcec"
-	"reflect"
+	"errors"
+	"fmt"
+	"github.com/sputn1ck/glightning/gelements"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 var (
-	alicePrivkey = "b5ca71cc0ea0587fc40b3650dfb12c1e50fece3b88593b223679aea733c55605"
+	regtestOpReturnAddress = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 )
 
-func Test_Privkeys(t *testing.T) {
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
+func Test_RpcWallet(t *testing.T) {
+
+	testSetup, err := NewTestSetup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	privkeyHex := hex.EncodeToString(privkey.Serialize())
-
-	newPriv, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkey.Serialize())
-
-	t.Log(privkeyHex)
-
-	if !reflect.DeepEqual(privkey, newPriv) {
-		t.Fatal("priv keys not equal")
-	}
-
-}
-
-func Test_Address(t *testing.T) {
-	walletStore := DummyWalletStore{}
-	err := walletStore.Initialize()
+	walletCli := gelements.NewElements("admin1", "123")
+	err = walletCli.StartUp("http://localhost", 7041)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("error testing rpc wallet %v", err)
 	}
-	_, err = walletStore.ListAddresses()
+
+	wallet, err := NewRpcWallet(walletCli, newwalletId())
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("error creating wallet %v", err)
 	}
+
+	startingBalance, err := wallet.GetBalance()
+	if err != nil {
+		t.Fatalf("error getting balance %v", err)
+	}
+
+	addr, err := wallet.GetAddress()
+	if err != nil {
+		t.Fatalf("error getting address %v", err)
+	}
+
+	err = testSetup.Faucet(addr, 0.1)
+	if err != nil {
+		t.Fatalf("error funding wallet %v", err)
+	}
+
+	newBalance, err := wallet.GetBalance()
+	if err != nil {
+		t.Fatalf("error getting balance")
+	}
+
+	assert.Equal(t, startingBalance+10000000, newBalance)
+
+	_, err = wallet.SendToAddress(regtestOpReturnAddress, 5000000)
+	if err != nil {
+		t.Fatalf("error sending to address %v", err)
+	}
+
+	err = testSetup.GenerateBlock()
+	if err != nil {
+		t.Fatalf("error generating block %v", err)
+	}
+
+	newBalance, err = wallet.GetBalance()
+	if err != nil {
+		t.Fatalf("error getting balance %v", err)
+	}
+
+	assert.Less(t, newBalance, startingBalance-5000000)
 
 }
 
-func Test_getUtxos(t *testing.T) {
-	fooUtxo := getutxo("foo", 1000)
-	barUtxo := getutxo("bar", 2000)
-	type args struct {
-		amount    uint64
-		haveUtxos []*Utxo
-	}
-	tests := []struct {
-		name          string
-		args          args
-		wantUtxos     []*Utxo
-		wantChange    uint64
-		wantErr       bool
-		specificError error
-	}{
-		{
-			name: "ez",
-			args: args{
-				amount:    1000,
-				haveUtxos: []*Utxo{fooUtxo},
-			},
-			wantUtxos:  []*Utxo{fooUtxo},
-			wantChange: 0,
-			wantErr:    false,
-		},
-		{
-			name: "ez2",
-			args: args{
-				amount:    1500,
-				haveUtxos: []*Utxo{fooUtxo, barUtxo},
-			},
-			wantUtxos:  []*Utxo{fooUtxo, barUtxo},
-			wantChange: 1500,
-			wantErr:    false,
-		},
-		{
-			name: "ez2",
-			args: args{
-				amount:    3500,
-				haveUtxos: []*Utxo{fooUtxo, barUtxo},
-			},
-			wantUtxos:     nil,
-			wantChange:    0,
-			wantErr:       true,
-			specificError: NotEnoughBalanceError,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotUtxos, gotChange, err := getUtxos(tt.args.amount, tt.args.haveUtxos)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getUtxos() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if (err != nil && tt.wantErr) && (err.Error() != tt.specificError.Error()) {
-				t.Errorf("getUtxos() error = %s, want specificErr %s", err.Error(), tt.specificError.Error())
-			}
-			if !reflect.DeepEqual(gotUtxos, tt.wantUtxos) {
-				t.Errorf("getUtxos() gotUtxos = %v, want %v", gotUtxos, tt.wantUtxos)
-			}
-			if gotChange != tt.wantChange {
-				t.Errorf("getUtxos() gotChange = %v, want %v", gotChange, tt.wantChange)
-			}
-		})
-	}
+type TestSetup struct {
+	Elcli *gelements.Elements
 }
 
-func getutxo(id string, amount uint64) *Utxo {
-	return &Utxo{
-		TxId:  id,
-		Value: amount,
+func NewTestSetup() (*TestSetup, error) {
+	walletCli := gelements.NewElements("admin1", "123")
+	err := walletCli.StartUp("http://localhost", 7041)
+	if err != nil {
+		return nil, errors.New("error creating test setup")
 	}
+	return &TestSetup{Elcli: walletCli}, nil
+}
+
+func (t *TestSetup) Faucet(address string, amount float64) error {
+
+	_, err := t.Elcli.SendToAddress(address, fmt.Sprintf("%f", amount))
+	if err != nil {
+		return err
+	}
+	return t.GenerateBlock()
+}
+
+func (t *TestSetup) GenerateBlock() error {
+	_, err := t.Elcli.GenerateToAddress(regtestOpReturnAddress, 1)
+	return err
+}
+
+func newwalletId() string {
+	idBytes := make([]byte, 8)
+	_, _ = rand.Read(idBytes[:])
+	return hex.EncodeToString(idBytes)
 }
