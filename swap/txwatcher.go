@@ -2,53 +2,57 @@ package swap
 
 import (
 	"context"
-	"github.com/sputn1ck/sugarmama/wallet"
+	"github.com/sputn1ck/sugarmama/blockchain"
 	"log"
 	"sync"
 	"time"
 )
 
-type txWatcher struct {
-	blockchain wallet.BlockchainService
+const (
+	minconfs = 2
+)
 
-	txWatchList map[string]string
-	timelockWatchlist map[string] int64
-	txCallback  func(swapId string) error
-	timelockCallback func(swapId string) error
-	newBlockChan chan int
+type SwapWatcher struct {
+	blockchain        blockchain.Blockchain
+	txWatchList       map[string]string
+	timelockWatchlist map[string]int64
+	SwapMap           map[string]*Swap
+	txCallback        func(swapId string) error
+	timelockCallback  func(swapId string) error
+	newBlockChan      chan uint64
 	sync.Mutex
 	ctx context.Context
 }
 
-func newTxWatcher(ctx context.Context, blockchain wallet.BlockchainService, txCallback func(swapId string) error) *txWatcher {
-	return &txWatcher{
-		blockchain:  blockchain,
-		txCallback:  txCallback,
-		txWatchList: make(map[string]string),
-		ctx:         ctx,
-		newBlockChan: make(chan int),
+func newTxWatcher(ctx context.Context, blockchain blockchain.Blockchain, txCallback func(swapId string) error, timelockCallback func(swapId string) error) *SwapWatcher {
+	return &SwapWatcher{
+		blockchain:        blockchain,
+		txCallback:        txCallback,
+		txWatchList:       make(map[string]string),
+		timelockWatchlist: make(map[string]int64),
+		timelockCallback:  timelockCallback,
+		SwapMap:           make(map[string]*Swap),
+		ctx:               ctx,
+		newBlockChan:      make(chan uint64),
 	}
 }
 
-func (t *txWatcher) AddTx(swapId string, txId string) {
+func (t *SwapWatcher) AddSwap(swap *Swap) {
 	t.Lock()
-	t.txWatchList[swapId] = txId
+	t.SwapMap[swap.Id] = swap
+	if swap.Role == SWAPROLE_TAKER {
+		t.txWatchList[swap.Id] = swap.OpeningTxId
+	} else {
+		t.timelockWatchlist[swap.Id] = swap.Cltv
+	}
 	t.Unlock()
 }
 
-func (t *txWatcher) AddTimeLockTx(swapId string, blockheight int64) {
-	t.Lock()
-	t.timelockWatchlist[swapId] = blockheight
-	t.Unlock()
-}
-
-func (s *txWatcher) StartWatchingTxs(swaps []*Swap) error {
+func (s *SwapWatcher) StartWatchingTxs(swaps []*Swap) error {
+	go s.StartBlockWatcher()
 	for _, v := range swaps {
-		if v.State == SWAPSTATE_WAITING_FOR_TX {
-			s.AddTx(v.Id, v.OpeningTxId)
-		}
-		if v.State == SWAPSTATE_OPENING_TX_BROADCASTED {
-			s.AddTimeLockTx(v.Id, v.Cltv)
+		if v.State == SWAPSTATE_WAITING_FOR_TX || v.State == SWAPSTATE_OPENING_TX_BROADCASTED {
+			s.AddSwap(v)
 		}
 	}
 	for {
@@ -70,7 +74,7 @@ func (s *txWatcher) StartWatchingTxs(swaps []*Swap) error {
 	}
 }
 
-func (s *txWatcher) StartBlockWatcher() error{
+func (s *SwapWatcher) StartBlockWatcher() error {
 	currentBlock, err := s.blockchain.GetBlockHeight()
 	if err != nil {
 		return err
@@ -91,13 +95,14 @@ func (s *txWatcher) StartBlockWatcher() error{
 		}
 	}
 }
-func (s *txWatcher) HandleTimelockTx(blockheight int) error {
+func (s *SwapWatcher) HandleTimelockTx(blockheight uint64) error {
 	s.Lock()
 	var toRemove []string
-	for k,v := range s.timelockWatchlist {
+	for k, v := range s.timelockWatchlist {
 		if v >= int64(blockheight) {
 			continue
 		}
+		log.Printf("timelock triggered")
 		err := s.timelockCallback(k)
 		if err != nil {
 			return err
@@ -105,47 +110,44 @@ func (s *txWatcher) HandleTimelockTx(blockheight int) error {
 		toRemove = append(toRemove, k)
 	}
 	s.Unlock()
-	for _, v := range toRemove {
-		delete(s.txWatchList, v)
-	}
+	s.TxClaimed(toRemove)
 	return nil
 }
-func (s *txWatcher) HandleConfirmedTx(blockheight int) error{
-		var toRemove []string
-		s.Lock()
-		for k, v := range s.txWatchList {
-			res, err := s.blockchain.FetchTx(v)
-			if err != nil {
-				log.Printf("watchlist fetchtx err: %v", err)
-				continue
-			}
-			if !res.Status.Confirmed {
-				log.Printf("tx is not yet confirmed")
-				continue
-			}
-			if blockheight - res.Status.BlockHeight < 1 {
-				log.Printf("tx needs 2 confirmation")
-				continue
-			}
-
-			err = s.txCallback(k)
-			if err != nil {
-				log.Printf("tx callback error %v", err)
-				continue
-			}
-
-			toRemove = append(toRemove, k)
+func (s *SwapWatcher) HandleConfirmedTx(blockheight uint64) error {
+	var toRemove []string
+	s.Lock()
+	for k, v := range s.txWatchList {
+		swap := s.SwapMap[k]
+		res, err := s.blockchain.GetTxOut(v, swap.OpeningTxVout)
+		if err != nil {
+			log.Printf("watchlist fetchtx err: %v", err)
+			continue
 		}
-		s.Unlock()
-		for _, v := range toRemove {
-			delete(s.txWatchList, v)
+		log.Printf("txout: %v", res)
+		if !(res.Confirmations > 1) {
+			log.Printf("tx does not have enough confirmations")
+			continue
 		}
-		return nil
+
+		err = s.txCallback(k)
+		if err != nil {
+			log.Printf("tx callback error %v", err)
+			continue
+		}
+
+		toRemove = append(toRemove, k)
+	}
+	s.Unlock()
+	s.TxClaimed(toRemove)
+	return nil
 }
 
-func (s *txWatcher) TxClaimed(swapId string) {
+func (s *SwapWatcher) TxClaimed(swaps []string) {
 	s.Lock()
-	delete(s.txWatchList, swapId)
-	delete(s.timelockWatchlist, swapId)
+	for _, v := range swaps {
+		delete(s.SwapMap, v)
+		delete(s.txWatchList, v)
+		delete(s.timelockWatchlist, v)
+	}
 	s.Unlock()
 }

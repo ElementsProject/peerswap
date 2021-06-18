@@ -3,6 +3,7 @@ package swap
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 type SwapType int
@@ -53,14 +54,15 @@ const (
 	SWAPTYPE_IN SwapType = iota
 	SWAPTYPE_OUT
 
-
-
 	MESSAGETYPE_SWAPREQUEST   = "a455"
 	MESSAGETYPE_MAKERRESPONSE = "a457"
 	MESSAGETYPE_TAKERRESPONSE = "a459"
 	MESSAGETYPE_ERRORRESPONSE = "a461"
 	MESSAGETYPE_CLAIMED       = "a463"
-
+)
+const (
+	SWAPROLE_MAKER SwapRole = iota
+	SWAPROLE_TAKER
 )
 const (
 	SWAPSTATE_CREATED SwapState = iota
@@ -83,10 +85,13 @@ type Swap struct {
 	Id              string
 	Type            SwapType
 	State           SwapState
+	Role            SwapRole
 	InitiatorNodeId string
 	PeerNodeId      string
 	Amount          uint64
 	ChannelId       string
+
+	PrivkeyBytes []byte
 
 	Payreq   string
 	PreImage string
@@ -98,7 +103,9 @@ type Swap struct {
 
 	Cltv int64
 
-	OpeningTxId string
+	OpeningTxId   string
+	OpeningTxHex  string
+	OpeningTxVout uint32
 
 	ClaimTxId string
 }
@@ -113,7 +120,8 @@ type PrettyPrintSwap struct {
 	ShortChannelId  string
 
 	OpeningTxId string
-	ClaimTxId   string
+
+	ClaimTxId string
 
 	CltvHeight int64
 }
@@ -133,16 +141,36 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 	}
 }
 
+func (s *Swap) GetPrivkey() *btcec.PrivateKey {
+	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.PrivkeyBytes)
+	return privkey
+}
+
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapType SwapType, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
+func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
 	return &Swap{
 		Id:              newSwapId(),
+		Role:            swapRole,
 		Type:            swapType,
 		State:           SWAPSTATE_CREATED,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		ChannelId:       channelId,
 		Amount:          amount,
+		PrivkeyBytes:    getRandomPrivkey().Serialize(),
+	}
+}
+
+func NewSwapFromRequest(senderNodeId string, request SwapRequest) *Swap {
+	return &Swap{
+		Id:              request.SwapId,
+		Type:            request.Type,
+		State:           SWAPSTATE_REQUEST_RECEIVED,
+		PeerNodeId:      senderNodeId,
+		InitiatorNodeId: senderNodeId,
+		Amount:          request.Amount,
+		ChannelId:       request.ChannelId,
+		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 	}
 }
 
@@ -151,6 +179,15 @@ func newSwapId() string {
 	idBytes := make([]byte, 32)
 	_, _ = rand.Read(idBytes[:])
 	return hex.EncodeToString(idBytes)
+}
+
+// getRandomPrivkey returns a random private key for the swap
+func getRandomPrivkey() *btcec.PrivateKey {
+	privkey, err := btcec.NewPrivateKey(btcec.S256())
+	if err != nil {
+		return nil
+	}
+	return privkey
 }
 
 // SwapRequest gets send when a peer wants to start a new swap.
@@ -172,7 +209,9 @@ type MakerResponse struct {
 	MakerPubkeyHash string
 	Invoice         string
 	TxId            string
+	TxHex           string
 	Cltv            int64
+	Vout            uint32
 }
 
 func (m *MakerResponse) MessageType() string {

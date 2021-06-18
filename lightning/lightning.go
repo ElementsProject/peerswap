@@ -1,15 +1,5 @@
 package lightning
 
-import (
-	"github.com/sputn1ck/sugarmama/wallet"
-)
-
-type WalletService interface {
-	ListAddresses() ([]string, error)
-	GetBalance() (uint64, error)
-	ListUtxos() ([]*wallet.Utxo, error)
-}
-
 type PeerCommunicator interface {
 	SendMessage(peerId string, message PeerMessage) error
 	AddMessageHandler(func(peerId string, messageType string, payload string) error) error

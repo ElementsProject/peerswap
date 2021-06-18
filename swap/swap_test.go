@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func TestInMemStore(t *testing.T) {
 
 	store := NewInMemStore()
@@ -15,9 +14,9 @@ func TestInMemStore(t *testing.T) {
 
 func storeTest(t *testing.T, store SwapStore) {
 
-	swap1 := NewSwap(SWAPTYPE_IN, 100, "alice", "bar", "foo")
+	swap1 := NewSwap(SWAPTYPE_IN, SWAPROLE_MAKER, 100, "alice", "bar", "foo")
 
-	swap2 := NewSwap(SWAPTYPE_OUT, 100, "bob", "qux", "baz")
+	swap2 := NewSwap(SWAPTYPE_OUT, SWAPROLE_MAKER, 100, "bob", "qux", "baz")
 
 	err := store.Create(swap1)
 	if err != nil {
