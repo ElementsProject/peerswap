@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
+	address2 "github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/transaction"
+	"log"
 )
 
 type TxSigner interface {
@@ -70,18 +74,29 @@ func CreateOpeningAddress(redeemScript []byte) (string, error) {
 	return addr, nil
 }
 
-func CreatePreimageSpendingTransaction(signer TxSigner, openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, outputScript, redeemScript, preimage []byte) (string, error) {
-	spendingTx, sigHash, err := createSpendingTransaction(openingTxHex, swapAmount, feeAmount, currentBlock, asset, redeemScript, outputScript)
+type SpendingParams struct {
+	Signer       TxSigner
+	OpeningTxHex string
+	SwapAmount   uint64
+	FeeAmount    uint64
+	CurrentBlock uint64
+	Asset        []byte
+	OutputScript []byte
+	RedeemScript []byte
+}
+
+func CreatePreimageSpendingTransaction(params *SpendingParams, preimage []byte) (string, error) {
+	spendingTx, sigHash, err := createSpendingTransaction(params.OpeningTxHex, params.SwapAmount, params.FeeAmount, params.CurrentBlock, params.Asset, params.RedeemScript, params.OutputScript)
 	if err != nil {
 		return "", err
 	}
 
-	sig, err := signer.Sign(sigHash[:])
+	sig, err := params.Signer.Sign(sigHash[:])
 	if err != nil {
 		return "", err
 	}
 
-	spendingTx.Inputs[0].Witness = getPreimageWitness(sig.Serialize(), preimage, redeemScript)
+	spendingTx.Inputs[0].Witness = getPreimageWitness(sig.Serialize(), preimage, params.RedeemScript)
 
 	spendingTxHex, err := spendingTx.ToHex()
 	if err != nil {
@@ -90,24 +105,59 @@ func CreatePreimageSpendingTransaction(signer TxSigner, openingTxHex string, swa
 	return spendingTxHex, nil
 }
 
-func CreateCltvSpendingTransaction(signer TxSigner, openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, outputScript, redeemScript []byte) (string, error) {
-	spendingTx, sigHash, err := createSpendingTransaction(openingTxHex, swapAmount, feeAmount, currentBlock, asset, redeemScript, outputScript)
+func CreateCltvSpendingTransaction(params *SpendingParams) (string, error) {
+	paramBytes, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+	log.Printf("params: %s", string(paramBytes))
+	spendingTx, sigHash, err := createSpendingTransaction(params.OpeningTxHex, params.SwapAmount, params.FeeAmount, params.CurrentBlock, params.Asset, params.RedeemScript, params.OutputScript)
 	if err != nil {
 		return "", err
 	}
 
-	sig, err := signer.Sign(sigHash[:])
+	sig, err := params.Signer.Sign(sigHash[:])
 	if err != nil {
 		return "", err
 	}
 
-	spendingTx.Inputs[0].Witness = getCtlvWitness(sig.Serialize(), redeemScript)
+	spendingTx.Inputs[0].Witness = getCtlvWitness(sig.Serialize(), params.RedeemScript)
 
 	spendingTxHex, err := spendingTx.ToHex()
 	if err != nil {
 		return "", err
 	}
 	return spendingTxHex, nil
+}
+
+func VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
+
+	tx, err := transaction.NewTxFromHex(txHex)
+	if err != nil {
+		return 0, err
+	}
+	vout, err := findVout(tx.Outputs, redeemScript)
+	if err != nil {
+		return 0, err
+	}
+	return vout, nil
+}
+
+func findVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, error) {
+	wantAddr, err := CreateOpeningAddress(redeemScript)
+	if err != nil {
+		return 0, err
+	}
+	wantBytes, err := address2.ToOutputScript(wantAddr)
+	if err != nil {
+		return 0, err
+	}
+	for i, v := range outputs {
+		if bytes.Compare(v.Script, wantBytes) == 0 {
+			return uint32(i), nil
+		}
+	}
+	return 0, errors.New("vout not found")
 }
 
 func createSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
@@ -116,12 +166,13 @@ func createSpendingTransaction(openingTxHex string, swapAmount, feeAmount, curre
 		return nil, [32]byte{}, err
 	}
 
-	swapInValue, _ := elementsutil.SatoshiToElementsValue(swapAmount)
-	var vout uint32
-	for i, v := range firstTx.Outputs {
-		if bytes.Compare(v.Value, swapInValue) == 0 {
-			vout = uint32(i)
-		}
+	swapInValue, err := elementsutil.SatoshiToElementsValue(swapAmount)
+	if err != nil {
+		return nil, [32]byte{}, err
+	}
+	vout, err := findVout(firstTx.Outputs, redeemScript)
+	if err != nil {
+		return nil, [32]byte{}, err
 	}
 
 	txHash := firstTx.TxHash()

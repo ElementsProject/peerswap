@@ -31,14 +31,14 @@ func NewRpcWallet(rpcClient RpcClient, walletName string) (*rpcWallet, error) {
 		walletName: walletName,
 		rpcClient:  rpcClient,
 	}
-	err := rpcWallet.SetupWallet()
+	err := rpcWallet.setupWallet()
 	if err != nil {
 		return nil, err
 	}
 	return rpcWallet, nil
 }
 
-func (r *rpcWallet) SetupWallet() error {
+func (r *rpcWallet) setupWallet() error {
 	loadedWallets, err := r.rpcClient.ListWallets()
 	if err != nil {
 		return err

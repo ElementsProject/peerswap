@@ -11,4 +11,5 @@ var (
 type Wallet interface {
 	GetAddress() (string, error)
 	SendToAddress(string, uint64) (string, error)
+	GetBalance() (uint64, error)
 }

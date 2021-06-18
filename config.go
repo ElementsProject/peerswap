@@ -1,7 +1,10 @@
 package sugarmama
 
 type Config struct {
-	DbPath     string
-	EsploraUrl string
-	Network    string
+	DbPath      string
+	RpcUser     string
+	RpcPassword string
+	RpcHost     string
+	RpcPort     uint
+	Network     string
 }

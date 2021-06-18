@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/sputn1ck/sugarmama/liquid"
+	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/sugarmama/swap"
 	"github.com/sputn1ck/sugarmama/wallet"
 	"github.com/vulpemventures/go-elements/network"
@@ -64,52 +64,43 @@ func run() error {
 	} else {
 		liquidNetwork = &network.Liquid
 	}
-	log.Printf("Config: %s, %s, network: %s", config.DbPath, config.EsploraUrl, config.Network)
+	log.Printf("Config: Db:%s, Rpc: %s %s, network: %s", config.DbPath, config.RpcHost, config.RpcUser, config.Network)
 	// setup services
-	// esplora
-	esplora := liquid.NewEsploraClient(config.EsploraUrl)
-
-	// db
-	walletDb, err := bbolt.Open(filepath.Join(config.DbPath, "db"), 0700, nil)
+	// blockchaincli
+	ecli := gelements.NewElements(config.RpcUser, config.RpcPassword)
+	err = ecli.StartUp(config.RpcHost, config.RpcPort)
 	if err != nil {
 		return err
 	}
+
+	// db
 	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
 	if err != nil {
 		return err
 	}
 
 	// Wallet
-	walletStore, err := wallet.NewBboltStore(walletDb)
+	waleltCli := gelements.NewElements(config.RpcUser, config.RpcPassword)
+	err = waleltCli.StartUp(config.RpcHost, config.RpcPort)
 	if err != nil {
 		return err
 	}
-	err = walletStore.Initialize()
+	rpcWallet, err := wallet.NewRpcWallet(waleltCli, "swap")
 	if err != nil {
 		return err
 	}
-	walletService := wallet.NewLiquiddWallet(walletStore, esplora, liquidNetwork)
 
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
 	}
-	swapService := swap.NewService(ctx, swapStore, walletService, clightning, esplora, clightning, liquidNetwork)
+	swapService := swap.NewService(ctx, swapStore, rpcWallet, clightning, ecli, clightning, liquidNetwork)
 
 	messageHandler := swap.NewMessageHandler(clightning, swapService)
 	err = messageHandler.Start()
 	if err != nil {
 		return err
 	}
-	// DEBUG ONLY, fund addresses
-	//addr, err := walletService.ListAddresses()
-	//if err != nil {
-	//	return err
-	//}
-	//_, err = esplora.DEV_Fundaddress(addr[0])
-	//if err != nil {
-	//	return err
-	//}
 
 	go func() {
 		err := swapService.StartWatchingTxs()
@@ -119,7 +110,7 @@ func run() error {
 		}
 	}()
 
-	clightning.SetupClients(walletService, swapService, esplora)
+	clightning.SetupClients(rpcWallet, swapService, ecli)
 	<-quitChan
 	return nil
 }

@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/niftynei/glightning/glightning"
-	"github.com/niftynei/glightning/jrpc2"
+	"github.com/sputn1ck/glightning/glightning"
+	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/sugarmama/swap"
 )
 
@@ -23,11 +23,11 @@ func (g *GetAddressMethod) Name() string {
 }
 
 func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
-	res, err := g.cl.wallet.ListAddresses()
+	res, err := g.cl.wallet.GetAddress()
 	if err != nil {
 		return nil, err
 	}
-	return fmt.Sprintf("%s", res[0]), nil
+	return fmt.Sprintf("%s", res), nil
 }
 
 type GetBalanceMethod struct {
@@ -50,50 +50,6 @@ func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-type ListUtxosMethod struct {
-	cl *ClightningClient `json:"-"`
-}
-
-func (l *ListUtxosMethod) Name() string {
-	return "liquid-wallet-listutxos"
-}
-
-func (l *ListUtxosMethod) New() interface{} {
-	return &ListUtxosMethod{
-		cl: l.cl,
-	}
-}
-
-func (l *ListUtxosMethod) Call() (jrpc2.Result, error) {
-	utxos, err := l.cl.wallet.ListUtxos()
-	if err != nil {
-		return nil, err
-	}
-	return utxos, nil
-}
-
-type DevFaucet struct {
-	cl *ClightningClient `json:"-"`
-}
-
-func (d *DevFaucet) Name() string {
-	return "dev-faucet"
-}
-
-func (d *DevFaucet) New() interface{} {
-	return &DevFaucet{
-		cl: d.cl,
-	}
-}
-
-func (d *DevFaucet) Call() (jrpc2.Result, error) {
-	address, err := d.cl.wallet.ListAddresses()
-	if err != nil {
-		return nil, err
-	}
-	return d.cl.esplora.DEV_Fundaddress(address[0])
 }
 
 type SwapOut struct {

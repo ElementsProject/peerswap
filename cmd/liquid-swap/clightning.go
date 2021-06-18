@@ -6,20 +6,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/niftynei/glightning/glightning"
+	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/sugarmama"
+	"github.com/sputn1ck/sugarmama/blockchain"
 	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/liquid"
 	"github.com/sputn1ck/sugarmama/swap"
+	"github.com/sputn1ck/sugarmama/wallet"
 	"log"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 const (
-	dbOption      = "db-path"
-	esploraOption = "esplora-url"
+	dbOption          = "db-path"
+	rpcHostOption     = "rpc-host"
+	rpcPortOption     = "rpc-port"
+	rpcUserOption     = "rpc-user"
+	rpcPasswordOption = "rpc-pass"
 
 	liquidNetworkOption = "liquid-network"
 )
@@ -28,9 +33,9 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
-	wallet  lightning.WalletService
-	swaps   *swap.Service
-	esplora *liquid.EsploraClient
+	wallet     wallet.Wallet
+	swaps      *swap.Service
+	blockchain blockchain.Blockchain
 
 	msgHandlers []func(peerId string, messageType string, payload string) error
 	initChan    chan interface{}
@@ -168,12 +173,37 @@ func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 	if err != nil && err != os.ErrExist {
 		return nil, err
 	}
-	esploraUrl, err := c.plugin.GetOption(esploraOption)
+	rpcHost, err := c.plugin.GetOption(rpcHostOption)
 	if err != nil {
 		return nil, err
 	}
-	if esploraUrl == "" {
-		return nil, errors.New(fmt.Sprintf("%s need to be set", esploraOption))
+	if rpcHost == "" {
+		return nil, errors.New(fmt.Sprintf("%s need to be set", rpcHostOption))
+	}
+	rpcPortString, err := c.plugin.GetOption(rpcPortOption)
+	if err != nil {
+		return nil, err
+	}
+	if rpcPortString == "" {
+		return nil, errors.New(fmt.Sprintf("%s need to be set", rpcPortOption))
+	}
+	rpcPort, err := strconv.Atoi(rpcPortString)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("%s is not an int", rpcPortOption))
+	}
+	rpcUser, err := c.plugin.GetOption(rpcUserOption)
+	if err != nil {
+		return nil, err
+	}
+	if rpcUser == "" {
+		return nil, errors.New(fmt.Sprintf("%s need to be set", rpcUserOption))
+	}
+	rpcPass, err := c.plugin.GetOption(rpcPasswordOption)
+	if err != nil {
+		return nil, err
+	}
+	if rpcPass == "" {
+		return nil, errors.New(fmt.Sprintf("%s need to be set", rpcPasswordOption))
 	}
 	liquidNetwork, err := c.plugin.GetOption(liquidNetworkOption)
 	if err != nil {
@@ -181,9 +211,12 @@ func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 	}
 
 	return &sugarmama.Config{
-		DbPath:     dbpath,
-		EsploraUrl: esploraUrl,
-		Network:    liquidNetwork,
+		DbPath:      dbpath,
+		RpcHost:     rpcHost,
+		RpcPort:     uint(rpcPort),
+		RpcUser:     rpcUser,
+		RpcPassword: rpcPass,
+		Network:     liquidNetwork,
 	}, nil
 }
 
@@ -192,7 +225,19 @@ func (c *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(esploraOption, "url to esplora api", "")
+	err = c.plugin.RegisterNewOption(rpcHostOption, "elementsd rpchost", "")
+	if err != nil {
+		return err
+	}
+	err = c.plugin.RegisterNewOption(rpcPortOption, "elementsd rpcport", "")
+	if err != nil {
+		return err
+	}
+	err = c.plugin.RegisterNewOption(rpcUserOption, "elementsd rpcuser", "")
+	if err != nil {
+		return err
+	}
+	err = c.plugin.RegisterNewOption(rpcPasswordOption, "elementsd rpcpassword", "")
 	if err != nil {
 		return err
 	}
@@ -203,10 +248,10 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-func (c *ClightningClient) SetupClients(wallet lightning.WalletService, swaps *swap.Service, esplora *liquid.EsploraClient) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.Service, blockchain blockchain.Blockchain) {
 	c.wallet = wallet
 	c.swaps = swaps
-	c.esplora = esplora
+	c.blockchain = blockchain
 }
 func (c *ClightningClient) RegisterMethods() error {
 	swapIn := glightning.NewRpcMethod(&SwapIn{
@@ -254,22 +299,5 @@ func (c *ClightningClient) RegisterMethods() error {
 		return err
 	}
 
-	listUtxos := glightning.NewRpcMethod(&ListUtxosMethod{
-		cl: c,
-	}, "list liquid utxos")
-	listUtxos.Category = "liquid-swap"
-	err = c.plugin.RegisterMethod(listUtxos)
-	if err != nil {
-		return err
-	}
-
-	devFaucet := glightning.NewRpcMethod(&DevFaucet{
-		cl: c,
-	}, "add lbtc funds to wallet")
-	devFaucet.Category = "liquid-swap"
-	err = c.plugin.RegisterMethod(devFaucet)
-	if err != nil {
-		return err
-	}
 	return nil
 }
