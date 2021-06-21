@@ -273,6 +273,7 @@ func (s *Service) OnTakerResponse(senderNodeId string, request TakerResponse) er
 		return err
 	}
 	swap.OpeningTxId = txId
+	swap.Role = SWAPROLE_MAKER
 	swap.State = SWAPSTATE_OPENING_TX_BROADCASTED
 	err = s.store.Update(swap)
 	if err != nil {
