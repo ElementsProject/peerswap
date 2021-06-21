@@ -13,6 +13,7 @@ import (
 var (
 	regtestOpReturnAddress = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 )
+
 const (
 	LiquidPort = 18884
 )

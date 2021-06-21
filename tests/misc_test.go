@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/sugarmama/blockchain"
-	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/swap"
-	wallet2 "github.com/sputn1ck/sugarmama/wallet"
+	"github.com/sputn1ck/peerswap/blockchain"
+	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/swap"
+	wallet2 "github.com/sputn1ck/peerswap/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/network"
 	"testing"
@@ -27,14 +27,14 @@ func Test_CltvSwapOut(t *testing.T) {
 		t.Fatalf("error creating testSetup")
 	}
 
-	multiBlockChan := make (chan uint)
+	multiBlockChan := make(chan uint)
 	// create some blocks
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case nChan := <- multiBlockChan:
+			case nChan := <-multiBlockChan:
 				err := testSetup.GenerateBlock(nChan)
 				if err != nil {
 					t.Fatal(err)
@@ -105,7 +105,7 @@ func Test_CltvSwapOut(t *testing.T) {
 	t.Logf("%v", newB)
 
 	// assert the balance is greater than 1lbtc - swap amount
-	assert.Greater(t,newB, uint64(99950000))
+	assert.Greater(t, newB, uint64(99950000))
 }
 func Test_CltvSwapIn(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -114,14 +114,14 @@ func Test_CltvSwapIn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating testSetup")
 	}
-	multiBlockChan := make (chan uint)
+	multiBlockChan := make(chan uint)
 	// create some blocks
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case nChan := <- multiBlockChan:
+			case nChan := <-multiBlockChan:
 				err := testSetup.GenerateBlock(nChan)
 				if err != nil {
 					t.Fatal(err)
@@ -190,7 +190,7 @@ func Test_CltvSwapIn(t *testing.T) {
 	}
 	t.Logf("%v", aliceBalance)
 	// assert the balance is greater than 1lbtc - swap amount
-	assert.Greater(t,aliceBalance, uint64(99950000))
+	assert.Greater(t, aliceBalance, uint64(99950000))
 }
 func Test_PreimageSwapIn(t *testing.T) {
 
@@ -269,7 +269,7 @@ func Test_PreimageSwapIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%v", bobBalance)
-	assert.Equal(t, uint64(8000),bobBalance)
+	assert.Equal(t, uint64(8000), bobBalance)
 }
 func Test_PreimageSwapOut(t *testing.T) {
 
@@ -348,7 +348,6 @@ func Test_PreimageSwapOut(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	go testSetup.GenerateBlock(1)
 	aliceBalance, err := waitForBalanceChange(ctx, aliceSetup.wallet, oldBalance)
 	if err != nil {
@@ -364,9 +363,9 @@ func waitForBalanceChange(ctx context.Context, wallet wallet2.Wallet, oldBalance
 	go func() {
 		for {
 			select {
-				case <-ctx.Done():
-					close(balanceChan)
-					return
+			case <-ctx.Done():
+				close(balanceChan)
+				return
 			default:
 				balance, err := wallet.GetBalance()
 				if err != nil {
@@ -374,13 +373,13 @@ func waitForBalanceChange(ctx context.Context, wallet wallet2.Wallet, oldBalance
 					return
 				}
 				if balance != oldBalance {
-					balanceChan<-balance
+					balanceChan <- balance
 					return
 				}
 			}
 		}
 	}()
-	newB := <- balanceChan
+	newB := <-balanceChan
 	return newB, nil
 }
 

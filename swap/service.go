@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/sugarmama/blockchain"
-	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/utils"
-	"github.com/sputn1ck/sugarmama/wallet"
+	"github.com/sputn1ck/peerswap/blockchain"
+	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/utils"
+	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"log"
@@ -119,7 +119,6 @@ func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64
 	return nil
 }
 
-// todo implement swap in
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {
 	ctx := context.Background()
 	swap := NewSwapFromRequest(senderNodeId, request)
@@ -420,7 +419,6 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, openingTx
 }
 
 func (s *Service) ClaimTxWithCltv(ctx context.Context, swap *Swap, openingTxHex string) error {
-
 	redeemScript, err := s.getSwapScript(swap)
 	if err != nil {
 		return err

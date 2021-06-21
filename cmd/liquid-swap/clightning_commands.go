@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/sugarmama/swap"
+	"github.com/sputn1ck/peerswap/swap"
 )
 
 type GetAddressMethod struct {

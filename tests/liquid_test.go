@@ -6,17 +6,19 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/utils"
-	wallet "github.com/sputn1ck/sugarmama/wallet"
+	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/utils"
+	wallet "github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 
 	"testing"
 )
+
 const (
 	LiquidPort = 18884
 )
+
 var lbtc = append(
 	[]byte{0x01},
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,

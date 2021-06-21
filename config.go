@@ -1,4 +1,4 @@
-package sugarmama
+package peerswap
 
 type Config struct {
 	DbPath      string

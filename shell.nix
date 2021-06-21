@@ -3,7 +3,7 @@ let
 in
 with pkgs;
     stdenv.mkDerivation rec {
-     name = "sugarmama-environment";
+     name = "peerswap-environment";
     buildInputs = [ act ];
      path = lib.makeBinPath [  ];
      

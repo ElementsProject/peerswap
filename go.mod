@@ -1,4 +1,4 @@
-module github.com/sputn1ck/sugarmama
+module github.com/sputn1ck/peerswap
 
 go 1.16
 

@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/sugarmama"
-	"github.com/sputn1ck/sugarmama/blockchain"
-	"github.com/sputn1ck/sugarmama/lightning"
-	"github.com/sputn1ck/sugarmama/swap"
-	"github.com/sputn1ck/sugarmama/wallet"
+	"github.com/sputn1ck/peerswap"
+	"github.com/sputn1ck/peerswap/blockchain"
+	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/swap"
+	"github.com/sputn1ck/peerswap/wallet"
 	"log"
 	"math/big"
 	"os"
@@ -156,7 +156,7 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 	c.initChan <- true
 }
 
-func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
+func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 
 	dbpath, err := c.plugin.GetOption(dbOption)
 	if err != nil {
@@ -210,7 +210,7 @@ func (c *ClightningClient) GetConfig() (*sugarmama.Config, error) {
 		return nil, err
 	}
 
-	return &sugarmama.Config{
+	return &peerswap.Config{
 		DbPath:      dbpath,
 		RpcHost:     rpcHost,
 		RpcPort:     uint(rpcPort),

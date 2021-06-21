@@ -2,7 +2,7 @@ package swap
 
 import (
 	"context"
-	"github.com/sputn1ck/sugarmama/blockchain"
+	"github.com/sputn1ck/peerswap/blockchain"
 	"log"
 	"sync"
 	"time"
@@ -93,7 +93,7 @@ func (s *SwapWatcher) StartBlockWatcher() error {
 				currentBlock = nextBlock
 				s.newBlockChan <- currentBlock
 			}
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 }

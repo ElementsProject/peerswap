@@ -3,7 +3,7 @@ package swap
 import (
 	"encoding/hex"
 	"encoding/json"
-	"github.com/sputn1ck/sugarmama/lightning"
+	"github.com/sputn1ck/peerswap/lightning"
 	"log"
 )
 
