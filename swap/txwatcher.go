@@ -41,8 +41,10 @@ func (t *SwapWatcher) AddSwap(swap *Swap) {
 	t.Lock()
 	t.SwapMap[swap.Id] = swap
 	if swap.Role == SWAPROLE_TAKER {
+		log.Printf("adding swap to watchlist")
 		t.txWatchList[swap.Id] = swap.OpeningTxId
 	} else {
+		log.Printf("adding swap to cltv watchlist")
 		t.timelockWatchlist[swap.Id] = swap.Cltv
 	}
 	t.Unlock()
@@ -91,7 +93,7 @@ func (s *SwapWatcher) StartBlockWatcher() error {
 				currentBlock = nextBlock
 				s.newBlockChan <- currentBlock
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -124,6 +126,9 @@ func (s *SwapWatcher) HandleConfirmedTx(blockheight uint64) error {
 			continue
 		}
 		log.Printf("txout: %v", res)
+		if res == nil {
+			continue
+		}
 		if !(res.Confirmations > 1) {
 			log.Printf("tx does not have enough confirmations")
 			continue

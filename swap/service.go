@@ -165,6 +165,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 		if err != nil {
 			return err
 		}
+		s.txWatcher.AddSwap(swap)
 		response := &MakerResponse{
 			SwapId:          swap.Id,
 			MakerPubkeyHash: swap.MakerPubkeyHash,
@@ -199,7 +200,7 @@ func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error 
 }
 
 // CreateOpeningTransaction creates and broadcasts the opening Transaction,
-// the two peers are the taker(pays the invoice) and the maker
+// the two peers are the taker(pays the invoice) and the maker (provides onchain liquidity)
 func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) (string, error) {
 	// Create the opening transaction
 	blockHeight, err := s.blockchain.GetBlockHeight()

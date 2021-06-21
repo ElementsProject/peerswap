@@ -18,7 +18,181 @@ import (
 
 // integration test without c-lightning
 // todo check balances, swap states etc.
-func Test_Swap(t *testing.T) {
+
+func Test_CltvSwapOut(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testSetup, err := NewTestSetup()
+	if err != nil {
+		t.Fatalf("error creating testSetup")
+	}
+
+	multiBlockChan := make (chan uint)
+	// create some blocks
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case nChan := <- multiBlockChan:
+				err := testSetup.GenerateBlock(nChan)
+				if err != nil {
+					t.Fatal(err)
+				}
+			default:
+				err := testSetup.GenerateBlock(1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}()
+
+	//Setup Communicators
+	aliceCom := &TestCommunicator{
+		testing: t,
+		Id:      "alice",
+	}
+	bobCom := &TestCommunicator{other: aliceCom, testing: t, Id: "bob"}
+	aliceCom.other = bobCom
+
+	// Generate Preimage
+	var preimage lightning.Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create Setups
+	aliceSetup, err := GetTestSetup(newWalletId(), preimage, aliceCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobSetup, err := GetTestSetup(newWalletId(), preimage, bobCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldBalance, err := bobSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	go testSetup.FaucetWallet(bobSetup.wallet, 1)
+	_, err = waitForBalanceChange(ctx, bobSetup.wallet, oldBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Start tx watcher
+	// only bob is watching tx in order to spend the cltv path
+	bobSetup.Start(t)
+
+	//Swap out
+	err = aliceSetup.swap.StartSwapOut("bob", "foo", 50000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bobBalance, err := bobSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	multiBlockChan <- 124
+	newB, err := waitForBalanceChange(ctx, bobSetup.wallet, bobBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%v", newB)
+
+	// assert the balance is greater than 1lbtc - swap amount
+	assert.Greater(t,newB, uint64(99950000))
+}
+func Test_CltvSwapIn(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testSetup, err := NewTestSetup()
+	if err != nil {
+		t.Fatalf("error creating testSetup")
+	}
+	multiBlockChan := make (chan uint)
+	// create some blocks
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case nChan := <- multiBlockChan:
+				err := testSetup.GenerateBlock(nChan)
+				if err != nil {
+					t.Fatal(err)
+				}
+			default:
+				err := testSetup.GenerateBlock(1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}()
+	//Setup Communicators
+	aliceCom := &TestCommunicator{
+		testing: t,
+		Id:      "alice",
+	}
+	bobCom := &TestCommunicator{other: aliceCom, testing: t, Id: "bob"}
+	aliceCom.other = bobCom
+
+	// Generate Preimage
+	var preimage lightning.Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create Setups
+	aliceSetup, err := GetTestSetup(newWalletId(), preimage, aliceCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = GetTestSetup(newWalletId(), preimage, bobCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldBalance, err := aliceSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	go testSetup.FaucetWallet(aliceSetup.wallet, 1)
+	_, err = waitForBalanceChange(ctx, aliceSetup.wallet, oldBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Start tx watcher
+	aliceSetup.Start(t)
+	//bobSetup.Start(t)
+
+	//Swap out
+	err = aliceSetup.swap.StartSwapIn("bob", "foo", 50000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldBalance, err = aliceSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	multiBlockChan <- 124
+	aliceBalance, err := waitForBalanceChange(ctx, aliceSetup.wallet, oldBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%v", aliceBalance)
+	// assert the balance is greater than 1lbtc - swap amount
+	assert.Greater(t,aliceBalance, uint64(99950000))
+}
+func Test_PreimageSwapIn(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -66,7 +240,13 @@ func Test_Swap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testSetup.FaucetWallet(aliceSetup.wallet, 1)
+	oldBalance, err := aliceSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go testSetup.FaucetWallet(aliceSetup.wallet, 1)
+	_, err = waitForBalanceChange(ctx, aliceSetup.wallet, oldBalance)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,20 +254,134 @@ func Test_Swap(t *testing.T) {
 	aliceSetup.Start(t)
 	bobSetup.Start(t)
 
-	time.Sleep(5 * time.Second)
+	oldBalance, err = bobSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
 	//Swap out
 	err = aliceSetup.swap.StartSwapIn("bob", "foo", 10000)
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(20 * time.Second)
 
-	bobBalance, err := bobSetup.wallet.GetBalance()
+	bobBalance, err := waitForBalanceChange(ctx, bobSetup.wallet, oldBalance)
 	if err != nil {
-		t.Fatalf("error getting bob balance %v", bobBalance)
+		t.Fatal(err)
 	}
 	t.Logf("%v", bobBalance)
 	assert.Equal(t, uint64(8000),bobBalance)
+}
+func Test_PreimageSwapOut(t *testing.T) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testSetup, err := NewTestSetup()
+	if err != nil {
+		t.Fatalf("error creating testSetup")
+	}
+	// create some blocks
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				t.Logf("\n context done")
+				return
+			default:
+				err := testSetup.GenerateBlock(1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}()
+	//Setup Communicators
+	aliceCom := &TestCommunicator{
+		testing: t,
+		Id:      "alice",
+	}
+	bobCom := &TestCommunicator{other: aliceCom, testing: t, Id: "bob"}
+	aliceCom.other = bobCom
+
+	// Generate Preimage
+	var preimage lightning.Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create Setups
+	aliceSetup, err := GetTestSetup(newWalletId(), preimage, aliceCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobSetup, err := GetTestSetup(newWalletId(), preimage, bobCom)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldBalance, err := bobSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = testSetup.FaucetWallet(bobSetup.wallet, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = waitForBalanceChange(ctx, bobSetup.wallet, oldBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Start tx watcher
+	aliceSetup.Start(t)
+	bobSetup.Start(t)
+
+	oldBalance, err = aliceSetup.wallet.GetBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//Swap out
+	err = aliceSetup.swap.StartSwapOut("bob", "foo", 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+
+	go testSetup.GenerateBlock(1)
+	aliceBalance, err := waitForBalanceChange(ctx, aliceSetup.wallet, oldBalance)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%v", aliceBalance)
+	assert.Equal(t, uint64(8000), aliceBalance)
+}
+
+func waitForBalanceChange(ctx context.Context, wallet wallet2.Wallet, oldBalance uint64) (uint64, error) {
+	balanceChan := make(chan uint64)
+	go func() {
+		for {
+			select {
+				case <-ctx.Done():
+					close(balanceChan)
+					return
+			default:
+				balance, err := wallet.GetBalance()
+				if err != nil {
+					close(balanceChan)
+					return
+				}
+				if balance != oldBalance {
+					balanceChan<-balance
+					return
+				}
+			}
+		}
+	}()
+	newB := <- balanceChan
+	return newB, nil
 }
 
 func GetTestSetup(id string, preimage lightning.Preimage, communicator *TestCommunicator) (*TestPeer, error) {

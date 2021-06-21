@@ -285,8 +285,9 @@ func (t *TestSetup) BroadcastAndGenerateN(txHex string, nBlocks uint) (string, e
 	return txId, nil
 
 }
+
 func newWalletId() string {
-	idBytes := make([]byte, 8)
+	idBytes := make([]byte, 32)
 	_, _ = rand.Read(idBytes[:])
 	return hex.EncodeToString(idBytes)
 }
