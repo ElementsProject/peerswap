@@ -82,6 +82,17 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
+	case MESSAGETYPE_ERRORRESPONSE:
+		log.Printf("incoming erroreRespons %s", string(messageBytes))
+		var req ErrorResponse
+		err = json.Unmarshal(messageBytes, &req)
+		if err != nil {
+			return err
+		}
+		err = sh.swap.OnErrorMessage(peerId, req)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

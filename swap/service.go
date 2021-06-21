@@ -344,6 +344,19 @@ func (s *Service) OnClaimedResponse(senderNodeId string, request ClaimedMessage)
 	return nil
 }
 
+func (s *Service) OnErrorMessage(peerId string, errorMessage ErrorResponse) error {
+	swap, err := s.store.GetById(errorMessage.SwapId)
+	if err != nil {
+		return err
+	}
+	swap.State = SWAPSTATE_CANCELED
+	err = s.store.Update(swap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Service) StartWatchingTxs() error {
 	swaps, err := s.store.ListAll()
 	if err != nil {
