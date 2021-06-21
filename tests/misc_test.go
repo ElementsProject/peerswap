@@ -94,7 +94,7 @@ func GetTestSetup(id string, preimage lightning.Preimage, communicator *TestComm
 	ctx := context.Background()
 
 	walletCli := gelements.NewElements("admin1", "123")
-	err := walletCli.StartUp("http://localhost", 7041)
+	err := walletCli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		return nil, err
 	}

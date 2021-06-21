@@ -14,7 +14,9 @@ import (
 
 	"testing"
 )
-
+const (
+	LiquidPort = 18884
+)
 var lbtc = append(
 	[]byte{0x01},
 	elementsutil.ReverseBytes(h2b(network.Regtest.AssetID))...,
@@ -31,7 +33,7 @@ func Test_RpcWalletPreimage(t *testing.T) {
 	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
 	ecli := gelements.NewElements("admin1", "123")
 	t.Log("new ecli")
-	err = ecli.StartUp("http://localhost", 7041)
+	err = ecli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
@@ -128,7 +130,7 @@ func Test_RpcWalletCltv(t *testing.T) {
 	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
 	ecli := gelements.NewElements("admin1", "123")
 	t.Log("new ecli")
-	err = ecli.StartUp("http://localhost", 7041)
+	err = ecli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
@@ -235,7 +237,7 @@ type TestSetup struct {
 
 func NewTestSetup() (*TestSetup, error) {
 	walletCli := gelements.NewElements("admin1", "123")
-	err := walletCli.StartUp("http://localhost", 7041)
+	err := walletCli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		return nil, err
 	}

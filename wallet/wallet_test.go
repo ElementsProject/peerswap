@@ -13,6 +13,9 @@ import (
 var (
 	regtestOpReturnAddress = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 )
+const (
+	LiquidPort = 18884
+)
 
 func Test_RpcWallet(t *testing.T) {
 
@@ -22,7 +25,7 @@ func Test_RpcWallet(t *testing.T) {
 	}
 
 	walletCli := gelements.NewElements("admin1", "123")
-	err = walletCli.StartUp("http://localhost", 7041)
+	err = walletCli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
@@ -79,7 +82,7 @@ type TestSetup struct {
 
 func NewTestSetup() (*TestSetup, error) {
 	walletCli := gelements.NewElements("admin1", "123")
-	err := walletCli.StartUp("http://localhost", 7041)
+	err := walletCli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
 		return nil, errors.New("error creating test setup")
 	}
