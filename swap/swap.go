@@ -65,12 +65,7 @@ type ClaimType int
 const (
 	SWAPTYPE_IN SwapType = iota
 	SWAPTYPE_OUT
-
-	MESSAGETYPE_SWAPREQUEST   = "a455"
-	MESSAGETYPE_MAKERRESPONSE = "a457"
-	MESSAGETYPE_TAKERRESPONSE = "a459"
-	MESSAGETYPE_ERRORRESPONSE = "a461"
-	MESSAGETYPE_CLAIMED       = "a463"
+	
 )
 const (
 	SWAPROLE_MAKER SwapRole = iota
@@ -116,9 +111,10 @@ type Swap struct {
 
 	Cltv int64
 
-	OpeningTxId   string
-	OpeningTxHex  string
-	OpeningTxVout uint32
+	OpeningTxId            string
+	OpeningTxUnpreparedHex string
+	OpeningTxVout          uint32
+	OpeningTxFee           uint64
 
 	ClaimTxId string
 }
@@ -180,15 +176,15 @@ func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeI
 	}
 }
 
-func NewSwapFromRequest(senderNodeId string, request SwapRequest) *Swap {
+func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, channelId string, swapType SwapType) *Swap {
 	return &Swap{
-		Id:              request.SwapId,
-		Type:            request.Type,
+		Id:              swapId,
+		Type:            swapType,
 		State:           SWAPSTATE_REQUEST_RECEIVED,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
-		Amount:          request.Amount,
-		ChannelId:       request.ChannelId,
+		Amount:          amount,
+		ChannelId:       channelId,
 		CreatedAt: time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 	}
@@ -208,61 +204,4 @@ func getRandomPrivkey() *btcec.PrivateKey {
 		return nil
 	}
 	return privkey
-}
-
-// SwapRequest gets send when a peer wants to start a new swap.
-type SwapRequest struct {
-	SwapId          string
-	ChannelId       string
-	Amount          uint64
-	Type            SwapType
-	TakerPubkeyHash string
-}
-
-func (s *SwapRequest) MessageType() string {
-	return MESSAGETYPE_SWAPREQUEST
-}
-
-// MakerResponse is the response if the requester wants to swap out.
-type MakerResponse struct {
-	SwapId          string
-	MakerPubkeyHash string
-	Invoice         string
-	TxId            string
-	TxHex           string
-	Cltv            int64
-	Vout            uint32
-}
-
-func (m *MakerResponse) MessageType() string {
-	return MESSAGETYPE_MAKERRESPONSE
-}
-
-// TakerResponse is the response if the requester wants to swap in
-type TakerResponse struct {
-	SwapId          string
-	TakerPubkeyHash string
-}
-
-func (t *TakerResponse) MessageType() string {
-	return MESSAGETYPE_TAKERRESPONSE
-}
-
-type ClaimedMessage struct {
-	SwapId    string
-	ClaimType ClaimType
-	ClaimTxId string
-}
-
-func (s *ClaimedMessage) MessageType() string {
-	return MESSAGETYPE_CLAIMED
-}
-
-type ErrorResponse struct {
-	SwapId string
-	Error  string
-}
-
-func (e *ErrorResponse) MessageType() string {
-	return MESSAGETYPE_ERRORRESPONSE
 }

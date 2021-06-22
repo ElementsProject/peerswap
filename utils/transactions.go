@@ -85,6 +85,19 @@ type SpendingParams struct {
 	RedeemScript []byte
 }
 
+func CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {
+	scriptPubKey := []byte{0x00, 0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
+
+	redeemPayment, _ := payment.FromScript(scriptPubKey, &network.Regtest, nil)
+	sats, _ := elementsutil.SatoshiToElementsValue(amount)
+	output := transaction.NewTxOutput(asset, sats, redeemPayment.WitnessScript)
+	tx := transaction.NewTx(2)
+	tx.Outputs = append(tx.Outputs, output)
+	return tx, nil
+}
+
 func CreatePreimageSpendingTransaction(params *SpendingParams, preimage []byte) (string, error) {
 	spendingTx, sigHash, err := createSpendingTransaction(params.OpeningTxHex, params.SwapAmount, params.FeeAmount, params.CurrentBlock, params.Asset, params.RedeemScript, params.OutputScript)
 	if err != nil {
@@ -136,14 +149,14 @@ func VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	vout, err := findVout(tx.Outputs, redeemScript)
+	vout, err := FindVout(tx.Outputs, redeemScript)
 	if err != nil {
 		return 0, err
 	}
 	return vout, nil
 }
 
-func findVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, error) {
+func FindVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, error) {
 	wantAddr, err := CreateOpeningAddress(redeemScript)
 	if err != nil {
 		return 0, err
@@ -170,7 +183,7 @@ func createSpendingTransaction(openingTxHex string, swapAmount, feeAmount, curre
 	if err != nil {
 		return nil, [32]byte{}, err
 	}
-	vout, err := findVout(firstTx.Outputs, redeemScript)
+	vout, err := FindVout(firstTx.Outputs, redeemScript)
 	if err != nil {
 		return nil, [32]byte{}, err
 	}
@@ -180,18 +193,24 @@ func createSpendingTransaction(openingTxHex string, swapAmount, feeAmount, curre
 	spendingInput.Sequence = 0
 	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(swapAmount - feeAmount)
 
-	spendingOutput := transaction.NewTxOutput(asset, spendingSatsBytes[:], outputScript)
+	var txOutputs = []*transaction.TxOutput{}
 
-	feeValue, _ := elementsutil.SatoshiToElementsValue(feeAmount)
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(asset, feeValue, feeScript)
+	spendingOutput := transaction.NewTxOutput(asset, spendingSatsBytes[:], outputScript)
+	txOutputs = append(txOutputs, spendingOutput)
+
+	if feeAmount > 0 {
+		feeValue, _ := elementsutil.SatoshiToElementsValue(feeAmount)
+		feeScript := []byte{}
+		feeOutput := transaction.NewTxOutput(asset, feeValue, feeScript)
+		txOutputs = append(txOutputs, feeOutput)
+	}
 
 	spendingTx := &transaction.Transaction{
 		Version:  2,
 		Flag:     0,
 		Locktime: uint32(currentBlock),
 		Inputs:   []*transaction.TxInput{spendingInput},
-		Outputs:  []*transaction.TxOutput{spendingOutput, feeOutput},
+		Outputs:  txOutputs,
 	}
 
 	sigHash = spendingTx.HashForWitnessV0(

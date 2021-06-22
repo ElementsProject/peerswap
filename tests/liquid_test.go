@@ -2,7 +2,6 @@ package tests
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
@@ -12,7 +11,6 @@ import (
 	wallet "github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
-	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/transaction"
 
 	"testing"
@@ -328,17 +326,10 @@ func Test_FeeEstimation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating opening tx: %v", err)
 	}
-	//dummyPayment := payment.FromPublicKey(alicePrivkey.PubKey(), &network.Regtest, nil)
-	scriptPubKey := []byte{0x00, 0x20}
-	witnessProgram := sha256.Sum256(redeemScript)
-	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
-
-	redeemPayment, _ := payment.FromScript(scriptPubKey, &network.Regtest, nil)
-	sats, _ := elementsutil.SatoshiToElementsValue(10000)
-	output := transaction.NewTxOutput(lbtc, sats, redeemPayment.WitnessScript)
-	//feeoutput, _ := utils.GetFeeOutput(1000, &network.Regtest)
-	tx := transaction.NewTx(2)
-	tx.Outputs = append(tx.Outputs, output)
+	tx, err := utils.CreateOpeningTransaction(redeemScript, lbtc, 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Logf("len outputs %v", len(tx.Outputs))
 	txHex, err := tx.ToHex()
 	if err != nil {

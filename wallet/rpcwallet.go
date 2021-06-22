@@ -3,6 +3,7 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"github.com/vulpemventures/go-elements/transaction"
 	"strings"
 )
 
@@ -24,6 +25,14 @@ type RpcClient interface {
 type rpcWallet struct {
 	walletName string
 	rpcClient  RpcClient
+}
+
+func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, err error) {
+	panic("implement me")
+}
+
+func (r *rpcWallet) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
+	panic("implement me")
 }
 
 func NewRpcWallet(rpcClient RpcClient, walletName string) (*rpcWallet, error) {
