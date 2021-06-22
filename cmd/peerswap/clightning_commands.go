@@ -155,6 +155,13 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
+	liquidBalance, err := l.cl.wallet.GetBalance()
+	if err != nil {
+		return nil, err
+	}
+	if liquidBalance < l.SatAmt {
+		return nil, errors.New("Not enough balance on liquid wallet")
+	}
 	swapIn, err := l.cl.swaps.StartSwapIn(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
