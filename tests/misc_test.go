@@ -88,7 +88,7 @@ func Test_CltvSwapOut(t *testing.T) {
 	bobSetup.Start(t)
 
 	//Swap out
-	err = aliceSetup.swap.StartSwapOut("bob", "foo", 50000)
+	_, err = aliceSetup.swap.StartSwapOut("bob", "foo", 50000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func Test_CltvSwapIn(t *testing.T) {
 	//bobSetup.Start(t)
 
 	//Swap out
-	err = aliceSetup.swap.StartSwapIn("bob", "foo", 50000)
+	_, err = aliceSetup.swap.StartSwapIn("bob", "foo", 50000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +259,7 @@ func Test_PreimageSwapIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	//Swap out
-	err = aliceSetup.swap.StartSwapIn("bob", "foo", 10000)
+	_, err = aliceSetup.swap.StartSwapIn("bob", "foo", 10000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +343,7 @@ func Test_PreimageSwapOut(t *testing.T) {
 	}
 
 	//Swap out
-	err = aliceSetup.swap.StartSwapOut("bob", "foo", 10000)
+	_, err = aliceSetup.swap.StartSwapOut("bob", "foo", 10000)
 	if err != nil {
 		t.Fatal(err)
 	}

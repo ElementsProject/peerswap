@@ -292,7 +292,7 @@ func (c *ClightningClient) RegisterMethods() error {
 
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
 		cl: c,
-	}, "get liquid balance")
+	}, "get liquid wallet balance")
 	getBalance.Category = "liquid-swap"
 	err = c.plugin.RegisterMethod(getBalance)
 	if err != nil {

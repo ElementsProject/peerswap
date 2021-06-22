@@ -67,12 +67,12 @@ func (s *Service) ListSwaps() ([]*Swap, error) {
 	return s.store.ListAll()
 }
 
-func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) error {
+func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) (*Swap, error)  {
 
 	swap := NewSwap(SWAPTYPE_OUT, SWAPROLE_TAKER, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
@@ -85,20 +85,20 @@ func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint6
 	}
 	err = s.pc.SendMessage(peerNodeId, request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	swap.State = SWAPSTATE_REQUEST_SENT
 	err = s.store.Update(swap)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return swap, nil
 }
-func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64) error {
+func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64) (*Swap, error) {
 	swap := NewSwap(SWAPTYPE_IN, SWAPROLE_MAKER, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
-		return err
+		return nil,err
 	}
 	request := &SwapRequest{
 		SwapId:          swap.Id,
@@ -109,14 +109,14 @@ func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64
 	}
 	err = s.pc.SendMessage(peerNodeId, request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	swap.State = SWAPSTATE_REQUEST_SENT
 	err = s.store.Update(swap)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return swap, nil
 }
 
 func (s *Service) OnSwapRequest(senderNodeId string, request SwapRequest) error {

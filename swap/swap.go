@@ -3,12 +3,14 @@ package swap
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec"
+	"time"
 )
 
 type SwapType int
 
-func (s SwapType) ToString() string {
+func (s SwapType) String() string {
 	switch s {
 	case SWAPTYPE_OUT:
 		return "swap out"
@@ -20,7 +22,7 @@ func (s SwapType) ToString() string {
 
 type SwapState int
 
-func (s SwapState) ToString() string {
+func (s SwapState) String() string {
 	switch s {
 	case SWAPSTATE_CREATED:
 		return "created"
@@ -45,6 +47,16 @@ func (s SwapState) ToString() string {
 }
 
 type SwapRole int
+
+func (s SwapRole) String() string {
+	switch s {
+	case SWAPROLE_MAKER:
+		return "maker"
+	case SWAPROLE_TAKER:
+		return "taker"
+	}
+	return ""
+}
 
 type ClaimType int
 
@@ -86,6 +98,7 @@ type Swap struct {
 	Type            SwapType
 	State           SwapState
 	Role            SwapRole
+	CreatedAt int64
 	InitiatorNodeId string
 	PeerNodeId      string
 	Amount          uint64
@@ -112,7 +125,9 @@ type Swap struct {
 
 type PrettyPrintSwap struct {
 	Id              string
+	CreatedAt       string
 	Type            string
+	Role 			string
 	State           string
 	InitiatorNodeId string
 	PeerNodeId      string
@@ -127,10 +142,12 @@ type PrettyPrintSwap struct {
 }
 
 func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
+	timeStamp := time.Unix(s.CreatedAt,0)
 	return &PrettyPrintSwap{
 		Id:              s.Id,
-		Type:            s.Type.ToString(),
-		State:           s.State.ToString(),
+		Type:            fmt.Sprintf("%s",s.Type),
+		Role:			 s.Role.String(),
+		State:           s.State.String(),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
 		Amount:          s.Amount,
@@ -138,6 +155,7 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 		OpeningTxId:     s.OpeningTxId,
 		ClaimTxId:       s.ClaimTxId,
 		CltvHeight:      s.Cltv,
+		CreatedAt:       timeStamp.String(),
 	}
 }
 
@@ -158,6 +176,7 @@ func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeI
 		ChannelId:       channelId,
 		Amount:          amount,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
+		CreatedAt: time.Now().Unix(),
 	}
 }
 
@@ -170,6 +189,7 @@ func NewSwapFromRequest(senderNodeId string, request SwapRequest) *Swap {
 		InitiatorNodeId: senderNodeId,
 		Amount:          request.Amount,
 		ChannelId:       request.ChannelId,
+		CreatedAt: time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 	}
 }

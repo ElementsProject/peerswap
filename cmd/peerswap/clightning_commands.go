@@ -6,6 +6,7 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap/swap"
+	"sort"
 )
 
 type GetAddressMethod struct {
@@ -94,17 +95,17 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	if fundingChannels.ChannelSatoshi < l.SatAmt {
-		return nil, errors.New("not enough outbound capacity to perform swap")
+		return nil, errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.swaps.StartSwapOut(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
+	swapOut, err := l.cl.swaps.StartSwapOut(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
-	return fmt.Sprintf("swap out started called!"), nil
+	return swapOut.ToPrettyPrint(), nil
 }
 
 type SwapIn struct {
@@ -154,11 +155,11 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.swaps.StartSwapIn(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
+	swapIn, err := l.cl.swaps.StartSwapIn(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
-	return fmt.Sprintf("swap in started called!"), nil
+	return swapIn.ToPrettyPrint(), nil
 }
 
 type ListSwaps struct {
@@ -182,6 +183,9 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(swaps, func (i,j int) bool {
+		return swaps[i].CreatedAt < swaps[j].CreatedAt
+	})
 	if l.PrettyPrint == 1 {
 		var pswasp []*swap.PrettyPrintSwap
 		for _, v := range swaps {
