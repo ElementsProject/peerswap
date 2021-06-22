@@ -258,9 +258,21 @@ e
         stop_nigiri_env
         start_nigiri_env
     }
-    restart_plugins() {
-        l1-cli
+
+
+    l1-pay()  {
+        LABEL=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13)
+        BOLT11=$(l1-cli invoice $1 $LABEL "foo" | jq -r .bolt11)
+        RES=$(l2-cli pay $BOLT11)
+        echo $RES
     }
+    l2-pay()  {
+        LABEL=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13)
+        BOLT11=$(l2-cli invoice $1 $LABEL "foo" | jq -r .bolt11)
+        RES=$(l1-cli pay $BOLT11)
+        echo $RES
+    }
+
 
     setup_channel() {
         L1_ADDR=$(l1-cli newaddr)
@@ -284,8 +296,12 @@ e
           http://localhost:3001/faucet
     }
 
-    generate() {
+    l_generate() {
         nigiri rpc --liquid generatetoaddress $1 ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep
+
+    }
+    generate() {
+        nigiri rpc generatetoaddress $1 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1
     }
     setup_alias
      '';

@@ -2,14 +2,20 @@
 
 ## PeerSwap
 
-PeerSwap is a Peer To Peer atomic swap plugin for clightning.
+PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
 
-It allows rebalancing of your channels using liquid bitcoin.
+It allows rebalancing of your channels using on-chain assets.
 
 Features:
 
+Assets:
+
 - [x] Rebalancing of channels using l-btc
 - [ ] Rebalancing of channels using btc
+
+Nodes:
+- [x] c-lightning
+- [ ] lnd requires [lightningnetwork/lnd#5346](https://github.com/lightningnetwork/lnd/pull/5346)
 
 ### Usage
 
