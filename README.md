@@ -6,6 +6,8 @@ PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
 
 It allows rebalancing of your channels using on-chain assets.
 
+See [Spec](./docs/spec.md) for details
+
 Features:
 
 Assets:

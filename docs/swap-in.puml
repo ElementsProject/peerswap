@@ -1,0 +1,21 @@
+@startuml SwapIn
+note over Alice, Bob #aqua
+Alice wants to swap in: Creating an onchain tx, that
+Bob claims with an invoicce
+end note
+hnote over Alice: check local channel balance, onchain balance
+Alice -> Bob : swap in request
+hnote over Bob: check channel balance, calculate premium
+Bob -> Alice : swap in agreement response
+hnote over Alice: create opening tx
+Alice -> Bob : tx opened message
+alt Bob claims with preimage
+hnote over Bob: check if tx has N confirmations
+Bob [#blue]-> Alice: pay claim invoice
+hnote over Bob: claim tx with preimage
+Bob -> Alice: send claim message
+else cltv passes
+hnote over Alice: claim tx
+Alice -> Bob: send claim message
+end
+@enduml
