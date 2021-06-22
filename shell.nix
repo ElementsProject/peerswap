@@ -4,7 +4,7 @@ in
 with pkgs;
     stdenv.mkDerivation rec {
      name = "peerswap-environment";
-    buildInputs = [ act ];
+    buildInputs = [ act  ];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
@@ -94,7 +94,7 @@ with pkgs;
 
         # Wait for it to start.
         while ! bitcoin-cli -regtest ping 2> /tmp/null; do echo "awaiting bitcoind..." && sleep 1; done
-
+e
         # Kick it out of initialblockdownload if necessary
         if bitcoin-cli -regtest getblockchaininfo | grep -q 'initialblockdownload.*true'; then
             # Modern bitcoind needs createwallet
@@ -186,10 +186,11 @@ with pkgs;
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
 			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
 			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/liquid-swap-plugin" \
-			 --rpc-host=http://localhost \
-			 --rpc-port=7041 \
-			 --rpc-user=admin1 \
-			 --rpc-pass=123 \
+			 --peerswap-liquid-rpchost=http://localhost \
+			 --peerswap-liquid-rpcport=7041 \
+			 --peerswap-liquid-rpcuser=admin1 \
+			 --peerswap-liquid-rpcpassword=123 \
+			 --peerswap-liquid-network=regtest
 
 		# shellcheck disable=SC2139 disable=SC2086
 		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
@@ -236,6 +237,7 @@ with pkgs;
         done
         alias e-cli="nigiri rpc --liquid"
         alias b-cli="nigiri rpc"
+
     }
 
     connect_nodes() {
@@ -282,6 +284,9 @@ with pkgs;
           http://localhost:3001/faucet
     }
 
+    generate() {
+        nigiri rpc --liquid generatetoaddress $1 ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep
+    }
     setup_alias
      '';
 }

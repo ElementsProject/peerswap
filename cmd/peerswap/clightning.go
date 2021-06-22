@@ -20,13 +20,13 @@ import (
 )
 
 const (
-	dbOption          = "db-path"
-	rpcHostOption     = "rpc-host"
-	rpcPortOption     = "rpc-port"
-	rpcUserOption     = "rpc-user"
-	rpcPasswordOption = "rpc-pass"
+	dbOption          = "peerswap-db-path"
+	rpcHostOption     = "peerswap-liquid-rpchost"
+	rpcPortOption     = "peerswap-liquid-rpcport"
+	rpcUserOption     = "peerswap-liquid-rpcuser"
+	rpcPasswordOption = "peerswap-liquid-rpcpassword"
 
-	liquidNetworkOption = "liquid-network"
+	liquidNetworkOption = "peerswap-liquid-network"
 )
 
 type ClightningClient struct {
