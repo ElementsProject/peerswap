@@ -85,7 +85,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	rpcWallet, err := wallet.NewRpcWallet(waleltCli, "swap")
+	rpcWallet, err := wallet.NewRpcWallet(waleltCli, config.RpcWallet)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func run() error {
 	}
 	swapService := swap.NewService(ctx, swapStore, rpcWallet, clightning, ecli, clightning, liquidNetwork)
 
-	messageHandler := swap.NewMessageHandler(clightning, swapService)
+	messageHandler := swap.NewMessageHandler(clightning, swapService, swapStore)
 	err = messageHandler.Start()
 	if err != nil {
 		return err

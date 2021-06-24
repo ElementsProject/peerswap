@@ -26,6 +26,8 @@ const (
 	rpcUserOption     = "peerswap-liquid-rpcuser"
 	rpcPasswordOption = "peerswap-liquid-rpcpassword"
 
+	rpcWalletOption = "peerswap-liquid-rpcwallet"
+
 	liquidNetworkOption = "peerswap-liquid-network"
 )
 
@@ -38,6 +40,7 @@ type ClightningClient struct {
 	blockchain blockchain.Blockchain
 
 	msgHandlers []func(peerId string, messageType string, payload string) error
+	paymentSubscriptions []func(payment *glightning.Payment)
 	initChan    chan interface{}
 	nodeId      string
 }
@@ -64,6 +67,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
 
 	cl.glightning = glightning.NewLightning()
 
@@ -76,16 +80,22 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	return cl, cl.initChan, nil
 }
 
+func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
+	for _,v := range c.paymentSubscriptions {
+		v(payment)
+	}
+}
+
 func (c *ClightningClient) Start() error {
 	return c.plugin.Start(os.Stdin, os.Stdout)
 }
 
-func (c *ClightningClient) SendMessage(peerId string, message lightning.PeerMessage) error {
+func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) error {
 	messageBytes, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
-	msg := message.MessageType() + hex.EncodeToString(messageBytes)
+	msg := swap.MessageTypeToHexString(message.MessageType()) + hex.EncodeToString(messageBytes)
 	res, err := c.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
@@ -101,8 +111,12 @@ func (c *ClightningClient) AddMessageHandler(f func(peerId string, messageType s
 	return nil
 }
 
+func (c *ClightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
+	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
+}
+
 func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string) (string, error) {
-	res, err := c.glightning.CreateInvoice(amountMsat, "liquid swap:"+label, "liquid swap", 3600, []string{}, preImage, false)
+	res, err := c.glightning.CreateInvoice(amountMsat, label, "liquid swap", 3600, []string{}, preImage, false)
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +144,6 @@ func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error
 }
 
 func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
-
 	typeString := event.Payload[:4]
 	payload := event.Payload[4:]
 	log.Printf("new custom msg. peer: %s, messageType %s messageType payload: %s", event.PeerId, typeString, payload)
@@ -209,6 +222,10 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	rpcWallet, err := c.plugin.GetOption(rpcWalletOption)
+	if err != nil {
+		return nil, err
+	}
 
 	return &peerswap.Config{
 		DbPath:      dbpath,
@@ -217,6 +234,7 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		RpcUser:     rpcUser,
 		RpcPassword: rpcPass,
 		Network:     liquidNetwork,
+		RpcWallet:   rpcWallet,
 	}, nil
 }
 
@@ -242,6 +260,10 @@ func (c *ClightningClient) RegisterOptions() error {
 		return err
 	}
 	err = c.plugin.RegisterNewOption(liquidNetworkOption, "liquid-network", "regtest")
+	if err != nil {
+		return err
+	}
+	err = c.plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
 	if err != nil {
 		return err
 	}

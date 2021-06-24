@@ -34,7 +34,7 @@ func (s SwapState) String() string {
 		return "opening tx prepared"
 	case SWAPSTATE_OPENING_TX_BROADCASTED:
 		return "opening tx broadcasted"
-	case SWAPSTATE_WAITING_FOR_TX:
+	case SWAPSTATE_WAITING_FOR_TX_CONFS:
 		return "waiting for opening tx"
 	case SWAPSTATE_CLAIMED_PREIMAGE:
 		return "claimed with preimage"
@@ -76,8 +76,9 @@ const (
 	SWAPSTATE_REQUEST_SENT
 	SWAPSTATE_REQUEST_RECEIVED
 	SWAPSTATE_OPENING_TX_PREPARED
+	SWAPSTATE_FEE_INVOICE_PAID
 	SWAPSTATE_OPENING_TX_BROADCASTED
-	SWAPSTATE_WAITING_FOR_TX
+	SWAPSTATE_WAITING_FOR_TX_CONFS
 	SWAPSTATE_CLAIMED_PREIMAGE
 	SWAPSTATE_CLAIMED_TIMELOCK
 	SWAPSTATE_CANCELED
@@ -117,6 +118,8 @@ type Swap struct {
 	OpeningTxFee           uint64
 
 	ClaimTxId string
+
+	CancelMessage string
 }
 
 type PrettyPrintSwap struct {
@@ -130,11 +133,14 @@ type PrettyPrintSwap struct {
 	Amount          uint64
 	ShortChannelId  string
 
-	OpeningTxId string
+	OpeningTxId string `json:",omitempty"`
 
-	ClaimTxId string
+	ClaimTxId string `json:",omitempty"`
 
-	CltvHeight int64
+	CltvHeight int64 `json:",omitempty"`
+
+	CancelMessage string `json:",omitempty"`
+
 }
 
 func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
@@ -152,6 +158,7 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 		ClaimTxId:       s.ClaimTxId,
 		CltvHeight:      s.Cltv,
 		CreatedAt:       timeStamp.String(),
+		CancelMessage: s.CancelMessage,
 	}
 }
 

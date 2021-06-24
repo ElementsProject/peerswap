@@ -478,12 +478,12 @@ type TestCommunicator struct {
 	Id      string
 }
 
-func (t *TestCommunicator) SendMessage(peerId string, message lightning.PeerMessage) error {
+func (t *TestCommunicator) SendMessage(peerId string, message swap.PeerMessage) error {
 	msg, err := json.Marshal(message)
 	if err != nil {
 		t.testing.Fatal(err)
 	}
-	err = t.other.F(t.Id, message.MessageType(), hex.EncodeToString(msg))
+	err = t.other.F(t.Id, swap.MessageTypeToHexString(message.MessageType()), hex.EncodeToString(msg))
 	if err != nil {
 		t.testing.Fatal(err)
 	}
@@ -493,4 +493,8 @@ func (t *TestCommunicator) SendMessage(peerId string, message lightning.PeerMess
 func (t *TestCommunicator) AddMessageHandler(f func(peerId string, messageType string, payload string) error) error {
 	t.F = f
 	return nil
+}
+
+func Test_Stuff(t *testing.T) {
+
 }

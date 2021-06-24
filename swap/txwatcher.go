@@ -53,7 +53,7 @@ func (t *SwapWatcher) AddSwap(swap *Swap) {
 func (s *SwapWatcher) StartWatchingTxs(swaps []*Swap) error {
 	go s.StartBlockWatcher()
 	for _, v := range swaps {
-		if v.State == SWAPSTATE_WAITING_FOR_TX || v.State == SWAPSTATE_OPENING_TX_BROADCASTED {
+		if v.State == SWAPSTATE_WAITING_FOR_TX_CONFS || v.State == SWAPSTATE_OPENING_TX_BROADCASTED {
 			s.AddSwap(v)
 		}
 	}

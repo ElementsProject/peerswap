@@ -1,13 +1,6 @@
 package swap
 
-import (
-	"errors"
-)
 
-var (
-	AlreadyExistsError = errors.New("Swap is already present in database")
-	DoesNotExistError  = errors.New("Swap does not exist")
-)
 
 type InMemStore struct {
 	swapMap map[string]*Swap
@@ -19,7 +12,7 @@ func NewInMemStore() *InMemStore {
 
 func (i *InMemStore) Create(swap *Swap) error {
 	if _, ok := i.swapMap[swap.Id]; ok {
-		return AlreadyExistsError
+		return ErrAlreadyExists
 	}
 	i.swapMap[swap.Id] = swap
 	return nil
@@ -27,7 +20,7 @@ func (i *InMemStore) Create(swap *Swap) error {
 
 func (i *InMemStore) Update(swap *Swap) error {
 	if _, ok := i.swapMap[swap.Id]; !ok {
-		return DoesNotExistError
+		return ErrDoesNotExist
 	}
 	i.swapMap[swap.Id] = swap
 	return nil
@@ -35,7 +28,7 @@ func (i *InMemStore) Update(swap *Swap) error {
 
 func (i *InMemStore) DeleteById(s string) error {
 	if _, ok := i.swapMap[s]; !ok {
-		return DoesNotExistError
+		return ErrDoesNotExist
 	}
 	delete(i.swapMap, s)
 	return nil
@@ -45,7 +38,7 @@ func (i *InMemStore) GetById(s string) (*Swap, error) {
 	if v, ok := i.swapMap[s]; ok {
 		return v, nil
 	}
-	return nil, DoesNotExistError
+	return nil, ErrDoesNotExist
 }
 
 func (i *InMemStore) ListAll() ([]*Swap, error) {

@@ -1,8 +1,9 @@
-package messaging
+package swap
 
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log"
 )
 
@@ -12,26 +13,30 @@ type PeerCommunicator interface {
 }
 
 type PeerMessage interface {
-	MessageType() string
+	MessageType() MessageType
 }
 
 type MessageSubscriber interface {
 	OnSwapInRequest(peerId string, req SwapInRequest) error
 	OnSwapOutRequest(peerId string, req SwapOutRequest) error
-	OnSwapInAgreementResponse(peerId string, req SwapInAgreementResponse) error
-	OnFeeResponse(peerId string, req FeeResponse) error
-	OnTxOpenedResponse(peerId string, req TxOpenedResponse) error
-	OnClaimedMessage(peerId string, req ClaimedMessage) error
-	OnCancelResponse(peerId string, req CancelResponse) error
+	OnSwapInAgreementResponse(swap *Swap, req SwapInAgreementResponse) error
+	OnFeeResponse(swap *Swap, req FeeResponse) error
+	OnTxOpenedResponse(swap *Swap, req TxOpenedResponse) error
+	OnClaimedMessage(swap *Swap, req ClaimedMessage) error
+	OnCancelResponse(swap *Swap, req CancelResponse) error
+}
 
+type SwapGetter interface {
+	GetById(s string) (*Swap, error)
 }
 type MessageHandler struct {
 	pc   PeerCommunicator
 	subscriber MessageSubscriber
+	store SwapGetter
 }
 
-func NewMessageHandler(pc PeerCommunicator, subscriber MessageSubscriber) *MessageHandler {
-	return &MessageHandler{pc: pc, subscriber: subscriber}
+func NewMessageHandler(pc PeerCommunicator, subscriber MessageSubscriber, store SwapGetter) *MessageHandler {
+	return &MessageHandler{pc: pc, subscriber: subscriber, store: store}
 }
 
 func (sh *MessageHandler) Start() error {
@@ -42,8 +47,34 @@ func (sh *MessageHandler) Start() error {
 	return nil
 }
 
-func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, message string) error {
+func (sh *MessageHandler) OnMessageReceived(peerId string, messageTypeString string, message string) error {
+	inRange, err := InRange(messageTypeString)
+	if err != nil {
+		return err
+	}
+	if !inRange {
+		return nil
+	}
+
 	messageBytes, err := hex.DecodeString(message)
+	if err != nil {
+		return err
+	}
+	var baseMsg MessageBase
+	err = json.Unmarshal(messageBytes, &baseMsg)
+	if err != nil {
+		return err
+	}
+	swap, err := sh.store.GetById(baseMsg.SwapId)
+	if err != nil && err != ErrDoesNotExist{
+		return err
+	}
+	if swap != nil && err != ErrDoesNotExist {
+		if swap.PeerNodeId != peerId {
+			return errors.New("saved peerId does not match request")
+		}
+	}
+	messageType,err := HexStrToMsgType(messageTypeString)
 	if err != nil {
 		return err
 	}
@@ -77,7 +108,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
-		err = sh.subscriber.OnFeeResponse(peerId, req)
+		err = sh.subscriber.OnFeeResponse(swap, req)
 		if err != nil {
 			return err
 		}
@@ -88,7 +119,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
-		err = sh.subscriber.OnSwapInAgreementResponse(peerId, req)
+		err = sh.subscriber.OnSwapInAgreementResponse(swap, req)
 		if err != nil {
 			return err
 		}
@@ -99,7 +130,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
-		err = sh.subscriber.OnTxOpenedResponse(peerId, req)
+		err = sh.subscriber.OnTxOpenedResponse(swap, req)
 		if err != nil {
 			return err
 		}
@@ -110,7 +141,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
-		err = sh.subscriber.OnClaimedMessage(peerId, req)
+		err = sh.subscriber.OnClaimedMessage(swap, req)
 		if err != nil {
 			return err
 		}
@@ -121,7 +152,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageType string, m
 		if err != nil {
 			return err
 		}
-		err = sh.subscriber.OnCancelResponse(peerId, req)
+		err = sh.subscriber.OnCancelResponse(swap, req)
 		if err != nil {
 			return err
 		}
