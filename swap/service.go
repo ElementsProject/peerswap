@@ -473,6 +473,7 @@ func (s *Service) BroadCastAndNotifyPeer(swap *Swap) error {
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.Payreq,
 		TxId: swap.OpeningTxId,
+		Cltv: swap.Cltv,
 	}
 	err = s.pc.SendMessage(swap.PeerNodeId, response)
 	if err != nil {
@@ -567,7 +568,11 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, openingTx
 		OutputScript: outputScript,
 		RedeemScript: redeemScript,
 	}, preimage[:])
+	if err != nil {
+		return err
+	}
 
+	log.Printf("claim tx hex %s", claimTxHex)
 	claimId, err := s.blockchain.SendRawTx(claimTxHex)
 	if err != nil {
 		return err
