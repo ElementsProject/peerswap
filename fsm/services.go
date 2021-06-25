@@ -12,11 +12,13 @@ type Messenger interface {
 
 type Policy interface {
 	ShouldPayFee(feeAmount uint64, peerId, channelId string) bool
+	GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error)
 }
 type LightningClient interface {
 	DecodeInvoice(payreq string) (*lightning.Invoice, error)
 	PayInvoice(payreq string) (preImage string, err error)
 	CheckChannel(channelId string, amount uint64) (bool, error)
+	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
 }
 
 type TxWatcher interface {
@@ -32,4 +34,5 @@ type Node interface {
 	GetNetwork() *network.Network
 	SendRawTx(txHex string) (string, error)
 	CreatePreimageSpendingTransaction(params *utils.SpendingParams, preimage []byte) (string, error)
+	CreateOpeningTransaction(swap *Swap) error
 }

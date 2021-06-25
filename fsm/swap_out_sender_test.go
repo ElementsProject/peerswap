@@ -35,7 +35,7 @@ func Test_ValidSwap(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
 
-	err := swapFSM.SendEvent(CreateSwapOut, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -47,12 +47,12 @@ func Test_ValidSwap(t *testing.T) {
 	assert.Equal(t, initiator, swapFSM.Data.(*Swap).InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
 
-	err = swapFSM.SendEvent(OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, FeeInvoicePaid, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(OnTxOpenedMessage, &TxBroadcastedContext{
+	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, swapFSM.Data.GetCurrentState())
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxBroadcastedContext{
 		MakerPubkeyHash: "maker",
 		ClaimInvoice:    "claiminv",
 		TxId:            "txid",
@@ -62,15 +62,15 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, SwapOutTxBroadcasted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, "txhex", swapFSM.Data.(*Swap).OpeningTxHex)
 
-	err = swapFSM.SendEvent(OnTxConfirmations, nil)
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, SwapOutClaimedPreimage, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
 	swapAmount := uint64(100)
@@ -98,7 +98,7 @@ func Test_Cancel2(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
 
-	err := swapFSM.SendEvent(CreateSwapOut, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -109,11 +109,11 @@ func Test_Cancel2(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, "request", msg)
-	err = swapFSM.SendEvent(OnCancelMsgReceived, nil)
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnCancelMsgReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, SwapOutCanceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_Canceled, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel1(t *testing.T) {
 	swapAmount := uint64(100)
@@ -143,7 +143,7 @@ func Test_Cancel1(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
 
-	err := swapFSM.SendEvent(CreateSwapOut, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -154,13 +154,13 @@ func Test_Cancel1(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, "request", msg)
-	err = swapFSM.SendEvent(OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg = <-msgChan
 	assert.Equal(t, "cancel", msg)
-	assert.Equal(t, SwapOutCanceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_Canceled, swapFSM.Data.GetCurrentState())
 }
 func Test_AbortCltvClaim(t *testing.T) {
 	swapAmount := uint64(100)
@@ -188,7 +188,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
 
-	err := swapFSM.SendEvent(CreateSwapOut, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -201,12 +201,12 @@ func Test_AbortCltvClaim(t *testing.T) {
 	assert.Equal(t, initiator, swapFSM.Data.(*Swap).InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
 
-	err = swapFSM.SendEvent(OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, FeeInvoicePaid, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(OnTxOpenedMessage, &TxBroadcastedContext{
+	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, swapFSM.Data.GetCurrentState())
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxBroadcastedContext{
 		MakerPubkeyHash: "maker",
 		ClaimInvoice:    "claiminv",
 		TxId:            "txid",
@@ -216,21 +216,21 @@ func Test_AbortCltvClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, SwapOutTxBroadcasted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, "txhex", swapFSM.Data.(*Swap).OpeningTxHex)
 	swapFSM.Data.(*Swap).Payreq = "err"
-	err = swapFSM.SendEvent(OnTxConfirmations, nil)
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, SwapOutAborted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_Aborted, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, "abort", msg)
-	err = swapFSM.SendEvent(OnCltvClaimMsgReceived, &ClaimedContext{TxId: "tx"})
+	err = swapFSM.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedContext{TxId: "tx"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, SwapOutClaimedCltv, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutSender_ClaimedCltv, swapFSM.Data.GetCurrentState())
 }
 
 type dummyStore struct {
@@ -265,6 +265,11 @@ type dummyLightningClient struct {
 	preimage string
 }
 
+//todo implement
+func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string) (string, error) {
+	panic("implement me")
+}
+
 func (d *dummyLightningClient) DecodeInvoice(payreq string) (*lightning.Invoice, error) {
 	if payreq == "err" {
 		return nil, errors.New("error decoding")
@@ -294,6 +299,11 @@ func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err e
 type dummyPolicy struct {
 }
 
+// todo implement
+func (d *dummyPolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error) {
+	panic("implement me")
+}
+
 func (d *dummyPolicy) ShouldPayFee(feeAmount uint64, peerId, channelId string) bool {
 	return true
 }
@@ -307,6 +317,11 @@ func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string) {
 
 type DummyNode struct{}
 
+// todo implement
+func (d *DummyNode) CreateOpeningTransaction(swap *Swap) error {
+	panic("implement me")
+}
+// todo implement
 func (d *DummyNode) CreatePreimageSpendingTransaction(params *utils.SpendingParams, preimage []byte) (string, error) {
 	return "txhex", nil
 }
