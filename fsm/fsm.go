@@ -35,6 +35,7 @@ type Action interface {
 type Data interface {
 	SetState(stateType StateType)
 	GetCurrentState() StateType
+	GetId() string
 }
 
 // Events represents a mapping of events and states.
@@ -47,7 +48,7 @@ type State struct {
 }
 
 type Store interface {
-	UpdateData(id string, data Data) error
+	UpdateData(data Data) error
 	GetData(id string) (Data, error)
 }
 
@@ -132,7 +133,8 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
 		nextEvent := state.Action.Execute(s.services, s.Data, eventCtx)
-		err = s.store.UpdateData(s.Id, s.Data)
+		s.Id = s.Data.GetId()
+		err = s.store.UpdateData(s.Data)
 		if err != nil {
 			return err
 		}

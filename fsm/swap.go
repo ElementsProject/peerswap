@@ -119,10 +119,15 @@ type Swap struct {
 	OpeningTxUnpreparedHex string
 	OpeningTxVout          uint32
 	OpeningTxFee           uint64
+	OpeningTxHex           string
 
 	ClaimTxId string
 
 	CancelMessage string
+}
+
+func (s *Swap) GetId() string {
+	return s.Id
 }
 
 func (s *Swap) SetState(stateType StateType) {
