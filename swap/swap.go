@@ -65,7 +65,6 @@ type ClaimType int
 const (
 	SWAPTYPE_IN SwapType = iota
 	SWAPTYPE_OUT
-	
 )
 const (
 	SWAPROLE_MAKER SwapRole = iota
@@ -94,7 +93,7 @@ type Swap struct {
 	Type            SwapType
 	State           SwapState
 	Role            SwapRole
-	CreatedAt int64
+	CreatedAt       int64
 	InitiatorNodeId string
 	PeerNodeId      string
 	Amount          uint64
@@ -126,7 +125,7 @@ type PrettyPrintSwap struct {
 	Id              string
 	CreatedAt       string
 	Type            string
-	Role 			string
+	Role            string
 	State           string
 	InitiatorNodeId string
 	PeerNodeId      string
@@ -140,15 +139,14 @@ type PrettyPrintSwap struct {
 	CltvHeight int64 `json:",omitempty"`
 
 	CancelMessage string `json:",omitempty"`
-
 }
 
 func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
-	timeStamp := time.Unix(s.CreatedAt,0)
+	timeStamp := time.Unix(s.CreatedAt, 0)
 	return &PrettyPrintSwap{
 		Id:              s.Id,
-		Type:            fmt.Sprintf("%s",s.Type),
-		Role:			 s.Role.String(),
+		Type:            fmt.Sprintf("%s", s.Type),
+		Role:            s.Role.String(),
 		State:           s.State.String(),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
@@ -158,7 +156,7 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 		ClaimTxId:       s.ClaimTxId,
 		CltvHeight:      s.Cltv,
 		CreatedAt:       timeStamp.String(),
-		CancelMessage: s.CancelMessage,
+		CancelMessage:   s.CancelMessage,
 	}
 }
 
@@ -179,7 +177,7 @@ func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeI
 		ChannelId:       channelId,
 		Amount:          amount,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt:       time.Now().Unix(),
 	}
 }
 
@@ -192,7 +190,7 @@ func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, chann
 		InitiatorNodeId: senderNodeId,
 		Amount:          amount,
 		ChannelId:       channelId,
-		CreatedAt: time.Now().Unix(),
+		CreatedAt:       time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 	}
 }

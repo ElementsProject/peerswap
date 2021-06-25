@@ -12,11 +12,11 @@ func TestInRange(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"t1", args{"a455"}, true,false},
-		{"t2", args{"a456"}, false,false},
-		{"t3", args{"a461"}, true,false},
-		{"t4", args{"a463"}, false,false},
-		{"t5", args{"z"}, false,true},
+		{"t1", args{"a455"}, true, false},
+		{"t2", args{"a456"}, false, false},
+		{"t3", args{"a461"}, true, false},
+		{"t4", args{"a463"}, false, false},
+		{"t5", args{"z"}, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,11 +42,11 @@ func TestHexStrToMsgType(t *testing.T) {
 		want    MessageType
 		wantErr bool
 	}{
-		{"t1", args{"a455"}, MESSAGETYPE_SWAPINREQUEST,false},
-		{"t2", args{"a456"}, 0,true},
-		{"t3", args{"a461"}, MESSAGETYPE_CLAIMED,false},
-		{"t4", args{"a463"}, 0,true},
-		{"t5", args{"z"}, 0,true},
+		{"t1", args{"a455"}, MESSAGETYPE_SWAPINREQUEST, false},
+		{"t2", args{"a456"}, 0, true},
+		{"t3", args{"a461"}, MESSAGETYPE_CLAIMED, false},
+		{"t4", args{"a463"}, 0, true},
+		{"t5", args{"z"}, 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

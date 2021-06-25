@@ -39,10 +39,10 @@ type ClightningClient struct {
 	swaps      *swap.Service
 	blockchain blockchain.Blockchain
 
-	msgHandlers []func(peerId string, messageType string, payload string) error
+	msgHandlers          []func(peerId string, messageType string, payload string) error
 	paymentSubscriptions []func(payment *glightning.Payment)
-	initChan    chan interface{}
-	nodeId      string
+	initChan             chan interface{}
+	nodeId               string
 }
 
 func (c *ClightningClient) GetNodeId() string {
@@ -81,7 +81,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 }
 
 func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
-	for _,v := range c.paymentSubscriptions {
+	for _, v := range c.paymentSubscriptions {
 		v(payment)
 	}
 }

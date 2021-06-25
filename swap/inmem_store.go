@@ -1,7 +1,5 @@
 package swap
 
-
-
 type InMemStore struct {
 	swapMap map[string]*Swap
 }

@@ -8,7 +8,7 @@ import (
 type MessageType int
 
 const (
-	MESSAGETYPE_SWAPINREQUEST  MessageType = iota
+	MESSAGETYPE_SWAPINREQUEST MessageType = iota
 	_
 	MESSAGETYPE_SWAPOUTREQUEST
 	_
@@ -31,10 +31,10 @@ func InRange(msg string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if msgInt % 2 == 0 {
+	if msgInt%2 == 0 {
 		return false, err
 	}
-	return msgInt >= MESSAGE_BASE && msgInt < MESSAGE_BASE + MESSAGE_END,nil
+	return msgInt >= MESSAGE_BASE && msgInt < MESSAGE_BASE+MESSAGE_END, nil
 }
 
 type MessageBase struct {
@@ -43,9 +43,9 @@ type MessageBase struct {
 
 // SwapInRequest gets send when a peer wants to start a new swap.
 type SwapInRequest struct {
-	SwapId          string
-	ChannelId       string
-	Amount          uint64
+	SwapId    string
+	ChannelId string
+	Amount    uint64
 }
 
 func (s *SwapInRequest) MessageType() MessageType {
@@ -65,7 +65,7 @@ func (s *SwapOutRequest) MessageType() MessageType {
 }
 
 type FeeResponse struct {
-	SwapId string
+	SwapId  string
 	Invoice string
 }
 
@@ -74,7 +74,7 @@ func (s *FeeResponse) MessageType() MessageType {
 }
 
 type SwapInAgreementResponse struct {
-	SwapId string
+	SwapId          string
 	TakerPubkeyHash string
 }
 
@@ -82,19 +82,17 @@ func (s *SwapInAgreementResponse) MessageType() MessageType {
 	return MESSAGETYPE_SWAPINAGREEMENT
 }
 
-
 type TxOpenedResponse struct {
-	SwapId string
+	SwapId          string
 	MakerPubkeyHash string
-	Invoice string
-	TxId string
-	Cltv int64
+	Invoice         string
+	TxId            string
+	Cltv            int64
 }
 
 func (t *TxOpenedResponse) MessageType() MessageType {
 	return MESSAGETYPE_TXOPENEDRESPONSE
 }
-
 
 type ClaimedMessage struct {
 	SwapId    string
@@ -119,7 +117,7 @@ func MessageTypeToHexString(messageIndex MessageType) string {
 	return strconv.FormatInt(MESSAGE_BASE+int64(messageIndex), 16)
 }
 
-func HexStrToMsgType(msgType string) (MessageType,error) {
+func HexStrToMsgType(msgType string) (MessageType, error) {
 	inRange, err := InRange(msgType)
 	if err != nil {
 		return 0, err
@@ -131,5 +129,5 @@ func HexStrToMsgType(msgType string) (MessageType,error) {
 	if err != nil {
 		return 0, err
 	}
-	return MessageType(msgInt - MESSAGE_BASE),nil
+	return MessageType(msgInt - MESSAGE_BASE), nil
 }

@@ -30,9 +30,9 @@ type SwapGetter interface {
 	GetById(s string) (*Swap, error)
 }
 type MessageHandler struct {
-	pc   PeerCommunicator
+	pc         PeerCommunicator
 	subscriber MessageSubscriber
-	store SwapGetter
+	store      SwapGetter
 }
 
 func NewMessageHandler(pc PeerCommunicator, subscriber MessageSubscriber, store SwapGetter) *MessageHandler {
@@ -66,7 +66,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageTypeString str
 		return err
 	}
 	swap, err := sh.store.GetById(baseMsg.SwapId)
-	if err != nil && err != ErrDoesNotExist{
+	if err != nil && err != ErrDoesNotExist {
 		return err
 	}
 	if swap != nil && err != ErrDoesNotExist {
@@ -74,7 +74,7 @@ func (sh *MessageHandler) OnMessageReceived(peerId string, messageTypeString str
 			return errors.New("saved peerId does not match request")
 		}
 	}
-	messageType,err := HexStrToMsgType(messageTypeString)
+	messageType, err := HexStrToMsgType(messageTypeString)
 	if err != nil {
 		return err
 	}

@@ -62,12 +62,9 @@ type Service struct {
 	lightning  LightningClient
 	network    *network.Network
 	txWatcher  *SwapWatcher
-	policy Policy
-	ctx context.Context
+	policy     Policy
+	ctx        context.Context
 }
-
-
-
 
 func NewService(ctx context.Context, store SwapStore, wallet wallet.Wallet, pc PeerCommunicator, blockchain blockchain.Blockchain, lightning LightningClient, network *network.Network) *Service {
 	service := &Service{
@@ -78,7 +75,7 @@ func NewService(ctx context.Context, store SwapStore, wallet wallet.Wallet, pc P
 		lightning:  lightning,
 		network:    network,
 		ctx:        ctx,
-		policy: &BasicPolicy{},
+		policy:     &BasicPolicy{},
 	}
 	watchList := newTxWatcher(ctx, blockchain, service.preimageSwapCallback, service.timeLockSwapCallback)
 	service.txWatcher = watchList
@@ -89,7 +86,7 @@ func NewService(ctx context.Context, store SwapStore, wallet wallet.Wallet, pc P
 func (s *Service) OnPayment(payment *glightning.Payment) {
 	log.Printf("New payment %s", payment.Label)
 	// check if feelabel
-	if !strings.Contains(payment.Label, "fee_") && len(payment.Label) != (len("fee_") + 64) {
+	if !strings.Contains(payment.Label, "fee_") && len(payment.Label) != (len("fee_")+64) {
 		return
 	}
 	swapId := payment.Label[4:]
@@ -111,7 +108,7 @@ func (s *Service) ListSwaps() ([]*Swap, error) {
 	return s.store.ListAll()
 }
 
-func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) (*Swap, error)  {
+func (s *Service) StartSwapOut(peerNodeId string, channelId string, amount uint64) (*Swap, error) {
 	swap := NewSwap(SWAPTYPE_OUT, SWAPROLE_TAKER, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
@@ -140,12 +137,12 @@ func (s *Service) StartSwapIn(peerNodeId string, channelId string, amount uint64
 	swap := NewSwap(SWAPTYPE_IN, SWAPROLE_MAKER, amount, s.lightning.GetNodeId(), peerNodeId, channelId)
 	err := s.store.Create(swap)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	request := &SwapInRequest{
-		SwapId:          swap.Id,
-		ChannelId:       channelId,
-		Amount:          amount,
+		SwapId:    swap.Id,
+		ChannelId: channelId,
+		Amount:    amount,
 	}
 	err = s.pc.SendMessage(peerNodeId, request)
 	if err != nil {
@@ -166,7 +163,6 @@ func (s *Service) OnSwapInRequest(senderNodeId string, request SwapInRequest) er
 	}
 
 	pubkey := swap.GetPrivkey().PubKey()
-
 
 	swap.Role = SWAPROLE_TAKER
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
@@ -294,8 +290,8 @@ func (s *Service) OnSwapOutRequest(senderNodeId string, request SwapOutRequest) 
 	}
 
 	response := &FeeResponse{
-		SwapId:          swap.Id,
-		Invoice:         feeInvoice,
+		SwapId:  swap.Id,
+		Invoice: feeInvoice,
 	}
 	err = s.pc.SendMessage(swap.PeerNodeId, response)
 	if err != nil {
@@ -401,7 +397,6 @@ func (s *Service) OnCancelResponse(swap *Swap, req CancelResponse) error {
 	return s.store.Update(swap)
 }
 
-
 func (s *Service) CancelSwap(swap *Swap, message string) error {
 	response := &CancelResponse{
 		SwapId: swap.Id,
@@ -416,7 +411,6 @@ func (s *Service) CancelSwap(swap *Swap, message string) error {
 
 	return s.store.Update(swap)
 }
-
 
 // CreateOpeningTransaction creates the opening Transaction,
 // the two peers are the taker(pays the invoice) and the maker (provides onchain liquidity)
@@ -438,7 +432,6 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) erro
 		return err
 	}
 
-
 	txHex, fee, err := s.wallet.CreateFundedTransaction(openingTx)
 	if err != nil {
 		return err
@@ -458,7 +451,6 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) erro
 	return nil
 }
 
-
 func (s *Service) BroadCastAndNotifyPeer(swap *Swap) error {
 	txId, err := s.wallet.FinalizeAndBroadcastFundedTransaction(swap.OpeningTxUnpreparedHex)
 	swap.OpeningTxId = txId
@@ -472,8 +464,8 @@ func (s *Service) BroadCastAndNotifyPeer(swap *Swap) error {
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.Payreq,
-		TxId: swap.OpeningTxId,
-		Cltv: swap.Cltv,
+		TxId:            swap.OpeningTxId,
+		Cltv:            swap.Cltv,
 	}
 	err = s.pc.SendMessage(swap.PeerNodeId, response)
 	if err != nil {
@@ -481,7 +473,6 @@ func (s *Service) BroadCastAndNotifyPeer(swap *Swap) error {
 	}
 	return nil
 }
-
 
 func (s *Service) OnClaimedResponse(senderNodeId string, request ClaimedMessage) error {
 	swap, err := s.store.GetById(request.SwapId)
@@ -522,7 +513,6 @@ func (s *Service) StartWatchingTxs() error {
 	return nil
 }
 func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, openingTxHex string) error {
-
 	if swap.PreImage == "" {
 		preimageString, err := s.lightning.PayInvoice(swap.Payreq)
 		if err != nil {
@@ -533,6 +523,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, openingTx
 		if err != nil {
 			return err
 		}
+		log.Printf("paid claim invoice: %s", preimageString)
 	}
 	preimage, err := lightning.MakePreimageFromStr(swap.PreImage)
 	if err != nil {
@@ -552,7 +543,7 @@ func (s *Service) ClaimTxWithPreimage(ctx context.Context, swap *Swap, openingTx
 	if err != nil {
 		return err
 	}
-
+	log.Printf("network: %v", s.network.Name)
 	outputScript, err := utils.Blech32ToScript(address, s.network)
 	if err != nil {
 		return err

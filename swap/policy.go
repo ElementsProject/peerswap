@@ -1,7 +1,6 @@
 package swap
 
 type BasicPolicy struct {
-
 }
 
 // return basic tx fee
@@ -16,6 +15,5 @@ func (b *BasicPolicy) GetSwapInAgreement(swapValue uint64) (bool, error) {
 
 // always pay fee
 func (b *BasicPolicy) CheckSwapOutFee(fee uint64, chanId string) (bool, error) {
-	return true,nil
+	return true, nil
 }
-

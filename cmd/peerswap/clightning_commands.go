@@ -190,7 +190,7 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(swaps, func (i,j int) bool {
+	sort.Slice(swaps, func(i, j int) bool {
 		return swaps[i].CreatedAt < swaps[j].CreatedAt
 	})
 	if l.PrettyPrint == 1 {

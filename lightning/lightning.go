@@ -1,7 +1,5 @@
 package lightning
 
-
-
 type Invoice struct {
 	PHash       string
 	Amount      uint64

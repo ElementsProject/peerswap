@@ -35,11 +35,11 @@ type rpcWallet struct {
 func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
 	txHex, err := preparedTx.ToHex()
 	if err != nil {
-		return "",0, err
+		return "", 0, err
 	}
 	fundedTx, err := r.rpcClient.FundRawTx(txHex)
 	if err != nil {
-		return "",0,err
+		return "", 0, err
 	}
 	return fundedTx.TxString, gelements.ConvertBtc(fundedTx.Fee), nil
 }
