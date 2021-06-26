@@ -267,7 +267,10 @@ type dummyLightningClient struct {
 
 //todo implement
 func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string) (string, error) {
-	panic("implement me")
+	if d.preimage == "err" {
+		return "", errors.New("err")
+	}
+	return "", nil
 }
 
 func (d *dummyLightningClient) DecodeInvoice(payreq string) (*lightning.Invoice, error) {
@@ -301,7 +304,7 @@ type dummyPolicy struct {
 
 // todo implement
 func (d *dummyPolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error) {
-	panic("implement me")
+	return 1, nil
 }
 
 func (d *dummyPolicy) ShouldPayFee(feeAmount uint64, peerId, channelId string) bool {
@@ -317,10 +320,15 @@ func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string) {
 
 type DummyNode struct{}
 
+func (d *DummyNode) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
+	return "txid", nil
+}
+
 // todo implement
 func (d *DummyNode) CreateOpeningTransaction(swap *Swap) error {
-	panic("implement me")
+	return nil
 }
+
 // todo implement
 func (d *DummyNode) CreatePreimageSpendingTransaction(params *utils.SpendingParams, preimage []byte) (string, error) {
 	return "txhex", nil

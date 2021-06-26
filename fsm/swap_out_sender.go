@@ -34,7 +34,7 @@ const (
 	Event_SwapOutSender_OnTxConfirmations EventType = "Event_SwapOutSender_OnTxConfirmations"
 	Event_SwapOutSender_FinishSwap        EventType = "Event_SwapOutSender_FinishSwap"
 	// todo retrystate? failstate? refundstate?
-	RetryState                                 EventType = "RetryState"
+	Event_OnRetry                              EventType = "Event_OnRetry"
 	Event_SwapOutSender_OnAbortSwapInternal    EventType = "Event_SwapOutSender_OnAbortSwapInternal"
 	Event_SwapOutSender_OnClaimTxPreimage      EventType = "Event_SwapOutSender_OnClaimTxPreimage"
 	Event_SwapOutSender_OnCltvClaimMsgReceived EventType = "Event_SwapOutSender_OnCltvClaimMsgReceived"
@@ -163,25 +163,25 @@ func (c *SwapOutClaimInvPaidAction) Execute(services map[string]interface{}, dat
 
 	preimage, err := lightning.MakePreimageFromStr(swap.PreImage)
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	redeemScript, err := node.GetSwapScript(swap)
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 
 	blockheight, err := node.GetBlockHeight()
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 
 	address, err := node.GetAddress()
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	outputScript, err := utils.Blech32ToScript(address, node.GetNetwork())
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	//todo correct fee
 	claimTxHex, err := node.CreatePreimageSpendingTransaction(&utils.SpendingParams{
@@ -195,19 +195,19 @@ func (c *SwapOutClaimInvPaidAction) Execute(services map[string]interface{}, dat
 		RedeemScript: redeemScript,
 	}, preimage[:])
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 
 	claimId, err := node.SendRawTx(claimTxHex)
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	swap.ClaimTxId = claimId
 
 	//todo correct message
 	err = messenger.SendMessage(swap.PeerNodeId, "claimed")
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	return Event_SwapOutSender_FinishSwap
 }
@@ -220,7 +220,7 @@ func (c *SendSwapOutCancelAction) Execute(services map[string]interface{}, data 
 	messenger := services["messenger"].(Messenger)
 	err := messenger.SendMessage(swap.PeerNodeId, "cancel")
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	return Event_SwapOutSender_OnCancelSwapOut
 }
@@ -234,7 +234,7 @@ func (a *SwapOutAbortedAction) Execute(services map[string]interface{}, data Dat
 	//todo correct message
 	err := messenger.SendMessage(swap.PeerNodeId, "abort")
 	if err != nil {
-		return RetryState
+		return Event_OnRetry
 	}
 	return NoOp
 }
@@ -330,7 +330,7 @@ func newSwapOutSenderFSM(id string, store Store, services map[string]interface{}
 				Action: &SwapOutClaimInvPaidAction{},
 				Events: Events{
 					Event_SwapOutSender_FinishSwap: State_SwapOutSender_ClaimedPreimage,
-					RetryState:                     State_SwapOutSender_ClaimInvPaid,
+					Event_OnRetry:                  State_SwapOutSender_ClaimInvPaid,
 				},
 			},
 			State_SwapOutSender_ClaimedPreimage: {

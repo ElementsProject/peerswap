@@ -35,4 +35,5 @@ type Node interface {
 	SendRawTx(txHex string) (string, error)
 	CreatePreimageSpendingTransaction(params *utils.SpendingParams, preimage []byte) (string, error)
 	CreateOpeningTransaction(swap *Swap) error
+	FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error)
 }

@@ -9,6 +9,7 @@ import (
 // an event in the state that it is in.
 var ErrEventRejected = errors.New("event rejected")
 var ErrDataNotAvailable = errors.New("data not in store")
+var ErrFsmConfig = errors.New("fsm config invalid")
 
 const (
 	// Default represents the default state of the system.
@@ -121,6 +122,7 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		state, ok := s.States[nextState]
 		if !ok || state.Action == nil {
 			// configuration error
+			return ErrFsmConfig
 		}
 
 		// Transition over to the next state.
