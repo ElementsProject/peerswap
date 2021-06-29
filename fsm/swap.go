@@ -50,10 +50,10 @@ type SwapRole int
 
 func (s SwapRole) String() string {
 	switch s {
-	case SWAPROLE_MAKER:
-		return "maker"
-	case SWAPROLE_TAKER:
-		return "taker"
+	case SWAPROLE_SENDER:
+		return "sender"
+	case SWAPROLE_RECEIVER:
+		return "receiver"
 	}
 	return ""
 }
@@ -67,8 +67,8 @@ const (
 	SWAPTYPE_OUT
 )
 const (
-	SWAPROLE_MAKER SwapRole = iota
-	SWAPROLE_TAKER
+	SWAPROLE_SENDER SwapRole = iota
+	SWAPROLE_RECEIVER
 )
 const (
 	SWAPSTATE_CREATED SwapState = iota

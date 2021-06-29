@@ -7,7 +7,12 @@ import (
 )
 
 type Messenger interface {
-	SendMessage(peerId string, hexMsg string) error
+	SendMessage(peerId string, msg PeerMessage) error
+	AddMessageHandler(func(peerId string, msgType MessageType, msgBytes []byte) error)
+}
+
+type PeerMessage interface {
+	MessageType() MessageType
 }
 
 type Policy interface {
@@ -22,7 +27,9 @@ type LightningClient interface {
 }
 
 type TxWatcher interface {
-	AddTx(swapId, txId, txHex string)
+	AddTx(swapId, txId, txHex string, cltv int64)
+	AddTxConfirmedHandler(func(swapId string) error)
+	AddCltvPassedHandler(func(swapId string) error)
 }
 
 type Node interface {

@@ -30,7 +30,7 @@ type EventContext interface{}
 
 // Action represents the action to be executed in a given state.
 type Action interface {
-	Execute(services map[string]interface{}, data Data, eventCtx EventContext) EventType
+	Execute(services *SwapServices, data Data, eventCtx EventContext) EventType
 }
 
 type Data interface {
@@ -63,6 +63,12 @@ type StateMachine struct {
 	// Data holds the statemachine metadata
 	Data Data
 
+	// Type holds the SwapType
+	Type SwapType
+
+	// Role holds the local Role
+	Role SwapRole
+
 	// Previous represents the previous state.
 	Previous StateType
 
@@ -78,8 +84,8 @@ type StateMachine struct {
 	// Store saves the current state
 	store Store
 
-	// Services stores services the statemachine may use
-	services map[string]interface{}
+	// SwapServices stores services the statemachine may use
+	swapServices *SwapServices
 }
 
 // getNextState returns the next state for the event given the machine's current
@@ -134,7 +140,7 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
-		nextEvent := state.Action.Execute(s.services, s.Data, eventCtx)
+		nextEvent := state.Action.Execute(s.swapServices, s.Data, eventCtx)
 		s.Id = s.Data.GetId()
 		err = s.store.UpdateData(s.Data)
 		if err != nil {

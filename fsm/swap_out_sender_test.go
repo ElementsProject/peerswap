@@ -25,15 +25,16 @@ func Test_ValidSwap(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": msg,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: msg,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
+	swapFSM := newSwapOutSenderFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -78,7 +79,7 @@ func Test_Cancel2(t *testing.T) {
 	peer := "bar"
 	chanId := "baz"
 	FeePreimage := "preimage"
-	msgChan := make(chan string)
+	msgChan := make(chan PeerMessage)
 	store := &dummyStore{dataMap: map[string]Data{}}
 	messenger := &dummyMessenger{
 		msgChan: msgChan,
@@ -88,15 +89,16 @@ func Test_Cancel2(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": messenger,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: messenger,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
+	swapFSM := newSwapOutSenderFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -108,8 +110,8 @@ func Test_Cancel2(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, "request", msg)
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnCancelMsgReceived, nil)
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
+	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +124,7 @@ func Test_Cancel1(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "preimage"
 	FeeInvoice := "err"
-	msgChan := make(chan string)
+	msgChan := make(chan PeerMessage)
 
 	store := &dummyStore{dataMap: map[string]Data{}}
 	messenger := &dummyMessenger{
@@ -133,15 +135,16 @@ func Test_Cancel1(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": messenger,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: messenger,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
+	swapFSM := newSwapOutSenderFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -153,13 +156,13 @@ func Test_Cancel1(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, "request", msg)
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg = <-msgChan
-	assert.Equal(t, "cancel", msg)
+	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapOutSender_Canceled, swapFSM.Data.GetCurrentState())
 }
 func Test_AbortCltvClaim(t *testing.T) {
@@ -169,7 +172,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	chanId := "baz"
 	FeeInvoice := "feeinv"
 	FeePreimage := "preimage"
-	msgChan := make(chan string)
+	msgChan := make(chan PeerMessage)
 
 	store := &dummyStore{dataMap: map[string]Data{}}
 	messenger := &dummyMessenger{msgChan}
@@ -178,15 +181,16 @@ func Test_AbortCltvClaim(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": messenger,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: messenger,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, serviceMap)
+	swapFSM := newSwapOutSenderFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -225,7 +229,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, State_SwapOutSender_Aborted, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, "abort", msg)
+	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedContext{TxId: "tx"})
 	if err != nil {
 		t.Fatal(err)
@@ -250,13 +254,17 @@ func (d *dummyStore) GetData(id string) (Data, error) {
 }
 
 type dummyMessenger struct {
-	msgChan chan string
+	msgChan chan PeerMessage
 }
 
-func (d *dummyMessenger) SendMessage(peerId string, hexMsg string) error {
-	log.Printf("Dummy sending message %s to %s", hexMsg, peerId)
+func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType MessageType, msgBytes []byte) error) {
+	panic("implement me")
+}
+
+func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
+	log.Printf("Dummy sending message %v to %s", msg, peerId)
 	if d.msgChan != nil {
-		go func() { d.msgChan <- hexMsg }()
+		go func() { d.msgChan <- msg }()
 	}
 	return nil
 }
@@ -314,7 +322,15 @@ func (d *dummyPolicy) ShouldPayFee(feeAmount uint64, peerId, channelId string) b
 type DummyTxWatcher struct {
 }
 
-func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string) {
+func (d *DummyTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
+	panic("implement me")
+}
+
+func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
+	panic("implement me")
+}
+
+func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string, cltv int64) {
 
 }
 

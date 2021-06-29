@@ -20,15 +20,15 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": msg,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: msg,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
-
-	swapFSM := newSwapOutReceiverFSM("", store, serviceMap)
+	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -77,15 +77,16 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": msg,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: msg,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, serviceMap)
+	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -106,7 +107,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnAbortMsgReceived, nil)
+	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,15 +136,16 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": msg,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: msg,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, serviceMap)
+	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -159,7 +161,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).MakerPubkeyHash)
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnCancelReceived, nil)
+	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +175,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	peer := "bar"
 	chanId := "baz"
 	FeePreimage := "err"
-	msgChan := make(chan string)
+	msgChan := make(chan PeerMessage)
 	store := &dummyStore{dataMap: map[string]Data{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: FeePreimage}
@@ -181,15 +183,16 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
 
-	serviceMap := map[string]interface{}{
-		"messenger": messenger,
-		"lightning": lc,
-		"policy":    policy,
-		"txwatcher": txWatcher,
-		"node":      node,
+	swapServices := &SwapServices{
+		messenger: messenger,
+		swapStore: store,
+		node:      node,
+		lightning: lc,
+		policy:    policy,
+		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, serviceMap)
+	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -205,6 +208,6 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).MakerPubkeyHash)
 	msg := <-msgChan
-	assert.Equal(t, "cancel", msg)
+	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapOutCanceled, swapFSM.Data.GetCurrentState())
 }
