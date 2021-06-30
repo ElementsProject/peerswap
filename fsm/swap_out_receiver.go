@@ -288,7 +288,7 @@ func newSwapOutReceiverFSM(id string, store Store, services *SwapServices) *Stat
 				},
 			},
 			State_SwapOutReceiver_ClaimedPreimage: {
-				Action: &NoOpAction{},
+				Action: &ClaimedPreimageAction{},
 			},
 			State_SwapOutReceiver_SwapAborted: {
 				Action: &NoOpAction{},

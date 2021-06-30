@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"errors"
+	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/utils"
 	"github.com/stretchr/testify/assert"
@@ -34,13 +35,14 @@ func Test_ValidSwap(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, swapServices)
+	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
+		swapId:      swapFSM.Id,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,13 +100,14 @@ func Test_Cancel2(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, swapServices)
+	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
+		swapId:      swapFSM.Id,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -144,13 +147,14 @@ func Test_Cancel1(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, swapServices)
+	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
+		swapId:      swapFSM.Id,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -190,13 +194,14 @@ func Test_AbortCltvClaim(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutSenderFSM("", store, swapServices)
+	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
+		swapId:      swapFSM.Id,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -270,7 +275,16 @@ func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
 }
 
 type dummyLightningClient struct {
-	preimage string
+	preimage        string
+	paymentCallback func(*glightning.Payment)
+}
+
+func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
+	d.paymentCallback(payment)
+}
+
+func (d *dummyLightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
+	d.paymentCallback = f
 }
 
 //todo implement
@@ -320,14 +334,16 @@ func (d *dummyPolicy) ShouldPayFee(feeAmount uint64, peerId, channelId string) b
 }
 
 type DummyTxWatcher struct {
+	txConfirmedFunc func(swapId string) error
+	cltvPassedFunc  func(swapId string) error
 }
 
 func (d *DummyTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
-	panic("implement me")
+	d.txConfirmedFunc = f
 }
 
 func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
-	panic("implement me")
+	d.cltvPassedFunc = f
 }
 
 func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string, cltv int64) {

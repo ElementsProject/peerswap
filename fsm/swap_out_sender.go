@@ -40,6 +40,7 @@ const (
 )
 
 type SwapCreationContext struct {
+	swapId      string
 	amount      uint64
 	peer        string
 	channelId   string
@@ -52,7 +53,7 @@ type SwapOutInitAction struct{}
 func (a *SwapOutInitAction) Execute(services *SwapServices, data Data, eventCtx EventContext) EventType {
 	cc := eventCtx.(*SwapCreationContext)
 	swap := data.(*Swap)
-	newSwap := NewSwap(SWAPTYPE_OUT, SWAPROLE_SENDER, cc.amount, cc.initiatorId, cc.peer, cc.channelId)
+	newSwap := NewSwap(cc.swapId, SWAPTYPE_OUT, SWAPROLE_SENDER, cc.amount, cc.initiatorId, cc.peer, cc.channelId)
 	*swap = *newSwap
 	return Event_SwapOutSender_OnSwapOutRequestSent
 }
@@ -276,9 +277,9 @@ func (n *NoOpAction) Execute(services *SwapServices, data Data, eventCtx EventCo
 	return NoOp
 }
 
-func newSwapOutSenderFSM(id string, store Store, services *SwapServices) *StateMachine {
+func newSwapOutSenderFSM(store Store, services *SwapServices) *StateMachine {
 	return &StateMachine{
-		Id:           id,
+		Id:           newSwapId(),
 		store:        store,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,

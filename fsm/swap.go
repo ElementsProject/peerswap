@@ -182,9 +182,9 @@ func (s *Swap) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
+func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
 	return &Swap{
-		Id:              newSwapId(),
+		Id:              swapId,
 		Role:            swapRole,
 		Type:            swapType,
 		State:           SWAPSTATE_CREATED,

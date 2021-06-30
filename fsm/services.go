@@ -1,6 +1,7 @@
 package fsm
 
 import (
+	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/utils"
 	"github.com/vulpemventures/go-elements/network"
@@ -24,6 +25,7 @@ type LightningClient interface {
 	PayInvoice(payreq string) (preImage string, err error)
 	CheckChannel(channelId string, amount uint64) (bool, error)
 	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
+	AddPaymentCallback(f func(*glightning.Payment))
 }
 
 type TxWatcher interface {

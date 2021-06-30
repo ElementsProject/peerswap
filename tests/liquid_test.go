@@ -286,7 +286,6 @@ var (
 //	return "http://localhost:3001", nil
 //}
 
-
 func Test_FeeEstimation(t *testing.T) {
 	testSetup, err := NewTestSetup()
 	if err != nil {
@@ -341,19 +340,19 @@ func Test_FeeEstimation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx,err = transaction.NewTxFromHex(fundedTx.TxString)
+	tx, err = transaction.NewTxFromHex(fundedTx.TxString)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("size: %v, fee: %f, num outputs %v, num inputs %v, ",tx.VirtualSize(), fundedTx.Fee*100000000, len(tx.Outputs), len(tx.Inputs))
-	for i,o := range tx.Outputs {
+	t.Logf("size: %v, fee: %f, num outputs %v, num inputs %v, ", tx.VirtualSize(), fundedTx.Fee*100000000, len(tx.Outputs), len(tx.Inputs))
+	for i, o := range tx.Outputs {
 		sats, err := elementsutil.ElementsToSatoshiValue(o.Value)
 		if err != nil {
 			t.Log(err)
 		}
 
-		t.Logf("output %v %v %v %v", i,o.Nonce, len(o.Nonce), sats)
+		t.Logf("output %v %v %v %v", i, o.Nonce, len(o.Nonce), sats)
 	}
 
 	unblinded, err := ecli.BlindRawTransaction(fundedTx.TxString)
@@ -361,18 +360,18 @@ func Test_FeeEstimation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx,err = transaction.NewTxFromHex(unblinded)
+	tx, err = transaction.NewTxFromHex(unblinded)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("size: %v, fee: %f, num outputs %v, num inputs %v, ",tx.VirtualSize(), fundedTx.Fee*100000000, len(tx.Outputs), len(tx.Inputs))
-	for i,o := range tx.Outputs {
+	t.Logf("size: %v, fee: %f, num outputs %v, num inputs %v, ", tx.VirtualSize(), fundedTx.Fee*100000000, len(tx.Outputs), len(tx.Inputs))
+	for i, o := range tx.Outputs {
 		sats, err := elementsutil.ElementsToSatoshiValue(o.Value)
 		if err != nil {
 			t.Log(err)
 		}
 
-		t.Logf("output %v %v %v %v", i,o.Nonce, len(o.Nonce), sats)
+		t.Logf("output %v %v %v %v", i, o.Nonce, len(o.Nonce), sats)
 	}
 	finalized, err := ecli.SignRawTransactionWithWallet(unblinded)
 	if err != nil {
@@ -683,5 +682,3 @@ func h2b(str string) []byte {
 	buf, _ := hex.DecodeString(str)
 	return buf
 }
-
-

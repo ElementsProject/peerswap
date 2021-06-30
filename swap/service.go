@@ -341,7 +341,6 @@ func (s *Service) OnFeeInvoicePaid(swapId string) error {
 }
 
 func (s *Service) OnTxOpenedResponse(swap *Swap, request TxOpenedResponse) error {
-
 	swap.State = SWAPSTATE_WAITING_FOR_TX_CONFS
 	swap.MakerPubkeyHash = request.MakerPubkeyHash
 	swap.Payreq = request.Invoice
@@ -453,6 +452,9 @@ func (s *Service) CreateOpeningTransaction(ctx context.Context, swap *Swap) erro
 
 func (s *Service) BroadCastAndNotifyPeer(swap *Swap) error {
 	txId, err := s.wallet.FinalizeAndBroadcastFundedTransaction(swap.OpeningTxUnpreparedHex)
+	if err != nil {
+		return err
+	}
 	swap.OpeningTxId = txId
 	swap.State = SWAPSTATE_OPENING_TX_BROADCASTED
 	err = s.store.Update(swap)

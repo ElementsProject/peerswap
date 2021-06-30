@@ -108,13 +108,16 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 	if s.Id != "" {
 		// todo recovery logic e.g. state is noop
 		data, err := s.store.GetData(s.Id)
-		if err != nil {
+		if err == ErrDataNotAvailable {
+			s.Data = &Swap{}
+		} else if err != nil {
 			return err
+		} else {
+			s.Data = data
+			s.Current = data.GetCurrentState()
 		}
-		s.Data = data
-		s.Current = data.GetCurrentState()
 	} else {
-		s.Data = &Swap{}
+		return errors.New("id must be set")
 	}
 
 	for {

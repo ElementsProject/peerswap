@@ -28,7 +28,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		policy:    policy,
 		txWatcher: txWatcher,
 	}
-	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -55,7 +55,9 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapOutReceiver_ClaimInvoicePaid, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, nil)
+	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedContext{
+		TxId: "txId",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +88,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -145,7 +147,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
@@ -192,7 +194,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 		txWatcher: txWatcher,
 	}
 
-	swapFSM := newSwapOutReceiverFSM("", store, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,

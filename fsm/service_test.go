@@ -1,0 +1,118 @@
+package fsm
+
+import (
+	"encoding/json"
+	"github.com/sputn1ck/glightning/glightning"
+	"github.com/stretchr/testify/assert"
+	"log"
+	"testing"
+	"time"
+)
+
+func Test_Service1(t *testing.T) {
+
+	channelId := "chanId"
+	amount := uint64(100)
+	peer := "bob"
+	initiator := "alice"
+
+	aliceSwapService := getTestSetup("alice")
+	bobSwapService := getTestSetup("bob")
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
+
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
+
+	aliceMsgChan := aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
+	bobMsgChan := bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
+
+	err := aliceSwapService.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bobSwapService.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceSwap, err := aliceSwapService.SwapOut(channelId, amount, peer, initiator)
+	if err != nil {
+		t.Fatalf(" error swapping oput %v: ", err)
+	}
+	bobReceivedMsg := <-bobMsgChan
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg.MessageType())
+	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+
+	aliceReceivedMsg := <-aliceMsgChan
+	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
+
+	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, aliceSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_FeeInvoiceSent, bobSwap.Current)
+
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
+		Label: "fee_" + bobSwap.Id,
+	})
+	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, bobSwap.Current)
+
+	aliceReceivedMsg = <-aliceMsgChan
+	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
+
+	// trigger openingtx confirmed
+	err = aliceSwapService.swapServices.txWatcher.(*DummyTxWatcher).txConfirmedFunc(aliceSwap.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, State_SwapOutSender_ClaimedPreimage, aliceSwap.Current)
+
+	// trigger bob payment received
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
+		Label: "claim_" + bobSwap.Id,
+	})
+	bobReceivedMsg = <-bobMsgChan
+	assert.Equal(t, MESSAGETYPE_CLAIMED, bobReceivedMsg.MessageType())
+	assert.Equal(t, State_SwapOutReceiver_ClaimedPreimage, bobSwap.Current)
+}
+
+func getTestSetup(name string) *SwapService {
+	store := &dummyStore{dataMap: map[string]Data{}}
+	messenger := &ConnectedMessenger{
+		thisPeerId: name,
+	}
+	lc := &dummyLightningClient{preimage: ""}
+	policy := &dummyPolicy{}
+	txWatcher := &DummyTxWatcher{}
+	node := &DummyNode{}
+
+	swapService := NewSwapService(store, node, lc, messenger, policy, txWatcher)
+	return swapService
+}
+
+type ConnectedMessenger struct {
+	thisPeerId      string
+	OnMessage       func(peerId string, msgType MessageType, msgBytes []byte) error
+	other           *ConnectedMessenger
+	msgReceivedChan chan PeerMessage
+}
+
+func (c *ConnectedMessenger) SendMessage(peerId string, msg PeerMessage) error {
+	go func() {
+		time.Sleep(time.Millisecond * 10)
+		msgBytes, err := json.Marshal(msg)
+		if err != nil {
+			log.Printf("error on marshalling %v", err)
+		}
+		err = c.other.OnMessage(c.thisPeerId, msg.MessageType(), msgBytes)
+		if err != nil {
+			log.Printf("error on message send %v", err)
+		}
+		if c.other.msgReceivedChan != nil {
+			c.other.msgReceivedChan <- msg
+		}
+	}()
+
+	return nil
+}
+
+func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType MessageType, msgBytes []byte) error) {
+	c.OnMessage = f
+}
