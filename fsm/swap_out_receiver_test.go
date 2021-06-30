@@ -167,7 +167,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutCanceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 }
 
 func Test_SwapOutReceiverCancelInternal(t *testing.T) {
@@ -211,5 +211,5 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.(*Swap).MakerPubkeyHash)
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
-	assert.Equal(t, State_SwapOutCanceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 }

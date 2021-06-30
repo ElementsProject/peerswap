@@ -19,8 +19,7 @@ const (
 	State_SwapOutSender_ClaimedCltv        StateType = "State_SwapOutSender_ClaimedCltv"
 
 	State_SwapOutSender_SendCancel StateType = "State_SwapOutSender_SendCancel"
-	State_SwapOutSender_Canceled   StateType = "State_SwapOutSender_Canceled"
-	State_SwapOutSender_Aborted    StateType = "State_SwapOutSender_Aborted"
+	State_SwapOut_Canceled         StateType = "State_SwapOut_Canceled"
 
 	Event_SwapOutSender_OnSwapOutCreated     EventType = "Event_SwapOutSender_OnSwapOutCreated"
 	Event_SwapOutSender_OnSwapOutRequestSent EventType = "Event_SwapOutSender_OnSwapOutRequestSent"
@@ -299,7 +298,7 @@ func newSwapOutSenderFSM(store Store, services *SwapServices) *StateMachine {
 			State_SwapOutSender_Created: {
 				Action: &SwapOutCreatedAction{},
 				Events: Events{
-					Event_SwapOutReceiver_OnCancelInternal:   State_SwapOutSender_Canceled,
+					Event_SwapOutReceiver_OnCancelInternal:   State_SwapOut_Canceled,
 					Event_SwapOutSender_OnSendSwapOutSucceed: State_SwapOutSender_RequestSent,
 				},
 			},
@@ -327,23 +326,26 @@ func newSwapOutSenderFSM(store Store, services *SwapServices) *StateMachine {
 			State_SwapOutSender_SendCancel: {
 				Action: &SendSwapOutCancelAction{},
 				Events: Events{
-					Event_SwapOutSender_OnCancelSwapOut: State_SwapOutSender_Canceled,
+					Event_SwapOutSender_OnCancelSwapOut: State_SwapOut_Canceled,
 				},
 			},
-			State_SwapOutSender_Canceled: {
+			State_SwapOut_Canceled: {
 				Action: &NoOpAction{},
+				Events: Events{
+					Event_SwapOutSender_OnCltvClaimMsgReceived: State_SwapOutSender_ClaimedCltv,
+				},
 			},
 			State_SwapOutSender_TxBroadcasted: {
 				Action: &SwapOutTxBroadCastedAction{},
 				Events: Events{
-					Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_Aborted,
+					Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
 					Event_SwapOutSender_OnTxConfirmations:   State_SwapOutSender_TxConfirmed,
 				},
 			},
 			State_SwapOutSender_TxConfirmed: {
 				Action: &SwapOutTxConfirmedAction{},
 				Events: Events{
-					Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_Aborted,
+					Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
 					Event_SwapOutSender_OnClaimTxPreimage:   State_SwapOutSender_ClaimInvPaid,
 				},
 			},
@@ -356,12 +358,6 @@ func newSwapOutSenderFSM(store Store, services *SwapServices) *StateMachine {
 			},
 			State_SwapOutSender_ClaimedPreimage: {
 				Action: &NoOpAction{},
-			},
-			State_SwapOutSender_Aborted: {
-				Action: &SwapOutAbortedAction{},
-				Events: Events{
-					Event_SwapOutSender_OnCltvClaimMsgReceived: State_SwapOutSender_ClaimedCltv,
-				},
 			},
 			State_SwapOutSender_ClaimedCltv: {
 				Action: &SwapOutClaimedCltvAction{},

@@ -21,7 +21,6 @@ const (
 	State_SwapOutReceiver_CltvPassed           StateType = "State_SwapOutReceiver_CltvPassed"
 	State_SwapOutReceiver_ClaimedCltv          StateType = "State_SwapOutReceiver_ClaimedCltv"
 
-	State_SwapOutCanceled   StateType = "State_SwapOutCanceled"
 	State_SwapOutSendCancel StateType = "State_SwapOutSendCancel"
 
 	Event_SwapOutReceiver_OnSwapOutRequestReceived EventType = "Event_SwapOutReceiver_OnSwapOutRequestReceived"
@@ -263,7 +262,7 @@ func newSwapOutReceiverFSM(id string, store Store, services *SwapServices) *Stat
 				Action: &NoOpAction{},
 				Events: Events{
 					Event_SwapOutReceiver_OnFeeInvoicePaid: State_SwapOutReceiver_FeeInvoicePaid,
-					Event_OnCancelReceived:                 State_SwapOutCanceled,
+					Event_OnCancelReceived:                 State_SwapOut_Canceled,
 				},
 			},
 			State_SwapOutReceiver_FeeInvoicePaid: {
@@ -308,10 +307,10 @@ func newSwapOutReceiverFSM(id string, store Store, services *SwapServices) *Stat
 			State_SwapOutSendCancel: {
 				Action: &SendCancelAction{},
 				Events: Events{
-					Event_Action_Success: State_SwapOutCanceled,
+					Event_Action_Success: State_SwapOut_Canceled,
 				},
 			},
-			State_SwapOutCanceled: {
+			State_SwapOut_Canceled: {
 				Action: &NoOpAction{},
 			},
 		},

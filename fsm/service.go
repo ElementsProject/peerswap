@@ -293,7 +293,6 @@ func (s *SwapService) OnCancelReceived(swapId string) error {
 	if err != nil {
 		return err
 	}
-	s.RemoveSwap(swap.Id)
 	return nil
 }
 

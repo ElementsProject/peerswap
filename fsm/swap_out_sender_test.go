@@ -118,7 +118,7 @@ func Test_Cancel2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutSender_Canceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel1(t *testing.T) {
 	swapAmount := uint64(100)
@@ -167,7 +167,7 @@ func Test_Cancel1(t *testing.T) {
 	}
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
-	assert.Equal(t, State_SwapOutSender_Canceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 }
 func Test_AbortCltvClaim(t *testing.T) {
 	swapAmount := uint64(100)
@@ -233,7 +233,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, State_SwapOutSender_Aborted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedContext{TxId: "tx"})
 	if err != nil {
@@ -277,6 +277,7 @@ func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
 type dummyLightningClient struct {
 	preimage        string
 	paymentCallback func(*glightning.Payment)
+	failpayment bool
 }
 
 func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
@@ -311,6 +312,9 @@ func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) (bo
 }
 
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {
+	if d.failpayment {
+		return "", errors.New("payment failed")
+	}
 	if payreq == "err" {
 		return "", errors.New("error paying invoice")
 	}
