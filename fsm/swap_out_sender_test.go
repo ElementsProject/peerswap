@@ -342,6 +342,14 @@ type DummyTxWatcher struct {
 	cltvPassedFunc  func(swapId string) error
 }
 
+func (d *DummyTxWatcher) AddCltvTx(swapId string, cltv int64) {
+
+}
+
+func (d *DummyTxWatcher) AddConfirmationsTx(swapId, txId string) {
+
+}
+
 func (d *DummyTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
 	d.txConfirmedFunc = f
 }
@@ -350,9 +358,6 @@ func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
-func (d *DummyTxWatcher) AddTx(swapId, txId, txHex string, cltv int64) {
-
-}
 
 type DummyNode struct{}
 

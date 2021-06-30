@@ -29,7 +29,8 @@ type LightningClient interface {
 }
 
 type TxWatcher interface {
-	AddTx(swapId, txId, txHex string, cltv int64)
+	AddCltvTx(swapId string, cltv int64)
+	AddConfirmationsTx(swapId, txId string)
 	AddTxConfirmedHandler(func(swapId string) error)
 	AddCltvPassedHandler(func(swapId string) error)
 }

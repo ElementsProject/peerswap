@@ -132,7 +132,7 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, data Data, eventC
 	}
 
 	swap.OpeningTxId = txId
-	txwatcher.AddTx(swap.Id, txId, swap.OpeningTxHex, swap.Cltv)
+	txwatcher.AddCltvTx(swap.Id, swap.Cltv)
 
 	msg := &TxOpenedResponse{
 		SwapId:          swap.Id,

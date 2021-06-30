@@ -139,7 +139,7 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, data Data, 
 
 	// todo check policy
 
-	txWatcher.AddTx(swap.Id, ctx.TxId, ctx.TxHex, ctx.Cltv)
+	txWatcher.AddConfirmationsTx(swap.Id, ctx.TxId)
 	return NoOp
 }
 
