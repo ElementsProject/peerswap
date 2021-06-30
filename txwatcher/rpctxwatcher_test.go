@@ -26,8 +26,8 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 		Confirmations: 2,
 	}
 	txWatcher.AddConfirmationsTx(swapId, txId)
-	txWatcher.AddTxConfirmedHandler(func(swapId string) error{
-		go func(){txWatcherChan <- swapId}()
+	txWatcher.AddTxConfirmedHandler(func(swapId string) error {
+		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
 	txConfirmedId := <-txWatcherChan
@@ -52,14 +52,13 @@ func Test_RpcTxWatcherCltv(t *testing.T) {
 		Confirmations: 2,
 	}
 	txWatcher.AddCltvTx(swapId, cltv)
-	txWatcher.AddCltvPassedHandler(func(swapId string) error{
-		go func(){txWatcherChan <- swapId}()
+	txWatcher.AddCltvPassedHandler(func(swapId string) error {
+		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
 	txConfirmedId := <-txWatcherChan
 	assert.Equal(t, swapId, txConfirmedId)
 }
-
 
 type DummyBlockchain struct {
 	nextBlockheight uint64
@@ -73,5 +72,3 @@ func (d *DummyBlockchain) GetBlockHeight() (uint64, error) {
 func (d *DummyBlockchain) GetTxOut(txid string, vout uint32) (*gelements.TxOutResp, error) {
 	return d.nextTxOutResp, nil
 }
-
-

@@ -6,7 +6,6 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap/swap"
-	"sort"
 )
 
 type GetAddressMethod struct {
@@ -100,12 +99,12 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
-
-	swapOut, err := l.cl.swaps.StartSwapOut(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
+	pk := l.cl.GetNodeId()
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.SatAmt, l.ShortChannelId, pk)
 	if err != nil {
 		return nil, err
 	}
-	return swapOut.ToPrettyPrint(), nil
+	return swapOut.Data.(*swap.Swap).ToPrettyPrint(), nil
 }
 
 type SwapIn struct {
@@ -125,6 +124,7 @@ func (l *SwapIn) Name() string {
 	return "swap-in"
 }
 
+// todo change to swap in
 func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt parameter")
@@ -162,11 +162,12 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if liquidBalance < l.SatAmt {
 		return nil, errors.New("Not enough balance on liquid wallet")
 	}
-	swapIn, err := l.cl.swaps.StartSwapIn(fundingChannels.Id, l.ShortChannelId, l.SatAmt)
+	pk := l.cl.GetNodeId()
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.SatAmt, l.ShortChannelId, pk)
 	if err != nil {
 		return nil, err
 	}
-	return swapIn.ToPrettyPrint(), nil
+	return swapOut.Data.(*swap.Swap).ToPrettyPrint(), nil
 }
 
 type ListSwaps struct {
@@ -185,20 +186,22 @@ func (l *ListSwaps) Name() string {
 	return "swaps"
 }
 
+// todo reimplement
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
-	swaps, err := l.cl.swaps.ListSwaps()
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(swaps, func(i, j int) bool {
-		return swaps[i].CreatedAt < swaps[j].CreatedAt
-	})
-	if l.PrettyPrint == 1 {
-		var pswasp []*swap.PrettyPrintSwap
-		for _, v := range swaps {
-			pswasp = append(pswasp, v.ToPrettyPrint())
-		}
-		return pswasp, nil
-	}
-	return swaps, nil
+	//swaps, err := l.cl.swaps.ListSwaps()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//sort.Slice(swaps, func(i, j int) bool {
+	//	return swaps[i].CreatedAt < swaps[j].CreatedAt
+	//})
+	//if l.PrettyPrint == 1 {
+	//	var pswasp []*swap.PrettyPrintSwap
+	//	for _, v := range swaps {
+	//		pswasp = append(pswasp, v.ToPrettyPrint())
+	//	}
+	//	return pswasp, nil
+	//}
+	//return swaps, nil
+	return "not implemented yet", nil
 }

@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"go.etcd.io/bbolt"
@@ -15,6 +16,30 @@ var (
 
 type bboltStore struct {
 	db *bbolt.DB
+}
+
+func (p *bboltStore) UpdateData(data Data) error {
+	swap, ok := data.(*Swap)
+	if !ok {
+		return ErrDataNotAvailable
+	}
+	err := p.Update(swap)
+	if err == ErrDoesNotExist {
+		return ErrDataNotAvailable
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+	
+}
+
+func (p *bboltStore) GetData(id string) (Data, error) {
+	swap, err := p.GetById(id)
+	if err == ErrDoesNotExist {
+		return nil, ErrDataNotAvailable
+	}
+	return swap,nil
 }
 
 func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
@@ -175,4 +200,9 @@ func (p *bboltStore) idExists(id string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func h2b(str string) []byte {
+	buf, _ := hex.DecodeString(str)
+	return buf
 }

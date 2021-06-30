@@ -1,4 +1,4 @@
-package fsm
+package swap
 
 import (
 	"errors"
@@ -7,33 +7,38 @@ import (
 	"github.com/sputn1ck/peerswap/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/network"
+	"github.com/vulpemventures/go-elements/transaction"
 	"log"
 	"testing"
 )
 
 func Test_ValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "foo"
-	peer := "bar"
+	initiator := "ab123"
+	peer := "ba123"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
 	FeePreimage := "preimage"
 
 	store := &dummyStore{dataMap: map[string]Data{}}
-	msg := &dummyMessenger{}
+	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: msg,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
@@ -90,15 +95,19 @@ func Test_Cancel2(t *testing.T) {
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: messenger,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
@@ -137,15 +146,19 @@ func Test_Cancel1(t *testing.T) {
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: messenger,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
@@ -184,15 +197,19 @@ func Test_AbortCltvClaim(t *testing.T) {
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: messenger,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutSenderFSM(store, swapServices)
 
@@ -262,8 +279,8 @@ type dummyMessenger struct {
 	msgChan chan PeerMessage
 }
 
-func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType MessageType, msgBytes []byte) error) {
-	panic("implement me")
+func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
+	return
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
@@ -277,7 +294,7 @@ func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
 type dummyLightningClient struct {
 	preimage        string
 	paymentCallback func(*glightning.Payment)
-	failpayment bool
+	failpayment     bool
 }
 
 func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
@@ -296,7 +313,7 @@ func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, lab
 	return "", nil
 }
 
-func (d *dummyLightningClient) DecodeInvoice(payreq string) (*lightning.Invoice, error) {
+func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
 	if payreq == "err" {
 		return nil, errors.New("error decoding")
 	}
@@ -333,7 +350,7 @@ func (d *dummyPolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, err
 	return 1, nil
 }
 
-func (d *dummyPolicy) ShouldPayFee(feeAmount uint64, peerId, channelId string) bool {
+func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channelId string) bool {
 	return true
 }
 
@@ -358,8 +375,25 @@ func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
+type DummyWallet struct{}
+
+func (d *DummyWallet) GetAddress() (string, error) {
+	return "gude", nil
+}
+
+func (d *DummyWallet) FinalizeTransaction(rawTx string) (txHex string, err error) {
+	return "txHex", nil
+}
+
+func (d *DummyWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
+	return "rawtx", 100, nil
+}
 
 type DummyNode struct{}
+
+func (d *DummyNode) GetLocktime() uint64 {
+	return 100
+}
 
 func (d *DummyNode) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
 	return "txid", nil
@@ -401,4 +435,35 @@ func (d *DummyNode) GetNetwork() *network.Network {
 
 func (d *DummyNode) SendRawTx(txHex string) (string, error) {
 	return "txid1", nil
+}
+
+type DummyUtility struct{}
+
+func (d *DummyUtility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
+	return []byte("redeemscript"),nil
+}
+
+func (d *DummyUtility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
+	return [][]byte{}
+}
+
+func (d *DummyUtility) GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
+	return [][]byte{}
+}
+
+
+func (d *DummyUtility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
+	return &transaction.Transaction{Inputs: []*transaction.TxInput{&transaction.TxInput{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
+}
+
+func (d *DummyUtility) CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {
+	return &transaction.Transaction{}, nil
+}
+
+func (d *DummyUtility) VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
+	return 0, nil
+}
+
+func (d *DummyUtility) Blech32ToScript(blech32Addr string, network *network.Network) ([]byte, error) {
+	return []byte("12345"), nil
 }

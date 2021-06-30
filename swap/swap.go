@@ -50,10 +50,10 @@ type SwapRole int
 
 func (s SwapRole) String() string {
 	switch s {
-	case SWAPROLE_MAKER:
-		return "maker"
-	case SWAPROLE_TAKER:
-		return "taker"
+	case SWAPROLE_SENDER:
+		return "sender"
+	case SWAPROLE_RECEIVER:
+		return "receiver"
 	}
 	return ""
 }
@@ -67,8 +67,8 @@ const (
 	SWAPTYPE_OUT
 )
 const (
-	SWAPROLE_MAKER SwapRole = iota
-	SWAPROLE_TAKER
+	SWAPROLE_SENDER SwapRole = iota
+	SWAPROLE_RECEIVER
 )
 const (
 	SWAPSTATE_CREATED SwapState = iota
@@ -92,6 +92,7 @@ type Swap struct {
 	Id              string
 	Type            SwapType
 	State           SwapState
+	FSMState        StateType
 	Role            SwapRole
 	CreatedAt       int64
 	InitiatorNodeId string
@@ -111,14 +112,29 @@ type Swap struct {
 
 	Cltv int64
 
+	FeeInvoice  string
+	FeePreimage string
+
 	OpeningTxId            string
 	OpeningTxUnpreparedHex string
 	OpeningTxVout          uint32
 	OpeningTxFee           uint64
+	OpeningTxHex           string
 
 	ClaimTxId string
 
 	CancelMessage string
+}
+
+func (s *Swap) GetId() string {
+	return s.Id
+}
+
+func (s *Swap) SetState(stateType StateType) {
+	s.FSMState = stateType
+}
+func (s *Swap) GetCurrentState() StateType {
+	return s.FSMState
 }
 
 type PrettyPrintSwap struct {
@@ -166,9 +182,9 @@ func (s *Swap) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
+func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
 	return &Swap{
-		Id:              newSwapId(),
+		Id:              swapId,
 		Role:            swapRole,
 		Type:            swapType,
 		State:           SWAPSTATE_CREATED,

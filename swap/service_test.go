@@ -1,4 +1,4 @@
-package fsm
+package swap
 
 import (
 	"encoding/json"
@@ -72,7 +72,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_CLAIMED, bobReceivedMsg.MessageType())
 	assert.Equal(t, State_SwapOutReceiver_ClaimedPreimage, bobSwap.Current)
 }
-func Test_FeePaymentFailed(t *testing.T){
+func Test_FeePaymentFailed(t *testing.T) {
 
 	channelId := "chanId"
 	amount := uint64(100)
@@ -119,7 +119,7 @@ func Test_FeePaymentFailed(t *testing.T){
 	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg.MessageType())
 	assert.Equal(t, State_SwapOut_Canceled, bobSwap.Current)
 }
-func Test_ClaimPaymentFailed(t *testing.T){
+func Test_ClaimPaymentFailed(t *testing.T) {
 	channelId := "chanId"
 	amount := uint64(100)
 	peer := "bob"
@@ -183,7 +183,7 @@ func Test_ClaimPaymentFailed(t *testing.T){
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceReceivedMsg = <- aliceMsgChan
+	aliceReceivedMsg = <-aliceMsgChan
 
 	assert.Equal(t, MESSAGETYPE_CLAIMED, aliceReceivedMsg.MessageType())
 	assert.Equal(t, State_SwapOutReceiver_ClaimedCltv, bobSwap.Current)
@@ -199,14 +199,15 @@ func getTestSetup(name string) *SwapService {
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
-
-	swapService := NewSwapService(store, node, lc, messenger, policy, txWatcher)
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
+	swapService := NewSwapService(store, node, lc, messenger, policy, txWatcher, wallet, utils)
 	return swapService
 }
 
 type ConnectedMessenger struct {
 	thisPeerId      string
-	OnMessage       func(peerId string, msgType MessageType, msgBytes []byte) error
+	OnMessage       func(peerId string, msgType string, msgBytes string) error
 	other           *ConnectedMessenger
 	msgReceivedChan chan PeerMessage
 }
@@ -218,7 +219,8 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg PeerMessage) error {
 		if err != nil {
 			log.Printf("error on marshalling %v", err)
 		}
-		err = c.other.OnMessage(c.thisPeerId, msg.MessageType(), msgBytes)
+		msgString := MessageTypeToHexString(msg.MessageType())
+		err = c.other.OnMessage(c.thisPeerId, msgString, string(msgBytes))
 		if err != nil {
 			log.Printf("error on message send %v", err)
 		}
@@ -230,6 +232,6 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg PeerMessage) error {
 	return nil
 }
 
-func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType MessageType, msgBytes []byte) error) {
+func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes string) error) {
 	c.OnMessage = f
 }

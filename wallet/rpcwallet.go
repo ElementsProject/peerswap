@@ -32,6 +32,18 @@ type rpcWallet struct {
 	rpcClient  RpcClient
 }
 
+func (r *rpcWallet) FinalizeTransaction(rawTx string) (string, error) {
+	unblinded, err := r.rpcClient.BlindRawTransaction(rawTx)
+	if err != nil {
+		return "", err
+	}
+	finalized, err := r.rpcClient.SignRawTransactionWithWallet(unblinded)
+	if err != nil {
+		return "", err
+	}
+	return finalized.Hex, nil
+}
+
 func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
 	txHex, err := preparedTx.ToHex()
 	if err != nil {

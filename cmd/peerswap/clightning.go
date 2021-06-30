@@ -36,13 +36,38 @@ type ClightningClient struct {
 	plugin     *glightning.Plugin
 
 	wallet     wallet.Wallet
-	swaps      *swap.Service
+	swaps      *swap.SwapService
 	blockchain blockchain.Blockchain
 
 	msgHandlers          []func(peerId string, messageType string, payload string) error
 	paymentSubscriptions []func(payment *glightning.Payment)
 	initChan             chan interface{}
 	nodeId               string
+}
+
+func (c *ClightningClient) CheckChannel(channelId string, amount uint64) (bool, error) {
+	funds, err := c.glightning.ListFunds()
+	if err != nil {
+		return false, err
+	}
+	var fundingChannels *glightning.FundingChannel
+	for _, v := range funds.Channels {
+		if v.ShortChannelId == channelId {
+			fundingChannels = v
+			break
+		}
+	}
+	if fundingChannels == nil {
+		return false, errors.New("fundingChannels not found")
+	}
+
+	if fundingChannels.ChannelSatoshi < amount {
+		return false, errors.New("not enough outbound capacity to perform swapOut")
+	}
+	if !fundingChannels.Connected {
+		return false, errors.New("fundingChannels is not connected")
+	}
+	return true, nil
 }
 
 func (c *ClightningClient) GetNodeId() string {
@@ -106,10 +131,10 @@ func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) 
 	return nil
 }
 
-func (c *ClightningClient) AddMessageHandler(f func(peerId string, messageType string, payload string) error) error {
+func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
 	c.msgHandlers = append(c.msgHandlers, f)
-	return nil
 }
+
 
 func (c *ClightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
 	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
@@ -270,7 +295,7 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.Service, blockchain blockchain.Blockchain) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, blockchain blockchain.Blockchain) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.blockchain = blockchain

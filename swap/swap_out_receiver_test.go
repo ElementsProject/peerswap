@@ -1,4 +1,4 @@
-package fsm
+package swap
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -8,26 +8,30 @@ import (
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := "swapid"
-	initiator := "foo"
+	takerpubkeyhash := "abcdef"
 	peer := "bar"
 	chanId := "baz"
 	FeePreimage := "preimage"
 
 	store := &dummyStore{dataMap: map[string]Data{}}
-	msg := &dummyMessenger{}
+	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: msg,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
@@ -35,7 +39,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
-		takerPubkeyHash: initiator,
+		takerPubkeyHash: takerpubkeyhash,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -73,20 +77,24 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	FeePreimage := "preimage"
 
 	store := &dummyStore{dataMap: map[string]Data{}}
-	msg := &dummyMessenger{}
+	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: msg,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
@@ -132,20 +140,24 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	FeePreimage := "preimage"
 
 	store := &dummyStore{dataMap: map[string]Data{}}
-	msg := &dummyMessenger{}
+	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: msg,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 
@@ -184,15 +196,19 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	policy := &dummyPolicy{}
 	txWatcher := &DummyTxWatcher{}
 	node := &DummyNode{}
+	wallet := &DummyWallet{}
+	utils := &DummyUtility{}
 
-	swapServices := &SwapServices{
-		messenger: messenger,
-		swapStore: store,
-		node:      node,
-		lightning: lc,
-		policy:    policy,
-		txWatcher: txWatcher,
-	}
+	swapServices := NewSwapServices(
+		store,
+		node,
+		lc,
+		messenger,
+		policy,
+		txWatcher,
+		wallet,
+		utils,
+	)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, store, swapServices)
 

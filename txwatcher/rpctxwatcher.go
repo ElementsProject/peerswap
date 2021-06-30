@@ -14,32 +14,31 @@ type BlockchainRpc interface {
 }
 
 type SwapTxInfo struct {
-	TxId string
+	TxId   string
 	TxVout string
-	Cltv int64
+	Cltv   int64
 }
-
 
 type BlockchainRpcTxWatcher struct {
 	blockchain BlockchainRpc
 
-	txCallback        func(swapId string) error
-	timelockCallback  func(swapId string) error
+	txCallback       func(swapId string) error
+	timelockCallback func(swapId string) error
 
 	txWatchList       map[string]string
 	timelockWatchlist map[string]int64
 	newBlockChan      chan uint64
-	ctx context.Context
+	ctx               context.Context
 	sync.Mutex
 }
 
 func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
-		ctx: ctx,
-		blockchain: blockchain,
-		txWatchList: map[string]string{},
+		ctx:               ctx,
+		blockchain:        blockchain,
+		txWatchList:       map[string]string{},
 		timelockWatchlist: map[string]int64{},
-		newBlockChan: make(chan uint64),
+		newBlockChan:      make(chan uint64),
 	}
 }
 
@@ -49,7 +48,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 		return err
 	}
 	go s.StartBlockWatcher(currentBlock)
-	go func() error{
+	go func() error {
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -88,7 +87,6 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
 		}
 	}
 }
-
 
 func (s *BlockchainRpcTxWatcher) HandleTimelockTx(blockheight uint64) error {
 	s.Lock()

@@ -1,9 +1,8 @@
-package fsm
+package swap
 
 import (
 	"encoding/hex"
 	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/utils"
 	"log"
 )
 
@@ -59,7 +58,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, data Data,
 
 	pubkey := swap.GetPrivkey().PubKey()
 
-	swap.Role = SWAPROLE_SENDER
+	swap.Role = SWAPROLE_RECEIVER
 	swap.TakerPubkeyHash = request.takerPubkeyHash
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 	// Generate Preimage
@@ -77,7 +76,8 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, data Data,
 	swap.Payreq = payreq
 	swap.PreImage = preimage.String()
 	swap.PHash = pHash.String()
-	err = services.node.CreateOpeningTransaction(swap)
+
+	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
@@ -122,11 +122,16 @@ type FeeInvoicePaidAction struct{}
 func (b *FeeInvoicePaidAction) Execute(services *SwapServices, data Data, eventCtx EventContext) EventType {
 	swap := data.(*Swap)
 
-	node := services.node
+	node := services.blockchain
 	txwatcher := services.txWatcher
 	messenger := services.messenger
 
-	txId, err := node.FinalizeAndBroadcastFundedTransaction(swap.OpeningTxUnpreparedHex)
+	finalizedTx, err := services.wallet.FinalizeTransaction(swap.OpeningTxUnpreparedHex)
+	if err != nil {
+		return Event_SwapOutSender_OnCancelSwapOut
+	}
+
+	txId, err := node.SendRawTx(finalizedTx)
 	if err != nil {
 		return Event_SwapOutSender_OnCancelSwapOut
 	}
@@ -163,42 +168,15 @@ type CltvPassedAction struct{}
 func (c *CltvPassedAction) Execute(services *SwapServices, data Data, eventCtx EventContext) EventType {
 	swap := data.(*Swap)
 
-	node := services.node
+	blockchain := services.blockchain
 	messenger := services.messenger
 
-	redeemScript, err := node.GetSwapScript(swap)
+	claimTxHex, err := CreateCltvSpendingTransaction(services, swap)
 	if err != nil {
 		return Event_OnRetry
 	}
 
-	blockheight, err := node.GetBlockHeight()
-	if err != nil {
-		return Event_OnRetry
-	}
-
-	address, err := node.GetAddress()
-	if err != nil {
-		return Event_OnRetry
-	}
-
-	outputScript, err := utils.Blech32ToScript(address, node.GetNetwork())
-	if err != nil {
-		return Event_OnRetry
-	}
-
-	claimTxHex, err := utils.CreateCltvSpendingTransaction(&utils.SpendingParams{
-		Signer:       swap.GetPrivkey(),
-		OpeningTxHex: swap.OpeningTxHex,
-		SwapAmount:   swap.Amount,
-		// todo correct fee hex blabla
-		FeeAmount:    node.GetFee(""),
-		CurrentBlock: blockheight,
-		Asset:        node.GetAsset(),
-		OutputScript: outputScript,
-		RedeemScript: redeemScript,
-	})
-
-	claimId, err := node.SendRawTx(claimTxHex)
+	claimId, err := blockchain.SendRawTx(claimTxHex)
 	if err != nil {
 		return Event_OnRetry
 	}

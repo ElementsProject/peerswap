@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"github.com/sputn1ck/glightning/gelements"
+	blockchain2 "github.com/sputn1ck/peerswap/blockchain"
+	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/swap"
+	"github.com/sputn1ck/peerswap/txwatcher"
+	"github.com/sputn1ck/peerswap/utils"
 	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
@@ -72,6 +76,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	liquidBlockchain := blockchain2.NewElementsRpc(ecli, liquidNetwork)
 
 	// db
 	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
@@ -90,20 +95,35 @@ func run() error {
 		return err
 	}
 
+	// txwatcher
+	txWatcher := txwatcher.NewBlockchainRpcTxWatcher(ctx, liquidBlockchain)
+
+	// policy
+	simplepolicy := &policy.SimplePolicy{}
+	utility := &utils.Utility{}
+
+
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
 	}
-	swapService := swap.NewService(ctx, swapStore, rpcWallet, clightning, ecli, clightning, liquidNetwork)
+	swapService := swap.NewSwapService(swapStore,
+		liquidBlockchain,
+		clightning,
+		clightning,
+		simplepolicy,
+		txWatcher,
+		rpcWallet,
+		utility)
 
-	messageHandler := swap.NewMessageHandler(clightning, swapService, swapStore)
-	err = messageHandler.Start()
+	err = swapService.Start()
 	if err != nil {
 		return err
 	}
 
+
 	go func() {
-		err := swapService.StartWatchingTxs()
+		err := txWatcher.StartWatchingTxs()
 		if err != nil {
 			log.Printf("%v", err)
 			os.Exit(1)

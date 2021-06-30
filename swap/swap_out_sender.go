@@ -1,9 +1,7 @@
-package fsm
+package swap
 
 import (
 	"encoding/hex"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/utils"
 )
 
 const (
@@ -92,12 +90,12 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, data Data, ev
 	swap.FeeInvoice = ctx.FeeInvoice
 	ll := services.lightning
 	policy := services.policy
-	invoice, err := ll.DecodeInvoice(ctx.FeeInvoice)
+	invoice, err := ll.DecodePayreq(ctx.FeeInvoice)
 	if err != nil {
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	// todo check peerId
-	if !policy.ShouldPayFee(invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
+	if !policy.ShouldPayFee(0, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	preimage, err := ll.PayInvoice(ctx.FeeInvoice)
@@ -130,7 +128,7 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, data Data, 
 	lc := services.lightning
 	txWatcher := services.txWatcher
 
-	invoice, err := lc.DecodeInvoice(swap.Payreq)
+	invoice, err := lc.DecodePayreq(swap.Payreq)
 	if err != nil {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
@@ -163,42 +161,10 @@ type SwapOutClaimInvPaidAction struct{}
 func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, data Data, eventCtx EventContext) EventType {
 	swap := data.(*Swap)
 
-	node := services.node
+	node := services.blockchain
 	messenger := services.messenger
 
-	preimage, err := lightning.MakePreimageFromStr(swap.PreImage)
-	if err != nil {
-		return Event_OnRetry
-	}
-	redeemScript, err := node.GetSwapScript(swap)
-	if err != nil {
-		return Event_OnRetry
-	}
-
-	blockheight, err := node.GetBlockHeight()
-	if err != nil {
-		return Event_OnRetry
-	}
-
-	address, err := node.GetAddress()
-	if err != nil {
-		return Event_OnRetry
-	}
-	outputScript, err := utils.Blech32ToScript(address, node.GetNetwork())
-	if err != nil {
-		return Event_OnRetry
-	}
-	//todo correct fee
-	claimTxHex, err := node.CreatePreimageSpendingTransaction(&utils.SpendingParams{
-		Signer:       swap.GetPrivkey(),
-		OpeningTxHex: swap.OpeningTxHex,
-		SwapAmount:   swap.Amount,
-		FeeAmount:    node.GetFee(""),
-		CurrentBlock: blockheight,
-		Asset:        node.GetAsset(),
-		OutputScript: outputScript,
-		RedeemScript: redeemScript,
-	}, preimage[:])
+	claimTxHex, err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
 		return Event_OnRetry
 	}

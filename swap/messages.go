@@ -87,6 +87,7 @@ type TxOpenedResponse struct {
 	MakerPubkeyHash string
 	Invoice         string
 	TxId            string
+	TxHex           string
 	Cltv            int64
 }
 
