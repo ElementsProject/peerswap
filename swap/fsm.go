@@ -2,6 +2,7 @@ package swap
 
 import (
 	"errors"
+	"log"
 	"sync"
 )
 
@@ -26,11 +27,13 @@ type StateType string
 type EventType string
 
 // EventContext represents the context to be passed to the action implementation.
-type EventContext interface{}
+type EventContext interface {
+	ApplyOnSwap(swap *Swap)
+}
 
 // Action represents the action to be executed in a given state.
 type Action interface {
-	Execute(services *SwapServices, data Data, eventCtx EventContext) EventType
+	Execute(services *SwapServices, swap *Swap) EventType
 }
 
 type Data interface {
@@ -49,8 +52,8 @@ type State struct {
 }
 
 type Store interface {
-	UpdateData(data Data) error
-	GetData(id string) (Data, error)
+	UpdateData(data *StateMachine) error
+	GetData(id string) (*StateMachine, error)
 }
 
 // States represents a mapping of states and their implementations.
@@ -61,7 +64,7 @@ type StateMachine struct {
 	// Id holds the unique Id for the store
 	Id string
 	// Data holds the statemachine metadata
-	Data Data
+	Data *Swap
 
 	// Type holds the SwapType
 	Type SwapType
@@ -76,13 +79,10 @@ type StateMachine struct {
 	Current StateType
 
 	// States holds the configuration of states and events handled by the state machine.
-	States States
+	States States `json:"-"`
 
 	// mutex ensures that only 1 event is processed by the state machine at any given time.
 	mutex sync.Mutex
-
-	// Store saves the current state
-	store Store
 
 	// SwapServices stores services the statemachine may use
 	swapServices *SwapServices
@@ -105,23 +105,12 @@ func (s *StateMachine) getNextState(event EventType) (StateType, error) {
 func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	if s.Id != "" {
-		// todo recovery logic e.g. state is noop
-		data, err := s.store.GetData(s.Id)
-		if err == ErrDataNotAvailable {
-			s.Data = &Swap{}
-		} else if err != nil {
-			return err
-		} else {
-			s.Data = data
-			s.Current = data.GetCurrentState()
-		}
-	} else {
-		return errors.New("id must be set")
+	if eventCtx != nil {
+		eventCtx.ApplyOnSwap(s.Data)
 	}
-
 	for {
 		// Determine the next state for the event given the machine's current state.
+		log.Printf("[FSM] event: %s on %s", event, s.Current)
 		nextState, err := s.getNextState(event)
 		if err != nil {
 			return ErrEventRejected
@@ -143,14 +132,16 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
-		nextEvent := state.Action.Execute(s.swapServices, s.Data, eventCtx)
-		s.Id = s.Data.GetId()
-		err = s.store.UpdateData(s.Data)
+		nextEvent := state.Action.Execute(s.swapServices, s.Data)
+		err = s.swapServices.swapStore.UpdateData(s)
 		if err != nil {
 			return err
 		}
 		if nextEvent == NoOp {
 			return nil
+		}
+		if nextEvent == Event_OnRetry {
+			log.Printf("[FSM] Retrying because of %v", s.Data.LastErr)
 		}
 		event = nextEvent
 

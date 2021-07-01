@@ -20,32 +20,6 @@ func (s SwapType) String() string {
 	return ""
 }
 
-type SwapState int
-
-func (s SwapState) String() string {
-	switch s {
-	case SWAPSTATE_CREATED:
-		return "created"
-	case SWAPSTATE_REQUEST_SENT:
-		return "request sent"
-	case SWAPSTATE_REQUEST_RECEIVED:
-		return "request received"
-	case SWAPSTATE_OPENING_TX_PREPARED:
-		return "opening tx prepared"
-	case SWAPSTATE_OPENING_TX_BROADCASTED:
-		return "opening tx broadcasted"
-	case SWAPSTATE_WAITING_FOR_TX_CONFS:
-		return "waiting for opening tx"
-	case SWAPSTATE_CLAIMED_PREIMAGE:
-		return "claimed with preimage"
-	case SWAPSTATE_CLAIMED_TIMELOCK:
-		return "claimed with cltv"
-	case SWAPSTATE_CANCELED:
-		return "canceled"
-	}
-	return ""
-}
-
 type SwapRole int
 
 func (s SwapRole) String() string {
@@ -71,18 +45,6 @@ const (
 	SWAPROLE_RECEIVER
 )
 const (
-	SWAPSTATE_CREATED SwapState = iota
-	SWAPSTATE_REQUEST_SENT
-	SWAPSTATE_REQUEST_RECEIVED
-	SWAPSTATE_OPENING_TX_PREPARED
-	SWAPSTATE_FEE_INVOICE_PAID
-	SWAPSTATE_OPENING_TX_BROADCASTED
-	SWAPSTATE_WAITING_FOR_TX_CONFS
-	SWAPSTATE_CLAIMED_PREIMAGE
-	SWAPSTATE_CLAIMED_TIMELOCK
-	SWAPSTATE_CANCELED
-)
-const (
 	CLAIMTYPE_PREIMAGE = iota
 	CLAIMTYPE_CLTV
 )
@@ -91,7 +53,6 @@ const (
 type Swap struct {
 	Id              string
 	Type            SwapType
-	State           SwapState
 	FSMState        StateType
 	Role            SwapRole
 	CreatedAt       int64
@@ -102,9 +63,9 @@ type Swap struct {
 
 	PrivkeyBytes []byte
 
-	Payreq   string
-	PreImage string
-	PHash    string
+	ClaimPayreq     string
+	ClaimPreimage   string
+	ClaimPaymenHash string
 
 	// Script
 	MakerPubkeyHash string
@@ -124,6 +85,8 @@ type Swap struct {
 	ClaimTxId string
 
 	CancelMessage string
+
+	LastErr error `json:"-"`
 }
 
 func (s *Swap) GetId() string {
@@ -163,7 +126,7 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 		Id:              s.Id,
 		Type:            fmt.Sprintf("%s", s.Type),
 		Role:            s.Role.String(),
-		State:           s.State.String(),
+		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
 		Amount:          s.Amount,
@@ -187,7 +150,6 @@ func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64,
 		Id:              swapId,
 		Role:            swapRole,
 		Type:            swapType,
-		State:           SWAPSTATE_CREATED,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		ChannelId:       channelId,
@@ -201,7 +163,6 @@ func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, chann
 	return &Swap{
 		Id:              swapId,
 		Type:            swapType,
-		State:           SWAPSTATE_REQUEST_RECEIVED,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
 		Amount:          amount,

@@ -36,8 +36,8 @@ func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc) *B
 	return &BlockchainRpcTxWatcher{
 		ctx:               ctx,
 		blockchain:        blockchain,
-		txWatchList:       map[string]string{},
-		timelockWatchlist: map[string]int64{},
+		txWatchList:       make(map[string]string),
+		timelockWatchlist: make(map[string]int64),
 		newBlockChan:      make(chan uint64),
 	}
 }

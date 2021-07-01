@@ -35,7 +35,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(channelId, amount, peer, initiator)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -102,7 +102,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(channelId, amount, peer, initiator)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -144,7 +144,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(channelId, amount, peer, initiator)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -191,7 +191,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 }
 
 func getTestSetup(name string) *SwapService {
-	store := &dummyStore{dataMap: map[string]Data{}}
+	store := &dummyStore{dataMap: map[string]*StateMachine{}}
 	messenger := &ConnectedMessenger{
 		thisPeerId: name,
 	}

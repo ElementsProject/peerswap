@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
@@ -12,6 +13,27 @@ import (
 	"testing"
 )
 
+func Test_SwapMarshalling(t *testing.T) {
+	swap := newSwapOutSenderFSM(&SwapServices{})
+
+	swap.Data = &Swap{
+		Id: "gude",
+	}
+
+	swapBytes, err := json.Marshal(swap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("%s", string(swapBytes))
+	var sm *StateMachine
+
+	err = json.Unmarshal(swapBytes, &sm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, swap.Data.GetId(), sm.Data.Id)
+}
 func Test_ValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
 	initiator := "ab123"
@@ -20,7 +42,7 @@ func Test_ValidSwap(t *testing.T) {
 	FeeInvoice := "feeinv"
 	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]Data{}}
+	store := &dummyStore{dataMap: map[string]*StateMachine{}}
 	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
@@ -40,7 +62,7 @@ func Test_ValidSwap(t *testing.T) {
 		utils,
 	)
 
-	swapFSM := newSwapOutSenderFSM(store, swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -52,8 +74,8 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, initiator, swapFSM.Data.(*Swap).InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
+	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
+	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
@@ -71,7 +93,7 @@ func Test_ValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, "txhex", swapFSM.Data.(*Swap).OpeningTxHex)
+	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
 
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
 	if err != nil {
@@ -87,7 +109,7 @@ func Test_Cancel2(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "preimage"
 	msgChan := make(chan PeerMessage)
-	store := &dummyStore{dataMap: map[string]Data{}}
+	store := &dummyStore{dataMap: map[string]*StateMachine{}}
 	messenger := &dummyMessenger{
 		msgChan: msgChan,
 	}
@@ -109,7 +131,7 @@ func Test_Cancel2(t *testing.T) {
 		utils,
 	)
 
-	swapFSM := newSwapOutSenderFSM(store, swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -138,7 +160,7 @@ func Test_Cancel1(t *testing.T) {
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
 
-	store := &dummyStore{dataMap: map[string]Data{}}
+	store := &dummyStore{dataMap: map[string]*StateMachine{}}
 	messenger := &dummyMessenger{
 		msgChan: msgChan,
 	}
@@ -160,7 +182,7 @@ func Test_Cancel1(t *testing.T) {
 		utils,
 	)
 
-	swapFSM := newSwapOutSenderFSM(store, swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -191,7 +213,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	FeePreimage := "preimage"
 	msgChan := make(chan PeerMessage)
 
-	store := &dummyStore{dataMap: map[string]Data{}}
+	store := &dummyStore{dataMap: map[string]*StateMachine{}}
 	messenger := &dummyMessenger{msgChan}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
@@ -211,7 +233,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		utils,
 	)
 
-	swapFSM := newSwapOutSenderFSM(store, swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      swapAmount,
@@ -224,8 +246,8 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = <-msgChan
-	assert.Equal(t, initiator, swapFSM.Data.(*Swap).InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.(*Swap).TakerPubkeyHash)
+	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
+	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: FeeInvoice})
 	if err != nil {
@@ -243,8 +265,8 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, "txhex", swapFSM.Data.(*Swap).OpeningTxHex)
-	swapFSM.Data.(*Swap).Payreq = "err"
+	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
+	swapFSM.Data.ClaimPayreq = "err"
 	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -260,15 +282,15 @@ func Test_AbortCltvClaim(t *testing.T) {
 }
 
 type dummyStore struct {
-	dataMap map[string]Data
+	dataMap map[string]*StateMachine
 }
 
-func (d *dummyStore) UpdateData(data Data) error {
-	d.dataMap[data.GetId()] = data
+func (d *dummyStore) UpdateData(data *StateMachine) error {
+	d.dataMap[data.Id] = data
 	return nil
 }
 
-func (d *dummyStore) GetData(id string) (Data, error) {
+func (d *dummyStore) GetData(id string) (*StateMachine, error) {
 	if _, ok := d.dataMap[id]; !ok {
 		return nil, ErrDataNotAvailable
 	}
@@ -440,7 +462,7 @@ func (d *DummyNode) SendRawTx(txHex string) (string, error) {
 type DummyUtility struct{}
 
 func (d *DummyUtility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
-	return []byte("redeemscript"),nil
+	return []byte("redeemscript"), nil
 }
 
 func (d *DummyUtility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
@@ -450,7 +472,6 @@ func (d *DummyUtility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
 func (d *DummyUtility) GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
 	return [][]byte{}
 }
-
 
 func (d *DummyUtility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	return &transaction.Transaction{Inputs: []*transaction.TxInput{&transaction.TxInput{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil

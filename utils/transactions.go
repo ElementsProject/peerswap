@@ -175,15 +175,18 @@ func FindVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, err
 func CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
+		log.Printf("error creating first tx %s", openingTxHex)
 		return nil, [32]byte{}, err
 	}
 
 	swapInValue, err := elementsutil.SatoshiToElementsValue(swapAmount)
 	if err != nil {
+		log.Printf("error getting swapin value")
 		return nil, [32]byte{}, err
 	}
 	vout, err := FindVout(firstTx.Outputs, redeemScript)
 	if err != nil {
+		log.Printf("error finding vour")
 		return nil, [32]byte{}, err
 	}
 

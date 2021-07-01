@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"github.com/sputn1ck/glightning/gelements"
 	blockchain2 "github.com/sputn1ck/peerswap/blockchain"
 	"github.com/sputn1ck/peerswap/policy"
@@ -25,11 +24,6 @@ func main() {
 
 }
 func run() error {
-	if len(os.Args) > 1 && (os.Args[1] == "--lnd") {
-		// make lnd handler
-		return errors.New("lnd mode is not yet supported")
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// initialize
@@ -102,7 +96,6 @@ func run() error {
 	simplepolicy := &policy.SimplePolicy{}
 	utility := &utils.Utility{}
 
-
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
@@ -120,7 +113,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-
 
 	go func() {
 		err := txWatcher.StartWatchingTxs()

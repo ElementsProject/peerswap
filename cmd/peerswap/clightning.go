@@ -135,7 +135,6 @@ func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType strin
 	c.msgHandlers = append(c.msgHandlers, f)
 }
 
-
 func (c *ClightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
 	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
 }
@@ -171,9 +170,13 @@ func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error
 func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
 	typeString := event.Payload[:4]
 	payload := event.Payload[4:]
+	payloadDecoded, err := hex.DecodeString(payload)
+	if err != nil {
+		log.Printf("[Messenger] error decoding payload %v", err)
+	}
 	log.Printf("new custom msg. peer: %s, messageType %s messageType payload: %s", event.PeerId, typeString, payload)
 	for _, v := range c.msgHandlers {
-		err := v(event.PeerId, typeString, payload)
+		err := v(event.PeerId, typeString, string(payloadDecoded))
 		if err != nil {
 			log.Printf("\n msghandler err: %v", err)
 		}

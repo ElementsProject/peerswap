@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/swap"
 )
 
 type GetAddressMethod struct {
@@ -100,11 +99,11 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.SatAmt, l.ShortChannelId, pk)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
-	return swapOut.Data.(*swap.Swap).ToPrettyPrint(), nil
+	return swapOut.Data.ToPrettyPrint(), nil
 }
 
 type SwapIn struct {
@@ -163,11 +162,11 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("Not enough balance on liquid wallet")
 	}
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.SatAmt, l.ShortChannelId, pk)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
-	return swapOut.Data.(*swap.Swap).ToPrettyPrint(), nil
+	return swapOut.Data.ToPrettyPrint(), nil
 }
 
 type ListSwaps struct {

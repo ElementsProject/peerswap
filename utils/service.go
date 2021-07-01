@@ -6,10 +6,10 @@ import (
 	"github.com/vulpemventures/go-elements/transaction"
 )
 
-type Utility struct {}
+type Utility struct{}
 
 func (u *Utility) CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {
-	return CreateOpeningTransaction(redeemScript,asset,amount)
+	return CreateOpeningTransaction(redeemScript, asset, amount)
 }
 
 func (u *Utility) VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
@@ -21,7 +21,7 @@ func (u *Utility) Blech32ToScript(blech32Addr string, network *network.Network) 
 }
 
 func (u *Utility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	return CreateSpendingTransaction(openingTxHex,swapAmount,feeAmount,currentBlock, asset, redeemScript,outputScript)
+	return CreateSpendingTransaction(openingTxHex, swapAmount, feeAmount, currentBlock, asset, redeemScript, outputScript)
 }
 
 func (u *Utility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
@@ -46,10 +46,9 @@ func (u *Utility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash st
 }
 
 func (u *Utility) GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
-	return GetPreimageWitness(signature,preimage,redeemScript)
+	return GetPreimageWitness(signature, preimage, redeemScript)
 }
 
 func (u *Utility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
-	return GetCltvWitness(signature,redeemScript)
+	return GetCltvWitness(signature, redeemScript)
 }
-

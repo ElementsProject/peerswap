@@ -4,8 +4,9 @@ type SimplePolicy struct {
 	premium uint64
 }
 
+// todo correct fee
 func (s *SimplePolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channelId string) bool {
-	return !(feeAmount > uint64(float64(swapAmount)*0.1))
+	return true
 }
 
 func (s *SimplePolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error) {

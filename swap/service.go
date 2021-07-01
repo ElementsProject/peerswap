@@ -52,6 +52,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		return err
 	}
 	msgBytes := []byte(payload)
+	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	case MESSAGETYPE_SWAPOUTREQUEST:
 		var msg SwapOutRequest
@@ -136,8 +137,9 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 }
 
 // todo check prerequisites
-func (s *SwapService) SwapOut(channelId string, amount uint64, peer string, initiator string) (*StateMachine, error) {
-	swap := newSwapOutSenderFSM(s.swapServices.swapStore, s.swapServices)
+func (s *SwapService) SwapOut(peer string, channelId string, initiator string, amount uint64) (*StateMachine, error) {
+	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
+	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
 		amount:      amount,
@@ -153,7 +155,7 @@ func (s *SwapService) SwapOut(channelId string, amount uint64, peer string, init
 }
 
 func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPubkeyHash string, amount uint64) error {
-	swap := newSwapOutReceiverFSM(swapId, s.swapServices.swapStore, s.swapServices)
+	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
@@ -267,9 +269,11 @@ func (s *SwapService) OnPayment(payment *glightning.Payment) {
 	var swapId string
 	var err error
 	if strings.Contains(payment.Label, "claim_") && len(payment.Label) == (len("claim_")+64) {
+		log.Printf("[SwapService] New claim payment received %s", payment.Label)
 		swapId = payment.Label[6:]
 		err = s.OnClaimInvoicePaid(swapId)
 	} else if strings.Contains(payment.Label, "fee_") && len(payment.Label) == (len("fee_")+64) {
+		log.Printf("[SwapService] New fee payment received %s", payment.Label)
 		swapId = payment.Label[4:]
 		err = s.OnFeeInvoicePaid(swapId)
 	} else {

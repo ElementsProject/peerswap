@@ -3,6 +3,7 @@ package swap
 import (
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/utils"
+	"log"
 )
 
 func CreateOpeningTransaction(services *SwapServices, swap *Swap) error {
@@ -13,7 +14,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *Swap) error {
 	}
 	spendingBlocktimeHeight := int64(blockHeight + services.blockchain.GetLocktime())
 	swap.Cltv = spendingBlocktimeHeight
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash,swap.MakerPubkeyHash,swap.PHash,swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
 	if err != nil {
 		return err
 	}
@@ -45,35 +46,42 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *Swap) (stri
 
 	address, err := wallet.GetAddress()
 	if err != nil {
+		log.Printf("error getting address")
 		return "", err
 	}
 	outputScript, err := services.utils.Blech32ToScript(address, blockchain.GetNetwork())
 	if err != nil {
+		log.Printf("error creating output script")
 		return "", err
 	}
 
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash,swap.MakerPubkeyHash,swap.PHash,swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
 	if err != nil {
+		log.Printf("error getting swap script")
 		return "", err
 	}
 
 	blockheight, err := blockchain.GetBlockHeight()
 	if err != nil {
+		log.Printf("error getting block height")
 		return "", err
 	}
 	// todo correct fee
 	spendingTx, sigHash, err := services.utils.CreateSpendingTransaction(swap.OpeningTxHex, swap.Amount, services.blockchain.GetFee(""), blockheight, blockchain.GetAsset(), redeemScript, outputScript)
 	if err != nil {
+		log.Printf("error creating spending tx")
 		return "", err
 	}
 
 	sig, err := swap.GetPrivkey().Sign(sigHash[:])
 	if err != nil {
+		log.Printf("error getting privkey")
 		return "", err
 	}
 
-	preimage, err := lightning.MakePreimageFromStr(swap.PreImage)
+	preimage, err := lightning.MakePreimageFromStr(swap.ClaimPreimage)
 	if err != nil {
+		log.Printf("error making preimage from string")
 		return "", err
 
 	}
@@ -82,6 +90,7 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *Swap) (stri
 
 	spendingTxHex, err := spendingTx.ToHex()
 	if err != nil {
+		log.Printf("error creating spending tx hex")
 		return "", err
 	}
 	return spendingTxHex, nil
@@ -100,7 +109,7 @@ func CreateCltvSpendingTransaction(services *SwapServices, swap *Swap) (string, 
 		return "", err
 	}
 
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash,swap.MakerPubkeyHash,swap.PHash,swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
 	if err != nil {
 		return "", err
 	}
