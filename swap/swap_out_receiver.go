@@ -132,6 +132,7 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *Swap) Event
 
 type FeeInvoicePaidAction struct{}
 
+// todo seperate into broadcast state and sendmessage state
 func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *Swap) EventType {
 
 	node := services.blockchain
@@ -159,7 +160,7 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *Swap) Event
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimPayreq,
-		TxId:            txId,
+		TxId:            swap.OpeningTxId,
 		TxHex:           swap.OpeningTxHex,
 		Cltv:            swap.Cltv,
 	}
@@ -178,6 +179,7 @@ func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *Swap) Even
 
 type CltvPassedAction struct{}
 
+// todo seperate into claim state and sendmessage state
 func (c *CltvPassedAction) Execute(services *SwapServices, swap *Swap) EventType {
 
 	blockchain := services.blockchain

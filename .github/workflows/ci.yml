@@ -2,7 +2,8 @@ name: test
 
 on:
   push:
-    branches: [master]
+    branches:
+      - '**'
   pull_request:
     branches: [master]
 
@@ -20,14 +21,52 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
+      - name: Get dependencies
+        run: go get -v -t -d ./...
+
+      - name: Compile
+        run: make build
+
       - name: Install Nigiri
         run: |
           mkdir ~/.nigiri; cd ~/.nigiri
           curl https://travis.nigiri.network | bash; cd
           docker-compose -f ~/.nigiri/docker-compose.yml up -d
 
-      - name: Get dependencies
-        run: go get -v -t -d ./...
-
       - name: Test
         run: make test
+
+      - name: Checkout c-lightning@master
+        uses: actions/checkout@v2
+        with:
+          repository: 'ElementsProject/lightning'
+          path: 'lightning'
+          ref: 'master'
+          submodules: 'recursive'
+
+      - name: Download runtime dependencies
+        run: |
+          export BITCOIND_VERSION="0.20.1"
+          wget https://storage.googleapis.com/c-lightning-tests/bitcoin-${BITCOIND_VERSION}-x86_64-linux-gnu.tar.bz2
+          tar -xjf bitcoin-${BITCOIND_VERSION}-x86_64-linux-gnu.tar.bz2
+          sudo mv bitcoin-${BITCOIND_VERSION}/bin/* /usr/local/bin
+          rm -rf bitcoin-${BITCOIND_VERSION}-x86_64-linux-gnu.tar.gz bitcoin-${BITCOIND_VERSION}
+
+      - name: Compile & install c-lightning@master
+        run: |
+          export EXPERIMENTAL_FEATURES=0
+          export DEVELOPER=1
+          export VALGRIND=0
+          sudo apt-get install -y libsqlite3-dev build-essential gettext python python3 python3-mako net-tools zlib1g-dev libsodium-dev libpq-dev postgresql
+          cd lightning
+          ./configure --disable-valgrind
+          make -j 16
+          sudo make install
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test with pytest
+        run: |
+          pip3 install -U virtualenv pip
+          python3 .ci/test.py

@@ -285,6 +285,10 @@ type dummyStore struct {
 	dataMap map[string]*StateMachine
 }
 
+func (d *dummyStore) ListAll() ([]*StateMachine, error) {
+	panic("implement me")
+}
+
 func (d *dummyStore) UpdateData(data *StateMachine) error {
 	d.dataMap[data.Id] = data
 	return nil

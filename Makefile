@@ -1,6 +1,6 @@
 build:
-	go build -o liquid-swap-plugin ./cmd/peerswap/.
-	chmod a+x liquid-swap-plugin
+	go build -tags dev -o peerswap ./cmd/peerswap/main.go
+	chmod a+x peerswap
 test:
 	go test -count=1 -v ./...
 release:

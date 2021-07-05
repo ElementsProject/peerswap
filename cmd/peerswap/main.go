@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/sputn1ck/glightning/gelements"
 	blockchain2 "github.com/sputn1ck/peerswap/blockchain"
+	"github.com/sputn1ck/peerswap/clightning"
 	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/txwatcher"
@@ -27,7 +28,7 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// initialize
-	clightning, initChan, err := NewClightningClient()
+	clightning, initChan, err := clightning.NewClightningClient()
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,9 @@ func run() error {
 		}
 	}()
 
-	clightning.SetupClients(rpcWallet, swapService, ecli)
+	clightning.SetupClients(rpcWallet, swapService, ecli, ecli)
+
+	log.Printf("peerswap initialized")
 	<-quitChan
 	return nil
 }

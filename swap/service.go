@@ -299,6 +299,10 @@ func (s *SwapService) OnCancelReceived(swapId string) error {
 	return nil
 }
 
+func (s *SwapService) ListSwaps() ([]*StateMachine, error) {
+	return s.swapServices.swapStore.ListAll()
+}
+
 func (s *SwapService) AddSwap(swapId string, swap *StateMachine) {
 	s.Lock()
 	defer s.Unlock()

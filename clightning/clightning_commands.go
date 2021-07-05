@@ -1,10 +1,13 @@
-package main
+package clightning
 
 import (
 	"errors"
 	"fmt"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/swap"
+	"log"
+	"sort"
 )
 
 type GetAddressMethod struct {
@@ -26,6 +29,7 @@ func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[Wallet] Getting address %s", res)
 	return fmt.Sprintf("%s", res), nil
 }
 
@@ -187,20 +191,25 @@ func (l *ListSwaps) Name() string {
 
 // todo reimplement
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
-	//swaps, err := l.cl.swaps.ListSwaps()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//sort.Slice(swaps, func(i, j int) bool {
-	//	return swaps[i].CreatedAt < swaps[j].CreatedAt
-	//})
-	//if l.PrettyPrint == 1 {
-	//	var pswasp []*swap.PrettyPrintSwap
-	//	for _, v := range swaps {
-	//		pswasp = append(pswasp, v.ToPrettyPrint())
-	//	}
-	//	return pswasp, nil
-	//}
-	//return swaps, nil
-	return "not implemented yet", nil
+	swaps, err := l.cl.swaps.ListSwaps()
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(swaps, func(i, j int) bool {
+		if swaps[i].Data != nil && swaps[j].Data != nil {
+			return swaps[i].Data.CreatedAt < swaps[j].Data.CreatedAt
+		}
+		return false
+	})
+	if l.PrettyPrint == 1 {
+		var pswasp []*swap.PrettyPrintSwap
+		for _, v := range swaps {
+			if v.Data == nil {
+				continue
+			}
+			pswasp = append(pswasp, v.Data.ToPrettyPrint())
+		}
+		return pswasp, nil
+	}
+	return swaps, nil
 }

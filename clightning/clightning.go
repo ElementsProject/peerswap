@@ -1,4 +1,4 @@
-package main
+package clightning
 
 import (
 	"crypto/rand"
@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
+	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/blockchain"
 	"github.com/sputn1ck/peerswap/lightning"
@@ -18,6 +20,8 @@ import (
 	"path/filepath"
 	"strconv"
 )
+
+var methods []peerswaprpcMethod
 
 const (
 	dbOption          = "peerswap-db-path"
@@ -38,6 +42,8 @@ type ClightningClient struct {
 	wallet     wallet.Wallet
 	swaps      *swap.SwapService
 	blockchain blockchain.Blockchain
+
+	Gelements *gelements.Elements
 
 	msgHandlers          []func(peerId string, messageType string, payload string) error
 	paymentSubscriptions []func(payment *glightning.Payment)
@@ -174,7 +180,6 @@ func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent)
 	if err != nil {
 		log.Printf("[Messenger] error decoding payload %v", err)
 	}
-	log.Printf("new custom msg. peer: %s, messageType %s messageType payload: %s", event.PeerId, typeString, payload)
 	for _, v := range c.msgHandlers {
 		err := v(event.PeerId, typeString, string(payloadDecoded))
 		if err != nil {
@@ -298,10 +303,11 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, blockchain blockchain.Blockchain) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, blockchain blockchain.Blockchain, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.blockchain = blockchain
+	c.Gelements = elements
 }
 func (c *ClightningClient) RegisterMethods() error {
 	swapIn := glightning.NewRpcMethod(&SwapIn{
@@ -349,5 +355,18 @@ func (c *ClightningClient) RegisterMethods() error {
 		return err
 	}
 
+	for _, v := range methods {
+		method := v.Get(c)
+		glightningMethod := glightning.NewRpcMethod(method, "dev")
+		glightningMethod.Category = "liquid-swap-dev"
+		err = c.plugin.RegisterMethod(glightningMethod)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+type peerswaprpcMethod interface {
+	Get(*ClightningClient) jrpc2.ServerMethod
 }

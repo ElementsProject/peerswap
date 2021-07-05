@@ -185,7 +185,7 @@ e
 		# Start the lightning nodes
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
 			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/liquid-swap-plugin" \
+			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/peerswap" \
 			 --peerswap-liquid-rpchost=http://localhost \
 			 --peerswap-liquid-rpcport=7041 \
 			 --peerswap-liquid-rpcuser=admin1 \
@@ -229,7 +229,7 @@ e
         		# shellcheck disable=SC2139 disable=SC2086
         		alias l$i-log="less /tmp/l$i-$network/log"
         		alias l$i-follow="tail -f /tmp/l$i-$network/log"
-        		alias l$i-followf="tail -f /tmp/l$i-$network/log | grep liquid-swap"
+        		alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
         done
         # Give a hint.
         echo "Commands: "

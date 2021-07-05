@@ -85,7 +85,7 @@ func NewTestSetup() (*TestSetup, error) {
 	walletCli := gelements.NewElements("admin1", "123")
 	err := walletCli.StartUp("http://localhost", LiquidPort)
 	if err != nil {
-		return nil, errors.New("error creating test setup")
+		return nil, errors.New(fmt.Sprintf("error creating test setup %v", err))
 	}
 	return &TestSetup{Elcli: walletCli}, nil
 }

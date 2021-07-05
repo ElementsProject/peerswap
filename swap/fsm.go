@@ -54,6 +54,7 @@ type State struct {
 type Store interface {
 	UpdateData(data *StateMachine) error
 	GetData(id string) (*StateMachine, error)
+	ListAll() ([]*StateMachine, error)
 }
 
 // States represents a mapping of states and their implementations.
@@ -110,7 +111,7 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 	}
 	for {
 		// Determine the next state for the event given the machine's current state.
-		log.Printf("[FSM] event: %s on %s", event, s.Current)
+		log.Printf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
 		nextState, err := s.getNextState(event)
 		if err != nil {
 			return ErrEventRejected
@@ -146,4 +147,26 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		event = nextEvent
 
 	}
+}
+
+// Recover tries to continue from the current state, by doing the associated Action
+func (s *StateMachine) Recover() error {
+	state, ok := s.States[s.Current]
+	if !ok || state.Action == nil {
+		// configuration error
+		return ErrFsmConfig
+	}
+	nextEvent := state.Action.Execute(s.swapServices, s.Data)
+	err := s.swapServices.swapStore.UpdateData(s)
+	if err != nil {
+		return err
+	}
+	if nextEvent == NoOp {
+		return nil
+	}
+	err = s.SendEvent(nextEvent, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
