@@ -185,12 +185,13 @@ e
 		# Start the lightning nodes
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
 			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/liquid-swap-plugin" \
+			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/peerswap" \
 			 --peerswap-liquid-rpchost=http://localhost \
 			 --peerswap-liquid-rpcport=7041 \
 			 --peerswap-liquid-rpcuser=admin1 \
 			 --peerswap-liquid-rpcpassword=123 \
-			 --peerswap-liquid-network=regtest
+			 --peerswap-liquid-network=regtest \
+			 --peerswap-liquid-rpcwallet=swap-$i
 
 		# shellcheck disable=SC2139 disable=SC2086
 		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
@@ -228,7 +229,7 @@ e
         		# shellcheck disable=SC2139 disable=SC2086
         		alias l$i-log="less /tmp/l$i-$network/log"
         		alias l$i-follow="tail -f /tmp/l$i-$network/log"
-        		alias l$i-followf="tail -f /tmp/l$i-$network/log | grep liquid-swap"
+        		alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
         done
         # Give a hint.
         echo "Commands: "
@@ -288,20 +289,28 @@ e
         faucet $l1_liquid
     }
 
-    faucet() {
-    echo $1
-        curl --header "Content-Type: application/json" \
-          --request POST \
-          --data '{"address":"$1"}' \
-          http://localhost:3001/faucet
+    faucet-l() {
+    address=$(l1-cli liquid-wallet-getaddress)
+    echo $address
+    nigiri faucet --liquid $address 1
     }
 
     l_generate() {
-        nigiri rpc --liquid generatetoaddress $1 ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep
+    if [ -z "$1" ]; then
+            		block_count=1
+            	else
+            		block_count=$1
+            fi
+        nigiri rpc --liquid generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep
 
     }
     generate() {
-        nigiri rpc generatetoaddress $1 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1
+    if [ -z "$1" ]; then
+            		block_count=1
+            	else
+            		block_count=$1
+            fi
+        nigiri rpc generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1
     }
     setup_alias
      '';

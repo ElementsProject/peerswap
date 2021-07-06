@@ -3,6 +3,8 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/glightning/gelements"
+	"github.com/vulpemventures/go-elements/transaction"
 	"strings"
 )
 
@@ -19,11 +21,55 @@ type RpcClient interface {
 	CreateWallet(walletname string) (string, error)
 	SetRpcWallet(walletname string)
 	ListWallets() ([]string, error)
+	FundRawTx(txHex string) (*gelements.FundRawResult, error)
+	BlindRawTransaction(txHex string) (string, error)
+	SignRawTransactionWithWallet(txHex string) (gelements.SignRawTransactionWithWalletRes, error)
+	SendRawTx(txHex string) (string, error)
 }
 
 type rpcWallet struct {
 	walletName string
 	rpcClient  RpcClient
+}
+
+func (r *rpcWallet) FinalizeTransaction(rawTx string) (string, error) {
+	unblinded, err := r.rpcClient.BlindRawTransaction(rawTx)
+	if err != nil {
+		return "", err
+	}
+	finalized, err := r.rpcClient.SignRawTransactionWithWallet(unblinded)
+	if err != nil {
+		return "", err
+	}
+	return finalized.Hex, nil
+}
+
+func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
+	txHex, err := preparedTx.ToHex()
+	if err != nil {
+		return "", 0, err
+	}
+	fundedTx, err := r.rpcClient.FundRawTx(txHex)
+	if err != nil {
+		return "", 0, err
+	}
+	return fundedTx.TxString, gelements.ConvertBtc(fundedTx.Fee), nil
+}
+
+func (r *rpcWallet) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
+	unblinded, err := r.rpcClient.BlindRawTransaction(rawTx)
+	if err != nil {
+		return "", err
+	}
+	finalized, err := r.rpcClient.SignRawTransactionWithWallet(unblinded)
+	if err != nil {
+		return "", err
+	}
+	txId, err = r.rpcClient.SendRawTx(finalized.Hex)
+	if err != nil {
+		return "", err
+	}
+	return txId, nil
 }
 
 func NewRpcWallet(rpcClient RpcClient, walletName string) (*rpcWallet, error) {

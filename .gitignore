@@ -14,3 +14,7 @@ liquid-swap-plugin
 
 db
 dist/
+
+peerswap
+
+peerswap_pytest/__pycache__/

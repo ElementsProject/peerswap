@@ -6,5 +6,6 @@ type Config struct {
 	RpcPassword string
 	RpcHost     string
 	RpcPort     uint
+	RpcWallet   string
 	Network     string
 }

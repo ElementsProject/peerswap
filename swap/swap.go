@@ -20,40 +20,14 @@ func (s SwapType) String() string {
 	return ""
 }
 
-type SwapState int
-
-func (s SwapState) String() string {
-	switch s {
-	case SWAPSTATE_CREATED:
-		return "created"
-	case SWAPSTATE_REQUEST_SENT:
-		return "request sent"
-	case SWAPSTATE_REQUEST_RECEIVED:
-		return "request received"
-	case SWAPSTATE_OPENING_TX_PREPARED:
-		return "opening tx prepared"
-	case SWAPSTATE_OPENING_TX_BROADCASTED:
-		return "opening tx broadcasted"
-	case SWAPSTATE_WAITING_FOR_TX:
-		return "waiting for opening tx"
-	case SWAPSTATE_CLAIMED_PREIMAGE:
-		return "claimed with preimage"
-	case SWAPSTATE_CLAIMED_TIMELOCK:
-		return "claimed with cltv"
-	case SWAPSTATE_CANCELED:
-		return "canceled"
-	}
-	return ""
-}
-
 type SwapRole int
 
 func (s SwapRole) String() string {
 	switch s {
-	case SWAPROLE_MAKER:
-		return "maker"
-	case SWAPROLE_TAKER:
-		return "taker"
+	case SWAPROLE_SENDER:
+		return "sender"
+	case SWAPROLE_RECEIVER:
+		return "receiver"
 	}
 	return ""
 }
@@ -65,27 +39,10 @@ type ClaimType int
 const (
 	SWAPTYPE_IN SwapType = iota
 	SWAPTYPE_OUT
-
-	MESSAGETYPE_SWAPREQUEST   = "a455"
-	MESSAGETYPE_MAKERRESPONSE = "a457"
-	MESSAGETYPE_TAKERRESPONSE = "a459"
-	MESSAGETYPE_ERRORRESPONSE = "a461"
-	MESSAGETYPE_CLAIMED       = "a463"
 )
 const (
-	SWAPROLE_MAKER SwapRole = iota
-	SWAPROLE_TAKER
-)
-const (
-	SWAPSTATE_CREATED SwapState = iota
-	SWAPSTATE_REQUEST_SENT
-	SWAPSTATE_REQUEST_RECEIVED
-	SWAPSTATE_OPENING_TX_PREPARED
-	SWAPSTATE_OPENING_TX_BROADCASTED
-	SWAPSTATE_WAITING_FOR_TX
-	SWAPSTATE_CLAIMED_PREIMAGE
-	SWAPSTATE_CLAIMED_TIMELOCK
-	SWAPSTATE_CANCELED
+	SWAPROLE_SENDER SwapRole = iota
+	SWAPROLE_RECEIVER
 )
 const (
 	CLAIMTYPE_PREIMAGE = iota
@@ -96,9 +53,9 @@ const (
 type Swap struct {
 	Id              string
 	Type            SwapType
-	State           SwapState
+	FSMState        StateType
 	Role            SwapRole
-	CreatedAt int64
+	CreatedAt       int64
 	InitiatorNodeId string
 	PeerNodeId      string
 	Amount          uint64
@@ -106,9 +63,9 @@ type Swap struct {
 
 	PrivkeyBytes []byte
 
-	Payreq   string
-	PreImage string
-	PHash    string
+	ClaimPayreq     string
+	ClaimPreimage   string
+	ClaimPaymenHash string
 
 	// Script
 	MakerPubkeyHash string
@@ -116,38 +73,60 @@ type Swap struct {
 
 	Cltv int64
 
-	OpeningTxId   string
-	OpeningTxHex  string
-	OpeningTxVout uint32
+	FeeInvoice  string
+	FeePreimage string
+
+	OpeningTxId            string
+	OpeningTxUnpreparedHex string
+	OpeningTxVout          uint32
+	OpeningTxFee           uint64
+	OpeningTxHex           string
 
 	ClaimTxId string
+
+	CancelMessage string
+
+	LastErr error `json:"-"`
+}
+
+func (s *Swap) GetId() string {
+	return s.Id
+}
+
+func (s *Swap) SetState(stateType StateType) {
+	s.FSMState = stateType
+}
+func (s *Swap) GetCurrentState() StateType {
+	return s.FSMState
 }
 
 type PrettyPrintSwap struct {
 	Id              string
 	CreatedAt       string
 	Type            string
-	Role 			string
+	Role            string
 	State           string
 	InitiatorNodeId string
 	PeerNodeId      string
 	Amount          uint64
 	ShortChannelId  string
 
-	OpeningTxId string
+	OpeningTxId string `json:",omitempty"`
 
-	ClaimTxId string
+	ClaimTxId string `json:",omitempty"`
 
-	CltvHeight int64
+	CltvHeight int64 `json:",omitempty"`
+
+	CancelMessage string `json:",omitempty"`
 }
 
 func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
-	timeStamp := time.Unix(s.CreatedAt,0)
+	timeStamp := time.Unix(s.CreatedAt, 0)
 	return &PrettyPrintSwap{
 		Id:              s.Id,
-		Type:            fmt.Sprintf("%s",s.Type),
-		Role:			 s.Role.String(),
-		State:           s.State.String(),
+		Type:            fmt.Sprintf("%s", s.Type),
+		Role:            s.Role.String(),
+		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
 		Amount:          s.Amount,
@@ -156,6 +135,7 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 		ClaimTxId:       s.ClaimTxId,
 		CltvHeight:      s.Cltv,
 		CreatedAt:       timeStamp.String(),
+		CancelMessage:   s.CancelMessage,
 	}
 }
 
@@ -165,31 +145,29 @@ func (s *Swap) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
+func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
 	return &Swap{
-		Id:              newSwapId(),
+		Id:              swapId,
 		Role:            swapRole,
 		Type:            swapType,
-		State:           SWAPSTATE_CREATED,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		ChannelId:       channelId,
 		Amount:          amount,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
-		CreatedAt: time.Now().Unix(),
+		CreatedAt:       time.Now().Unix(),
 	}
 }
 
-func NewSwapFromRequest(senderNodeId string, request SwapRequest) *Swap {
+func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, channelId string, swapType SwapType) *Swap {
 	return &Swap{
-		Id:              request.SwapId,
-		Type:            request.Type,
-		State:           SWAPSTATE_REQUEST_RECEIVED,
+		Id:              swapId,
+		Type:            swapType,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
-		Amount:          request.Amount,
-		ChannelId:       request.ChannelId,
-		CreatedAt: time.Now().Unix(),
+		Amount:          amount,
+		ChannelId:       channelId,
+		CreatedAt:       time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 	}
 }
@@ -208,61 +186,4 @@ func getRandomPrivkey() *btcec.PrivateKey {
 		return nil
 	}
 	return privkey
-}
-
-// SwapRequest gets send when a peer wants to start a new swap.
-type SwapRequest struct {
-	SwapId          string
-	ChannelId       string
-	Amount          uint64
-	Type            SwapType
-	TakerPubkeyHash string
-}
-
-func (s *SwapRequest) MessageType() string {
-	return MESSAGETYPE_SWAPREQUEST
-}
-
-// MakerResponse is the response if the requester wants to swap out.
-type MakerResponse struct {
-	SwapId          string
-	MakerPubkeyHash string
-	Invoice         string
-	TxId            string
-	TxHex           string
-	Cltv            int64
-	Vout            uint32
-}
-
-func (m *MakerResponse) MessageType() string {
-	return MESSAGETYPE_MAKERRESPONSE
-}
-
-// TakerResponse is the response if the requester wants to swap in
-type TakerResponse struct {
-	SwapId          string
-	TakerPubkeyHash string
-}
-
-func (t *TakerResponse) MessageType() string {
-	return MESSAGETYPE_TAKERRESPONSE
-}
-
-type ClaimedMessage struct {
-	SwapId    string
-	ClaimType ClaimType
-	ClaimTxId string
-}
-
-func (s *ClaimedMessage) MessageType() string {
-	return MESSAGETYPE_CLAIMED
-}
-
-type ErrorResponse struct {
-	SwapId string
-	Error  string
-}
-
-func (e *ErrorResponse) MessageType() string {
-	return MESSAGETYPE_ERRORRESPONSE
 }

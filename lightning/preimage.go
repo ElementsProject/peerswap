@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -30,6 +31,16 @@ func MakePreimage(newPreimage []byte) (Preimage, error) {
 	var preimage Preimage
 	copy(preimage[:], newPreimage)
 
+	return preimage, nil
+}
+
+// RandomPreimage returns a random Preimage
+func GetPreimage() (Preimage, error) {
+	var preimage Preimage
+
+	if _, err := rand.Read(preimage[:]); err != nil {
+		return preimage, err
+	}
 	return preimage, nil
 }
 
