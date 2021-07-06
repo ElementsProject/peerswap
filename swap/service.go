@@ -141,7 +141,7 @@ func (s *SwapService) SwapOut(peer string, channelId string, initiator string, a
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddSwap(swap.Id, swap)
-	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      amount,
 		initiatorId: initiator,
 		peer:        peer,

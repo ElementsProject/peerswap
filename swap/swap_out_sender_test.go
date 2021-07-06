@@ -64,7 +64,7 @@ func Test_ValidSwap(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -133,7 +133,7 @@ func Test_Cancel2(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -184,7 +184,7 @@ func Test_Cancel1(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -235,7 +235,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,

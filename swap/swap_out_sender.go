@@ -17,10 +17,10 @@ const (
 	State_SwapOutSender_ClaimedPreimage    StateType = "State_SwapOutSender_ClaimedPreimage"
 	State_SwapOutSender_ClaimedCltv        StateType = "State_SwapOutSender_ClaimedCltv"
 
-	State_SwapOutSender_SendCancel StateType = "State_SwapOutSender_SendCancel"
-	State_SwapOut_Canceled         StateType = "State_SwapOut_Canceled"
+	State_SendCancel       StateType = "State_SendCancel"
+	State_SwapOut_Canceled StateType = "State_SwapOut_Canceled"
 
-	Event_SwapOutSender_OnSwapOutCreated     EventType = "Event_SwapOutSender_OnSwapOutCreated"
+	Event_SwapOutSender_OnSwapOutRequested   EventType = "Event_SwapOutSender_OnSwapOutRequested"
 	Event_SwapOutSender_OnSwapCreated        EventType = "Event_SwapOutSender_OnSwapCreated"
 	Event_SwapOutSender_OnSendSwapOutSucceed EventType = "Event_SwapOutSender_OnSendSwapOutSucceed"
 	Event_SwapOutSender_OnFeeInvReceived     EventType = "Event_SwapOutSender_OnFeeInvoiceReceived"
@@ -290,7 +290,7 @@ func getSwapOutSenderStates() States {
 	return States{
 		Default: State{
 			Events: Events{
-				Event_SwapOutSender_OnSwapOutCreated: State_SwapOutSender_Init,
+				Event_SwapOutSender_OnSwapOutRequested: State_SwapOutSender_Init,
 			},
 		},
 		State_SwapOutSender_Init: {
@@ -316,18 +316,18 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_FeeInvoiceReceived: {
 			Action: &FeeInvoiceReceivedAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
 				Event_SwapOutSender_OnFeeInvoicePaid:   State_SwapOutSender_FeeInvoicePaid,
 			},
 		},
 		State_SwapOutSender_FeeInvoicePaid: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
 				Event_SwapOutSender_OnTxOpenedMessage:  State_SwapOutSender_TxBroadcasted,
 			},
 		},
-		State_SwapOutSender_SendCancel: {
+		State_SendCancel: {
 			Action: &SendSwapOutCancelAction{},
 			Events: Events{
 				Event_SwapOutSender_OnCancelSwapOut: State_SwapOut_Canceled,
@@ -342,14 +342,14 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_TxBroadcasted: {
 			Action: &SwapOutTxBroadCastedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
 				Event_SwapOutSender_OnTxConfirmations:   State_SwapOutSender_TxConfirmed,
 			},
 		},
 		State_SwapOutSender_TxConfirmed: {
 			Action: &SwapOutTxConfirmedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
 				Event_SwapOutSender_OnClaimTxPreimage:   State_SwapOutSender_ClaimInvPaid,
 			},
 		},
