@@ -175,7 +175,7 @@ func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: feeInvoice})
+	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeResponse{Invoice: feeInvoice})
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedContext{TxId: txId})
+	err = swap.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedContext{TxId: txId})
+	err = swap.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
 	}
@@ -235,9 +235,9 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxBroadcastedContext{
+	err = swap.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxOpenedResponse{
 		MakerPubkeyHash: makerPubkeyHash,
-		ClaimInvoice:    claimInvoice,
+		Invoice:         claimInvoice,
 		TxId:            txId,
 		TxHex:           txHex,
 		Cltv:            cltv,

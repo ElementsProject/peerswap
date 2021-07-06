@@ -20,7 +20,6 @@ const (
 	State_SwapOutReceiver_CltvPassed           StateType = "State_SwapOutReceiver_CltvPassed"
 	State_SwapOutReceiver_ClaimedCltv          StateType = "State_SwapOutReceiver_ClaimedCltv"
 
-
 	Event_SwapOutReceiver_OnSwapOutRequestReceived EventType = "Event_SwapOutReceiver_OnSwapOutRequestReceived"
 	Event_SwapOutReceiver_OnSwapCreated            EventType = "Event_SwapOutReceiver_SwapCreated"
 

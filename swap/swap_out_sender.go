@@ -71,11 +71,10 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	//todo correct message
 	msg := &SwapOutRequest{
-		SwapId:          swap.Id,
-		ChannelId:       swap.ChannelId,
-		Amount:          swap.Amount,
+		SwapId:    swap.Id,
+		ChannelId: swap.ChannelId,
+		Amount:    swap.Amount,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
@@ -84,14 +83,6 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 		return Event_SwapOutSender_OnCancelSwapOut
 	}
 	return Event_SwapOutSender_OnSendSwapOutSucceed
-}
-
-type FeeRequestContext struct {
-	FeeInvoice string
-}
-
-func (f *FeeRequestContext) ApplyOnSwap(swap *Swap) {
-	swap.FeeInvoice = f.FeeInvoice
 }
 
 type FeeInvoiceReceivedAction struct{}
@@ -120,22 +111,6 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *Swap) E
 	}
 	swap.FeePreimage = preimage
 	return Event_SwapOutSender_OnFeeInvoicePaid
-}
-
-type TxBroadcastedContext struct {
-	MakerPubkeyHash string
-	ClaimInvoice    string
-	TxId            string
-	TxHex           string
-	Cltv            int64
-}
-
-func (t *TxBroadcastedContext) ApplyOnSwap(swap *Swap) {
-	swap.MakerPubkeyHash = t.MakerPubkeyHash
-	swap.ClaimPayreq = t.ClaimInvoice
-	swap.OpeningTxId = t.TxId
-	swap.OpeningTxHex = t.TxHex
-	swap.Cltv = t.Cltv
 }
 
 type SwapOutTxBroadCastedAction struct{}
@@ -246,14 +221,6 @@ func (a *SwapOutAbortedAction) Execute(services *SwapServices, swap *Swap) Event
 		return Event_OnRetry
 	}
 	return NoOp
-}
-
-type ClaimedContext struct {
-	TxId string
-}
-
-func (c *ClaimedContext) ApplyOnSwap(swap *Swap) {
-	swap.ClaimTxId = c.TxId
 }
 
 type SwapOutClaimedCltvAction struct{}

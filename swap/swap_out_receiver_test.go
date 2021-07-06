@@ -59,8 +59,8 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapOutReceiver_ClaimInvoicePaid, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedContext{
-		TxId: "txId",
+	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedMessage{
+		ClaimTxId: "txId",
 	})
 	if err != nil {
 		t.Fatal(err)

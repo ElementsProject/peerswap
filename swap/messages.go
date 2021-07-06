@@ -69,6 +69,10 @@ type FeeResponse struct {
 	Invoice string
 }
 
+func (s *FeeResponse) ApplyOnSwap(swap *Swap) {
+	swap.FeeInvoice = s.Invoice
+}
+
 func (s *FeeResponse) MessageType() MessageType {
 	return MESSAGETYPE_FEERESPONSE
 }
@@ -76,6 +80,10 @@ func (s *FeeResponse) MessageType() MessageType {
 type SwapInAgreementResponse struct {
 	SwapId          string
 	TakerPubkeyHash string
+}
+
+func (s *SwapInAgreementResponse) ApplyOnSwap(swap *Swap) {
+	swap.TakerPubkeyHash = s.TakerPubkeyHash
 }
 
 func (s *SwapInAgreementResponse) MessageType() MessageType {
@@ -91,6 +99,14 @@ type TxOpenedResponse struct {
 	Cltv            int64
 }
 
+func (t *TxOpenedResponse) ApplyOnSwap(swap *Swap) {
+	swap.MakerPubkeyHash = t.MakerPubkeyHash
+	swap.ClaimPayreq = t.Invoice
+	swap.OpeningTxId = t.TxId
+	swap.OpeningTxHex = t.TxHex
+	swap.Cltv = t.Cltv
+}
+
 func (t *TxOpenedResponse) MessageType() MessageType {
 	return MESSAGETYPE_TXOPENEDRESPONSE
 }
@@ -101,7 +117,11 @@ type ClaimedMessage struct {
 	ClaimTxId string
 }
 
-func (s *ClaimedMessage) MessageType() MessageType {
+func (c *ClaimedMessage) ApplyOnSwap(swap *Swap) {
+	swap.ClaimTxId = c.ClaimTxId
+}
+
+func (c *ClaimedMessage) MessageType() MessageType {
 	return MESSAGETYPE_CLAIMED
 }
 
