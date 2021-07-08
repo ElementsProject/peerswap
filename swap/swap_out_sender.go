@@ -26,16 +26,16 @@ const (
 	Event_SwapOutSender_OnFeeInvReceived     EventType = "Event_SwapOutSender_OnFeeInvoiceReceived"
 	Event_SwapOutSender_OnCancelSwapOut      EventType = "Event_SwapOutSender_OnCancelSwapOut"
 	Event_SwapOutSender_OnFeeInvoicePaid     EventType = "Event_SwapOutSender_WaitInvoiceMessage"
-	Event_SwapOutSender_OnTxOpenedMessage    EventType = "Event_SwapOutSender_OnTxOpenededMsg"
 
-	Event_SwapOutSender_OnTxConfirmations EventType = "Event_SwapOutSender_OnTxConfirmations"
-	Event_SwapOutSender_FinishSwap        EventType = "Event_SwapOutSender_FinishSwap"
+	Event_OnTxOpenedMessage        EventType = "Event_SwapOutSender_OnTxOpenededMsg"
+	Event_OnTxConfirmed            EventType = "Event_OnTxConfirmed"
+	Event_SwapOutSender_FinishSwap EventType = "Event_SwapOutSender_FinishSwap"
 	// todo retrystate? failstate? refundstate?
-	Event_OnRetry                              EventType = "Event_OnRetry"
-	Event_OnRecover                            EventType = "Event_OnRecover"
-	Event_SwapOutSender_OnAbortSwapInternal    EventType = "Event_SwapOutSender_OnAbortSwapInternal"
-	Event_SwapOutSender_OnClaimTxPreimage      EventType = "Event_SwapOutSender_OnClaimTxPreimage"
-	Event_SwapOutSender_OnCltvClaimMsgReceived EventType = "Event_SwapOutSender_OnCltvClaimMsgReceived"
+	Event_OnRetry                           EventType = "Event_OnRetry"
+	Event_OnRecover                         EventType = "Event_OnRecover"
+	Event_SwapOutSender_OnAbortSwapInternal EventType = "Event_SwapOutSender_OnAbortSwapInternal"
+	Event_SwapOutSender_OnClaimTxPreimage   EventType = "Event_SwapOutSender_OnClaimTxPreimage"
+	Event_OnClaimedCltv                     EventType = "Event_OnClaimedCltv"
 )
 
 type SwapCreationContext struct {
@@ -291,7 +291,7 @@ func getSwapOutSenderStates() States {
 			Action: &NoOpAction{},
 			Events: Events{
 				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
-				Event_SwapOutSender_OnTxOpenedMessage:  State_SwapOutSender_TxBroadcasted,
+				Event_OnTxOpenedMessage:                State_SwapOutSender_TxBroadcasted,
 			},
 		},
 		State_SendCancel: {
@@ -303,14 +303,14 @@ func getSwapOutSenderStates() States {
 		State_SwapOut_Canceled: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutSender_OnCltvClaimMsgReceived: State_SwapOutSender_ClaimedCltv,
+				Event_OnClaimedCltv: State_SwapOutSender_ClaimedCltv,
 			},
 		},
 		State_SwapOutSender_TxBroadcasted: {
 			Action: &SwapOutTxBroadCastedAction{},
 			Events: Events{
 				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
-				Event_SwapOutSender_OnTxConfirmations:   State_SwapOutSender_TxConfirmed,
+				Event_OnTxConfirmed:                     State_SwapOutSender_TxConfirmed,
 			},
 		},
 		State_SwapOutSender_TxConfirmed: {

@@ -27,10 +27,6 @@ const (
 	Event_SwapInSender_OnAgreementReceived EventType = "Event_SwapInSender_OnAgreementReceived"
 	Event_SwapInSender_OnTxBroadcasted     EventType = "Event_SwapInSender_OnTxBroadcasted"
 	Event_SwapInSender_OnTxMsgSent         EventType = "Event_SwapInSender_OnTxMsgSent"
-	Event_SwapInSender_OnClaimInvPaid      EventType = "Event_SwapInSender_OnClaimInvPaid"
-	Event_SwapInSender_OnCltvPassed        EventType = "Event_SwapInSender_OnCltvPassed"
-	Event_SwapInSender_OnClaimTxPreimage   EventType = "Event_SwapInSender_OnClaimTxPreimage"
-	Event_SwapInSender_OnClaimTxCltv       EventType = "Event_SwapInSender_OnClaimTxCltv"
 
 	Event_ActionFailed EventType = "Event_ActionFailed"
 )
@@ -166,7 +162,7 @@ func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *Swa
 	if swap.LastErr != nil {
 		return Event_ActionFailed
 	}
-	return Event_SwapInSender_OnClaimTxCltv
+	return Event_OnClaimedCltv
 }
 
 func swapInSenderFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
@@ -224,23 +220,23 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_TxBroadcasted: {
 			Action: &SwapInSenderTxBroadcastedAction{},
 			Events: Events{
-				Event_SwapInSender_OnTxMsgSent:  State_SwapInSender_TxMsgSent,
-				Event_SwapInSender_OnCltvPassed: State_SwapInSender_CltvPassed,
-				Event_ActionFailed:              State_SendCancelThenWaitCltv,
+				Event_SwapInSender_OnTxMsgSent: State_SwapInSender_TxMsgSent,
+				Event_OnCltvPassed:             State_SwapInSender_CltvPassed,
+				Event_ActionFailed:             State_SendCancelThenWaitCltv,
 			},
 		},
 		State_SwapInSender_TxMsgSent: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInSender_OnClaimInvPaid: State_SwapInSender_ClaimInvPaid,
-				Event_SwapInSender_OnCltvPassed:   State_SwapInSender_CltvPassed,
-				Event_OnCancelReceived:            State_WaitCltv,
+				Event_OnClaimInvoicePaid: State_SwapInSender_ClaimInvPaid,
+				Event_OnCltvPassed:       State_SwapInSender_CltvPassed,
+				Event_OnCancelReceived:   State_WaitCltv,
 			},
 		},
 		State_SwapInSender_ClaimInvPaid: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInSender_OnClaimTxPreimage: State_SwapInSender_ClaimedPreimage,
+				Event_OnClaimedPreimage: State_SwapInSender_ClaimedPreimage,
 			},
 		},
 		State_SwapInSender_ClaimedPreimage: {
@@ -249,8 +245,8 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_CltvPassed: {
 			Action: &SwapInSenderCltvPassedAction{},
 			Events: Events{
-				Event_SwapInSender_OnClaimTxCltv: State_SwapInSender_ClaimedCltv,
-				Event_ActionFailed:               State_SwapInSender_CltvPassed,
+				Event_OnClaimedCltv: State_SwapInSender_ClaimedCltv,
+				Event_ActionFailed:  State_SwapInSender_CltvPassed,
 			},
 		},
 		State_SendCancelThenWaitCltv: {
@@ -262,7 +258,7 @@ func getSwapInSenderStates() States {
 		State_WaitCltv: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInSender_OnCltvPassed: State_SwapInSender_CltvPassed,
+				Event_OnCltvPassed: State_SwapInSender_CltvPassed,
 			},
 		},
 		State_SwapInSender_ClaimedCltv: {

@@ -53,13 +53,13 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimInvoicePaid, nil)
+	err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_ClaimInvoicePaid, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedMessage{
+	err = swapFSM.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
 		ClaimTxId: "txId",
 	})
 	if err != nil {
@@ -123,7 +123,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapOutReceiver_SwapAborted, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnCltvPassed, nil)
+	err = swapFSM.SendEvent(Event_OnCltvPassed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

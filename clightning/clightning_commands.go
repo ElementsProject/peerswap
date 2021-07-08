@@ -127,7 +127,6 @@ func (l *SwapIn) Name() string {
 	return "swap-in"
 }
 
-// todo change to swap in
 func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt parameter")
@@ -166,11 +165,11 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("Not enough balance on liquid wallet")
 	}
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
-	return swapOut.Data.ToPrettyPrint(), nil
+	return swapIn.Data.ToPrettyPrint(), nil
 }
 
 type ListSwaps struct {

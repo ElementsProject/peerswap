@@ -26,9 +26,9 @@ const (
 	Event_SwapOutReceiver_OnSendFeeInvoiceSuceeded EventType = "Event_SwapOutReceiver_SendFeeInvoiceSuceede"
 	Event_SwapOutReceiver_OnFeeInvoicePaid         EventType = "Event_SwapOutReceiver_OnFeeInvoicePaid"
 	Event_SwapOutReceiver_OnTxBroadcasted          EventType = "Event_SwapOutReceiver_TxBroadcasted"
-	Event_SwapOutReceiver_OnClaimInvoicePaid       EventType = "Event_SwapOutReceiver_OnClaimInvoicePaid"
-	Event_SwapOutReceiver_OnClaimMsgReceived       EventType = "Event_SwapOutReceiver_OnClaimMsgReceived"
-	Event_SwapOutReceiver_OnCltvPassed             EventType = "Event_SwapOutReceiver_OnCltvPassed"
+	Event_OnClaimInvoicePaid                       EventType = "Event_OnClaimInvoicePaid"
+	Event_OnClaimedPreimage                        EventType = "Event_OnClaimedPreimage"
+	Event_OnCltvPassed                             EventType = "Event_OnCltvPassed"
 	Event_SwapOutReceiver_OnCltvClaimed            EventType = "Event_SwapOutReceiver_OnCltvClaimed"
 
 	Event_OnCancelReceived                 EventType = "Event_OnCancelReceived"
@@ -280,15 +280,15 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_OpeningTxBroadcasted: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnClaimInvoicePaid: State_SwapOutReceiver_ClaimInvoicePaid,
-				Event_OnCancelReceived:                   State_SwapOutReceiver_SwapAborted,
-				Event_SwapOutReceiver_OnCltvPassed:       State_SwapOutReceiver_CltvPassed,
+				Event_OnClaimInvoicePaid: State_SwapOutReceiver_ClaimInvoicePaid,
+				Event_OnCancelReceived:   State_SwapOutReceiver_SwapAborted,
+				Event_OnCltvPassed:       State_SwapOutReceiver_CltvPassed,
 			},
 		},
 		State_SwapOutReceiver_ClaimInvoicePaid: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnClaimMsgReceived: State_SwapOutReceiver_ClaimedPreimage,
+				Event_OnClaimedPreimage: State_SwapOutReceiver_ClaimedPreimage,
 			},
 		},
 		State_SwapOutReceiver_ClaimedPreimage: {
@@ -297,7 +297,7 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_SwapAborted: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCltvPassed: State_SwapOutReceiver_CltvPassed,
+				Event_OnCltvPassed: State_SwapOutReceiver_CltvPassed,
 			},
 		},
 		State_SwapOutReceiver_CltvPassed: {

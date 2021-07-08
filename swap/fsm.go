@@ -144,6 +144,9 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		if nextEvent == Event_OnRetry {
 			log.Printf("[FSM] Retrying because of %v", s.Data.LastErr)
 		}
+		if nextEvent == Event_ActionFailed && s.Data.LastErr != nil {
+			log.Printf("[FSM] Action failure %v", s.Data.LastErr)
+		}
 		event = nextEvent
 
 	}

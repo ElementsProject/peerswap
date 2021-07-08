@@ -82,7 +82,7 @@ func Test_ValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxOpenedResponse{
+	err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
@@ -95,7 +95,7 @@ func Test_ValidSwap(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
 
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
+	err = swapFSM.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxOpenedResponse{
+	err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
@@ -267,14 +267,14 @@ func Test_AbortCltvClaim(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
 	swapFSM.Data.ClaimPayreq = "err"
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
+	err = swapFSM.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
 	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
-	err = swapFSM.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedMessage{ClaimTxId: "tx"})
+	err = swapFSM.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: "tx"})
 	if err != nil {
 		t.Fatal(err)
 	}

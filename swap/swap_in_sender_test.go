@@ -38,12 +38,12 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_TxMsgSent, swap.Current)
-	err = swap.SendEvent(Event_SwapInSender_OnClaimInvPaid, nil)
+	err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapInSender_ClaimInvPaid, swap.Current)
-	err = swap.SendEvent(Event_SwapInSender_OnClaimTxPreimage, &ClaimedMessage{
+	err = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: "txid",
@@ -117,7 +117,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_WaitCltv, swap.Current)
-	err = swap.SendEvent(Event_SwapInSender_OnCltvPassed, nil)
+	err = swap.SendEvent(Event_OnCltvPassed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

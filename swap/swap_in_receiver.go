@@ -17,14 +17,10 @@ const (
 	State_SwapInReceiver_ClaimedCltv          StateType = "State_SwapInReceiver_ClaimedCltv"
 	State_SwapInReceiver_ClaimedPreimage      StateType = "State_SwapInReceiver_ClaimedPreimage"
 
-	Event_SwapInReceiver_OnRequestReceived    EventType = "Event_SwapInReceiver_OnRequestReceived"
-	Event_SwapInReceiver_OnSwapCreated        EventType = "Event_SwapInReceiver_OnSwapCreated"
-	Event_SwapInReceiver_OnAgreementSent      EventType = "Event_SwapInReceiver_OnAgreementSent"
-	Event_SwapInReceiver_OnTxBroadcasted      EventType = "Event_SwapInReceiver_OnTxBroadcasted"
-	Event_SwapInReceiver_OnOpeningTxConfirmed EventType = "Event_SwapInReceiver_OnOpeningTxConvirmed"
-	Event_SwapInReceiver_OnClaimInvoicePaid   EventType = "Event_SwapInReceiver_OnClaimInvoicePaid"
-	Event_SwapInReceiver_OnClaimedPreimage    EventType = "Event_SwapInReceiver_OnClaimedPreimage"
-	Event_SwapInReceiver_OnClaimedCltv        EventType = "Event_SwapInReceiver_OnClaimedCltv"
+	Event_SwapInReceiver_OnRequestReceived  EventType = "Event_SwapInReceiver_OnRequestReceived"
+	Event_SwapInReceiver_OnSwapCreated      EventType = "Event_SwapInReceiver_OnSwapCreated"
+	Event_SwapInReceiver_OnAgreementSent    EventType = "Event_SwapInReceiver_OnAgreementSent"
+	Event_SwapInReceiver_OnClaimInvoicePaid EventType = "Event_SwapInReceiver_OnClaimInvoicePaid"
 )
 
 type SwapInReceiverInitAction struct{}
@@ -113,7 +109,7 @@ func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, s
 	if err != nil {
 		return Event_ActionFailed
 	}
-	return Event_SwapInReceiver_OnClaimedPreimage
+	return Event_OnClaimedPreimage
 }
 func SwapInReceiverFSMFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
 	smData.swapServices = services
@@ -156,8 +152,8 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_AgreementSent: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnTxBroadcasted: State_SwapInReceiver_OpeningTxBroadcasted,
-				Event_OnCancelReceived:               State_SwapCanceled,
+				Event_OnTxOpenedMessage: State_SwapInReceiver_OpeningTxBroadcasted,
+				Event_OnCancelReceived:  State_SwapCanceled,
 			},
 		},
 		State_SwapInReceiver_OpeningTxBroadcasted: {
@@ -170,8 +166,8 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_WaitForConfirmations: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnOpeningTxConfirmed: State_SwapInReceiver_OpeningTxConfirmed,
-				Event_OnCancelReceived:                    State_SwapCanceled,
+				Event_OnTxConfirmed:    State_SwapInReceiver_OpeningTxConfirmed,
+				Event_OnCancelReceived: State_SwapCanceled,
 			},
 		},
 		State_SwapInReceiver_OpeningTxConfirmed: {
@@ -184,7 +180,7 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_ClaimInvoicePaid: {
 			Action: &SwapInReceiverClaimInvoicePaidAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnClaimedPreimage: State_SwapInReceiver_ClaimedPreimage,
+				Event_OnClaimedPreimage: State_SwapInReceiver_ClaimedPreimage,
 			},
 		},
 		State_SwapInReceiver_ClaimedCltv: {
@@ -203,7 +199,7 @@ func getSwapInReceiverStates() States {
 		State_SwapCanceled: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnClaimedCltv: State_SwapInReceiver_ClaimedCltv,
+				Event_OnClaimedCltv: State_SwapInReceiver_ClaimedCltv,
 			},
 		},
 	}

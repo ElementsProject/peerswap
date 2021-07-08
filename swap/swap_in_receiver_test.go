@@ -31,7 +31,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
 	assert.Equal(t, State_SwapInReceiver_AgreementSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInReceiver_OnTxBroadcasted, &TxOpenedResponse{
+	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
@@ -43,7 +43,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapInReceiver_WaitForConfirmations, swap.Current)
-	err = swap.SendEvent(Event_SwapInReceiver_OnOpeningTxConfirmed, nil)
+	err = swap.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
 	assert.Equal(t, State_SwapInReceiver_AgreementSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInReceiver_OnTxBroadcasted, &TxOpenedResponse{
+	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
