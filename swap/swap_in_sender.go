@@ -169,6 +169,23 @@ func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *Swa
 	return Event_SwapInSender_OnClaimTxCltv
 }
 
+func swapInSenderFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+	smData.swapServices = services
+	smData.States = getSwapInSenderStates()
+	return smData
+}
+
+func newSwapInSenderFSM(services *SwapServices) *StateMachine {
+	return &StateMachine{
+		Id:           newSwapId(),
+		swapServices: services,
+		Type:         SWAPTYPE_IN,
+		Role:         SWAPROLE_SENDER,
+		States:       getSwapInSenderStates(),
+		Data:         &Swap{},
+	}
+}
+
 func getSwapInSenderStates() States {
 	return States{
 		Default: State{
@@ -194,7 +211,7 @@ func getSwapInSenderStates() States {
 			Action: &NoOpAction{},
 			Events: Events{
 				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_AgreementReceived,
-				Event_OnCancelReceived:                 State_SwapOut_Canceled,
+				Event_OnCancelReceived:                 State_SwapCanceled,
 			},
 		},
 		State_SwapInSender_AgreementReceived: {

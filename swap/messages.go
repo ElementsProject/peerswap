@@ -60,6 +60,13 @@ type SwapOutRequest struct {
 	TakerPubkeyHash string
 }
 
+func (s *SwapOutRequest) ApplyOnSwap(swap *Swap) {
+	swap.Id = s.SwapId
+	swap.ChannelId = s.ChannelId
+	swap.Amount = s.Amount
+	swap.TakerPubkeyHash = s.TakerPubkeyHash
+}
+
 func (s *SwapOutRequest) MessageType() MessageType {
 	return MESSAGETYPE_SWAPOUTREQUEST
 }

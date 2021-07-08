@@ -227,7 +227,7 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *Swap) EventType
 
 func SwapOutReceiverFSMFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
 	smData.swapServices = services
-	smData.States = getSwapOutSenderStates()
+	smData.States = getSwapOutReceiverStates()
 	return smData
 }
 

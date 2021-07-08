@@ -72,9 +72,9 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
 	msg := &SwapOutRequest{
-		SwapId:    swap.Id,
-		ChannelId: swap.ChannelId,
-		Amount:    swap.Amount,
+		SwapId:          swap.Id,
+		ChannelId:       swap.ChannelId,
+		Amount:          swap.Amount,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
