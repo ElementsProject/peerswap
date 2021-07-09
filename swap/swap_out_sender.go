@@ -25,7 +25,7 @@ const (
 	Event_SwapOutSender_OnCancelSwapOut      EventType = "Event_SwapOutSender_OnCancelSwapOut"
 	Event_SwapOutSender_OnFeeInvoicePaid     EventType = "Event_SwapOutSender_WaitInvoiceMessage"
 
-	Event_OnTxOpenedMessage        EventType = "Event_SwapOutSender_OnTxOpenededMsg"
+	Event_OnTxOpenedMessage        EventType = "Event_OnTxOpenedMessage"
 	Event_OnTxConfirmed            EventType = "Event_OnTxConfirmed"
 	Event_SwapOutSender_FinishSwap EventType = "Event_SwapOutSender_FinishSwap"
 	// todo retrystate? failstate? refundstate?

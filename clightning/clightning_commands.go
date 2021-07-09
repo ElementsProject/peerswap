@@ -188,7 +188,6 @@ func (l *ListSwaps) Name() string {
 	return "swaps"
 }
 
-// todo reimplement
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
 	swaps, err := l.cl.swaps.ListSwaps()
 	if err != nil {

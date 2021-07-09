@@ -147,7 +147,7 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		if nextEvent == Event_ActionFailed && s.Data.LastErr != nil {
 			log.Printf("[FSM] Action failure %v", s.Data.LastErr)
 			s.failures++
-			time.Sleep(time.Duration(s.failures)*time.Second)
+			time.Sleep(time.Duration(s.failures) * time.Second)
 		}
 		event = nextEvent
 

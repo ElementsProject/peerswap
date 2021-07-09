@@ -147,10 +147,10 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *Swap) Event
 
 	swap.OpeningTxId = txId
 
-
 	return Event_SwapOutReceiver_OnTxBroadcasted
 }
-type SwapOutReceiverOpeningTxBroadcastedAction struct {}
+
+type SwapOutReceiverOpeningTxBroadcastedAction struct{}
 
 func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *Swap) EventType {
 	msg := &TxOpenedResponse{
@@ -288,12 +288,11 @@ func getSwapOutReceiverStates() States {
 		},
 		State_SwapOutReceiver_TxMsgSent: {
 			Action: &WaitCltvAction{},
-			Events: Events {
+			Events: Events{
 				Event_OnClaimInvoicePaid: State_SwapOutReceiver_ClaimInvoicePaid,
 				Event_OnCancelReceived:   State_SwapOutReceiver_SwapAborted,
 				Event_OnCltvPassed:       State_SwapOutReceiver_CltvPassed,
 			},
-
 		},
 		State_SwapOutReceiver_ClaimInvoicePaid: {
 			Action: &NoOpAction{},
@@ -314,7 +313,7 @@ func getSwapOutReceiverStates() States {
 			Action: &CltvPassedAction{},
 			Events: Events{
 				Event_SwapOutReceiver_OnCltvClaimed: State_ClaimedCltv,
-				Event_OnRetry: State_SwapOutReceiver_CltvPassed,
+				Event_OnRetry:                       State_SwapOutReceiver_CltvPassed,
 			},
 		},
 		State_ClaimedCltv: {
