@@ -14,8 +14,6 @@ const (
 	State_SwapOutSender_TxBroadcasted      StateType = "State_SwapOutSender_TxBroadcasted"
 	State_SwapOutSender_TxConfirmed        StateType = "State_SwapOutSender_TxConfirmed"
 	State_SwapOutSender_ClaimInvPaid       StateType = "State_SwapOutSender_ClaimInvPaid"
-	State_SwapOutSender_ClaimedPreimage    StateType = "State_SwapOutSender_ClaimedPreimage"
-	State_SwapOutSender_ClaimedCltv        StateType = "State_SwapOutSender_ClaimedCltv"
 
 	State_SendCancel       StateType = "State_SendCancel"
 	State_SwapOut_Canceled StateType = "State_SwapOut_Canceled"
@@ -303,7 +301,7 @@ func getSwapOutSenderStates() States {
 		State_SwapOut_Canceled: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_OnClaimedCltv: State_SwapOutSender_ClaimedCltv,
+				Event_OnClaimedCltv: State_ClaimedCltv,
 			},
 		},
 		State_SwapOutSender_TxBroadcasted: {
@@ -323,14 +321,14 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_ClaimInvPaid: {
 			Action: &SwapOutClaimInvPaidAction{},
 			Events: Events{
-				Event_SwapOutSender_FinishSwap: State_SwapOutSender_ClaimedPreimage,
+				Event_SwapOutSender_FinishSwap: State_ClaimedPreimage,
 				Event_OnRetry:                  State_SwapOutSender_ClaimInvPaid,
 			},
 		},
-		State_SwapOutSender_ClaimedPreimage: {
+		State_ClaimedPreimage: {
 			Action: &NoOpAction{},
 		},
-		State_SwapOutSender_ClaimedCltv: {
+		State_ClaimedCltv: {
 			Action: &SwapOutClaimedCltvAction{},
 		},
 	}

@@ -66,7 +66,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, State_SwapOutReceiver_ClaimedPreimage, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	swapAmount := uint64(100)
@@ -128,7 +128,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, State_SwapOutReceiver_ClaimedCltv, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedCltv, swapFSM.Data.GetCurrentState())
 }
 
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {

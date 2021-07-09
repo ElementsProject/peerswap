@@ -62,7 +62,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutSender_ClaimedPreimage, aliceSwap.Current)
+	assert.Equal(t, State_ClaimedPreimage, aliceSwap.Current)
 
 	// trigger bob payment received
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
@@ -70,7 +70,7 @@ func Test_GoodCase(t *testing.T) {
 	})
 	bobReceivedMsg = <-bobMsgChan
 	assert.Equal(t, MESSAGETYPE_CLAIMED, bobReceivedMsg.MessageType())
-	assert.Equal(t, State_SwapOutReceiver_ClaimedPreimage, bobSwap.Current)
+	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
 
@@ -186,8 +186,8 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	aliceReceivedMsg = <-aliceMsgChan
 
 	assert.Equal(t, MESSAGETYPE_CLAIMED, aliceReceivedMsg.MessageType())
-	assert.Equal(t, State_SwapOutReceiver_ClaimedCltv, bobSwap.Current)
-	assert.Equal(t, State_SwapOutSender_ClaimedCltv, aliceSwap.Current)
+	assert.Equal(t, State_ClaimedCltv, bobSwap.Current)
+	assert.Equal(t, State_ClaimedCltv, aliceSwap.Current)
 }
 
 func getTestSetup(name string) *SwapService {

@@ -100,7 +100,7 @@ func Test_ValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, State_SwapOutSender_ClaimedPreimage, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
 	swapAmount := uint64(100)
@@ -278,7 +278,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutSender_ClaimedCltv, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedCltv, swapFSM.Data.GetCurrentState())
 }
 
 type dummyStore struct {

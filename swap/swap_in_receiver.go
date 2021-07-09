@@ -14,8 +14,8 @@ const (
 	State_SwapInReceiver_WaitForConfirmations StateType = "State_SwapInReceiver_WaitForConfirmations"
 	State_SwapInReceiver_OpeningTxConfirmed   StateType = "State_SwapInReceiver_OpeningTxConfirmed"
 	State_SwapInReceiver_ClaimInvoicePaid     StateType = "State_SwapInReceiver_ClaimInvoicePaid"
-	State_SwapInReceiver_ClaimedCltv          StateType = "State_SwapInReceiver_ClaimedCltv"
-	State_SwapInReceiver_ClaimedPreimage      StateType = "State_SwapInReceiver_ClaimedPreimage"
+	State_ClaimedCltv                         StateType = "State_ClaimedCltv"
+	State_ClaimedPreimage                     StateType = "State_ClaimedPreimage"
 
 	Event_SwapInReceiver_OnRequestReceived  EventType = "Event_SwapInReceiver_OnRequestReceived"
 	Event_SwapInReceiver_OnSwapCreated      EventType = "Event_SwapInReceiver_OnSwapCreated"
@@ -65,11 +65,17 @@ func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapService
 		return Event_ActionFailed
 	}
 	swap.ClaimPaymenHash = invoice.PHash
-
 	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
 
 	return Event_Action_Success
 
+}
+
+type SwapInWaitForConfirmationsAction struct{}
+
+func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *Swap) EventType {
+	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
+	return NoOp
 }
 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
@@ -111,7 +117,7 @@ func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, s
 	}
 	return Event_OnClaimedPreimage
 }
-func SwapInReceiverFSMFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+func swapInReceiverFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
 	smData.swapServices = services
 	smData.States = getSwapInReceiverStates()
 	return smData
@@ -121,7 +127,7 @@ func newSwapInReceiverFSM(id string, services *SwapServices) *StateMachine {
 	return &StateMachine{
 		Id:           id,
 		swapServices: services,
-		Type:         SWAPTYPE_OUT,
+		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_RECEIVER,
 		States:       getSwapInReceiverStates(),
 		Data:         &Swap{},
@@ -164,7 +170,7 @@ func getSwapInReceiverStates() States {
 			},
 		},
 		State_SwapInReceiver_WaitForConfirmations: {
-			Action: &NoOpAction{},
+			Action: &SwapInWaitForConfirmationsAction{},
 			Events: Events{
 				Event_OnTxConfirmed:    State_SwapInReceiver_OpeningTxConfirmed,
 				Event_OnCancelReceived: State_SwapCanceled,
@@ -180,13 +186,13 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_ClaimInvoicePaid: {
 			Action: &SwapInReceiverClaimInvoicePaidAction{},
 			Events: Events{
-				Event_OnClaimedPreimage: State_SwapInReceiver_ClaimedPreimage,
+				Event_OnClaimedPreimage: State_ClaimedPreimage,
 			},
 		},
-		State_SwapInReceiver_ClaimedCltv: {
+		State_ClaimedCltv: {
 			Action: &NoOpAction{},
 		},
-		State_SwapInReceiver_ClaimedPreimage: {
+		State_ClaimedPreimage: {
 			Action: &NoOpAction{},
 		},
 		State_SendCancel: {
@@ -199,7 +205,7 @@ func getSwapInReceiverStates() States {
 		State_SwapCanceled: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_OnClaimedCltv: State_SwapInReceiver_ClaimedCltv,
+				Event_OnClaimedCltv: State_ClaimedCltv,
 			},
 		},
 	}

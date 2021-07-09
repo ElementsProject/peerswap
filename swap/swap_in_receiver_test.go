@@ -49,7 +49,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	}
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_CLAIMED, msg.MessageType())
-	assert.Equal(t, State_SwapInReceiver_ClaimedPreimage, swap.Current)
+	assert.Equal(t, State_ClaimedPreimage, swap.Current)
 
 }
 func Test_SwapInReceiverCancel1(t *testing.T) {

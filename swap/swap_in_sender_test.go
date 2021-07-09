@@ -48,7 +48,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: "txid",
 	})
-	assert.Equal(t, State_SwapInSender_ClaimedPreimage, swap.Current)
+	assert.Equal(t, State_ClaimedPreimage, swap.Current)
 }
 func Test_SwapInSenderCancel1(t *testing.T) {
 	swapAmount := uint64(100)
@@ -121,7 +121,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapInSender_ClaimedCltv, swap.Current)
+	assert.Equal(t, State_ClaimedCltv, swap.Current)
 }
 func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	store := &dummyStore{dataMap: map[string]*StateMachine{}}

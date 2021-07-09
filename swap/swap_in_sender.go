@@ -14,8 +14,6 @@ const (
 	State_SwapInSender_TxMsgSent         StateType = "State_SwapInSender_TxMsgSent"
 	State_SwapInSender_ClaimInvPaid      StateType = "State_SwapInSender_ClaimInvPaid"
 	State_SwapInSender_CltvPassed        StateType = "State_SwapInSender_CltvPassed"
-	State_SwapInSender_ClaimedPreimage   StateType = "State_SwapInSender_ClaimedPreimage"
-	State_SwapInSender_ClaimedCltv       StateType = "State_SwapInSender_ClaimedCltv"
 
 	State_SwapCanceled           StateType = "State_SwapCanceled"
 	State_SendCancelThenWaitCltv StateType = "State_SendCancelThenWaitCltv"
@@ -110,7 +108,6 @@ func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, sw
 
 	swap.OpeningTxId = txId
 	txwatcher.AddCltvTx(swap.Id, swap.Cltv)
-	txwatcher.AddConfirmationsTx(swap.Id, txId)
 	return Event_SwapInSender_OnTxBroadcasted
 }
 
@@ -133,6 +130,13 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 		return Event_ActionFailed
 	}
 	return Event_SwapInSender_OnTxMsgSent
+}
+
+type WaitCltvAction struct{}
+
+func (w *WaitCltvAction) Execute(services *SwapServices, swap *Swap) EventType {
+	services.txWatcher.AddCltvTx(swap.Id, swap.Cltv)
+	return NoOp
 }
 
 // SwapInSenderCltvPassedAction claims the claim tx and sends the claim msg to the swap peer
@@ -226,7 +230,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_TxMsgSent: {
-			Action: &NoOpAction{},
+			Action: &WaitCltvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid: State_SwapInSender_ClaimInvPaid,
 				Event_OnCltvPassed:       State_SwapInSender_CltvPassed,
@@ -236,17 +240,17 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_ClaimInvPaid: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_OnClaimedPreimage: State_SwapInSender_ClaimedPreimage,
+				Event_OnClaimedPreimage: State_ClaimedPreimage,
 			},
 		},
-		State_SwapInSender_ClaimedPreimage: {
+		State_ClaimedPreimage: {
 			Action: &NoOpAction{},
 		},
 		State_SwapInSender_CltvPassed: {
 			Action: &SwapInSenderCltvPassedAction{},
 			Events: Events{
-				Event_OnClaimedCltv: State_SwapInSender_ClaimedCltv,
-				Event_ActionFailed:  State_SwapInSender_CltvPassed,
+				Event_OnClaimedCltv: State_ClaimedCltv,
+				Event_ActionFailed:  State_SwapCanceled,
 			},
 		},
 		State_SendCancelThenWaitCltv: {
@@ -256,12 +260,12 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_WaitCltv: {
-			Action: &NoOpAction{},
+			Action: &WaitCltvAction{},
 			Events: Events{
 				Event_OnCltvPassed: State_SwapInSender_CltvPassed,
 			},
 		},
-		State_SwapInSender_ClaimedCltv: {
+		State_ClaimedCltv: {
 			Action: &NoOpAction{},
 		},
 

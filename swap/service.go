@@ -46,6 +46,35 @@ func (s *SwapService) Start() error {
 	return nil
 }
 
+func (s *SwapService) RecoverSwaps() error {
+	swaps, err := s.swapServices.swapStore.ListAll()
+	if err != nil {
+		return err
+	}
+	for _, swap := range swaps {
+		if swap.IsFinished() {
+			continue
+		}
+		if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_SENDER {
+			swap = swapInSenderFromStore(swap, s.swapServices)
+		} else if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_RECEIVER {
+			swap = swapInReceiverFromStore(swap, s.swapServices)
+
+		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_SENDER {
+			swap = swapOutSenderFromStore(swap, s.swapServices)
+
+		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
+			swap = swapOutReceiverFromStore(swap, s.swapServices)
+		}
+		s.AddSwap(swap.Id, swap)
+		err = swap.Recover()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
 	msgType, err := HexStrToMsgType(msgTypeString)
 	if err != nil {
@@ -138,7 +167,9 @@ func (s *SwapService) OnTxConfirmed(swapId string) error {
 		return err
 	}
 	err = swap.SendEvent(Event_OnTxConfirmed, nil)
-	if err != nil {
+	if err == ErrEventRejected {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	return nil
@@ -150,7 +181,9 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 		return err
 	}
 	err = swap.SendEvent(Event_OnCltvPassed, nil)
-	if err != nil {
+	if err == ErrEventRejected {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	return nil
