@@ -46,6 +46,35 @@ func (s *SwapService) Start() error {
 	return nil
 }
 
+func (s *SwapService) RecoverSwaps() error {
+	swaps, err := s.swapServices.swapStore.ListAll()
+	if err != nil {
+		return err
+	}
+	for _, swap := range swaps {
+		if swap.IsFinished() {
+			continue
+		}
+		if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_SENDER {
+			swap = swapInSenderFromStore(swap, s.swapServices)
+		} else if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_RECEIVER {
+			swap = swapInReceiverFromStore(swap, s.swapServices)
+
+		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_SENDER {
+			swap = swapOutSenderFromStore(swap, s.swapServices)
+
+		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
+			swap = swapOutReceiverFromStore(swap, s.swapServices)
+		}
+		s.AddSwap(swap.Id, swap)
+		err = swap.Recover()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
 	msgType, err := HexStrToMsgType(msgTypeString)
 	if err != nil {
@@ -55,7 +84,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	case MESSAGETYPE_SWAPOUTREQUEST:
-		var msg SwapOutRequest
+		var msg *SwapOutRequest
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -65,7 +94,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_FEERESPONSE:
-		var msg FeeResponse
+		var msg *FeeResponse
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -75,7 +104,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_TXOPENEDRESPONSE:
-		var msg TxOpenedResponse
+		var msg *TxOpenedResponse
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -85,7 +114,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_CANCELED:
-		var msg CancelResponse
+		var msg *CancelResponse
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -94,8 +123,28 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+	case MESSAGETYPE_SWAPINREQUEST:
+		var msg *SwapInRequest
+		err := json.Unmarshal(msgBytes, &msg)
+		if err != nil {
+			return err
+		}
+		err = s.OnSwapInRequestReceived(peerId, msg.ChannelId, msg.SwapId, msg.Amount)
+		if err != nil {
+			return err
+		}
+	case MESSAGETYPE_SWAPINAGREEMENT:
+		var msg *SwapInAgreementResponse
+		err := json.Unmarshal(msgBytes, &msg)
+		if err != nil {
+			return err
+		}
+		err = s.OnAgreementReceived(msg)
+		if err != nil {
+			return err
+		}
 	case MESSAGETYPE_CLAIMED:
-		var msg ClaimedMessage
+		var msg *ClaimedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -117,8 +166,10 @@ func (s *SwapService) OnTxConfirmed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
-	if err != nil {
+	err = swap.SendEvent(Event_OnTxConfirmed, nil)
+	if err == ErrEventRejected {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	return nil
@@ -129,8 +180,10 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutReceiver_OnCltvPassed, nil)
-	if err != nil {
+	err = swap.SendEvent(Event_OnCltvPassed, nil)
+	if err == ErrEventRejected {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	return nil
@@ -141,7 +194,7 @@ func (s *SwapService) SwapOut(peer string, channelId string, initiator string, a
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddSwap(swap.Id, swap)
-	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutCreated, &SwapCreationContext{
+	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      amount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -154,9 +207,39 @@ func (s *SwapService) SwapOut(peer string, channelId string, initiator string, a
 	return swap, nil
 }
 
+// todo check prerequisites
+func (s *SwapService) SwapIn(peer string, channelId string, initiator string, amount uint64) (*StateMachine, error) {
+	swap := newSwapInSenderFSM(s.swapServices)
+	s.AddSwap(swap.Id, swap)
+	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
+		amount:      amount,
+		initiatorId: initiator,
+		peer:        peer,
+		channelId:   channelId,
+		swapId:      swap.Id,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return swap, nil
+}
+
+func (s *SwapService) OnSwapInRequestReceived(peer, channelId, swapId string, amount uint64) error {
+	swap := newSwapInReceiverFSM(swapId, s.swapServices)
+	s.AddSwap(swapId, swap)
+
+	err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
+		amount:    amount,
+		peer:      peer,
+		channelId: channelId,
+		swapId:    swapId,
+	})
+	return err
+}
+
 func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPubkeyHash string, amount uint64) error {
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
-	s.AddSwap(swap.Id, swap)
+	s.AddSwap(swapId, swap)
 	err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		peer:            peer,
@@ -170,12 +253,24 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPub
 	return nil
 }
 
+func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementResponse) error {
+	swap, err := s.GetSwap(msg.SwapId)
+	if err != nil {
+		return err
+	}
+	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
 	swap, err := s.GetSwap(swapId)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeRequestContext{FeeInvoice: feeInvoice})
+	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeResponse{Invoice: feeInvoice})
 	if err != nil {
 		return err
 	}
@@ -199,7 +294,7 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutReceiver_OnClaimInvoicePaid, nil)
+	err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		return err
 	}
@@ -211,7 +306,7 @@ func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedContext{TxId: txId})
+	err = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
 	}
@@ -223,7 +318,7 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnCltvClaimMsgReceived, &ClaimedContext{TxId: txId})
+	err = swap.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
 	}
@@ -235,9 +330,10 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnTxOpenedMessage, &TxBroadcastedContext{
+	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
+		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
-		ClaimInvoice:    claimInvoice,
+		Invoice:         claimInvoice,
 		TxId:            txId,
 		TxHex:           txHex,
 		Cltv:            cltv,
@@ -253,10 +349,7 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	if swap.Role != SWAPROLE_SENDER {
-		return nil
-	}
-	err = swap.SendEvent(Event_SwapOutSender_OnTxConfirmations, nil)
+	err = swap.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		return err
 	}

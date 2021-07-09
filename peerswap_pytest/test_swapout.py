@@ -20,6 +20,48 @@ import string
 #     addr = l1.rpc.call(method="liquid-wallet-getaddress")
 #     res = l1.rpc.call("dev-liquid-generate", {'amount':"2"})
 #    print(res)
+def test_liquid_swap_in(node_factory):
+    swapAmt = 100000
+    l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8)))
+    l2 = node_factory.get_node(options=getpluginOpts(get_random_string(8)))
+    l1.daemon.wait_for_log(r"peerswap initialized")
+
+    l1.connect(l2)
+    l1.fundchannel(l2)
+
+    scid12 = l1.get_channel_scid(l2)
+
+    c12 = l2.rpc.listpeers(l1.info['id'])['peers'][0]['channels'][0]
+    startingMsats = Millisatoshi(c12['to_us_msat'])
+
+    l2.rpc.call("dev-liquid-faucet")
+
+    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    assert l2Balance == 100000000
+
+    l2.rpc.call("swap-in", {'amt':swapAmt,'short_channel_id':scid12})
+
+    l2.daemon.wait_for_log(r".*Event_SwapInSender_OnTxMsgSent .*")
+
+    l1.rpc.call("dev-liquid-generate", {'amount':1})
+    l1.rpc.call("dev-liquid-generate", {'amount':1})
+    l1.rpc.call("dev-liquid-generate", {'amount':1})
+    l2.daemon.wait_for_log(r".*Event_OnClaimedPreimage")
+
+    l1.rpc.call("dev-liquid-generate", {'amount':1})
+    l1.rpc.call("dev-liquid-generate", {'amount':1})
+
+    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+
+    # todo fix assertion with swap fee amount
+    assert l2Balance <= 100000000 - swapAmt
+
+
+    c12 = l2.rpc.listpeers(l1.info['id'])['peers'][0]['channels'][0]
+
+
+    # todo fix assertion with swap fee amount
+    assert Millisatoshi(c12['to_us_msat']) >= startingMsats + ((swapAmt-500) * 1000)
 def test_liquid_swap_out(node_factory, bitcoind):
     swapAmt = 100000
     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8)))

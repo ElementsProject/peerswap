@@ -52,21 +52,21 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimInvoicePaid, nil)
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
+	err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_ClaimInvoicePaid, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnClaimMsgReceived, &ClaimedContext{
-		TxId: "txId",
+	err = swapFSM.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
+		ClaimTxId: "txId",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, State_SwapOutReceiver_ClaimedPreimage, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	swapAmount := uint64(100)
@@ -116,19 +116,19 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
 	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_SwapAborted, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnCltvPassed, nil)
+	err = swapFSM.SendEvent(Event_OnCltvPassed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, State_SwapOutReceiver_ClaimedCltv, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedCltv, swapFSM.Data.GetCurrentState())
 }
 
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 )
 
 // ErrEventRejected is the error returned when the state machine cannot process
@@ -87,6 +88,8 @@ type StateMachine struct {
 
 	// SwapServices stores services the statemachine may use
 	swapServices *SwapServices
+
+	failures int
 }
 
 // getNextState returns the next state for the event given the machine's current
@@ -141,8 +144,10 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 		if nextEvent == NoOp {
 			return nil
 		}
-		if nextEvent == Event_OnRetry {
-			log.Printf("[FSM] Retrying because of %v", s.Data.LastErr)
+		if nextEvent == Event_ActionFailed && s.Data.LastErr != nil {
+			log.Printf("[FSM] Action failure %v", s.Data.LastErr)
+			s.failures++
+			time.Sleep(time.Duration(s.failures) * time.Second)
 		}
 		event = nextEvent
 
@@ -169,4 +174,13 @@ func (s *StateMachine) Recover() error {
 		return err
 	}
 	return nil
+}
+
+func (s *StateMachine) IsFinished() bool {
+	switch s.Current {
+	case State_ClaimedCltv:
+	case State_ClaimedPreimage:
+		return true
+	}
+	return false
 }

@@ -14,28 +14,26 @@ const (
 	State_SwapOutSender_TxBroadcasted      StateType = "State_SwapOutSender_TxBroadcasted"
 	State_SwapOutSender_TxConfirmed        StateType = "State_SwapOutSender_TxConfirmed"
 	State_SwapOutSender_ClaimInvPaid       StateType = "State_SwapOutSender_ClaimInvPaid"
-	State_SwapOutSender_ClaimedPreimage    StateType = "State_SwapOutSender_ClaimedPreimage"
-	State_SwapOutSender_ClaimedCltv        StateType = "State_SwapOutSender_ClaimedCltv"
 
-	State_SwapOutSender_SendCancel StateType = "State_SwapOutSender_SendCancel"
-	State_SwapOut_Canceled         StateType = "State_SwapOut_Canceled"
+	State_SendCancel       StateType = "State_SendCancel"
+	State_SwapOut_Canceled StateType = "State_SwapOut_Canceled"
 
-	Event_SwapOutSender_OnSwapOutCreated     EventType = "Event_SwapOutSender_OnSwapOutCreated"
+	Event_SwapOutSender_OnSwapOutRequested   EventType = "Event_SwapOutSender_OnSwapOutRequested"
 	Event_SwapOutSender_OnSwapCreated        EventType = "Event_SwapOutSender_OnSwapCreated"
 	Event_SwapOutSender_OnSendSwapOutSucceed EventType = "Event_SwapOutSender_OnSendSwapOutSucceed"
 	Event_SwapOutSender_OnFeeInvReceived     EventType = "Event_SwapOutSender_OnFeeInvoiceReceived"
 	Event_SwapOutSender_OnCancelSwapOut      EventType = "Event_SwapOutSender_OnCancelSwapOut"
 	Event_SwapOutSender_OnFeeInvoicePaid     EventType = "Event_SwapOutSender_WaitInvoiceMessage"
-	Event_SwapOutSender_OnTxOpenedMessage    EventType = "Event_SwapOutSender_OnTxOpenededMsg"
 
-	Event_SwapOutSender_OnTxConfirmations EventType = "Event_SwapOutSender_OnTxConfirmations"
-	Event_SwapOutSender_FinishSwap        EventType = "Event_SwapOutSender_FinishSwap"
+	Event_OnTxOpenedMessage        EventType = "Event_OnTxOpenedMessage"
+	Event_OnTxConfirmed            EventType = "Event_OnTxConfirmed"
+	Event_SwapOutSender_FinishSwap EventType = "Event_SwapOutSender_FinishSwap"
 	// todo retrystate? failstate? refundstate?
-	Event_OnRetry                              EventType = "Event_OnRetry"
-	Event_OnRecover                            EventType = "Event_OnRecover"
-	Event_SwapOutSender_OnAbortSwapInternal    EventType = "Event_SwapOutSender_OnAbortSwapInternal"
-	Event_SwapOutSender_OnClaimTxPreimage      EventType = "Event_SwapOutSender_OnClaimTxPreimage"
-	Event_SwapOutSender_OnCltvClaimMsgReceived EventType = "Event_SwapOutSender_OnCltvClaimMsgReceived"
+	Event_OnRetry                           EventType = "Event_OnRetry"
+	Event_OnRecover                         EventType = "Event_OnRecover"
+	Event_SwapOutSender_OnAbortSwapInternal EventType = "Event_SwapOutSender_OnAbortSwapInternal"
+	Event_SwapOutSender_OnClaimTxPreimage   EventType = "Event_SwapOutSender_OnClaimTxPreimage"
+	Event_OnClaimedCltv                     EventType = "Event_OnClaimedCltv"
 )
 
 type SwapCreationContext struct {
@@ -71,7 +69,6 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	//todo correct message
 	msg := &SwapOutRequest{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
@@ -84,14 +81,6 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 		return Event_SwapOutSender_OnCancelSwapOut
 	}
 	return Event_SwapOutSender_OnSendSwapOutSucceed
-}
-
-type FeeRequestContext struct {
-	FeeInvoice string
-}
-
-func (f *FeeRequestContext) ApplyOnSwap(swap *Swap) {
-	swap.FeeInvoice = f.FeeInvoice
 }
 
 type FeeInvoiceReceivedAction struct{}
@@ -120,22 +109,6 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *Swap) E
 	}
 	swap.FeePreimage = preimage
 	return Event_SwapOutSender_OnFeeInvoicePaid
-}
-
-type TxBroadcastedContext struct {
-	MakerPubkeyHash string
-	ClaimInvoice    string
-	TxId            string
-	TxHex           string
-	Cltv            int64
-}
-
-func (t *TxBroadcastedContext) ApplyOnSwap(swap *Swap) {
-	swap.MakerPubkeyHash = t.MakerPubkeyHash
-	swap.ClaimPayreq = t.ClaimInvoice
-	swap.OpeningTxId = t.TxId
-	swap.OpeningTxHex = t.TxHex
-	swap.Cltv = t.Cltv
 }
 
 type SwapOutTxBroadCastedAction struct{}
@@ -248,14 +221,6 @@ func (a *SwapOutAbortedAction) Execute(services *SwapServices, swap *Swap) Event
 	return NoOp
 }
 
-type ClaimedContext struct {
-	TxId string
-}
-
-func (c *ClaimedContext) ApplyOnSwap(swap *Swap) {
-	swap.ClaimTxId = c.TxId
-}
-
 type SwapOutClaimedCltvAction struct{}
 
 func (s *SwapOutClaimedCltvAction) Execute(services *SwapServices, swap *Swap) EventType {
@@ -290,7 +255,7 @@ func getSwapOutSenderStates() States {
 	return States{
 		Default: State{
 			Events: Events{
-				Event_SwapOutSender_OnSwapOutCreated: State_SwapOutSender_Init,
+				Event_SwapOutSender_OnSwapOutRequested: State_SwapOutSender_Init,
 			},
 		},
 		State_SwapOutSender_Init: {
@@ -316,18 +281,18 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_FeeInvoiceReceived: {
 			Action: &FeeInvoiceReceivedAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
 				Event_SwapOutSender_OnFeeInvoicePaid:   State_SwapOutSender_FeeInvoicePaid,
 			},
 		},
 		State_SwapOutSender_FeeInvoicePaid: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SwapOutSender_SendCancel,
-				Event_SwapOutSender_OnTxOpenedMessage:  State_SwapOutSender_TxBroadcasted,
+				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
+				Event_OnTxOpenedMessage:                State_SwapOutSender_TxBroadcasted,
 			},
 		},
-		State_SwapOutSender_SendCancel: {
+		State_SendCancel: {
 			Action: &SendSwapOutCancelAction{},
 			Events: Events{
 				Event_SwapOutSender_OnCancelSwapOut: State_SwapOut_Canceled,
@@ -336,34 +301,34 @@ func getSwapOutSenderStates() States {
 		State_SwapOut_Canceled: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutSender_OnCltvClaimMsgReceived: State_SwapOutSender_ClaimedCltv,
+				Event_OnClaimedCltv: State_ClaimedCltv,
 			},
 		},
 		State_SwapOutSender_TxBroadcasted: {
 			Action: &SwapOutTxBroadCastedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
-				Event_SwapOutSender_OnTxConfirmations:   State_SwapOutSender_TxConfirmed,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
+				Event_OnTxConfirmed:                     State_SwapOutSender_TxConfirmed,
 			},
 		},
 		State_SwapOutSender_TxConfirmed: {
 			Action: &SwapOutTxConfirmedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancel,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
 				Event_SwapOutSender_OnClaimTxPreimage:   State_SwapOutSender_ClaimInvPaid,
 			},
 		},
 		State_SwapOutSender_ClaimInvPaid: {
 			Action: &SwapOutClaimInvPaidAction{},
 			Events: Events{
-				Event_SwapOutSender_FinishSwap: State_SwapOutSender_ClaimedPreimage,
+				Event_SwapOutSender_FinishSwap: State_ClaimedPreimage,
 				Event_OnRetry:                  State_SwapOutSender_ClaimInvPaid,
 			},
 		},
-		State_SwapOutSender_ClaimedPreimage: {
+		State_ClaimedPreimage: {
 			Action: &NoOpAction{},
 		},
-		State_SwapOutSender_ClaimedCltv: {
+		State_ClaimedCltv: {
 			Action: &SwapOutClaimedCltvAction{},
 		},
 	}

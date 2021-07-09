@@ -114,7 +114,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-
+	err = swapService.RecoverSwaps()
+	if err != nil {
+		return err
+	}
 	go func() {
 		err := txWatcher.StartWatchingTxs()
 		if err != nil {
