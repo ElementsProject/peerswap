@@ -52,7 +52,7 @@ func Test_GoodCase(t *testing.T) {
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
@@ -161,7 +161,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())

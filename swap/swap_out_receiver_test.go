@@ -52,7 +52,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
 	err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_OpeningTxBroadcasted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
 	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
