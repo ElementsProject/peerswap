@@ -154,6 +154,7 @@ e
 
 	for i in $(seq $node_count); do
 		socket=$(( 7070 + i * 101))
+		liquidrpcPort=$((18883 + i))
 		mkdir -p "/tmp/l$i-$network"
 		# Node config
 		cat <<- EOF > "/tmp/l$i-$network/config"
@@ -177,7 +178,7 @@ e
 			bitcoin-rpcuser=admin1
 			bitcoin-rpcpassword=123
 			bitcoin-rpcconnect=localhost
-			bitcoin-rpcport=18433
+			bitcoin-rpcport=18443
 			EOF
 		fi
 
@@ -187,7 +188,7 @@ e
 			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
 			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/peerswap" \
 			 --peerswap-liquid-rpchost=http://localhost \
-			 --peerswap-liquid-rpcport=7041 \
+			 --peerswap-liquid-rpcport=$liquidrpcPort \
 			 --peerswap-liquid-rpcuser=admin1 \
 			 --peerswap-liquid-rpcpassword=123 \
 			 --peerswap-liquid-network=regtest \
@@ -239,6 +240,9 @@ e
         alias e-cli="nigiri rpc --liquid"
         alias b-cli="nigiri rpc"
 
+        alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18443'
+        alias et-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18884'
+
     }
 
     connect_nodes() {
@@ -276,7 +280,9 @@ e
 
 
     setup_channel() {
-        L1_ADDR=$(l1-cli newaddr)
+        L2_PUBKEY=$(l2-cli getinfo | jq -r .id)
+        L1_ADDR=$(l1-cli newaddr | jq .'bech32')
+        L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
         echo $(bt-cli generatetoaddress 12  $L1_ADDR)
         echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
         bt-cli generatetoaddress 12  $L1_ADDR
@@ -290,9 +296,9 @@ e
     }
 
     faucet-l() {
-    address=$(l1-cli liquid-wallet-getaddress)
-    echo $address
-    nigiri faucet --liquid $address 1
+        address=$(l1-cli liquid-wallet-getaddress)
+        echo $address
+        nigiri faucet --liquid $address 1
     }
 
     l_generate() {
@@ -301,7 +307,8 @@ e
             	else
             		block_count=$1
             fi
-        nigiri rpc --liquid generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep
+        res=$(et-cli generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep)
+        echo $res
 
     }
     generate() {
@@ -310,7 +317,8 @@ e
             	else
             		block_count=$1
             fi
-        nigiri rpc generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1
+        res=$(bt-cli generatetoaddress$block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
+        echo $res
     }
     setup_alias
      '';

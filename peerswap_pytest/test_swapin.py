@@ -5,23 +5,7 @@ import string
 import time
 
 
-# def test_your_plugin(node_factory, bitcoind):
-#     l1 = node_factory.get_node(options=pluginopt)
-#     s = l1.rpc.getinfo()
-#     assert(s['network'] == 'regtest') # or whatever you want to test
-
-# def test_liquid_address(node_factory, bitcoind):
-#     l1 = node_factory.get_node(options=getpluginOpts("bvdspdofgjsdfg"))
-#     addr = l1.rpc.call(method="liquid-wallet-getaddress")
-#     #l1.daemon.wait_for_log(r"\[Wallet\] Getting address .*")
-#     assert l1.daemon.is_in_log(r"\[Wallet\] Getting address .*")
-# def test_generate(node_factory, bitcoind):
-#     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8)))
-#     l1.daemon.wait_for_log(r"peerswap initialized")
-#     addr = l1.rpc.call(method="liquid-wallet-getaddress")
-#     res = l1.rpc.call("dev-liquid-generate", {'amount':"2"})
-# #    print(res)
-def test_liquid_swap_out(node_factory, bitcoind):
+def test_liquid_swap_in(node_factory):
     swapAmt = 100000
     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18884"))
     l2 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18885"))
@@ -40,20 +24,21 @@ def test_liquid_swap_out(node_factory, bitcoind):
     l2Balance = l2.rpc.call("liquid-wallet-getbalance")
     assert l2Balance == 100000000
 
-    l1.rpc.call("swap-out", {'amt':swapAmt,'short_channel_id':scid12})
+    l2.rpc.call("swap-in", {'amt':swapAmt,'short_channel_id':scid12})
 
-    l1.daemon.wait_for_log(r".*Event_OnTxOpenedMessage .*")
-    print("TX OPENED")
+    l2.daemon.wait_for_log(r".*Event_SwapInSender_OnTxMsgSent .*")
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
-    l1.daemon.wait_for_log(r".*Event_SwapOutSender_FinishSwap")
+    l2.daemon.wait_for_log(r".*Event_OnClaimedPreimage")
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)
+
+
     l2Balance = l2.rpc.call("liquid-wallet-getbalance")
 
     # todo fix assertion with swap fee amount

@@ -27,11 +27,16 @@ jobs:
       - name: Compile
         run: make build
 
-      - name: Install Nigiri
+      - name: Setup Liquid Nodes
         run: |
           mkdir ~/.nigiri; cd ~/.nigiri
-          curl https://travis.nigiri.network | bash; cd
+          curl https://gist.githubusercontent.com/sputn1ck/acfefb44c3f5fcc58cf4e0bf6da955b6/raw/24ca464ba7c43446ef0b141413272144d0457ce3/cluster.sh | bash; cd
           docker-compose -f ~/.nigiri/docker-compose.yml up -d
+      - name: Docker test
+        run: |
+          docker ps -a
+          docker logs nigiri_liquid_1
+          docker logs nigiri_liquid2_1
 
       - name: Test
         run: make test
