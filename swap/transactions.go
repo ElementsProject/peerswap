@@ -6,7 +6,8 @@ import (
 	"log"
 )
 
-func CreateOpeningTransaction(services *SwapServices, swap *Swap) error {
+// CreateOpeningTransaction creates the opening transaction from a swap
+func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	// Create the opening transaction
 	blockHeight, err := services.blockchain.GetBlockHeight()
 	if err != nil {
@@ -14,7 +15,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *Swap) error {
 	}
 	spendingBlocktimeHeight := int64(blockHeight + services.blockchain.GetLocktime())
 	swap.Cltv = spendingBlocktimeHeight
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
 	if err != nil {
 		return err
 	}
@@ -40,7 +41,8 @@ func CreateOpeningTransaction(services *SwapServices, swap *Swap) error {
 	return nil
 }
 
-func CreatePreimageSpendingTransaction(services *SwapServices, swap *Swap) (string, error) {
+// CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
+func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) (string, error) {
 	blockchain := services.blockchain
 	wallet := services.wallet
 
@@ -55,7 +57,7 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *Swap) (stri
 		return "", err
 	}
 
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
 	if err != nil {
 		log.Printf("error getting swap script")
 		return "", err
@@ -96,7 +98,8 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *Swap) (stri
 	return spendingTxHex, nil
 }
 
-func CreateCltvSpendingTransaction(services *SwapServices, swap *Swap) (string, error) {
+// CreateCltvSpendingTransaction creates the spending transaction from a swap when spending the cltv passed branch
+func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) (string, error) {
 	blockchain := services.blockchain
 	wallet := services.wallet
 
@@ -109,7 +112,7 @@ func CreateCltvSpendingTransaction(services *SwapServices, swap *Swap) (string, 
 		return "", err
 	}
 
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymenHash, swap.Cltv)
+	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
 	if err != nil {
 		return "", err
 	}

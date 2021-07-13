@@ -29,10 +29,10 @@ const (
 	Event_ActionFailed EventType = "Event_ActionFailed"
 )
 
-// SwapInSenderInitAction creates the swap strcut
+// SwapInSenderInitAction creates the swap data
 type SwapInSenderInitAction struct{}
 
-func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwap(swap.Id, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId)
 	*swap = *newSwap
 	return Event_SwapInSender_OnSwapInCreated
@@ -41,7 +41,7 @@ func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *Swap) Eve
 // SwapInSenderCreatedAction sends the request to the swap peer
 type SwapInSenderCreatedAction struct{}
 
-func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	messenger := services.messenger
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -63,7 +63,7 @@ func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *Swap) 
 // SwapInSenderAgreementReceivedAction creates and broadcasts the redeem transaction
 type SwapInSenderAgreementReceivedAction struct{}
 
-func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	node := services.blockchain
 	txwatcher := services.txWatcher
 
@@ -84,9 +84,9 @@ func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, sw
 		return Event_ActionFailed
 	}
 
-	swap.ClaimPayreq = payreq
+	swap.ClaimInvoice = payreq
 	swap.ClaimPreimage = preimage.String()
-	swap.ClaimPaymenHash = pHash.String()
+	swap.ClaimPaymentHash = pHash.String()
 
 	swap.LastErr = CreateOpeningTransaction(services, swap)
 	if swap.LastErr != nil {
@@ -114,13 +114,13 @@ func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, sw
 // SwapInSenderTxBroadcastedAction sends the claim tx information to the swap peer
 type SwapInSenderTxBroadcastedAction struct{}
 
-func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	messenger := services.messenger
 
-	msg := &TxOpenedResponse{
+	msg := &TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
-		Invoice:         swap.ClaimPayreq,
+		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		TxHex:           swap.OpeningTxHex,
 		Cltv:            swap.Cltv,
@@ -132,9 +132,10 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 	return Event_SwapInSender_OnTxMsgSent
 }
 
+// WaitCltvAction adds the opening tx to the txwatcher
 type WaitCltvAction struct{}
 
-func (w *WaitCltvAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	services.txWatcher.AddCltvTx(swap.Id, swap.Cltv)
 	return NoOp
 }
@@ -142,7 +143,7 @@ func (w *WaitCltvAction) Execute(services *SwapServices, swap *Swap) EventType {
 // SwapInSenderCltvPassedAction claims the claim tx and sends the claim msg to the swap peer
 type SwapInSenderCltvPassedAction struct{}
 
-func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	var claimId, claimTxHex string
 	blockchain := services.blockchain
 	messenger := services.messenger
@@ -169,23 +170,26 @@ func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *Swa
 	return Event_OnClaimedCltv
 }
 
-func swapInSenderFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+// swapInSenderFromStore recovers a swap statemachine from the swap store
+func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
 	smData.States = getSwapInSenderStates()
 	return smData
 }
 
-func newSwapInSenderFSM(services *SwapServices) *StateMachine {
-	return &StateMachine{
+// newSwapInSenderFSM returns a new swap statemachine for a swap-in sender
+func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
+	return &SwapStateMachine{
 		Id:           newSwapId(),
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_SENDER,
 		States:       getSwapInSenderStates(),
-		Data:         &Swap{},
+		Data:         &SwapData{},
 	}
 }
 
+// getSwapInSenderStates returns the states for the swap-in sender
 func getSwapInSenderStates() States {
 	return States{
 		Default: State{

@@ -19,6 +19,9 @@ type SwapTxInfo struct {
 	Cltv   int64
 }
 
+// todo zmq notifications
+
+// BlockchainRpcTxWatcher handles notifications of confirmed and cltv-passed events
 type BlockchainRpcTxWatcher struct {
 	blockchain BlockchainRpc
 
@@ -42,6 +45,7 @@ func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc) *B
 	}
 }
 
+// StartWatchingTxs starts the txwatcher
 func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 	currentBlock, err := s.blockchain.GetBlockHeight()
 	if err != nil {
@@ -70,6 +74,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 	return nil
 }
 
+// StartBlockWatcher starts listening for new blocks
 func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
 	for {
 		select {
@@ -88,6 +93,7 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
 	}
 }
 
+// HandleTimelockTx looks for transactions that have passed their cltv height
 func (s *BlockchainRpcTxWatcher) HandleTimelockTx(blockheight uint64) error {
 	s.Lock()
 	var toRemove []string
@@ -109,6 +115,8 @@ func (s *BlockchainRpcTxWatcher) HandleTimelockTx(blockheight uint64) error {
 	s.TxClaimed(toRemove)
 	return nil
 }
+
+// HandleConfirmedTx looks for transactions that are confirmed
 func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 	var toRemove []string
 	s.Lock()

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/txscript"
@@ -18,22 +17,6 @@ import (
 
 type TxSigner interface {
 	Sign(hash []byte) (*btcec.Signature, error)
-}
-
-func getAsset(network *network.Network) []byte {
-	return append(
-		[]byte{0x01},
-		elementsutil.ReverseBytes(h2b(network.AssetID))...,
-	)
-}
-func GetFeeOutput(fee uint64, network *network.Network) (*transaction.TxOutput, error) {
-	feeValue, err := elementsutil.SatoshiToElementsValue(fee)
-	if err != nil {
-		return nil, err
-	}
-	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(getAsset(network), feeValue, feeScript)
-	return feeOutput, nil
 }
 
 // GetOpeningTxScript returns the script for the opening transaction of a swap,
@@ -58,6 +41,7 @@ func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []
 	return script.Script()
 }
 
+// CreatOpeningAddress returns the address for the opening tx
 func CreateOpeningAddress(redeemScript []byte) (string, error) {
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
@@ -74,17 +58,6 @@ func CreateOpeningAddress(redeemScript []byte) (string, error) {
 	return addr, nil
 }
 
-type SpendingParams struct {
-	Signer       TxSigner
-	OpeningTxHex string
-	SwapAmount   uint64
-	FeeAmount    uint64
-	CurrentBlock uint64
-	Asset        []byte
-	OutputScript []byte
-	RedeemScript []byte
-}
-
 func CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
@@ -96,51 +69,6 @@ func CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) 
 	tx := transaction.NewTx(2)
 	tx.Outputs = append(tx.Outputs, output)
 	return tx, nil
-}
-
-func CreatePreimageSpendingTransaction(params *SpendingParams, preimage []byte) (string, error) {
-	spendingTx, sigHash, err := CreateSpendingTransaction(params.OpeningTxHex, params.SwapAmount, params.FeeAmount, params.CurrentBlock, params.Asset, params.RedeemScript, params.OutputScript)
-	if err != nil {
-		return "", err
-	}
-
-	sig, err := params.Signer.Sign(sigHash[:])
-	if err != nil {
-		return "", err
-	}
-
-	spendingTx.Inputs[0].Witness = GetPreimageWitness(sig.Serialize(), preimage, params.RedeemScript)
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		return "", err
-	}
-	return spendingTxHex, nil
-}
-
-func CreateCltvSpendingTransaction(params *SpendingParams) (string, error) {
-	paramBytes, err := json.Marshal(params)
-	if err != nil {
-		return "", err
-	}
-	log.Printf("params: %s", string(paramBytes))
-	spendingTx, sigHash, err := CreateSpendingTransaction(params.OpeningTxHex, params.SwapAmount, params.FeeAmount, params.CurrentBlock, params.Asset, params.RedeemScript, params.OutputScript)
-	if err != nil {
-		return "", err
-	}
-
-	sig, err := params.Signer.Sign(sigHash[:])
-	if err != nil {
-		return "", err
-	}
-
-	spendingTx.Inputs[0].Witness = GetCltvWitness(sig.Serialize(), params.RedeemScript)
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		return "", err
-	}
-	return spendingTxHex, nil
 }
 
 func VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
@@ -172,6 +100,7 @@ func FindVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, err
 	return 0, errors.New("vout not found")
 }
 
+// CreateSpendingTransaction returns the spendningTransaction for the swap
 func CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
@@ -224,6 +153,7 @@ func CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, curre
 	return spendingTx, sigHash, nil
 }
 
+// GetPreimageWitness returns the witness for spending the transaction with the preimage
 func GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
 	sigWithHashType := append(signature, byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)
@@ -233,6 +163,7 @@ func GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
 	return witness
 }
 
+// GetCltvWitness returns the witness for spending the transaction with a passed cltv
 func GetCltvWitness(signature, redeemScript []byte) [][]byte {
 	sigWithHashType := append(signature, byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)

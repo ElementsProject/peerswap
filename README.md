@@ -28,7 +28,8 @@ lightningd \
  --peerswap-liquid-rpcport=7041 \
  --peerswap-liquid-rpcuser=admin1 \
  --peerswap-liquid-rpcpassword=123 \
- --peerswap-liquid-network=regtest
+ --peerswap-liquid-network=regtest \
+ --peerswap-liquid-rpcwallet=swap1
 ```
 
 ### Development

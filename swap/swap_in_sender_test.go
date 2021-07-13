@@ -31,7 +31,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementResponse{
+	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
@@ -105,7 +105,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementResponse{
+	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
@@ -124,7 +124,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	assert.Equal(t, State_ClaimedCltv, swap.Current)
 }
 func getSwapServices(msgChan chan PeerMessage) *SwapServices {
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: "fee"}
 	policy := &dummyPolicy{}

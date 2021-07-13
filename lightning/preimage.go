@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+// From https://github.com/lightningnetwork/lnd/blob/master/lntypes/preimage.go
+
 // PreimageSize of array used to store preimagees.
 const PreimageSize = 32
 

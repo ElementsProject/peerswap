@@ -73,7 +73,6 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
-
 	channelId := "chanId"
 	amount := uint64(100)
 	peer := "bob"
@@ -191,7 +190,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 }
 
 func getTestSetup(name string) *SwapService {
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &ConnectedMessenger{
 		thisPeerId: name,
 	}

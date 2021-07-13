@@ -44,7 +44,7 @@ type SwapCreationContext struct {
 	initiatorId string
 }
 
-func (c *SwapCreationContext) ApplyOnSwap(swap *Swap) {
+func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
 	swap.PeerNodeId = c.peer
 	swap.ChannelId = c.channelId
@@ -52,18 +52,20 @@ func (c *SwapCreationContext) ApplyOnSwap(swap *Swap) {
 	swap.InitiatorNodeId = c.initiatorId
 }
 
+// SwapInSenderInitAction creates the swap data
 type SwapOutInitAction struct{}
 
 //todo validate data
-func (a *SwapOutInitAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (a *SwapOutInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwap(swap.Id, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId)
 	*swap = *newSwap
 	return Event_SwapOutSender_OnSwapCreated
 }
 
+// SwapOutCreatedAction sends the request to the swap peer
 type SwapOutCreatedAction struct{}
 
-func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	messenger := services.messenger
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -83,9 +85,10 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *Swap) Event
 	return Event_SwapOutSender_OnSendSwapOutSucceed
 }
 
+// FeeInvoiceReceivedAction checks the feeinvoice and pays it
 type FeeInvoiceReceivedAction struct{}
 
-func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
 	policy := services.policy
 	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
@@ -111,19 +114,20 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *Swap) E
 	return Event_SwapOutSender_OnFeeInvoicePaid
 }
 
+// SwapOutTxBroadCastedAction  checks the claim invoice and adds the transaction to the txwatcher
 type SwapOutTxBroadCastedAction struct{}
 
-func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
 	txWatcher := services.txWatcher
 
-	invoice, err := lc.DecodePayreq(swap.ClaimPayreq)
+	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
 
-	swap.ClaimPaymenHash = invoice.PHash
+	swap.ClaimPaymentHash = invoice.PHash
 
 	// todo check policy
 
@@ -131,13 +135,14 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *Swap)
 	return NoOp
 }
 
+// SwapOutTxConfirmedAction pays the claim invoice
 type SwapOutTxConfirmedAction struct{}
 
-func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 
 	lc := services.lightning
 
-	preimageString, err := lc.PayInvoice(swap.ClaimPayreq)
+	preimageString, err := lc.PayInvoice(swap.ClaimInvoice)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
@@ -146,9 +151,10 @@ func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *Swap) E
 	return Event_SwapOutSender_OnClaimTxPreimage
 }
 
+// SwapOutTxConfirmedAction spends the opening transaction to the liquid wallet
 type SwapOutClaimInvPaidAction struct{}
 
-func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
 
 	node := services.blockchain
 	messenger := services.messenger
@@ -183,74 +189,32 @@ func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *Swap) 
 	return Event_SwapOutSender_FinishSwap
 }
 
-type SendSwapOutCancelAction struct{}
-
-// todo correct message
-func (c *SendSwapOutCancelAction) Execute(services *SwapServices, swap *Swap) EventType {
-
-	log.Printf("[FSM] Canceling because of %v", swap.LastErr)
-	messenger := services.messenger
-	msg := &CancelResponse{
-		SwapId: swap.Id,
-		Error:  swap.CancelMessage,
-	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		swap.LastErr = err
-		return Event_OnRetry
-	}
-	return Event_SwapOutSender_OnCancelSwapOut
-}
-
-type SwapOutAbortedAction struct{}
-
-func (a *SwapOutAbortedAction) Execute(services *SwapServices, swap *Swap) EventType {
-
-	log.Printf("[FSM] Aborting because of %v", swap.LastErr)
-	messenger := services.messenger
-	//todo correct message
-	msg := &CancelResponse{
-		SwapId: swap.Id,
-		Error:  swap.CancelMessage,
-	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		swap.LastErr = err
-		return Event_OnRetry
-	}
-	return NoOp
-}
-
-type SwapOutClaimedCltvAction struct{}
-
-func (s *SwapOutClaimedCltvAction) Execute(services *SwapServices, swap *Swap) EventType {
-
-	return NoOp
-}
-
 type NoOpAction struct{}
 
-func (n *NoOpAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (n *NoOpAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	return NoOp
 }
 
-func swapOutSenderFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+// swapOutSenderFromStore recovers a swap statemachine from the swap store
+func swapOutSenderFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
 	smData.States = getSwapOutSenderStates()
 	return smData
 }
 
-func newSwapOutSenderFSM(services *SwapServices) *StateMachine {
-	return &StateMachine{
+// newSwapOutSenderFSM returns a new swap statemachine for a swap-out sender
+func newSwapOutSenderFSM(services *SwapServices) *SwapStateMachine {
+	return &SwapStateMachine{
 		Id:           newSwapId(),
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_SENDER,
 		States:       getSwapOutSenderStates(),
-		Data:         &Swap{},
+		Data:         &SwapData{},
 	}
 }
 
+// getSwapOutSenderStates returns the states for the swap-out sender
 func getSwapOutSenderStates() States {
 	return States{
 		Default: State{
@@ -293,9 +257,9 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SendCancel: {
-			Action: &SendSwapOutCancelAction{},
+			Action: &SendCancelAction{},
 			Events: Events{
-				Event_SwapOutSender_OnCancelSwapOut: State_SwapOut_Canceled,
+				Event_Action_Success: State_SwapOut_Canceled,
 			},
 		},
 		State_SwapOut_Canceled: {
@@ -329,7 +293,7 @@ func getSwapOutSenderStates() States {
 			Action: &NoOpAction{},
 		},
 		State_ClaimedCltv: {
-			Action: &SwapOutClaimedCltvAction{},
+			Action: &NoOpAction{},
 		},
 	}
 }

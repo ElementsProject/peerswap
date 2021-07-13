@@ -13,7 +13,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
@@ -76,7 +76,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
@@ -139,7 +139,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &dummyMessenger{}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}
@@ -190,7 +190,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "err"
 	msgChan := make(chan PeerMessage)
-	store := &dummyStore{dataMap: map[string]*StateMachine{}}
+	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: FeePreimage}
 	policy := &dummyPolicy{}

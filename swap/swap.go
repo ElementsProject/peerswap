@@ -49,8 +49,8 @@ const (
 	CLAIMTYPE_CLTV
 )
 
-// Swap defines a swap process
-type Swap struct {
+// SwapData holds all the data needed for a swap
+type SwapData struct {
 	Id              string
 	Type            SwapType
 	FSMState        StateType
@@ -63,9 +63,9 @@ type Swap struct {
 
 	PrivkeyBytes []byte
 
-	ClaimPayreq     string
-	ClaimPreimage   string
-	ClaimPaymenHash string
+	ClaimInvoice     string
+	ClaimPreimage    string
+	ClaimPaymentHash string
 
 	// Script
 	MakerPubkeyHash string
@@ -89,18 +89,18 @@ type Swap struct {
 	LastErr error `json:"-"`
 }
 
-func (s *Swap) GetId() string {
+func (s *SwapData) GetId() string {
 	return s.Id
 }
 
-func (s *Swap) SetState(stateType StateType) {
+func (s *SwapData) SetState(stateType StateType) {
 	s.FSMState = stateType
 }
-func (s *Swap) GetCurrentState() StateType {
+func (s *SwapData) GetCurrentState() StateType {
 	return s.FSMState
 }
 
-type PrettyPrintSwap struct {
+type PrettyPrintSwapData struct {
 	Id              string
 	CreatedAt       string
 	Type            string
@@ -120,9 +120,9 @@ type PrettyPrintSwap struct {
 	CancelMessage string `json:",omitempty"`
 }
 
-func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
+func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	timeStamp := time.Unix(s.CreatedAt, 0)
-	return &PrettyPrintSwap{
+	return &PrettyPrintSwapData{
 		Id:              s.Id,
 		Type:            fmt.Sprintf("%s", s.Type),
 		Role:            s.Role.String(),
@@ -139,14 +139,14 @@ func (s *Swap) ToPrettyPrint() *PrettyPrintSwap {
 	}
 }
 
-func (s *Swap) GetPrivkey() *btcec.PrivateKey {
+func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.PrivkeyBytes)
 	return privkey
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *Swap {
-	return &Swap{
+func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *SwapData {
+	return &SwapData{
 		Id:              swapId,
 		Role:            swapRole,
 		Type:            swapType,
@@ -159,8 +159,9 @@ func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64,
 	}
 }
 
-func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, channelId string, swapType SwapType) *Swap {
-	return &Swap{
+// NewSwapFromRequest returns a new swap created from a swap request
+func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, channelId string, swapType SwapType) *SwapData {
+	return &SwapData{
 		Id:              swapId,
 		Type:            swapType,
 		PeerNodeId:      senderNodeId,

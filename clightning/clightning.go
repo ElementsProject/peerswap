@@ -21,8 +21,9 @@ import (
 	"strconv"
 )
 
-var methods []peerswaprpcMethod = []peerswaprpcMethod{
+var methods = []peerswaprpcMethod{
 	&ListPeers{},
+	&SendToAddressMethod{},
 }
 
 const (
@@ -37,9 +38,10 @@ const (
 	liquidNetworkOption = "peerswap-liquid-network"
 
 	featureBit = 69
-
 )
 
+// ClightningClient is the main driver behind c-lightnings plugins system
+// it handles rpc calls and messages
 type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
@@ -56,6 +58,7 @@ type ClightningClient struct {
 	nodeId               string
 }
 
+// CheckChannel checks if a channel is eligable for a swap
 func (c *ClightningClient) CheckChannel(channelId string, amount uint64) (bool, error) {
 	funds, err := c.glightning.ListFunds()
 	if err != nil {
@@ -81,10 +84,12 @@ func (c *ClightningClient) CheckChannel(channelId string, amount uint64) (bool, 
 	return true, nil
 }
 
+// GetNodeId returns the lightning nodes pubkey
 func (c *ClightningClient) GetNodeId() string {
 	return c.nodeId
 }
 
+// GetPreimage returns a random preimage
 func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 	var preimage lightning.Preimage
 
@@ -94,6 +99,7 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 	return preimage, nil
 }
 
+// NewClightningClient returns a new clightning client and channel which get closed when the plugin is initialized
 func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	cl := &ClightningClient{}
 	cl.plugin = glightning.NewPlugin(cl.onInit)
@@ -115,16 +121,19 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	return cl, cl.initChan, nil
 }
 
+// OnPayment gets called by clightnings hooks
 func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
 	for _, v := range c.paymentSubscriptions {
 		v(payment)
 	}
 }
 
+// Start starts the plugin
 func (c *ClightningClient) Start() error {
 	return c.plugin.Start(os.Stdin, os.Stdout)
 }
 
+// SendMessage sends a hexmessage to a peer
 func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) error {
 	messageBytes, err := json.Marshal(message)
 	if err != nil {
@@ -141,14 +150,17 @@ func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) 
 	return nil
 }
 
+// AddMessageHandler adds a listener for incoming peermessages
 func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
 	c.msgHandlers = append(c.msgHandlers, f)
 }
 
+// AddPaymentCallback adds a callback when a payment was paid
 func (c *ClightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
 	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
 }
 
+// GetPayreq returns a Bolt11 Invoice
 func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string) (string, error) {
 	res, err := c.glightning.CreateInvoice(amountMsat, label, "liquid swap", 3600, []string{}, preImage, false)
 	if err != nil {
@@ -157,6 +169,7 @@ func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label s
 	return res.Bolt11, nil
 }
 
+// DecodePayreq decodes a Bolt11 Invoice
 func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
 	res, err := c.glightning.DecodeBolt11(payreq)
 	if err != nil {
@@ -169,6 +182,7 @@ func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, erro
 	}, nil
 }
 
+// PayInvoice tries to pay a Bolt11 Invoice
 func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
 	res, err := c.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
 	if err != nil {
@@ -177,6 +191,7 @@ func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error
 	return res.PaymentPreimage, nil
 }
 
+// OnCustomMsg is the hook that c-lightning calls
 func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
 	typeString := event.Payload[:4]
 	payload := event.Payload[4:]
@@ -206,6 +221,7 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 	c.initChan <- true
 }
 
+// GetConfig returns the peerswap config
 func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 
 	dbpath, err := c.plugin.GetOption(dbOption)
@@ -280,6 +296,7 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	}, nil
 }
 
+// RegisterOptions adds options to clightning
 func (c *ClightningClient) RegisterOptions() error {
 	err := c.plugin.RegisterNewOption(dbOption, "path to boltdb", "")
 	if err != nil {
@@ -312,12 +329,15 @@ func (c *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
+// SetupClients injects the required services
 func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, blockchain blockchain.Blockchain, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.blockchain = blockchain
 	c.Gelements = elements
 }
+
+// RegisterMethods registeres rpc methods to c-lightning
 func (c *ClightningClient) RegisterMethods() error {
 	swapIn := glightning.NewRpcMethod(&SwapIn{
 		cl: c,

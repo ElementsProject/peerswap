@@ -7,6 +7,7 @@ import (
 	"github.com/vulpemventures/go-elements/payment"
 )
 
+// Blech32ToScript returns an elements script from a Blech32 Address
 func Blech32ToScript(blech32Addr string, network *network.Network) ([]byte, error) {
 	blechAddr, err := address.FromBlech32(blech32Addr)
 	if err != nil {

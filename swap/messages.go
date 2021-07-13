@@ -26,6 +26,7 @@ const (
 	MESSAGE_BASE = 42069
 )
 
+// InRange returns true if the message is in the range of our defined messages
 func InRange(msg string) (bool, error) {
 	msgInt, err := strconv.ParseInt(msg, 16, 64)
 	if err != nil {
@@ -35,10 +36,6 @@ func InRange(msg string) (bool, error) {
 		return false, err
 	}
 	return msgInt >= MESSAGE_BASE && msgInt < MESSAGE_BASE+MESSAGE_END, nil
-}
-
-type MessageBase struct {
-	SwapId string
 }
 
 // SwapInRequest gets send when a peer wants to start a new swap.
@@ -60,7 +57,7 @@ type SwapOutRequest struct {
 	TakerPubkeyHash string
 }
 
-func (s *SwapOutRequest) ApplyOnSwap(swap *Swap) {
+func (s *SwapOutRequest) ApplyOnSwap(swap *SwapData) {
 	swap.Id = s.SwapId
 	swap.ChannelId = s.ChannelId
 	swap.Amount = s.Amount
@@ -71,33 +68,37 @@ func (s *SwapOutRequest) MessageType() MessageType {
 	return MESSAGETYPE_SWAPOUTREQUEST
 }
 
-type FeeResponse struct {
+// FeeMessage is the response by the swap-out peer if he accepts the swap
+// it contains an Invoice that the swap-out initiator must pay
+type FeeMessage struct {
 	SwapId  string
 	Invoice string
 }
 
-func (s *FeeResponse) ApplyOnSwap(swap *Swap) {
+func (s *FeeMessage) ApplyOnSwap(swap *SwapData) {
 	swap.FeeInvoice = s.Invoice
 }
 
-func (s *FeeResponse) MessageType() MessageType {
+func (s *FeeMessage) MessageType() MessageType {
 	return MESSAGETYPE_FEERESPONSE
 }
 
-type SwapInAgreementResponse struct {
+// SwapInAgreementMessage is the response by the swap-in peer if he accepts the swap
+type SwapInAgreementMessage struct {
 	SwapId          string
 	TakerPubkeyHash string
 }
 
-func (s *SwapInAgreementResponse) ApplyOnSwap(swap *Swap) {
+func (s *SwapInAgreementMessage) ApplyOnSwap(swap *SwapData) {
 	swap.TakerPubkeyHash = s.TakerPubkeyHash
 }
 
-func (s *SwapInAgreementResponse) MessageType() MessageType {
+func (s *SwapInAgreementMessage) MessageType() MessageType {
 	return MESSAGETYPE_SWAPINAGREEMENT
 }
 
-type TxOpenedResponse struct {
+// TxOpenedMessage is the message sent by the creator of the opening tx
+type TxOpenedMessage struct {
 	SwapId          string
 	MakerPubkeyHash string
 	Invoice         string
@@ -106,25 +107,26 @@ type TxOpenedResponse struct {
 	Cltv            int64
 }
 
-func (t *TxOpenedResponse) ApplyOnSwap(swap *Swap) {
+func (t *TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.MakerPubkeyHash = t.MakerPubkeyHash
-	swap.ClaimPayreq = t.Invoice
+	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxId = t.TxId
 	swap.OpeningTxHex = t.TxHex
 	swap.Cltv = t.Cltv
 }
 
-func (t *TxOpenedResponse) MessageType() MessageType {
+func (t *TxOpenedMessage) MessageType() MessageType {
 	return MESSAGETYPE_TXOPENEDRESPONSE
 }
 
+// ClaimedMessage is the message sent by the peer who claims the opening tx
 type ClaimedMessage struct {
 	SwapId    string
 	ClaimType ClaimType
 	ClaimTxId string
 }
 
-func (c *ClaimedMessage) ApplyOnSwap(swap *Swap) {
+func (c *ClaimedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.ClaimTxId = c.ClaimTxId
 }
 
@@ -132,19 +134,22 @@ func (c *ClaimedMessage) MessageType() MessageType {
 	return MESSAGETYPE_CLAIMED
 }
 
-type CancelResponse struct {
+// CancelMessage is the message sent by a peer if he wants to / has to cancel the swap
+type CancelMessage struct {
 	SwapId string
 	Error  string
 }
 
-func (e *CancelResponse) MessageType() MessageType {
+func (e *CancelMessage) MessageType() MessageType {
 	return MESSAGETYPE_CANCELED
 }
 
+// MessageTypeToHexString returns the hex encoded string of the messagetype
 func MessageTypeToHexString(messageIndex MessageType) string {
 	return strconv.FormatInt(MESSAGE_BASE+int64(messageIndex), 16)
 }
 
+// HexStrToMsgType returns the message type from a hex encoded string
 func HexStrToMsgType(msgType string) (MessageType, error) {
 	inRange, err := InRange(msgType)
 	if err != nil {

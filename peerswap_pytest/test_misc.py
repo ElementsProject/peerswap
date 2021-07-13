@@ -5,22 +5,46 @@ import string
 import time
 
 # todo fix test
-def test_your_plugin(node_factory, bitcoind):
+# def test_your_plugin(node_factory, bitcoind):
+#     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18884"))
+#     l2 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18885"))
+#
+#     l1.connect(l2)
+#     l2.daemon.wait_for_log(r'{}-.*-chan#[0-9]*: Handed peer, entering loop'.format(l1.info['id']))
+#     bitcoind.generate_block(5)
+#     l2getinfo = l2.rpc.getinfo()
+#     time.sleep(5)
+#     bitcoind.generate_block(5)
+#     time.sleep(5)
+#     res = l1.rpc.call("peerswap-peers")
+#     print(l1.rpc.listnodes())
+#     print(l2getinfo)
+#     print(res)
+#     time.sleep(3)
+
+def test_sendtoaddres(node_factory):
     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18884"))
     l2 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18885"))
+    l1.daemon.wait_for_log(r"peerswap initialized")
+    l2.daemon.wait_for_log(r"peerswap initialized")
 
-    l1.connect(l2)
-    l2.daemon.wait_for_log(r'{}-.*-chan#[0-9]*: Handed peer, entering loop'.format(l1.info['id']))
-    bitcoind.generate_block(5)
-    l2getinfo = l2.rpc.getinfo()
-    time.sleep(5)
-    bitcoind.generate_block(5)
-    time.sleep(5)
-    res = l1.rpc.call("peerswap-peers")
-    print(l1.rpc.listnodes())
-    print(l2getinfo)
-    print(res)
+    l2.rpc.call("dev-liquid-faucet")
+    time.sleep(1)
+    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    assert l2Balance == 100000000
+    time.sleep(1)
+    addr = l1.rpc.call("liquid-wallet-getaddress")
+    l2.rpc.call("liquid-wallet-sendtoaddress",{'address':addr,'amount_sat':1000})
+    l1.rpc.call("dev-liquid-generate")
+    time.sleep(1)
+    l1.rpc.call("dev-liquid-generate")
+    time.sleep(1)
+    l1.rpc.call("dev-liquid-generate")
     time.sleep(3)
+
+
+    l1Balance = l1.rpc.call("liquid-wallet-getbalance")
+    assert l1Balance == 1000
 
 
 def getpluginOpts(walletname, rpcport):

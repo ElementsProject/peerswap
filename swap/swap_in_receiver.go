@@ -23,9 +23,11 @@ const (
 	Event_SwapInReceiver_OnClaimInvoicePaid EventType = "Event_SwapInReceiver_OnClaimInvoicePaid"
 )
 
+// todo check for policy / balance
+// SwapInReceiverInitAction creates the swap-in process
 type SwapInReceiverInitAction struct{}
 
-func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN)
 	*swap = *newSwap
 
@@ -36,10 +38,11 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *Swap) E
 	return Event_SwapInReceiver_OnSwapCreated
 }
 
+// SwapInReceiverRequestReceivedAction sends the agreement message to the peer
 type SwapInReceiverRequestReceivedAction struct{}
 
-func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, swap *Swap) EventType {
-	response := &SwapInAgreementResponse{
+func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	response := &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 	}
@@ -50,12 +53,14 @@ func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, sw
 	return Event_SwapInReceiver_OnAgreementSent
 }
 
+// SwapInReceiverOpeningTxBroadcastedAction checks if the
+// invoice is correct and adss the transaction to the txwatcher
 type SwapInReceiverOpeningTxBroadcastedAction struct{}
 
-func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	var invoice *lightning.Invoice
 
-	invoice, swap.LastErr = services.lightning.DecodePayreq(swap.ClaimPayreq)
+	invoice, swap.LastErr = services.lightning.DecodePayreq(swap.ClaimInvoice)
 	if swap.LastErr != nil {
 		return Event_ActionFailed
 	}
@@ -64,25 +69,27 @@ func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapService
 		swap.LastErr = errors.New("invalid invoice price")
 		return Event_ActionFailed
 	}
-	swap.ClaimPaymenHash = invoice.PHash
+	swap.ClaimPaymentHash = invoice.PHash
 	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
 
 	return Event_Action_Success
 
 }
 
+// SwapInWaitForConfirmationsAction adds the swap opening tx to the txwatcher
 type SwapInWaitForConfirmationsAction struct{}
 
-func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
 	return NoOp
 }
 
+// SwapInWaitForConfirmationsAction pays the claim invoice
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
-func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	var preimage string
-	preimage, swap.LastErr = services.lightning.PayInvoice(swap.ClaimPayreq)
+	preimage, swap.LastErr = services.lightning.PayInvoice(swap.ClaimInvoice)
 	if swap.LastErr != nil {
 		return Event_ActionFailed
 	}
@@ -91,9 +98,10 @@ func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices,
 	return Event_SwapInReceiver_OnClaimInvoicePaid
 }
 
+// SwapInWaitForConfirmationsAction spends the opening transaction to the nodes liquid wallet
 type SwapInReceiverClaimInvoicePaidAction struct{}
 
-func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	var claimTxHex string
 	claimTxHex, swap.LastErr = CreatePreimageSpendingTransaction(services, swap)
 	if swap.LastErr != nil {
@@ -117,23 +125,27 @@ func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, s
 	}
 	return Event_OnClaimedPreimage
 }
-func swapInReceiverFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+
+// swapInReceiverFromStore recovers a swap statemachine from the swap store
+func swapInReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
 	smData.States = getSwapInReceiverStates()
 	return smData
 }
 
-func newSwapInReceiverFSM(id string, services *SwapServices) *StateMachine {
-	return &StateMachine{
+// newSwapInReceiverFSM returns a new swap statemachine for a swap-in receiver
+func newSwapInReceiverFSM(id string, services *SwapServices) *SwapStateMachine {
+	return &SwapStateMachine{
 		Id:           id,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_RECEIVER,
 		States:       getSwapInReceiverStates(),
-		Data:         &Swap{},
+		Data:         &SwapData{},
 	}
 }
 
+// getSwapInReceiverStates returns the states for the swap-in receiver
 func getSwapInReceiverStates() States {
 	return States{
 		Default: State{

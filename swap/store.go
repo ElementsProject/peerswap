@@ -18,7 +18,7 @@ type bboltStore struct {
 	db *bbolt.DB
 }
 
-func (p *bboltStore) UpdateData(swap *StateMachine) error {
+func (p *bboltStore) UpdateData(swap *SwapStateMachine) error {
 	err := p.Update(swap)
 	if err == ErrDoesNotExist {
 		err = nil
@@ -31,7 +31,7 @@ func (p *bboltStore) UpdateData(swap *StateMachine) error {
 
 }
 
-func (p *bboltStore) GetData(id string) (*StateMachine, error) {
+func (p *bboltStore) GetData(id string) (*SwapStateMachine, error) {
 	swap, err := p.GetById(id)
 	if err == ErrDoesNotExist {
 		return nil, ErrDataNotAvailable
@@ -56,7 +56,7 @@ func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
 	return &bboltStore{db: db}, nil
 }
 
-func (p *bboltStore) Create(swap *StateMachine) error {
+func (p *bboltStore) Create(swap *SwapStateMachine) error {
 	exists, err := p.idExists(swap.Id)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (p *bboltStore) Create(swap *StateMachine) error {
 	return tx.Commit()
 }
 
-func (p *bboltStore) Update(swap *StateMachine) error {
+func (p *bboltStore) Update(swap *SwapStateMachine) error {
 	exists, err := p.idExists(swap.Id)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (p *bboltStore) DeleteById(s string) error {
 	return tx.Commit()
 }
 
-func (p *bboltStore) GetById(s string) (*StateMachine, error) {
+func (p *bboltStore) GetById(s string) (*SwapStateMachine, error) {
 	tx, err := p.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (p *bboltStore) GetById(s string) (*StateMachine, error) {
 		return nil, ErrDoesNotExist
 	}
 
-	swap := &StateMachine{}
+	swap := &SwapStateMachine{}
 	if err := json.Unmarshal(jData, swap); err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (p *bboltStore) GetById(s string) (*StateMachine, error) {
 	return swap, nil
 }
 
-func (p *bboltStore) ListAll() ([]*StateMachine, error) {
+func (p *bboltStore) ListAll() ([]*SwapStateMachine, error) {
 	tx, err := p.db.Begin(false)
 	if err != nil {
 		return nil, err
@@ -172,10 +172,10 @@ func (p *bboltStore) ListAll() ([]*StateMachine, error) {
 	if b == nil {
 		return nil, fmt.Errorf("bucket nil")
 	}
-	var swaps []*StateMachine
+	var swaps []*SwapStateMachine
 	err = b.ForEach(func(k, v []byte) error {
 
-		swap := &StateMachine{}
+		swap := &SwapStateMachine{}
 		if err := json.Unmarshal(v, swap); err != nil {
 			return err
 		}

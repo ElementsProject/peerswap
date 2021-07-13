@@ -27,11 +27,13 @@ type RpcClient interface {
 	SendRawTx(txHex string) (string, error)
 }
 
+// rpcWallet uses the elementsd rpc wallet
 type rpcWallet struct {
 	walletName string
 	rpcClient  RpcClient
 }
 
+// FinalizeTransaction takes a rawtx, blinds it and signs it
 func (r *rpcWallet) FinalizeTransaction(rawTx string) (string, error) {
 	unblinded, err := r.rpcClient.BlindRawTransaction(rawTx)
 	if err != nil {
@@ -44,6 +46,7 @@ func (r *rpcWallet) FinalizeTransaction(rawTx string) (string, error) {
 	return finalized.Hex, nil
 }
 
+// CreateFundedTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
 	txHex, err := preparedTx.ToHex()
 	if err != nil {
@@ -56,16 +59,13 @@ func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction)
 	return fundedTx.TxString, gelements.ConvertBtc(fundedTx.Fee), nil
 }
 
+// FinalizeAndBroadcastFundedTransaction finalizes a tx and broadcasts it
 func (r *rpcWallet) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
-	unblinded, err := r.rpcClient.BlindRawTransaction(rawTx)
+	finalized, err := r.FinalizeTransaction(rawTx)
 	if err != nil {
 		return "", err
 	}
-	finalized, err := r.rpcClient.SignRawTransactionWithWallet(unblinded)
-	if err != nil {
-		return "", err
-	}
-	txId, err = r.rpcClient.SendRawTx(finalized.Hex)
+	txId, err = r.rpcClient.SendRawTx(finalized)
 	if err != nil {
 		return "", err
 	}
@@ -84,6 +84,7 @@ func NewRpcWallet(rpcClient RpcClient, walletName string) (*rpcWallet, error) {
 	return rpcWallet, nil
 }
 
+// setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
 func (r *rpcWallet) setupWallet() error {
 	loadedWallets, err := r.rpcClient.ListWallets()
 	if err != nil {
@@ -113,6 +114,7 @@ func (r *rpcWallet) setupWallet() error {
 	return nil
 }
 
+// GetBalance returns the balance in sats
 func (r *rpcWallet) GetBalance() (uint64, error) {
 	balance, err := r.rpcClient.GetBalance()
 	if err != nil {
@@ -121,6 +123,7 @@ func (r *rpcWallet) GetBalance() (uint64, error) {
 	return balance, nil
 }
 
+// GetAddress returns a new blech32 address
 func (r *rpcWallet) GetAddress() (string, error) {
 	address, err := r.rpcClient.GetNewAddress(0)
 	if err != nil {
@@ -129,6 +132,7 @@ func (r *rpcWallet) GetAddress() (string, error) {
 	return address, nil
 }
 
+// SendToAddress sends an amount to an address
 func (r *rpcWallet) SendToAddress(address string, amount uint64) (string, error) {
 	txId, err := r.rpcClient.SendToAddress(address, satsToAmountString(amount))
 	if err != nil {
@@ -137,6 +141,7 @@ func (r *rpcWallet) SendToAddress(address string, amount uint64) (string, error)
 	return txId, nil
 }
 
+// satsToAmountString returns the amount in btc from sats
 func satsToAmountString(sats uint64) string {
 	bitcoinAmt := float64(sats) / 100000000
 	return fmt.Sprintf("%f", bitcoinAmt)

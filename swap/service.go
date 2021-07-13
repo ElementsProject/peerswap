@@ -13,10 +13,11 @@ var (
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
 
+// SwapService contains the logic for swaps
 type SwapService struct {
 	swapServices *SwapServices
 
-	activeSwaps map[string]*StateMachine
+	activeSwaps map[string]*SwapStateMachine
 
 	sync.Mutex
 }
@@ -32,9 +33,10 @@ func NewSwapService(swapStore Store, blockchain Blockchain, lightning LightningC
 		wallet,
 		utils,
 	)
-	return &SwapService{swapServices: services, activeSwaps: map[string]*StateMachine{}}
+	return &SwapService{swapServices: services, activeSwaps: map[string]*SwapStateMachine{}}
 }
 
+// Start adds callback to the messenger, txwatcher services and lightning client
 func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
@@ -46,6 +48,7 @@ func (s *SwapService) Start() error {
 	return nil
 }
 
+// RecoverSwaps tries to recover swaps that are not yet finished
 func (s *SwapService) RecoverSwaps() error {
 	swaps, err := s.swapServices.swapStore.ListAll()
 	if err != nil {
@@ -66,7 +69,7 @@ func (s *SwapService) RecoverSwaps() error {
 		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
-		s.AddSwap(swap.Id, swap)
+		s.AddActiveSwap(swap.Id, swap)
 		err = swap.Recover()
 		if err != nil {
 			return err
@@ -75,6 +78,7 @@ func (s *SwapService) RecoverSwaps() error {
 	return nil
 }
 
+// OnMessageReceived handles incoming valid peermessages
 func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
 	msgType, err := HexStrToMsgType(msgTypeString)
 	if err != nil {
@@ -94,7 +98,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_FEERESPONSE:
-		var msg *FeeResponse
+		var msg *FeeMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -104,7 +108,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_TXOPENEDRESPONSE:
-		var msg *TxOpenedResponse
+		var msg *TxOpenedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -114,7 +118,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_CANCELED:
-		var msg *CancelResponse
+		var msg *CancelMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -134,7 +138,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case MESSAGETYPE_SWAPINAGREEMENT:
-		var msg *SwapInAgreementResponse
+		var msg *SwapInAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -161,8 +165,9 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	return nil
 }
 
+// OnTxConfirmed sends the txconfirmed event to the corresponding swap
 func (s *SwapService) OnTxConfirmed(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -175,8 +180,9 @@ func (s *SwapService) OnTxConfirmed(swapId string) error {
 	return nil
 }
 
+// OnCltvPassed sends the cltvpassed event to the corresponding swap
 func (s *SwapService) OnCltvPassed(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -190,10 +196,11 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 }
 
 // todo check prerequisites
-func (s *SwapService) SwapOut(peer string, channelId string, initiator string, amount uint64) (*StateMachine, error) {
+// SwapOut starts a new swap out process
+func (s *SwapService) SwapOut(peer string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
-	s.AddSwap(swap.Id, swap)
+	s.AddActiveSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:      amount,
 		initiatorId: initiator,
@@ -208,9 +215,10 @@ func (s *SwapService) SwapOut(peer string, channelId string, initiator string, a
 }
 
 // todo check prerequisites
-func (s *SwapService) SwapIn(peer string, channelId string, initiator string, amount uint64) (*StateMachine, error) {
+// SwapIn starts a new swap in process
+func (s *SwapService) SwapIn(peer string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	swap := newSwapInSenderFSM(s.swapServices)
-	s.AddSwap(swap.Id, swap)
+	s.AddActiveSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
 		amount:      amount,
 		initiatorId: initiator,
@@ -224,9 +232,10 @@ func (s *SwapService) SwapIn(peer string, channelId string, initiator string, am
 	return swap, nil
 }
 
+// OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(peer, channelId, swapId string, amount uint64) error {
 	swap := newSwapInReceiverFSM(swapId, s.swapServices)
-	s.AddSwap(swapId, swap)
+	s.AddActiveSwap(swapId, swap)
 
 	err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
 		amount:    amount,
@@ -237,9 +246,10 @@ func (s *SwapService) OnSwapInRequestReceived(peer, channelId, swapId string, am
 	return err
 }
 
+// OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPubkeyHash string, amount uint64) error {
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
-	s.AddSwap(swapId, swap)
+	s.AddActiveSwap(swapId, swap)
 	err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		peer:            peer,
@@ -253,8 +263,9 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPub
 	return nil
 }
 
-func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementResponse) error {
-	swap, err := s.GetSwap(msg.SwapId)
+// OnAgreementReceived sends the agreementreceived event to the corresponding swap state machine
+func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementMessage) error {
+	swap, err := s.GetActiveSwap(msg.SwapId)
 	if err != nil {
 		return err
 	}
@@ -265,20 +276,22 @@ func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementResponse) error {
 	return nil
 }
 
+// OnFeeInvoiceReceived sends the FeeInvoiceReceived event to the corresponding swap state machine
 func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeResponse{Invoice: feeInvoice})
+	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeMessage{Invoice: feeInvoice})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// OnFeeInvoicePaid sends the FeeInvoicePaid event to the corresponding swap state machine
 func (s *SwapService) OnFeeInvoicePaid(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -289,8 +302,9 @@ func (s *SwapService) OnFeeInvoicePaid(swapId string) error {
 	return nil
 }
 
+// OnClaimInvoicePaid sends the ClaimInvoicePaid event to the corresponding swap state machine
 func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -301,8 +315,9 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 	return nil
 }
 
+// OnPreimageClaimMessageReceived sends the ClaimedPreimage event to the corresponding swap state machine
 func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -313,8 +328,9 @@ func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string)
 	return nil
 }
 
+// OnCltvClaimMessageReceived sends the ClaimedCltv event to the corresponding swap state machine
 func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -325,12 +341,13 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 	return nil
 }
 
+// OnTxOpenedMessage sends the TxOpenedMessage event to the corresponding swap state machine
 func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, txId, txHex string, cltv int64) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedResponse{
+	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         claimInvoice,
@@ -344,8 +361,9 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 	return nil
 }
 
+// OnTxOpenedMessage sends the TxConfirmed event to the corresponding swap state machine
 func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -353,10 +371,12 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	s.RemoveSwap(swap.Id)
+	s.RemoveActiveSwap(swap.Id)
 	return nil
 }
 
+// OnPayment handles incoming payments and if it corresponds to a claim or
+// fee invoice passes the dater to the corresponding function
 func (s *SwapService) OnPayment(payment *glightning.Payment) {
 	// check if feelabel
 	var swapId string
@@ -380,8 +400,9 @@ func (s *SwapService) OnPayment(payment *glightning.Payment) {
 	return
 }
 
+// OnCancelReceived sends the CancelReceived event to the corresponding swap state machine
 func (s *SwapService) OnCancelReceived(swapId string) error {
-	swap, err := s.GetSwap(swapId)
+	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
@@ -392,24 +413,28 @@ func (s *SwapService) OnCancelReceived(swapId string) error {
 	return nil
 }
 
-func (s *SwapService) ListSwaps() ([]*StateMachine, error) {
+// ListSwaps returns all swaps stored
+func (s *SwapService) ListSwaps() ([]*SwapStateMachine, error) {
 	return s.swapServices.swapStore.ListAll()
 }
 
-func (s *SwapService) AddSwap(swapId string, swap *StateMachine) {
+// AddActiveSwap adds a swap to the active swaps
+func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
 	s.Lock()
 	defer s.Unlock()
 	s.activeSwaps[swapId] = swap
 }
 
-func (s *SwapService) GetSwap(swapId string) (*StateMachine, error) {
+// GetActiveSwap returns the active swap, or an error if it does not exist
+func (s *SwapService) GetActiveSwap(swapId string) (*SwapStateMachine, error) {
 	if swap, ok := s.activeSwaps[swapId]; ok {
 		return swap, nil
 	}
 	return nil, ErrSwapDoesNotExist
 }
 
-func (s *SwapService) RemoveSwap(swapId string) {
+// RemoveActiveSwap removes a swap from the active swap map
+func (s *SwapService) RemoveActiveSwap(swapId string) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.activeSwaps, swapId)

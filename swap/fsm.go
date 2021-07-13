@@ -10,7 +10,12 @@ import (
 // ErrEventRejected is the error returned when the state machine cannot process
 // an event in the state that it is in.
 var ErrEventRejected = errors.New("event rejected")
+
+// ErrDataNotAvailable is the error returned when the store does not have the data stored yet
 var ErrDataNotAvailable = errors.New("data not in store")
+
+// ErrFsmConfig is the error returned when the fsm configuartion is invalid
+// i.e. the fsm does not contain the next state
 var ErrFsmConfig = errors.New("fsm config invalid")
 
 const (
@@ -29,18 +34,12 @@ type EventType string
 
 // EventContext represents the context to be passed to the action implementation.
 type EventContext interface {
-	ApplyOnSwap(swap *Swap)
+	ApplyOnSwap(swap *SwapData)
 }
 
 // Action represents the action to be executed in a given state.
 type Action interface {
-	Execute(services *SwapServices, swap *Swap) EventType
-}
-
-type Data interface {
-	SetState(stateType StateType)
-	GetCurrentState() StateType
-	GetId() string
+	Execute(services *SwapServices, swap *SwapData) EventType
 }
 
 // Events represents a mapping of events and states.
@@ -53,20 +52,21 @@ type State struct {
 }
 
 type Store interface {
-	UpdateData(data *StateMachine) error
-	GetData(id string) (*StateMachine, error)
-	ListAll() ([]*StateMachine, error)
+	UpdateData(data *SwapStateMachine) error
+	GetData(id string) (*SwapStateMachine, error)
+	ListAll() ([]*SwapStateMachine, error)
 }
 
 // States represents a mapping of states and their implementations.
 type States map[StateType]State
 
 // SwapStateMachine represents the state machine.
-type StateMachine struct {
+type SwapStateMachine struct {
 	// Id holds the unique Id for the store
 	Id string
+
 	// Data holds the statemachine metadata
-	Data *Swap
+	Data *SwapData
 
 	// Type holds the SwapType
 	Type SwapType
@@ -94,7 +94,7 @@ type StateMachine struct {
 
 // getNextState returns the next state for the event given the machine's current
 // state, or an error if the event can't be handled in the given state.
-func (s *StateMachine) getNextState(event EventType) (StateType, error) {
+func (s *SwapStateMachine) getNextState(event EventType) (StateType, error) {
 	if state, ok := s.States[s.Current]; ok {
 		if state.Events != nil {
 			if next, ok := state.Events[event]; ok {
@@ -106,7 +106,7 @@ func (s *StateMachine) getNextState(event EventType) (StateType, error) {
 }
 
 // SendEvent sends an event to the state machine.
-func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
+func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if eventCtx != nil {
@@ -155,7 +155,7 @@ func (s *StateMachine) SendEvent(event EventType, eventCtx EventContext) error {
 }
 
 // Recover tries to continue from the current state, by doing the associated Action
-func (s *StateMachine) Recover() error {
+func (s *SwapStateMachine) Recover() error {
 	state, ok := s.States[s.Current]
 	if !ok || state.Action == nil {
 		// configuration error
@@ -176,7 +176,8 @@ func (s *StateMachine) Recover() error {
 	return nil
 }
 
-func (s *StateMachine) IsFinished() bool {
+// IsFinished returns true if the swap is already finished
+func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
 	case State_ClaimedCltv:
 	case State_ClaimedPreimage:

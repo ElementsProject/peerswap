@@ -44,7 +44,7 @@ type CreateSwapFromRequestContext struct {
 	takerPubkeyHash string
 }
 
-func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *Swap) {
+func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
 	swap.PeerNodeId = c.peer
 	swap.ChannelId = c.channelId
@@ -52,14 +52,15 @@ func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *Swap) {
 	swap.TakerPubkeyHash = c.takerPubkeyHash
 }
 
+// CreateSwapFromRequestAction creates the swap-out process and prepares the opening transaction
 type CreateSwapFromRequestAction struct{}
 
-func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT)
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap
 
-	//todo check balances
+	//todo check balance/policy if we want to create the swap
 
 	pubkey := swap.GetPrivkey().PubKey()
 
@@ -79,9 +80,9 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
-	swap.ClaimPayreq = payreq
+	swap.ClaimInvoice = payreq
 	swap.ClaimPreimage = preimage.String()
-	swap.ClaimPaymenHash = pHash.String()
+	swap.ClaimPaymentHash = pHash.String()
 
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
@@ -110,12 +111,13 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	return Event_SwapOutReceiver_OnSwapCreated
 }
 
+// SendFeeInvoiceAction sends the fee invoice to the swap peer
 type SendFeeInvoiceAction struct{}
 
-func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	messenger := services.messenger
 
-	msg := &FeeResponse{
+	msg := &FeeMessage{
 		SwapId:  swap.Id,
 		Invoice: swap.FeeInvoice,
 	}
@@ -127,9 +129,10 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *Swap) Event
 	return Event_SwapOutReceiver_OnSendFeeInvoiceSuceeded
 }
 
+// FeeInvoicePaidAction finalizes and broadcasts the opening transaction
 type FeeInvoicePaidAction struct{}
 
-func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	node := services.blockchain
 
 	finalizedTx, err := services.wallet.FinalizeTransaction(swap.OpeningTxUnpreparedHex)
@@ -150,13 +153,14 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *Swap) Event
 	return Event_SwapOutReceiver_OnTxBroadcasted
 }
 
+// SwapOutReceiverOpeningTxBroadcastedAction sends the TxOpenedMessage to the peer
 type SwapOutReceiverOpeningTxBroadcastedAction struct{}
 
-func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *Swap) EventType {
-	msg := &TxOpenedResponse{
+func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	msg := &TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
-		Invoice:         swap.ClaimPayreq,
+		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		TxHex:           swap.OpeningTxHex,
 		Cltv:            swap.Cltv,
@@ -171,14 +175,15 @@ func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServic
 
 type ClaimedPreimageAction struct{}
 
-func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	return NoOp
 }
 
+// CltvPassedAction spends the opening transaction with a signature
 type CltvPassedAction struct{}
 
 // todo seperate into claim state and sendmessage state
-func (c *CltvPassedAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (c *CltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 
 	blockchain := services.blockchain
 	messenger := services.messenger
@@ -208,14 +213,15 @@ func (c *CltvPassedAction) Execute(services *SwapServices, swap *Swap) EventType
 	return Event_SwapOutReceiver_OnCltvClaimed
 }
 
+// SendCancelAction sends a cancel message to the swap peer
 type SendCancelAction struct{}
 
-func (s *SendCancelAction) Execute(services *SwapServices, swap *Swap) EventType {
+func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	if swap.LastErr != nil {
 		log.Printf("[FSM] Canceling because of %s", swap.LastErr.Error())
 	}
 	messenger := services.messenger
-	msg := &CancelResponse{
+	msg := &CancelMessage{
 		SwapId: swap.Id,
 		Error:  swap.CancelMessage,
 	}
@@ -227,23 +233,26 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *Swap) EventType
 	return Event_Action_Success
 }
 
-func swapOutReceiverFromStore(smData *StateMachine, services *SwapServices) *StateMachine {
+// swapOutReceiverFromStore recovers a swap statemachine from the swap store
+func swapOutReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
 	smData.States = getSwapOutReceiverStates()
 	return smData
 }
 
-func newSwapOutReceiverFSM(id string, services *SwapServices) *StateMachine {
-	return &StateMachine{
+// newSwapOutReceiverFSM returns a new swap statemachine for a swap-out receiver
+func newSwapOutReceiverFSM(id string, services *SwapServices) *SwapStateMachine {
+	return &SwapStateMachine{
 		Id:           id,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_RECEIVER,
 		States:       getSwapOutReceiverStates(),
-		Data:         &Swap{},
+		Data:         &SwapData{},
 	}
 }
 
+// getSwapOutReceiverStates returns the states for the swap-out receiver
 func getSwapOutReceiverStates() States {
 	return States{
 		Default: State{

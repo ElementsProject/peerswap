@@ -1,5 +1,6 @@
 package peerswap
 
+// Config contains relevant config params for peerswap
 type Config struct {
 	DbPath      string
 	RpcUser     string

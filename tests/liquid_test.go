@@ -12,7 +12,6 @@ import (
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/transaction"
-
 	"testing"
 )
 
@@ -392,19 +391,20 @@ func Test_FeeEstimation(t *testing.T) {
 		t.Fatalf("error creating blechscript %v", err)
 	}
 
-	params := &utils.SpendingParams{
-		Signer:       alicePrivkey,
-		OpeningTxHex: finalized.Hex,
-		SwapAmount:   10000,
-		FeeAmount:    500,
-		CurrentBlock: 0,
-		Asset:        lbtc,
-		OutputScript: blechScript,
-		RedeemScript: redeemScript,
-	}
-	spendingTxHex, err := utils.CreatePreimageSpendingTransaction(params, preimage[:])
+	util := &utils.Utility{}
+	spendingTx, sigHash, err := util.CreateSpendingTransaction(finalized.Hex, 10000, 500, 0, lbtc, redeemScript, blechScript)
 	if err != nil {
-		t.Fatalf("error creating spending transaction: %v", err)
+		t.Fatal(err)
+	}
+
+	sig, err := alicePrivkey.Sign(sigHash[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	spendingTx.Inputs[0].Witness = util.GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
+	spendingTxHex, err := spendingTx.ToHex()
+	if err != nil {
+		t.Fatal(err)
 	}
 	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
 	if err != nil {
@@ -482,19 +482,20 @@ func Test_RpcWalletPreimage(t *testing.T) {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
 
-	params := &utils.SpendingParams{
-		Signer:       alicePrivkey,
-		OpeningTxHex: rawTx,
-		SwapAmount:   10000,
-		FeeAmount:    500,
-		CurrentBlock: 0,
-		Asset:        lbtc,
-		OutputScript: blechScript,
-		RedeemScript: redeemScript,
-	}
-	spendingTxHex, err := utils.CreatePreimageSpendingTransaction(params, preimage[:])
+	util := &utils.Utility{}
+	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, 0, lbtc, redeemScript, blechScript)
 	if err != nil {
-		t.Fatalf("error creating spending transaction: %v", err)
+		t.Fatal(err)
+	}
+
+	sig, err := alicePrivkey.Sign(sigHash[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	spendingTx.Inputs[0].Witness = util.GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
+	spendingTxHex, err := spendingTx.ToHex()
+	if err != nil {
+		t.Fatal(err)
 	}
 	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
 	if err != nil {
@@ -582,20 +583,22 @@ func Test_RpcWalletCltv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
-	params := &utils.SpendingParams{
-		Signer:       bobPrivkey,
-		OpeningTxHex: rawTx,
-		SwapAmount:   10000,
-		FeeAmount:    500,
-		CurrentBlock: blockCount,
-		Asset:        lbtc,
-		OutputScript: blechScript,
-		RedeemScript: redeemScript,
-	}
-	spendingTxHex, err := utils.CreateCltvSpendingTransaction(params)
+	util := &utils.Utility{}
+	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, blockCount, lbtc, redeemScript, blechScript)
 	if err != nil {
-		t.Fatalf("error creating spending transaction: %v", err)
+		t.Fatal(err)
 	}
+	sig, err := bobPrivkey.Sign(sigHash[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spendingTx.Inputs[0].Witness = util.GetCltvWitness(sig.Serialize(), redeemScript)
+	spendingTxHex, err := spendingTx.ToHex()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
 	if err != nil {
 		t.Fatalf("error testing rpc wallet %v", err)
