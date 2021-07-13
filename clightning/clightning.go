@@ -21,7 +21,9 @@ import (
 	"strconv"
 )
 
-var methods []peerswaprpcMethod
+var methods []peerswaprpcMethod = []peerswaprpcMethod{
+	&ListPeers{},
+}
 
 const (
 	dbOption          = "peerswap-db-path"
@@ -33,6 +35,9 @@ const (
 	rpcWalletOption = "peerswap-liquid-rpcwallet"
 
 	liquidNetworkOption = "peerswap-liquid-network"
+
+	featureBit = 69
+
 )
 
 type ClightningClient struct {
@@ -102,11 +107,10 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 
 	cl.glightning = glightning.NewLightning()
 
-	var b big.Int
-	b.Exp(big.NewInt(2), big.NewInt(112), nil)
+	b := big.NewInt(0)
+	b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
 	cl.plugin.AddNodeFeatures(b.Bytes())
 	cl.plugin.SetDynamic(true)
-
 	cl.initChan = make(chan interface{})
 	return cl, cl.initChan, nil
 }
@@ -259,6 +263,11 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if rpcWallet == "dev_test" {
+		idBytes := make([]byte, 8)
+		_, _ = rand.Read(idBytes[:])
+		rpcWallet = hex.EncodeToString(idBytes)
+	}
 
 	return &peerswap.Config{
 		DbPath:      dbpath,
@@ -359,6 +368,8 @@ func (c *ClightningClient) RegisterMethods() error {
 		method := v.Get(c)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
 		glightningMethod.Category = "liquid-swap-dev"
+		glightningMethod.Desc = v.Description()
+		glightningMethod.LongDesc = v.LongDescription()
 		err = c.plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
@@ -369,4 +380,6 @@ func (c *ClightningClient) RegisterMethods() error {
 
 type peerswaprpcMethod interface {
 	Get(*ClightningClient) jrpc2.ServerMethod
+	Description() string
+	LongDescription() string
 }

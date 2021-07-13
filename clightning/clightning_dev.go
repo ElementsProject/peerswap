@@ -24,6 +24,14 @@ type FaucetMethod struct {
 	cl *ClightningClient `json:"-"`
 }
 
+func (g *FaucetMethod) Description() string {
+	return "faucets liquid funds to local wallet"
+}
+
+func (g *FaucetMethod) LongDescription() string {
+	return ""
+}
+
 func (g *FaucetMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
 	return &FaucetMethod{
 		cl: client,
@@ -53,6 +61,14 @@ type GenerateMethod struct {
 	amount int `json:"amount`
 
 	cl *ClightningClient `json:"-"`
+}
+
+func (g *GenerateMethod) Description() string {
+	return "generates liquid blocks"
+}
+
+func (g *GenerateMethod) LongDescription() string {
+	return ""
 }
 
 func (g *GenerateMethod) Get(client *ClightningClient) jrpc2.ServerMethod {

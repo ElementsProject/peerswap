@@ -256,7 +256,6 @@ e
     }
     rebuild() {
         make build
-    	make copy
     	restart
     }
     restart() {
@@ -317,9 +316,10 @@ e
             	else
             		block_count=$1
             fi
-        res=$(bt-cli generatetoaddress$block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
+        res=$(bt-cli generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
         echo $res
     }
     setup_alias
      '';
+
 }

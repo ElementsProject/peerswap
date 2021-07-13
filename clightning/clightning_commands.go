@@ -7,6 +7,7 @@ import (
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap/swap"
 	"log"
+	"math/big"
 	"sort"
 )
 
@@ -210,4 +211,87 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		return pswasp, nil
 	}
 	return swaps, nil
+}
+
+type ListPeers struct {
+	cl *ClightningClient
+}
+
+func (l *ListPeers) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListPeers{cl:client}
+}
+
+func (l *ListPeers) Description() string {
+	return "lists valid peerswap peers"
+}
+
+func (l *ListPeers) LongDescription() string {
+	return ""
+}
+
+func (l *ListPeers) New() interface{} {
+	return &ListPeers{
+		cl: l.cl,
+	}
+}
+
+func (l *ListPeers) Name() string {
+	return "peerswap-peers"
+}
+
+func (l *ListPeers) Call() (jrpc2.Result, error) {
+	peers, err := l.cl.glightning.ListNodes()
+	if err != nil {
+		return nil, err
+	}
+	channelMap := make(map[string] *glightning.FundingChannel)
+	fundsresult, err := l.cl.glightning.ListFunds()
+	if err != nil {
+		return nil, err
+	}
+	for _,channel := range fundsresult.Channels {
+		channelMap[channel.Id] = channel
+	}
+	peerswapPeers := []*PeerSwapPeer{}
+	for _,v := range peers {
+		if v.Id == l.cl.nodeId {
+			continue
+		}
+		if !checkFeatures(v.Features.Raw, featureBit) {
+			continue
+		}
+		peerSwapPeer := &PeerSwapPeer{NodeId: v.Id}
+		var channel *glightning.FundingChannel
+		var ok bool
+		if channel, ok = channelMap[v.Id]; ok {
+
+			peerSwapPeer.ChannelId = channel.ShortChannelId
+			peerSwapPeer.LocalBalance = channel.ChannelSatoshi
+			peerSwapPeer.RemoteBalance = uint64(channel.ChannelTotalSatoshi - channel.ChannelSatoshi)
+			peerSwapPeer.Balance = fmt.Sprintf("%.2f%%",100*(float64(channel.ChannelSatoshi) / float64(channel.ChannelTotalSatoshi)))
+		}
+
+		peerswapPeers = append(peerswapPeers, peerSwapPeer)
+	}
+
+	return peerswapPeers,nil
+}
+
+type PeerSwapPeer struct {
+	NodeId string
+	ChannelId string
+	LocalBalance uint64
+	RemoteBalance uint64
+	Balance string
+}
+
+
+func checkFeatures(features []byte, featureBit int64) bool {
+	featuresInt := big.NewInt(0)
+	featuresInt = featuresInt.SetBytes(features)
+	bitInt := big.NewInt(0)
+	bitInt = bitInt.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
+	compareInt := big.NewInt(0)
+	compareInt = compareInt.And(featuresInt, bitInt)
+	return compareInt.Cmp(bitInt) == 0
 }
