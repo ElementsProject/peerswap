@@ -86,7 +86,8 @@ type SwapData struct {
 
 	CancelMessage string
 
-	LastErr error `json:"-"`
+	LastErr       error  `json:"-"`
+	LastErrString string `json:"last_err,omitempty"`
 }
 
 func (s *SwapData) GetId() string {
@@ -135,7 +136,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 		ClaimTxId:       s.ClaimTxId,
 		CltvHeight:      s.Cltv,
 		CreatedAt:       timeStamp.String(),
-		CancelMessage:   s.CancelMessage,
+		CancelMessage:   s.LastErrString,
 	}
 }
 

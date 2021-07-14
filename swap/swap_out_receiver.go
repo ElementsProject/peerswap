@@ -335,7 +335,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOut_Canceled: {
-			Action: &NoOpAction{},
+			Action: &CancelAction{},
 		},
 	}
 }

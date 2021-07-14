@@ -23,9 +23,10 @@ type Policy interface {
 type LightningClient interface {
 	DecodePayreq(payreq string) (*lightning.Invoice, error)
 	PayInvoice(payreq string) (preImage string, err error)
-	CheckChannel(channelId string, amount uint64) (bool, error)
+	CheckChannel(channelId string, amount uint64) error
 	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
 	AddPaymentCallback(f func(*glightning.Payment))
+	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 
 type TxWatcher interface {

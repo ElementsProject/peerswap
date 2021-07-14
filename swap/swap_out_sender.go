@@ -142,7 +142,7 @@ func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapDat
 
 	lc := services.lightning
 
-	preimageString, err := lc.PayInvoice(swap.ClaimInvoice)
+	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
@@ -231,7 +231,7 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_Created: {
 			Action: &SwapOutCreatedAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal:   State_SwapOut_Canceled,
+				Event_SwapOutSender_OnCancelSwapOut:      State_SwapOut_Canceled,
 				Event_SwapOutSender_OnSendSwapOutSucceed: State_SwapOutSender_RequestSent,
 			},
 		},
@@ -263,7 +263,7 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SwapOut_Canceled: {
-			Action: &NoOpAction{},
+			Action: &CancelAction{},
 			Events: Events{
 				Event_OnClaimedCltv: State_ClaimedCltv,
 			},

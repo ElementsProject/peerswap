@@ -280,7 +280,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapCanceled: {
-			Action: &NoOpAction{},
+			Action: &CancelAction{},
 		},
 	}
 }

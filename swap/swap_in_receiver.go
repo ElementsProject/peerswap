@@ -89,7 +89,7 @@ type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	var preimage string
-	preimage, swap.LastErr = services.lightning.PayInvoice(swap.ClaimInvoice)
+	preimage, swap.LastErr = services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if swap.LastErr != nil {
 		return Event_ActionFailed
 	}
@@ -124,6 +124,15 @@ func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, s
 		return Event_ActionFailed
 	}
 	return Event_OnClaimedPreimage
+}
+
+type CancelAction struct{}
+
+func (c *CancelAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.LastErr != nil {
+		swap.LastErrString = swap.LastErr.Error()
+	}
+	return NoOp
 }
 
 // swapInReceiverFromStore recovers a swap statemachine from the swap store
@@ -215,7 +224,7 @@ func getSwapInReceiverStates() States {
 		},
 
 		State_SwapCanceled: {
-			Action: &NoOpAction{},
+			Action: &CancelAction{},
 			Events: Events{
 				Event_OnClaimedCltv: State_ClaimedCltv,
 			},

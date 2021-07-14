@@ -38,6 +38,8 @@ const (
 	liquidNetworkOption = "peerswap-liquid-network"
 
 	featureBit = 69
+
+	paymentSplitterMsat = 1000000000
 )
 
 // ClightningClient is the main driver behind c-lightnings plugins system
@@ -59,10 +61,10 @@ type ClightningClient struct {
 }
 
 // CheckChannel checks if a channel is eligable for a swap
-func (c *ClightningClient) CheckChannel(channelId string, amount uint64) (bool, error) {
+func (c *ClightningClient) CheckChannel(channelId string, amount uint64) error {
 	funds, err := c.glightning.ListFunds()
 	if err != nil {
-		return false, err
+		return err
 	}
 	var fundingChannels *glightning.FundingChannel
 	for _, v := range funds.Channels {
@@ -72,16 +74,16 @@ func (c *ClightningClient) CheckChannel(channelId string, amount uint64) (bool, 
 		}
 	}
 	if fundingChannels == nil {
-		return false, errors.New("fundingChannels not found")
+		return errors.New("fundingChannels not found")
 	}
 
 	if fundingChannels.ChannelSatoshi < amount {
-		return false, errors.New("not enough outbound capacity to perform swapOut")
+		return errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
-		return false, errors.New("fundingChannels is not connected")
+		return errors.New("fundingChannels is not connected")
 	}
-	return true, nil
+	return nil
 }
 
 // GetNodeId returns the lightning nodes pubkey
@@ -99,7 +101,7 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 	return preimage, nil
 }
 
-// NewClightningClient returns a new clightning client and channel which get closed when the plugin is initialized
+// NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
 func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	cl := &ClightningClient{}
 	cl.plugin = glightning.NewPlugin(cl.onInit)
@@ -188,6 +190,101 @@ func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error
 	if err != nil {
 		return "", err
 	}
+	return res.PaymentPreimage, nil
+}
+
+// RebalancePayment handles the lightning payment that should rebalance the channel
+// if the payment is larger than 4mm sats it forces a mpp payment through the channel
+func (c *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
+	Bolt11, err := c.glightning.DecodeBolt11(payreq)
+	if err != nil {
+		return "", err
+	}
+	err = c.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
+	if err != nil {
+		return "", err
+	}
+	if Bolt11.MilliSatoshis > 4000000000 {
+		preimage, err = c.MppPayment(payreq, channel, Bolt11)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		label := randomString()
+		_, err = c.SendPayChannel(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
+		if err != nil {
+			return "", err
+		}
+		res, err := c.glightning.WaitSendPay(Bolt11.PaymentHash, 30)
+		if err != nil {
+			return "", err
+		}
+		preimage = res.PaymentPreimage
+	}
+	return preimage, nil
+}
+
+// MppPayment splits the payment in parts and waits for the payments to finish
+func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
+	label := randomString()
+	var preimage string
+
+	splits := Bolt11.MilliSatoshis / paymentSplitterMsat
+	log.Printf("millisats: %v splitter: %v, splits: %v", Bolt11.MilliSatoshis, paymentSplitterMsat, splits)
+	var i uint64
+	for i = 1; i < splits+1; i++ {
+		split := i
+		_, err := c.SendPayChannel(payreq, Bolt11, paymentSplitterMsat, channel, fmt.Sprintf("%s%v", label, i), split)
+		if err != nil {
+			return "", err
+		}
+	}
+	remainingSats := Bolt11.MilliSatoshis - splits*paymentSplitterMsat
+	if remainingSats > 0 {
+		split := i
+		_, err := c.SendPayChannel(payreq, Bolt11, remainingSats, channel, fmt.Sprintf("%s%v", label, i), split)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		i--
+	}
+	res, err := c.glightning.WaitSendPayPart(Bolt11.PaymentHash, 30, i)
+	if err != nil {
+		return "", err
+	}
+	preimage = res.PaymentPreimage
+	return preimage, nil
+}
+
+// SendPayChannel sends a payment through a specific channel
+func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error) {
+
+	satString := fmt.Sprintf("%smsat", strconv.FormatUint(amountMsat, 10))
+	res, err := c.glightning.SendPay(
+		[]glightning.RouteHop{
+			{
+				Id:             bolt11.Payee,
+				ShortChannelId: channel,
+				MilliSatoshi:   amountMsat,
+				AmountMsat:     satString,
+				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
+				Direction:      0,
+			},
+		},
+		bolt11.PaymentHash,
+		label,
+		&bolt11.MilliSatoshis,
+		payreq,
+		bolt11.PaymentSecret,
+		partId,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("message %s", res.Message)
+
 	return res.PaymentPreimage, nil
 }
 

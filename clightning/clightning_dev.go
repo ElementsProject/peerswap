@@ -1,13 +1,17 @@
-// +build dev
+// +/build dev
 
 package clightning
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/lightning"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -17,7 +21,7 @@ var (
 )
 
 func init() {
-	methods = append(methods, &FaucetMethod{}, &GenerateMethod{})
+	methods = append(methods, &FaucetMethod{}, &GenerateMethod{}, &BigInvoice{}, &BigPay{})
 }
 
 type FaucetMethod struct {
@@ -95,6 +99,86 @@ func (g *GenerateMethod) Call() (jrpc2.Result, error) {
 	return res, err
 }
 
+type BigInvoice struct {
+	SatAmt uint64
+	cl     *ClightningClient
+}
+
+func (b *BigInvoice) Name() string {
+	return "biginvoice"
+}
+
+func (b *BigInvoice) New() interface{} {
+	return &BigInvoice{
+		cl:     b.cl,
+		SatAmt: b.SatAmt,
+	}
+}
+
+func (b *BigInvoice) Call() (jrpc2.Result, error) {
+	if b.SatAmt == 0 {
+		b.SatAmt = 50000000
+	}
+	log.Printf("satamt: %v", b.SatAmt)
+	preimage, err := lightning.GetPreimage()
+	if err != nil {
+		return nil, err
+	}
+	invoice, err := b.cl.glightning.CreateInvoice(uint64(b.SatAmt*1000), randomString(), randomString(), 72000000, nil, preimage.String(), false)
+	if err != nil {
+		return nil, err
+	}
+	return invoice.Bolt11, nil
+}
+
+func (b *BigInvoice) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &BigInvoice{
+		cl: client,
+	}
+}
+
+func (b *BigInvoice) Description() string {
+	return "biginvoice"
+}
+
+func (b *BigInvoice) LongDescription() string {
+	return "biginvoice"
+}
+
+type BigPay struct {
+	Payreq    string
+	ChannelId string
+	cl        *ClightningClient
+}
+
+func (b *BigPay) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &BigPay{cl: client}
+}
+
+func (b *BigPay) Description() string {
+	return "bigpay"
+}
+
+func (b *BigPay) LongDescription() string {
+	return "bigpay"
+}
+
+func (b *BigPay) Name() string {
+	return "bigpay"
+}
+
+func (b *BigPay) New() interface{} {
+	return &BigPay{cl: b.cl}
+}
+
+func (b *BigPay) Call() (jrpc2.Result, error) {
+	res, err := b.cl.RebalancePayment(b.Payreq, b.ChannelId)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func faucet(address string) (string, error) {
 	baseURL := "http://localhost:3001"
 
@@ -120,4 +204,10 @@ func faucet(address string) (string, error) {
 		return "", err
 	}
 	return respBody["txId"], nil
+}
+
+func randomString() string {
+	idBytes := make([]byte, 32)
+	_, _ = rand.Read(idBytes[:])
+	return hex.EncodeToString(idBytes)
 }

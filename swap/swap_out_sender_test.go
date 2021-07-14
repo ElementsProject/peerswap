@@ -322,6 +322,20 @@ type dummyLightningClient struct {
 	failpayment     bool
 }
 
+func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
+	if d.failpayment {
+		return "", errors.New("payment failed")
+	}
+	if payreq == "err" {
+		return "", errors.New("error paying invoice")
+	}
+	pi, err := lightning.GetPreimage()
+	if err != nil {
+		return "", err
+	}
+	return pi.String(), nil
+}
+
 func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
 	d.paymentCallback(payment)
 }
@@ -349,8 +363,8 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, 
 	}, nil
 }
 
-func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) (bool, error) {
-	return true, nil
+func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) ( error) {
+	return  nil
 }
 
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {

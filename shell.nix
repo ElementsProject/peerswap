@@ -117,6 +117,8 @@ e
         setup_channel
     }
     remove_nodes() {
+
+         stop_nigiri_env
          rm -rf /tmp/l2-regtest/
          rm -rf /tmp/l1-regtest/
     }
@@ -283,8 +285,8 @@ e
         L1_ADDR=$(l1-cli newaddr | jq .'bech32')
         L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
         echo $(bt-cli generatetoaddress 12  $L1_ADDR)
+        echo $(generate 200)
         echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
-        bt-cli generatetoaddress 12  $L1_ADDR
     }
 
     fund_nodes() {
