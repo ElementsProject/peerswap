@@ -418,6 +418,10 @@ func (s *SwapService) ListSwaps() ([]*SwapStateMachine, error) {
 	return s.swapServices.swapStore.ListAll()
 }
 
+func (s *SwapService) GetSwap(swapId string) (*SwapStateMachine, error) {
+	return s.swapServices.swapStore.GetData(swapId)
+}
+
 // AddActiveSwap adds a swap to the active swaps
 func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
 	s.Lock()

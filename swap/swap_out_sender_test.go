@@ -363,8 +363,8 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, 
 	}, nil
 }
 
-func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) ( error) {
-	return  nil
+func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) error {
+	return nil
 }
 
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {

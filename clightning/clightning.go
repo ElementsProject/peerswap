@@ -24,6 +24,7 @@ import (
 var methods = []peerswaprpcMethod{
 	&ListPeers{},
 	&SendToAddressMethod{},
+	&GetSwap{},
 }
 
 const (

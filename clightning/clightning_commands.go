@@ -123,9 +123,6 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt parameter")
 	}
-	if l.SatAmt > 4000000 {
-		return nil, errors.New("swap size is restricted to 4 million sats")
-	}
 	if l.ShortChannelId == "" {
 		return nil, errors.New("Missing required short_channel_id parameter")
 	}
@@ -178,12 +175,6 @@ func (l *SwapIn) Name() string {
 }
 
 func (l *SwapIn) Call() (jrpc2.Result, error) {
-	if l.SatAmt <= 0 {
-		return nil, errors.New("Missing required amt parameter")
-	}
-	if l.SatAmt > 4000000 {
-		return nil, errors.New("swap size is restricted to 4 million sats")
-	}
 	if l.ShortChannelId == "" {
 		return nil, errors.New("Missing required short_channel_id parameter")
 	}
@@ -221,14 +212,14 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swapIn.Data.ToPrettyPrint(), nil
+	return swapIn.Data.ToPrettyPrint(), err
+
 }
 
 // ListSwaps list all active and finished swaps
 type ListSwaps struct {
-	PrettyPrint bool `json:"pretty_print,omitempty"`
-
-	cl *ClightningClient `json:"-"`
+	PrettyPrint bool              `json:"pretty_print,omitempty"`
+	cl          *ClightningClient `json:"-"`
 }
 
 func (l *ListSwaps) New() interface{} {
@@ -328,6 +319,47 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	}
 
 	return peerswapPeers, nil
+}
+
+type GetSwap struct {
+	SwapId string
+	cl     *ClightningClient
+}
+
+func (g *GetSwap) Name() string {
+	return "getswap"
+}
+
+func (g *GetSwap) New() interface{} {
+	return &GetSwap{
+		cl:     g.cl,
+		SwapId: g.SwapId,
+	}
+}
+
+func (g *GetSwap) Call() (jrpc2.Result, error) {
+	if g.SwapId == "" {
+		return nil, errors.New("SwapId required")
+	}
+	swap, err := g.cl.swaps.GetSwap(g.SwapId)
+	if err != nil {
+		return nil, err
+	}
+	return swap, nil
+}
+
+func (g *GetSwap) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetSwap{
+		cl: client,
+	}
+}
+
+func (g *GetSwap) Description() string {
+	return "returns swap by swapid"
+}
+
+func (g *GetSwap) LongDescription() string {
+	return ""
 }
 
 type PeerSwapPeer struct {

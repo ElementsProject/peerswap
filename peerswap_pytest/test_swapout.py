@@ -22,13 +22,13 @@ import time
 #     res = l1.rpc.call("dev-liquid-generate", {'amount':"2"})
 # #    print(res)
 def test_liquid_swap_out(node_factory, bitcoind):
-    swapAmt = 100000
+    swapAmt = 5000000
     l1 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18884"))
     l2 = node_factory.get_node(options=getpluginOpts(get_random_string(8), "18885"))
     l1.daemon.wait_for_log(r"peerswap initialized")
 
     l1.connect(l2)
-    l1.fundchannel(l2)
+    l1.fundchannel(l2, amount=swapAmt*2)
 
     scid12 = l1.get_channel_scid(l2)
 
