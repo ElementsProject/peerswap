@@ -56,6 +56,8 @@ cp peerswap/docs/elements.conf .elements/elements.conf
 
 # start elements
 elementsd --daemon
+
+# NOTE: liquid-testnet must be synced in order for the plugin to work
 ```
 ## C-lightning
 note: until c-lightning 0.11 we need to compile ourselves in order to get the necessary sendcustommsg command
@@ -94,10 +96,9 @@ lightningd --signet --daemon --log-file ~/l.log \
         --peerswap-liquid-rpcport=18884 \
         --peerswap-liquid-rpcuser=admin1 \
         --peerswap-liquid-rpcpassword=123 \
-        --peerswap-liquid-network=regtest \
+        --peerswap-liquid-network=testnet \
         --peerswap-liquid-rpcwallet=swap
 
-# TODO: how to get signet / liquid-testnet funds?
 
 # goto https://signet.bc-2.jp/ and receive some testnet coins
 lightning-cli --signet newaddr
@@ -106,19 +107,18 @@ lightning-cli --signet newaddr
 lightning-cli --signet connect 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072@49.12.106.176:39735
 
 # fund a channel
-lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072 8000000
+lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393
 
-
-# get channel short id
-channel=$(lightning-cli --signet listfunds | jq '."channels"[0]."short_channel_id"')
-
-# perform a swap out
-lightning-cli --signet swap-out 2000000 $channel
 
 # generate liquid address
 lightning-cli --signet liquid-wallet-getaddress
 
+# TODO: how to receive some lbtc
 
+# get channel short id
+channel=$(lightning-cli --signet listfunds | jq '."channels"[0]."short_channel_id"')
 
+# perform a swap out NOTE: you need liquid btc in order to pay for the 
+lightning-cli --signet swap-out 2000000 $channel
 ```
 
