@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/sputn1ck/peerswap"
+	"log"
+	"os"
+	"path/filepath"
+
 	"github.com/sputn1ck/glightning/gelements"
 	blockchain2 "github.com/sputn1ck/peerswap/blockchain"
 	"github.com/sputn1ck/peerswap/clightning"
@@ -12,9 +17,6 @@ import (
 	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 func main() {
@@ -60,6 +62,8 @@ func run() error {
 	var liquidNetwork *network.Network
 	if config.Network == "regtest" {
 		liquidNetwork = &network.Regtest
+	} else if config.Network == "testnet" {
+		liquidNetwork = &peerswap.Testnet
 	} else {
 		liquidNetwork = &network.Liquid
 	}

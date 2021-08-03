@@ -4,4 +4,4 @@ build:
 test:
 	go test -count=1 -v ./...
 release:
-	go build
+	go build -o peerswap ./cmd/peerswap/main.go

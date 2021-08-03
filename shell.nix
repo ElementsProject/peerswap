@@ -1,55 +1,45 @@
 let
+  nix-bitcoin-release = builtins.fetchGit {
+  url = "git@github.com:fort-nix/nix-bitcoin.git";
+  ref = "master";
+  };
+
+  nix-bitcoin = pkgs.callPackage nix-bitcoin-release {};
+
+  nixpkgs-unstable-path = (import "${toString nix-bitcoin-release}/pkgs/nixpkgs-pinned.nix").nixpkgs-unstable;
+  nixpkgs-unstable = import nixpkgs-unstable-path { };
+
  pkgs = import <nixpkgs> {};
 in
 with pkgs;
     stdenv.mkDerivation rec {
      name = "peerswap-environment";
-    buildInputs = [ act  ];
+     # python packages python39Full python39Packages.pip python39Packages.bitcoinlib sqlite
+     li = import ../lightning;
+
+     buildInputs = [ act li bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
-    if [ -z "$PATH_TO_LIGHTNING" ] && [ -x cli/lightning-cli ] && [ -x lightningd/lightningd ]; then
-        PATH_TO_LIGHTNING=$(pwd)
-    fi
+
+     alias lightning-cli='${li}/bin/lightning-cli'
+     alias lightningd='${li}/bin/lightningd'
+     alias bitcoind='${bitcoin}/bin/bitcoind'
+     alias bitcoin-cli='${bitcoin}/bin/bitcoin-cli'
 
 
-    if [ -z "$PATH_TO_LIGHTNING" ]; then
-        # Already installed maybe?  Prints
-        # shellcheck disable=SC2039
-        type lightning-cli || return
-        # shellcheck disable=SC2039
-        type lightningd || return
-        LCLI=lightning-cli
-        LIGHTNINGD=lightningd
-    else
-        LCLI="$PATH_TO_LIGHTNING"/cli/lightning-cli
-        LIGHTNINGD="$PATH_TO_LIGHTNING"/lightningd/lightningd
-        # This mirrors "type" output above.
-        echo lightning-cli is "$LCLI"
-        echo lightningd is "$LIGHTNINGD"
-    fi
-
-    if [ -z "$PATH_TO_BITCOIN" ]; then
-        if [ -d "$HOME/.bitcoin" ]; then
-            PATH_TO_BITCOIN="$HOME/.bitcoin"
-        elif [ -d "$HOME/Library/Application Support/Bitcoin/" ]; then
-            PATH_TO_BITCOIN="$HOME/Library/Application Support/Bitcoin/"
-        else
-            echo "\$PATH_TO_BITCOIN not set to a .bitcoin dir?" >&2
-            return
-        fi
-    fi
-
-    if [ -z "$PATH_TO_ELEMENTS" ]; then
-		if [ -d "$HOME/.elements" ]; then
-			PATH_TO_ELEMENTS="$HOME/.elements"
-		else
-			echo "\$PATH_TO_ELEMENTS not set to a .elements dir" >&2
-			return
-		fi
-	fi
+    setup_pyln() {
+      # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
+    # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
+    export PIP_PREFIX=$(pwd)/_build/pip_packages
+    export PYTHONPATH="$PIP_PREFIX/${pkgs.python39Full.sitePackages}:$PYTHONPATH"
+    export PATH="$PIP_PREFIX/bin:$PATH"
+    unset SOURCE_DATE_EPOCH
 
 
+    pip install pyln-testing
+     pip install pyln-client
+    }
     stop_nodes() {
         if [ -z "$2" ]; then
             network=regtest
@@ -138,6 +128,9 @@ e
         unalias et-cli
     }
     start_nodes() {
+
+     alias lightning-cli='${li}/bin/lightning-cli'
+     LIGHTNINGD='${li}/bin/lightningd'
 	if [ -z "$1" ]; then
 		node_count=2
 	else
@@ -164,6 +157,10 @@ e
 		log-level=debug
 		log-file=/tmp/l$i-$network/log
 		addr=localhost:$socket
+		bitcoin-rpcuser=admin1
+		bitcoin-rpcpassword=123
+		bitcoin-rpcconnect=localhost
+		bitcoin-rpcport=18443
 		EOF
 
 		# If we've configured to use developer, add dev options
@@ -177,18 +174,14 @@ e
 			funder-min-their-funding=10000
 			funder-per-channel-max=100000
 			funder-fuzz-percent=0
-			bitcoin-rpcuser=admin1
-			bitcoin-rpcpassword=123
-			bitcoin-rpcconnect=localhost
-			bitcoin-rpcport=18443
 			EOF
 		fi
 
-
+        PWD=$(pwd)
 		# Start the lightning nodes
 		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
 			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-			"--plugin=/mnt/c/Users/kon-dev/Documents/coding/liquid-swap/peerswap" \
+			"--plugin=$PWD/peerswap" \
 			 --peerswap-liquid-rpchost=http://localhost \
 			 --peerswap-liquid-rpcport=$liquidrpcPort \
 			 --peerswap-liquid-rpcuser=admin1 \
@@ -321,6 +314,7 @@ e
         res=$(bt-cli generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
         echo $res
     }
+    # setup_pyln
     setup_alias
      '';
 

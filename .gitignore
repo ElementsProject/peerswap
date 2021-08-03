@@ -1,6 +1,7 @@
 
 .idea/
 
+_build/
 
 cluster/volumes/liquidregtest/config/regtest/
 
@@ -18,3 +19,5 @@ dist/
 peerswap
 
 peerswap_pytest/__pycache__/
+
+.ci/docker/config/**

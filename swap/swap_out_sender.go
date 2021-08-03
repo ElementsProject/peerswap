@@ -97,6 +97,7 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapDat
 		log.Printf("error decoding %v", err)
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
+	swap.OpeningTxFee = invoice.Amount
 	// todo check peerId
 	if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 		swap.LastErr = err
