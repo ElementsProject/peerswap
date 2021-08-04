@@ -100,7 +100,7 @@ lightningd --signet --daemon --log-file ~/l.log \
         --peerswap-liquid-rpcwallet=swap
 
 
-# goto https://signet.bc-2.jp/ and receive some testnet coins
+# goto https://signet.bc-2.jp/ and receive some signet coins
 lightning-cli --signet newaddr
 
 # connect to sputn1ck node
@@ -113,12 +113,12 @@ lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d
 # generate liquid address
 lightning-cli --signet liquid-wallet-getaddress
 
-# TODO: how to receive some lbtc
+# goto https://liquidtestnet.com/faucet and receive some testnet lbtc
 
 # get channel short id
 channel=$(lightning-cli --signet listfunds | jq '."channels"[0]."short_channel_id"')
 
-# perform a swap out NOTE: you need liquid btc in order to pay for the 
+# perform a swap out NOTE: you need liquid btc in order to pay for the swap
 lightning-cli --signet swap-out 2000000 $channel
 ```
 
