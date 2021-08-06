@@ -35,6 +35,7 @@ def test_liquid_swap_out(node_factory, bitcoind):
     c12 = l2.rpc.listpeers(l1.info['id'])['peers'][0]['channels'][0]
     startingMsats = Millisatoshi(c12['to_us_msat'])
 
+    l1.rpc.call("dev-liquid-faucet")
     l2.rpc.call("dev-liquid-faucet")
     time.sleep(1)
     l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
