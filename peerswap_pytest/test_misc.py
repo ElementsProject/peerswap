@@ -43,7 +43,7 @@ def test_sendtoaddres(node_factory):
     time.sleep(3)
 
 
-    l1Balance = l1.rpc.call("liquid-wallet-getbalance")
+    l1Balance = l1.rpc.call("peerswap-liquid-getbalance")
     assert l1Balance == 1000
 
 

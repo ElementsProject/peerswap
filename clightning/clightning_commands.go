@@ -149,6 +149,14 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
+	liquidBalance, err := l.cl.wallet.GetBalance()
+	if err != nil {
+		return nil, err
+	}
+	// todo fix liquid fee amount
+	if liquidBalance < 500 {
+		return nil, errors.New("you require more than 500 lbtc sats for transaction ")
+	}
 	pk := l.cl.GetNodeId()
 	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
