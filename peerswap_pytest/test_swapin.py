@@ -21,10 +21,10 @@ def test_liquid_swap_in(node_factory):
 
     l2.rpc.call("dev-liquid-faucet")
     time.sleep(1)
-    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
     assert l2Balance == 100000000
 
-    l2.rpc.call("swap-in", {'amt':swapAmt,'short_channel_id':scid12})
+    l2.rpc.call("peerswap-swap-in", {'amt':swapAmt,'short_channel_id':scid12})
 
     l2.daemon.wait_for_log(r".*Event_SwapInSender_OnTxMsgSent .*")
     time.sleep(1)
@@ -39,7 +39,7 @@ def test_liquid_swap_in(node_factory):
     time.sleep(1)
 
 
-    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
 
     # todo fix assertion with swap fee amount
     assert l2Balance <= 100000000 - swapAmt

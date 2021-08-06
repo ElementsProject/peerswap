@@ -3,12 +3,13 @@ package clightning
 import (
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/swap"
 	"log"
 	"math/big"
 	"sort"
+
+	"github.com/sputn1ck/glightning/glightning"
+	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/swap"
 )
 
 // GetAddressMethod returns a new liquid address
@@ -23,7 +24,7 @@ func (g *GetAddressMethod) New() interface{} {
 }
 
 func (g *GetAddressMethod) Name() string {
-	return "liquid-wallet-getaddress"
+	return "peerswap-liquid-getaddress"
 }
 
 func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
@@ -41,7 +42,7 @@ type GetBalanceMethod struct {
 }
 
 func (g *GetBalanceMethod) Name() string {
-	return "liquid-wallet-getbalance"
+	return "peerswap-liquid-getbalance"
 }
 
 func (g *GetBalanceMethod) New() interface{} {
@@ -66,7 +67,7 @@ type SendToAddressMethod struct {
 }
 
 func (s *SendToAddressMethod) Name() string {
-	return "liquid-wallet-sendtoaddress"
+	return "peerswap-liquid-sendtoaddress"
 }
 
 func (s *SendToAddressMethod) New() interface{} {
@@ -116,7 +117,7 @@ func (l *SwapOut) New() interface{} {
 }
 
 func (l *SwapOut) Name() string {
-	return "swap-out"
+	return "peerswap-swap-out"
 }
 
 func (l *SwapOut) Call() (jrpc2.Result, error) {
@@ -171,7 +172,7 @@ func (l *SwapIn) New() interface{} {
 }
 
 func (l *SwapIn) Name() string {
-	return "swap-in"
+	return "peerswap-swap-in"
 }
 
 func (l *SwapIn) Call() (jrpc2.Result, error) {
@@ -229,7 +230,7 @@ func (l *ListSwaps) New() interface{} {
 }
 
 func (l *ListSwaps) Name() string {
-	return "swaps"
+	return "peerswap-listswaps"
 }
 
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
@@ -280,7 +281,7 @@ func (l *ListPeers) New() interface{} {
 }
 
 func (l *ListPeers) Name() string {
-	return "peerswap-peers"
+	return "peerswap-listpeers"
 }
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
@@ -327,7 +328,7 @@ type GetSwap struct {
 }
 
 func (g *GetSwap) Name() string {
-	return "getswap"
+	return "peerswap-getswap"
 }
 
 func (g *GetSwap) New() interface{} {

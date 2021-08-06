@@ -37,10 +37,10 @@ def test_liquid_swap_out(node_factory, bitcoind):
 
     l2.rpc.call("dev-liquid-faucet")
     time.sleep(1)
-    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
     assert l2Balance == 100000000
 
-    l1.rpc.call("swap-out", {'amt':swapAmt,'short_channel_id':scid12})
+    l1.rpc.call("peerswap-swap-out", {'amt':swapAmt,'short_channel_id':scid12})
 
     l1.daemon.wait_for_log(r".*Event_OnTxOpenedMessage .*")
     print("TX OPENED")
@@ -54,7 +54,7 @@ def test_liquid_swap_out(node_factory, bitcoind):
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)
-    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
 
     # todo fix assertion with swap fee amount
     assert l2Balance <= 100000000 - swapAmt

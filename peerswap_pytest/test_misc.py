@@ -30,11 +30,11 @@ def test_sendtoaddres(node_factory):
 
     l2.rpc.call("dev-liquid-faucet")
     time.sleep(1)
-    l2Balance = l2.rpc.call("liquid-wallet-getbalance")
+    l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
     assert l2Balance == 100000000
     time.sleep(1)
-    addr = l1.rpc.call("liquid-wallet-getaddress")
-    l2.rpc.call("liquid-wallet-sendtoaddress",{'address':addr,'amount_sat':1000})
+    addr = l1.rpc.call("peerswap-liquid-getaddress")
+    l2.rpc.call("peerswap-liquid-sendtoaddress",{'address':addr,'amount_sat':1000})
     l1.rpc.call("dev-liquid-generate")
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate")
