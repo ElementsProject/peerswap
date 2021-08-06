@@ -21,7 +21,7 @@ Nodes:
 
 ### Usage
 
-For bitcoin-signetnet / liquid-testnet see this [guide](./docs/signetguide.md)
+For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide.md)
 
 In order to use peerswap start `lightningd` with the following options, replacing as necessary
 ```
@@ -33,6 +33,8 @@ lightningd \
  --peerswap-liquid-network=regtest \
  --peerswap-liquid-rpcwallet=swap1
 ```
+
+Details on rpcs can be found [here](./docs/usage.md)
 
 ### Development
 
