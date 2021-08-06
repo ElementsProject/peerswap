@@ -34,7 +34,7 @@ lightningd \
  --peerswap-liquid-rpcwallet=swap1
 ```
 
-Details on rpcs can be found [here](./docs/usage.md)
+Details on usage can be found [here](./docs/usage.md)
 
 ### Development
 
