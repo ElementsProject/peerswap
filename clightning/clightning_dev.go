@@ -1,11 +1,9 @@
-// +/build dev
+// +build dev
 
 package clightning
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/sputn1ck/glightning/jrpc2"
@@ -21,7 +19,7 @@ var (
 )
 
 func init() {
-	methods = append(methods, &FaucetMethod{}, &GenerateMethod{}, &BigInvoice{}, &BigPay{})
+	devmethods = append(devmethods, &FaucetMethod{}, &GenerateMethod{}, &BigInvoice{}, &BigPay{})
 }
 
 type FaucetMethod struct {
@@ -206,8 +204,4 @@ func faucet(address string) (string, error) {
 	return respBody["txId"], nil
 }
 
-func randomString() string {
-	idBytes := make([]byte, 32)
-	_, _ = rand.Read(idBytes[:])
-	return hex.EncodeToString(idBytes)
-}
+

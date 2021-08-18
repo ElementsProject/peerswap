@@ -27,6 +27,9 @@ var methods = []peerswaprpcMethod{
 	&GetSwap{},
 }
 
+
+var devmethods = []peerswaprpcMethod{}
+
 const (
 	dbOption          = "peerswap-db-path"
 	rpcHostOption     = "peerswap-liquid-rpchost"
@@ -483,6 +486,17 @@ func (c *ClightningClient) RegisterMethods() error {
 	}
 
 	for _, v := range methods {
+		method := v.Get(c)
+		glightningMethod := glightning.NewRpcMethod(method, "dev")
+		glightningMethod.Category = "liquid-swap"
+		glightningMethod.Desc = v.Description()
+		glightningMethod.LongDesc = v.LongDescription()
+		err = c.plugin.RegisterMethod(glightningMethod)
+		if err != nil {
+			return err
+		}
+	}
+	for _, v := range devmethods {
 		method := v.Get(c)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
 		glightningMethod.Category = "liquid-swap-dev"

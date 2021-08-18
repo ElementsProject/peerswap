@@ -1,6 +1,8 @@
 package clightning
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -388,4 +390,11 @@ func checkFeatures(features []byte, featureBit int64) bool {
 	compareInt := big.NewInt(0)
 	compareInt = compareInt.And(featuresInt, bitInt)
 	return compareInt.Cmp(bitInt) == 0
+}
+
+// randomString returns a random 32 byte random string
+func randomString() string {
+	idBytes := make([]byte, 32)
+	_, _ = rand.Read(idBytes[:])
+	return hex.EncodeToString(idBytes)
 }
