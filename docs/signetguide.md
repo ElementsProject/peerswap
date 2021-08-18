@@ -51,8 +51,10 @@ tar -zvxf elements-0.18.1.12-x86_64-linux-gnu.tar.gz
 
 cp -vR elements-0.18.1.12/* /usr/
 
+mkdir -p ~/.elements
+
 # copy config file from peerswap to elements folder
-cp peerswap/docs/elements.conf .elements/elements.conf
+cp peerswap/docs/elements.conf ~/.elements/elements.conf
 
 # start elements
 elementsd --daemon
@@ -62,21 +64,27 @@ elementsd --daemon
 ## C-lightning
 note: until c-lightning 0.11 we need to compile ourselves in order to get the necessary sendcustommsg command
 ``` bash
-# NOTE: follow https://github.com/ElementsProject/lightning/blob/master/doc/INSTALL.md if not using ubuntu 15.04 or above
 
-# get dependencies
-sudo apt-get update
+# download files
+wget https://github.com/ElementsProject/lightning/releases/download/v0.10.1/clightning-v0.10.1-Ubuntu-18.04.tar.xz
+wget -O LIGHTNING-SHA256SUMS.asc https://github.com/ElementsProject/lightning/releases/download/v0.10.1/SHA256SUMS.asc
+wget https://github.com/ElementsProject/lightning/releases/download/v0.10.1/SHA256SUMS
+
+# verify files 
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "30DE693AE0DE9E37B3E7EB6BBFF0F67810C1EED1"
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "15EE8D6CAB0E7F0CF999BFCBD9200E6CD1ADB8F1"
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "B7C4BE81184FC203D52C35C51416D83DC4F0E86D"
+
+sha256sum -c SHA256SUMS 2>&1 | grep OK
+
+gpg --verify LIGHTNING-SHA256SUMS.asc SHA256SUMS
+
+tar -xf clightning-v0.10.1-Ubuntu-18.04.tar.xz -C /
+
 sudo apt-get install -y \
   autoconf automake build-essential git libtool libgmp-dev \
   libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev \
   gettext
-
-# clone and install clightning
-git clone https://github.com/ElementsProject/lightning.git
-cd lightning
-./configure
-make
-sudo make install
 
 ```
 ## Peerswap
@@ -91,7 +99,7 @@ make release
 
 # start lightningd NOTE: the peerswap plugin might not be located under root for you
 lightningd --signet --daemon --log-file ~/l.log \
-        --plugin=/root/peerswap/peerswap \
+        --plugin=~/peerswap/peerswap \
         --peerswap-liquid-rpchost=http://localhost \
         --peerswap-liquid-rpcport=18884 \
         --peerswap-liquid-rpcuser=admin1 \

@@ -19,7 +19,7 @@ with pkgs;
      # python packages python39Full python39Packages.pip python39Packages.bitcoinlib sqlite
      li = nixpkgs-unstable.clightning;
 
-     buildInputs = [ docker-compose act bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd li];
+     buildInputs = [ docker-compose act bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd li xonsh];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
@@ -71,80 +71,73 @@ with pkgs;
          rm -rf /tmp/l1-regtest/
     }
 
-    start_nodes() {
-        alias lightning-cli='${li}/bin/lightning-cli'
-         LCLI='${li}/bin/lightning-cli'
+        start_nodes() {
+         alias lightning-cli='${li}/bin/lightning-cli'
          LIGHTNINGD='${li}/bin/lightningd'
-        if [ -z "$1" ]; then
-            node_count=2
-        else
-            node_count=$1
-        fi
-        if [ "$node_count" -gt 100 ]; then
-            node_count=100
-        fi
-        if [ -z "$2" ]; then
-            network=regtest
-        else
-            network=$2
-        fi
-
-        LN_NODES=$node_count
-
-        for i in $(seq $node_count); do
-            socket=$(( 7070 + i * 101))
-            liquidrpcPort=$((18883 + i))
-            mkdir -p "/tmp/l$i-$network"
-            # Node config
-            cat <<- EOF > "/tmp/l$i-$network/config"
-            network=$network
-            log-level=debug
-            log-file=/tmp/l$i-$network/log
-            addr=localhost:$socket
-            bitcoin-rpcuser=admin1
-            bitcoin-rpcpassword=123
-            bitcoin-rpcconnect=localhost
-            bitcoin-rpcport=18443
-            EOF
-
-            # If we've configured to use developer, add dev options
-            if $LIGHTNINGD --help | grep -q dev-fast-gossip; then
-                cat <<- EOF >> "/tmp/l$i-$network/config"
-                dev-fast-gossip
-                dev-bitcoind-poll=5
-                experimental-dual-fund
-                funder-policy=match
-                funder-policy-mod=100
-                funder-min-their-funding=10000
-                funder-per-channel-max=100000
-                funder-fuzz-percent=0
-                EOF
-            fi
-
+    	if [ -z "$1" ]; then
+    		node_count=2
+    	else
+    		node_count=$1
+    	fi
+    	if [ "$node_count" -gt 100 ]; then
+    		node_count=100
+    	fi
+    	if [ -z "$2" ]; then
+    		network=regtest
+    	else
+    		network=$2
+    	fi
+    	LN_NODES=$node_count
+    	for i in $(seq $node_count); do
+    		socket=$(( 7070 + i * 101))
+    		liquidrpcPort=$((18883 + i))
+    		mkdir -p "/tmp/l$i-$network"
+    		# Node config
+    		cat <<- EOF > "/tmp/l$i-$network/config"
+network=$network
+log-level=debug
+log-file=/tmp/l$i-$network/log
+addr=localhost:$socket
+bitcoin-rpcuser=admin1
+bitcoin-rpcpassword=123
+bitcoin-rpcconnect=localhost
+bitcoin-rpcport=18443
+EOF
+    		# If we've configured to use developer, add dev options
+    		if $LIGHTNINGD --help | grep -q dev-fast-gossip; then
+    			cat <<- EOF >> "/tmp/l$i-$network/config"
+dev-fast-gossip
+dev-bitcoind-poll=5
+experimental-dual-fund
+funder-policy=match
+funder-policy-mod=100
+funder-min-their-funding=10000
+funder-per-channel-max=100000
+funder-fuzz-percent=0
+EOF
+    		fi
             PWD=$(pwd)
-            # Start the lightning nodes
-            test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
-                "$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-                "--plugin=$PWD/peerswap" \
-                 --peerswap-liquid-rpchost=http://localhost \
-                 --peerswap-liquid-rpcport=$liquidrpcPort \
-                 --peerswap-liquid-rpcuser=admin1 \
-                 --peerswap-liquid-rpcpassword=123 \
-                 --peerswap-liquid-network=regtest \
-                 --peerswap-liquid-rpcwallet=swap-$i
-
-            # shellcheck disable=SC2139 disable=SC2086
-            alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network/"
-            # shellcheck disable=SC2139 disable=SC2086
-            alias l$i-log="less /tmp/l$i-$network/log"
-        done
-
-        # Give a hint.
-        echo "Commands: "
-        for i in $(seq $node_count); do
-            echo "	l$i-cli, l$i-log,"
-        done
-    }
+    		# Start the lightning nodes
+    		test -f "/tmp/l$i-$network/lightningd-$network.pid" || \
+    			"$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
+    			"--plugin=$PWD/peerswap" \
+    			 --peerswap-liquid-rpchost=http://localhost \
+    			 --peerswap-liquid-rpcport=$liquidrpcPort \
+    			 --peerswap-liquid-rpcuser=admin1 \
+    			 --peerswap-liquid-rpcpassword=123 \
+    			 --peerswap-liquid-network=regtest \
+    			 --peerswap-liquid-rpcwallet=swap-$i
+    		# shellcheck disable=SC2139 disable=SC2086
+    		alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
+    		# shellcheck disable=SC2139 disable=SC2086
+    		alias l$i-log="less /tmp/l$i-$network/log"
+    	done
+    	# Give a hint.
+    	echo "Commands: "
+    	for i in $(seq $node_count); do
+    		echo "	l$i-cli, l$i-log,"
+    	done
+        }
     remove_swaps() {
         rm /tmp/l1-regtest/regtest/swaps/swaps
         rm /tmp/l2-regtest/regtest/swaps/swaps
@@ -181,6 +174,7 @@ with pkgs;
 
         alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18443'
         alias et-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18884'
+        alias et-cli2='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18885'
 
     }
 
@@ -198,8 +192,8 @@ with pkgs;
     	restart
     }
     restart() {
-        stop_nigiri_env
-        start_nigiri_env
+        stop_nodes "$1" regtest
+        start_nodes "$nodes" regtest
     }
 
 
@@ -221,7 +215,7 @@ with pkgs;
         L2_PUBKEY=$(l2-cli getinfo | jq -r .id)
         L1_ADDR=$(l1-cli newaddr | jq .'bech32')
         L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
-        echo $(bt-cli generatetoaddress 12  $L1_ADDR)
+        echo $(bt-cli generatetoaddress 1  $L1_ADDR)
         echo $(generate 200)
         echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
     }
@@ -249,6 +243,7 @@ with pkgs;
         echo $res
 
     }
+
     generate() {
     if [ -z "$1" ]; then
             		block_count=1
@@ -258,6 +253,7 @@ with pkgs;
         res=$(bt-cli generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
         echo $res
     }
+
     # setup_pyln
     setup_alias
      '';
