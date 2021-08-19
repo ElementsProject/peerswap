@@ -21,3 +21,6 @@ peerswap
 peerswap_pytest/__pycache__/
 
 .ci/docker/config/**
+
+# the vscode workspace config dir
+.vscode
