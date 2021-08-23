@@ -38,6 +38,5 @@ Details on usage can be found [here](./docs/usage.md)
 
 ### Development
 
-PeerSwap uses [nigiri](https://github.com/vulpemventures/nigiri) 
-for local testing, as well as a hacky nix-shell script 
-for setting up two clightning nodes
+PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment
+In order to start hacking, install nix and run `nix-shell`. This will fetch all dependencies (bar golang).

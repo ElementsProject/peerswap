@@ -1,3 +1,5 @@
+{ pkgs ? (import <nixpkgs> {})}:
+with pkgs.lib;
 let
   nix-bitcoin-release = pkgs.fetchFromGitHub {
       owner = "fort-nix";
@@ -8,18 +10,21 @@ let
 
   nix-bitcoin = pkgs.callPackage nix-bitcoin-release {};
 
+
   nixpkgs-unstable-path = (import "${toString nix-bitcoin-release}/pkgs/nixpkgs-pinned.nix").nixpkgs-unstable;
   nixpkgs-unstable = import nixpkgs-unstable-path { };
 
- pkgs = import <nixpkgs> {};
+  packageOverrides = pkgs.callPackage ./python-packages.nix {};
+  python = pkgs.python36.override { inherit packageOverrides; };
+  pythonWithPackages = python.withPackages(ps: [ ps.pytest ps.pyln-client ps.pyln-testing]);
 in
 with pkgs;
     stdenv.mkDerivation rec {
      name = "peerswap-environment";
      # python packages python39Full python39Packages.pip python39Packages.bitcoinlib sqlite
      li = nixpkgs-unstable.clightning;
-
-     buildInputs = [docker-compose act bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd li xonsh];
+     nativeBuildInputs = [openssl ];
+     buildInputs = [pythonWithPackages docker-compose act bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd li xonsh];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
