@@ -46,7 +46,7 @@ jobs:
         with:
           repository: 'ElementsProject/lightning'
           path: 'lightning'
-          ref: 'master'
+          ref: 'refs/tags/v0.10.1'
           submodules: 'recursive'
 
       - name: Download runtime dependencies
@@ -60,7 +60,7 @@ jobs:
       - name: Compile & install c-lightning@master
         run: |
           export EXPERIMENTAL_FEATURES=0
-          export DEVELOPER=1
+          export DEVELOPER=0
           export VALGRIND=0
           sudo apt-get install -y libsqlite3-dev build-essential gettext python python3 python3-mako net-tools zlib1g-dev libsodium-dev libpq-dev postgresql
           cd lightning
