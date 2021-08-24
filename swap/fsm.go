@@ -89,6 +89,9 @@ type SwapStateMachine struct {
 	// SwapServices stores services the statemachine may use
 	swapServices *SwapServices
 
+	// retries counts how many retries a event has already done
+	retries int
+
 	failures int
 }
 
@@ -143,6 +146,13 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) err
 		}
 		if nextEvent == NoOp {
 			return nil
+		}
+		if nextEvent == Event_OnRetry {
+			s.retries++
+			if s.retries > 20 {
+				s.retries = 0
+				return nil
+			}
 		}
 		if nextEvent == Event_ActionFailed && s.Data.LastErr != nil {
 			log.Printf("[FSM] Action failure %v", s.Data.LastErr)

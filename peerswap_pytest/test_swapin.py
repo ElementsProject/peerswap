@@ -26,7 +26,6 @@ def test_liquid_swap_in(node_factory):
 
     l2.rpc.call("peerswap-swap-in", {'amt':swapAmt,'short_channel_id':scid12})
 
-    l2.daemon.wait_for_log(r".*Event_SwapInSender_OnTxMsgSent .*")
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)

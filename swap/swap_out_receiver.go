@@ -184,7 +184,6 @@ type CltvPassedAction struct{}
 
 // todo seperate into claim state and sendmessage state
 func (c *CltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-
 	blockchain := services.blockchain
 	messenger := services.messenger
 

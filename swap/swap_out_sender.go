@@ -261,6 +261,7 @@ func getSwapOutSenderStates() States {
 			Action: &SendCancelAction{},
 			Events: Events{
 				Event_Action_Success: State_SwapOut_Canceled,
+				Event_OnRetry:        State_SendCancel,
 			},
 		},
 		State_SwapOut_Canceled: {

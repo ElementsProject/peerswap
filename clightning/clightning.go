@@ -27,7 +27,6 @@ var methods = []peerswaprpcMethod{
 	&GetSwap{},
 }
 
-
 var devmethods = []peerswaprpcMethod{}
 
 const (

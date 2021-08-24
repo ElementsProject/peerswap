@@ -203,5 +203,3 @@ func faucet(address string) (string, error) {
 	}
 	return respBody["txId"], nil
 }
-
-

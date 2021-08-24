@@ -5,3 +5,7 @@ test:
 	go test -count=1 -v ./...
 release:
 	go build -o peerswap ./cmd/peerswap/main.go
+
+pytest:
+	build
+	pytest ./peerswap_pytest

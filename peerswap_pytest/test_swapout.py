@@ -43,8 +43,6 @@ def test_liquid_swap_out(node_factory, bitcoind):
 
     l1.rpc.call("peerswap-swap-out", {'amt':swapAmt,'short_channel_id':scid12})
 
-    l1.daemon.wait_for_log(r".*Event_OnTxOpenedMessage .*")
-    print("TX OPENED")
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})
     time.sleep(1)

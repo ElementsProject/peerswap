@@ -277,6 +277,7 @@ func getSwapInSenderStates() States {
 			Action: &SendCancelAction{},
 			Events: Events{
 				Event_Action_Success: State_SwapCanceled,
+				Event_OnRetry:        State_SendCancel,
 			},
 		},
 		State_SwapCanceled: {

@@ -1,6 +1,7 @@
 package clightning
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"math/big"
 	"sort"
+	"time"
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
@@ -164,7 +166,29 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swapOut.Data.ToPrettyPrint(), nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
+		default:
+			if swapOut.Current == swap.State_SwapOutSender_RequestSent || swapOut.Current == swap.State_SwapOutSender_FeeInvoiceReceived || swapOut.Current == swap.State_SwapOutSender_FeeInvoicePaid {
+				continue
+			}
+			if swapOut.Current == swap.State_SwapOut_Canceled {
+				if swapOut.Data.LastErr == nil {
+					return nil, errors.New("swap canceled")
+				}
+				return nil, swapOut.Data.LastErr
+
+			}
+			if swapOut.Current == swap.State_SwapOutSender_TxBroadcasted {
+				return swapOut.Data.ToPrettyPrint(), nil
+			}
+
+		}
+	}
 }
 
 // SwapIn Starts a new swap in(providing onchain liquidity)
@@ -223,7 +247,29 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swapIn.Data.ToPrettyPrint(), err
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
+		default:
+			if swapIn.Current == swap.State_SwapInSender_SwapInRequestSent || swapIn.Current == swap.State_SwapInSender_AgreementReceived {
+				continue
+			}
+			if swapIn.Current == swap.State_SwapCanceled {
+				if swapIn.Data.LastErr == nil {
+					return nil, errors.New("swap canceled")
+				}
+				return nil, swapIn.Data.LastErr
+
+			}
+			if swapIn.Current == swap.State_SwapInSender_TxBroadcasted {
+				return swapIn.Data.ToPrettyPrint(), nil
+			}
+
+		}
+	}
 
 }
 

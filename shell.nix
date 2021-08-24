@@ -24,7 +24,7 @@ with pkgs;
      # python packages python39Full python39Packages.pip python39Packages.bitcoinlib sqlite
      li = nixpkgs-unstable.clightning;
      nativeBuildInputs = [openssl ];
-     buildInputs = [pythonWithPackages docker-compose act bitcoin protoc-gen-go protoc-gen-go-grpc nixpkgs-unstable.elementsd li xonsh];
+     buildInputs = [pythonWithPackages docker-compose bitcoin nixpkgs-unstable.elementsd li jq];
      path = lib.makeBinPath [  ];
      
      shellHook = ''
