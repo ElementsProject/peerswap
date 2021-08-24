@@ -7,17 +7,7 @@ start_docker_env() {
 stop_docker_env() {
     docker-compose -f .ci/docker/docker-compose.yml down
 }
-setup_pyln() {
-    # Tells pip to put packages into $PIP_PREFIX instead of the usual locations.
-    # See https://pip.pypa.io/en/stable/user_guide/#environment-variables.
-    export PIP_PREFIX=$(pwd)/_build/pip_packages
-    export PYTHONPATH="$PIP_PREFIX/${pkgs.python39Full.sitePackages}:$PYTHONPATH"
-    export PATH="$PIP_PREFIX/bin:$PATH"
-    unset SOURCE_DATE_EPOCH
 
-    pip install pyln-testing
-    pip install pyln-client
-}
 
 stop_nodes() {
     if [ -z "$2" ]; then
@@ -137,7 +127,7 @@ setup_alias() {
     # Give a hint.
     echo "Commands: "
     for i in $(seq $node_count); do
-        echo "	l$i-cli, l$i-log, l$i-follow"
+        echo "	l$i-cli, l$i-log, l$i-follow, l$i-followf"
     done
 
     alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18443'
@@ -156,7 +146,7 @@ connect_nodes() {
     echo $(l1-cli connect $L2_CONNECT)
 }
 rebuild() {
-    make build
+  make build
   restart
 }
 restart() {
@@ -180,24 +170,22 @@ l2-pay()  {
 
 
 setup_channel() {
+    connect_nodes
     L2_PUBKEY=$(l2-cli getinfo | jq -r .id)
-    L1_ADDR=$(l1-cli newaddr | jq .'bech32')
-    L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
-    echo $(bt-cli generatetoaddress 1  $L1_ADDR)
-    echo $(generate 200)
     echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
+    echo $(generate 12)
 }
 
-fund_nodes() {
-    l1_liquid=$(l1-cli liquid-wallet-getaddress)
-    l1_liquid=$(sed -e 's/^"//' -e 's/"$//' <<<"$l1_liquid")
-    echo $l1_liquid
-    faucet $l1_liquid
+fund_node() {
+  L1_ADDR=$(l1-cli newaddr | jq .'bech32')
+  L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
+  echo $(bt-cli generatetoaddress 1  $L1_ADDR)
+  echo $(generate 100)
 }
 
-faucet-l() {
-    l1-cli dev-liquid-faucet
-    l2-cli dev-liquid-faucet
+fund_nodes_l() {
+    echo $(l1-cli dev-liquid-faucet)
+    echo $(l2-cli dev-liquid-faucet)
 }
 
 l_generate() {
@@ -219,4 +207,17 @@ if [ -z "$1" ]; then
         fi
     res=$(bt-cli generatetoaddress $block_count 2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1)
     echo $res
+}
+
+reset_dev_env() {
+  remove_nodes
+  stop_docker_env
+  rm -rf .ci/docker/config/regtest
+  rm -rf .ci/docker/liquid-config/liquidregtest
+  rm -rf .ci/docker/liquid-config2/liquidregtest
+}
+
+start_dev_env() {
+  start_docker_env
+  rebuild
 }
