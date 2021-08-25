@@ -85,20 +85,18 @@ func Test_ValidSwap(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		TxHex:           "txhex",
 		Cltv:            1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
 
 	err = swapFSM.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	assert.Equal(t, "txHex", swapFSM.Data.OpeningTxHex)
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
@@ -257,19 +255,19 @@ func Test_AbortCltvClaim(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		TxHex:           "txhex",
 		Cltv:            1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_TxBroadcasted, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, "txhex", swapFSM.Data.OpeningTxHex)
+
 	swapFSM.Data.ClaimInvoice = "err"
 	err = swapFSM.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	assert.Equal(t, "txHex", swapFSM.Data.OpeningTxHex)
 	msg := <-msgChan
 	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
@@ -430,6 +428,10 @@ func (d *DummyWallet) CreateFundedTransaction(preparedTx *transaction.Transactio
 
 type DummyNode struct{}
 
+func (d *DummyNode) GetRawtransaction(txId string) (string, error) {
+	return "txHex", nil
+}
+
 func (d *DummyNode) GetLocktime() uint64 {
 	return 100
 }
@@ -472,6 +474,10 @@ func (d *DummyNode) SendRawTx(txHex string) (string, error) {
 }
 
 type DummyUtility struct{}
+
+func (d *DummyUtility) CheckTransactionValidity(openingTxHex string, swapAmount uint64, redeemScript []byte) error {
+	return nil
+}
 
 func (d *DummyUtility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
 	return []byte("redeemscript"), nil

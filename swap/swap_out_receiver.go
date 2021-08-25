@@ -90,7 +90,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
-	fee, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
+	feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
@@ -102,7 +102,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
-	feeInvoice, err := services.lightning.GetPayreq(fee*1000, feepreimage.String(), "fee_"+swap.Id)
+	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
@@ -162,7 +162,6 @@ func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServic
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
-		TxHex:           swap.OpeningTxHex,
 		Cltv:            swap.Cltv,
 	}
 	err := services.messenger.SendMessage(swap.PeerNodeId, msg)

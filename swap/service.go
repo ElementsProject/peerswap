@@ -113,7 +113,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnTxOpenedMessage(msg.SwapId, msg.MakerPubkeyHash, msg.Invoice, msg.TxId, msg.TxHex, msg.Cltv)
+		err = s.OnTxOpenedMessage(msg.SwapId, msg.MakerPubkeyHash, msg.Invoice, msg.TxId, msg.Cltv)
 		if err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 }
 
 // OnTxOpenedMessage sends the TxOpenedMessage event to the corresponding swap state machine
-func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, txId, txHex string, cltv int64) error {
+func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, txId string, cltv int64) error {
 	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
@@ -352,7 +352,6 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         claimInvoice,
 		TxId:            txId,
-		TxHex:           txHex,
 		Cltv:            cltv,
 	})
 	if err != nil {

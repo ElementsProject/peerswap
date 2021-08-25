@@ -286,6 +286,8 @@ var (
 //}
 
 func Test_FeeEstimation(t *testing.T) {
+
+	util := &utils.Utility{}
 	testSetup, err := NewTestSetup()
 	if err != nil {
 		t.Fatal(err)
@@ -338,7 +340,10 @@ func Test_FeeEstimation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	err = util.CheckTransactionValidity(fundedTx.TxString, 10000, redeemScript)
+	if err != nil {
+		t.Fatalf("error checking txValidty %v", err)
+	}
 	tx, err = transaction.NewTxFromHex(fundedTx.TxString)
 	if err != nil {
 		t.Fatal(err)
@@ -391,7 +396,6 @@ func Test_FeeEstimation(t *testing.T) {
 		t.Fatalf("error creating blechscript %v", err)
 	}
 
-	util := &utils.Utility{}
 	spendingTx, sigHash, err := util.CreateSpendingTransaction(finalized.Hex, 10000, 500, 0, lbtc, redeemScript, blechScript)
 	if err != nil {
 		t.Fatal(err)
@@ -411,6 +415,14 @@ func Test_FeeEstimation(t *testing.T) {
 		t.Fatalf("error testing rpc wallet %v", err)
 	}
 	t.Logf("spending txId %s", spendingTxId)
+	rawTx, err := ecli.GetRawtransaction(spendingTxId)
+	if err != nil {
+		t.Fatalf("error getting raw transaction")
+	}
+	if rawTx != spendingTxHex {
+		t.Fatalf("txhex not equal")
+	}
+
 }
 func Test_RpcWalletPreimage(t *testing.T) {
 	testSetup, err := NewTestSetup()

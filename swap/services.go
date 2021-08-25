@@ -43,6 +43,7 @@ type Blockchain interface {
 	GetNetwork() *network.Network
 	SendRawTx(txHex string) (string, error)
 	GetLocktime() uint64
+	GetRawtransaction(txId string) (string, error)
 }
 
 type Wallet interface {
@@ -59,6 +60,7 @@ type Utility interface {
 	GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error)
 	GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte
 	GetCltvWitness(signature, redeemScript []byte) [][]byte
+	CheckTransactionValidity(openingTxHex string, swapAmount uint64, redeemScript []byte) error
 }
 
 type SwapServices struct {

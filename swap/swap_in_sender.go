@@ -122,7 +122,6 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
-		TxHex:           swap.OpeningTxHex,
 		Cltv:            swap.Cltv,
 	}
 	swap.LastErr = messenger.SendMessage(swap.PeerNodeId, msg)

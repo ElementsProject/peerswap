@@ -103,7 +103,6 @@ type TxOpenedMessage struct {
 	MakerPubkeyHash string
 	Invoice         string
 	TxId            string
-	TxHex           string
 	Cltv            int64
 }
 
@@ -111,7 +110,6 @@ func (t *TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.MakerPubkeyHash = t.MakerPubkeyHash
 	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxId = t.TxId
-	swap.OpeningTxHex = t.TxHex
 	swap.Cltv = t.Cltv
 }
 
