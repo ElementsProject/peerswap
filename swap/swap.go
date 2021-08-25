@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"github.com/btcsuite/btcd/btcec"
 	"time"
+
+	"github.com/btcsuite/btcd/btcec"
 )
 
 type SwapType int
@@ -133,7 +133,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	timeStamp := time.Unix(s.CreatedAt, 0)
 	return &PrettyPrintSwapData{
 		Id:              s.Id,
-		Type:            fmt.Sprintf("%s", s.Type),
+		Type:            s.Type.String(),
 		Role:            s.Role.String(),
 		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,

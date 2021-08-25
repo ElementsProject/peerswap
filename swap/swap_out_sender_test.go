@@ -243,7 +243,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = <-msgChan
+	<-msgChan
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 
@@ -308,7 +308,6 @@ type dummyMessenger struct {
 }
 
 func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
-	return
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
@@ -497,7 +496,7 @@ func (d *DummyUtility) GetPreimageWitness(signature, preimage, redeemScript []by
 }
 
 func (d *DummyUtility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	return &transaction.Transaction{Inputs: []*transaction.TxInput{&transaction.TxInput{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
+	return &transaction.Transaction{Inputs: []*transaction.TxInput{{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
 }
 
 func (d *DummyUtility) CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {

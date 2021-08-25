@@ -397,7 +397,6 @@ func (s *SwapService) OnPayment(payment *glightning.Payment) {
 		log.Printf("error handling onfeeinvoice paid %v", err)
 		return
 	}
-	return
 }
 
 // OnCancelReceived sends the CancelReceived event to the corresponding swap state machine

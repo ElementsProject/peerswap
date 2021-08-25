@@ -1,8 +1,9 @@
 package swap
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_SwapInSenderValidSwap(t *testing.T) {
@@ -31,7 +32,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
+	_ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
@@ -43,7 +44,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapInSender_ClaimInvPaid, swap.Current)
-	err = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
+	_ = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: "txid",
@@ -105,7 +106,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
+	_ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
