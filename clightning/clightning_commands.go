@@ -425,11 +425,11 @@ func (g *GetSwap) LongDescription() string {
 }
 
 type PeerSwapPeer struct {
-	NodeId        string
-	ChannelId     string
-	LocalBalance  uint64
-	RemoteBalance uint64
-	Balance       string
+	NodeId        string `json:"nodeid"`
+	ChannelId     string `json:"short_channel_id"`
+	LocalBalance  uint64 `json:"local_balance"`
+	RemoteBalance uint64 `json:"remote_balance"`
+	Balance       string `json:"balance"`
 }
 
 // checkFeatures checks if a node runs the peerswap plugin
