@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/hex"
+	"errors"
+	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/transaction"
 )
@@ -26,6 +29,25 @@ func (u *Utility) Blech32ToScript(blech32Addr string, network *network.Network) 
 // CreateSpendingTransaction returns the spendningTransaction for the swap
 func (u *Utility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	return CreateSpendingTransaction(openingTxHex, swapAmount, feeAmount, currentBlock, asset, redeemScript, outputScript)
+}
+
+func (u *Utility) CheckTransactionValidity(openingTxHex string, swapAmount uint64, redeemScript []byte) error {
+	openingTx, err := transaction.NewTxFromHex(openingTxHex)
+	if err != nil {
+		return err
+	}
+	swapInValue, err := elementsutil.SatoshiToElementsValue(swapAmount)
+	if err != nil {
+		return err
+	}
+	vout, err := FindVout(openingTx.Outputs, redeemScript)
+	if err != nil {
+		return err
+	}
+	if bytes.Compare(openingTx.Outputs[vout].Value, swapInValue) != 0 {
+		return errors.New("swap value does not match tx value")
+	}
+	return nil
 }
 
 // GetSwapScript returns the swap script

@@ -88,6 +88,23 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	txHex, err := services.blockchain.GetRawtransaction(swap.OpeningTxId)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
+	swap.OpeningTxHex = txHex
+
+	swapScript, err := swap.GetSwapScript(services.utils)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
+	err = services.utils.CheckTransactionValidity(txHex, swap.Amount, swapScript)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
 	var preimage string
 	preimage, swap.LastErr = services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if swap.LastErr != nil {

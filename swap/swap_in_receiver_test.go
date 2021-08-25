@@ -36,8 +36,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
 		TxId:            "txid",
-		TxHex:           "txhext",
-		Cltv:            0,
+		Cltv:            2,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +114,6 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
 		TxId:            "txid",
-		TxHex:           "txhext",
 		Cltv:            0,
 	})
 	if err != nil {

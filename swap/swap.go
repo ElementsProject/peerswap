@@ -3,6 +3,7 @@ package swap
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"time"
@@ -99,6 +100,13 @@ func (s *SwapData) SetState(stateType StateType) {
 }
 func (s *SwapData) GetCurrentState() StateType {
 	return s.FSMState
+}
+
+func (s *SwapData) GetSwapScript(utility Utility) ([]byte, error) {
+	if s.TakerPubkeyHash == "" || s.MakerPubkeyHash == "" || s.ClaimPaymentHash == "" || s.Cltv < 1 {
+		return nil, errors.New("missing required parameters")
+	}
+	return utility.GetSwapScript(s.TakerPubkeyHash, s.MakerPubkeyHash, s.ClaimPaymentHash, s.Cltv)
 }
 
 type PrettyPrintSwapData struct {

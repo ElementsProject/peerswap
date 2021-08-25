@@ -140,9 +140,24 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapD
 type SwapOutTxConfirmedAction struct{}
 
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-
 	lc := services.lightning
+	txHex, err := services.blockchain.GetRawtransaction(swap.OpeningTxId)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
+	swap.OpeningTxHex = txHex
 
+	swapScript, err := swap.GetSwapScript(services.utils)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
+	err = services.utils.CheckTransactionValidity(txHex, swap.Amount, swapScript)
+	if err != nil {
+		swap.LastErr = err
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
 	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
 		swap.LastErr = err
