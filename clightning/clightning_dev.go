@@ -1,3 +1,4 @@
+//go:build dev
 // +build dev
 
 package clightning
@@ -6,12 +7,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/lightning"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/lightning"
 )
 
 var (

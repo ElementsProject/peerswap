@@ -345,27 +345,32 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	channelMap := make(map[string]*glightning.FundingChannel)
 	fundsresult, err := l.cl.glightning.ListFunds()
 	if err != nil {
 		return nil, err
 	}
+
 	for _, channel := range fundsresult.Channels {
 		channelMap[channel.Id] = channel
 	}
+
 	peerswapPeers := []*PeerSwapPeer{}
 	for _, v := range peers {
 		if v.Id == l.cl.nodeId {
+			log.Printf("hello 1")
 			continue
 		}
-		if !checkFeatures(v.Features.Raw, featureBit) {
+
+		if v.Features == nil || !checkFeatures(v.Features.Raw, featureBit) {
 			continue
 		}
+
 		peerSwapPeer := &PeerSwapPeer{NodeId: v.Id}
 		var channel *glightning.FundingChannel
 		var ok bool
 		if channel, ok = channelMap[v.Id]; ok {
-
 			peerSwapPeer.ChannelId = channel.ShortChannelId
 			peerSwapPeer.LocalBalance = channel.ChannelSatoshi
 			peerSwapPeer.RemoteBalance = uint64(channel.ChannelTotalSatoshi - channel.ChannelSatoshi)
