@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"go.etcd.io/bbolt"
 )
 
@@ -185,6 +186,36 @@ func (p *bboltStore) ListAll() ([]*SwapStateMachine, error) {
 	if err != nil {
 		return nil, err
 	}
+	return swaps, nil
+}
+
+func (p *bboltStore) ListAllByPeer(peer string) ([]*SwapStateMachine, error) {
+	tx, err := p.db.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	b := tx.Bucket(swapBuckets)
+	if b == nil {
+		return nil, fmt.Errorf("bucket nil")
+	}
+
+	var swaps []*SwapStateMachine
+	err = b.ForEach(func(k, v []byte) error {
+		swap := &SwapStateMachine{}
+		if err := json.Unmarshal(v, swap); err != nil {
+			return err
+		}
+		if swap.Data.PeerNodeId == peer {
+			swaps = append(swaps, swap)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return swaps, nil
 }
 

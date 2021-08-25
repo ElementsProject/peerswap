@@ -3,13 +3,14 @@ package swap
 import (
 	"encoding/json"
 	"errors"
+	"log"
+	"testing"
+
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/transaction"
-	"log"
-	"testing"
 )
 
 func Test_SwapMarshalling(t *testing.T) {
@@ -283,6 +284,10 @@ type dummyStore struct {
 }
 
 func (d *dummyStore) ListAll() ([]*SwapStateMachine, error) {
+	panic("implement me")
+}
+
+func (d *dummyStore) ListAllByPeer(peer string) ([]*SwapStateMachine, error) {
 	panic("implement me")
 }
 
