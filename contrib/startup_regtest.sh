@@ -67,7 +67,10 @@ start_nodes() {
   LN_NODES=$node_count
   for i in $(seq $node_count); do
     socket=$((7070 + i * 101))
-    liquidrpcPort=$((18883 + i))
+    liquidrpcPort=18884
+    if [ $i -le 2 ]; then
+      liquidrpcPort=$((18883 + i))
+    fi
     mkdir -p "/tmp/l$i-$network"
     # Node config
     cat <<-EOF >"/tmp/l$i-$network/config"
@@ -108,6 +111,8 @@ EOF
     alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
     # shellcheck disable=SC2139 disable=SC2086
     alias l$i-log="less /tmp/l$i-$network/log"
+    alias l$i-follow="tail -f /tmp/l$i-$network/log"
+    alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
   done
   # Give a hint.
   echo "Commands: "
