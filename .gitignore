@@ -24,3 +24,7 @@ peerswap_pytest/__pycache__/
 
 # the vscode workspace config dir
 .vscode
+
+# generated dev liquid nodes
+.ci/docker/liquid-config/**
+.ci/docker/liquid-config2/**
