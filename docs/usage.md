@@ -90,8 +90,8 @@ Example output:
 ]
 ```
 
+`peerswap-listnodes` - command that returns nodes that support the peerswap plugin.
 
-```bash
-peerswap-listswaps [readable bool] ## lists all swaps, if readable is true, prints swaps in a more human readable format
-peerswap-getswap [swapid] ## gets a swap
-```
+`peerswap-listswaps [pretty bool (optional)]` - command that lists all swaps. If _pretty_ is set the output is in a human readable format
+
+`peetswap-getswap [swapid]` - command that returns the swap with _swapid_
