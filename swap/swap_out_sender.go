@@ -141,7 +141,8 @@ type SwapOutTxConfirmedAction struct{}
 
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	txHex, err := services.blockchain.GetRawtransaction(swap.OpeningTxId)
+
+	txHex, err := services.blockchain.GetRawTxFromTxId(swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
