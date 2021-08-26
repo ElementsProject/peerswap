@@ -323,7 +323,7 @@ func (l *ListPeers) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (l *ListPeers) Description() string {
-	return "lists valid peerswap peers"
+	return "lists peers supporting the peerswap plugin"
 }
 
 func (l *ListPeers) LongDescription() string {
@@ -341,45 +341,54 @@ func (l *ListPeers) Name() string {
 }
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
-	peers, err := l.cl.glightning.ListNodes()
+	peers, err := l.cl.glightning.ListPeers()
 	if err != nil {
 		return nil, err
 	}
 
-	channelMap := make(map[string]*glightning.FundingChannel)
-	fundsresult, err := l.cl.glightning.ListFunds()
+	// cache all channels for later search
+	fundingChannels := make(map[string]*glightning.FundingChannel)
+	funds, err := l.cl.glightning.ListFunds()
 	if err != nil {
 		return nil, err
 	}
-
-	for _, channel := range fundsresult.Channels {
-		channelMap[channel.Id] = channel
+	for _, channel := range funds.Channels {
+		fundingChannels[channel.ShortChannelId] = channel
 	}
 
-	peerswapPeers := []*PeerSwapPeer{}
-	for _, v := range peers {
-		if v.Id == l.cl.nodeId {
+	peerSwappers := []*PeerSwapPeer{}
+	for _, peer := range peers {
+		node, err := l.cl.glightning.GetNode(peer.Id)
+		if err != nil {
+			log.Printf("peerswap: %v", err)
 			continue
 		}
 
-		if v.Features == nil || !checkFeatures(v.Features.Raw, featureBit) {
+		if node.Features == nil || !checkFeatures(node.Features.Raw, featureBit) {
 			continue
 		}
 
-		peerSwapPeer := &PeerSwapPeer{NodeId: v.Id}
-		var channel *glightning.FundingChannel
-		var ok bool
-		if channel, ok = channelMap[v.Id]; ok {
-			peerSwapPeer.ChannelId = channel.ShortChannelId
-			peerSwapPeer.LocalBalance = channel.ChannelSatoshi
-			peerSwapPeer.RemoteBalance = uint64(channel.ChannelTotalSatoshi - channel.ChannelSatoshi)
-			peerSwapPeer.Balance = fmt.Sprintf("%.2f%%", 100*(float64(channel.ChannelSatoshi)/float64(channel.ChannelTotalSatoshi)))
+		peerSwapPeer := &PeerSwapPeer{
+			NodeId: node.Id,
 		}
 
-		peerswapPeers = append(peerswapPeers, peerSwapPeer)
+		peerSwapPeerChannels := []*PeerSwapPeerChannel{}
+		for _, channel := range peer.Channels {
+			if c, ok := fundingChannels[channel.ShortChannelId]; ok {
+				peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
+					ChannelId:     c.ShortChannelId,
+					LocalBalance:  c.ChannelSatoshi,
+					RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
+					Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
+				})
+			}
+		}
+
+		peerSwapPeer.Channels = peerSwapPeerChannels
+		peerSwappers = append(peerSwappers, peerSwapPeer)
 	}
 
-	return peerswapPeers, nil
+	return peerSwappers, nil
 }
 
 type GetSwap struct {
@@ -423,12 +432,16 @@ func (g *GetSwap) LongDescription() string {
 	return ""
 }
 
+type PeerSwapPeerChannel struct {
+	ChannelId     string  `json:"short_channel_id"`
+	LocalBalance  uint64  `json:"local_balance"`
+	RemoteBalance uint64  `json:"remote_balance"`
+	Balance       float64 `json:"balance"`
+}
+
 type PeerSwapPeer struct {
-	NodeId        string `json:"nodeid"`
-	ChannelId     string `json:"short_channel_id"`
-	LocalBalance  uint64 `json:"local_balance"`
-	RemoteBalance uint64 `json:"remote_balance"`
-	Balance       string `json:"balance"`
+	NodeId   string                 `json:"nodeid"`
+	Channels []*PeerSwapPeerChannel `json:"channels"`
 }
 
 // checkFeatures checks if a node runs the peerswap plugin
