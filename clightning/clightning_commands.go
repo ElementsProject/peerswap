@@ -368,8 +368,50 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 			continue
 		}
 
+		swaps, err := l.cl.swaps.ListSwapsByPeer(node.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		var paidFees uint64
+		var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
+		var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
+		for _, s := range swaps {
+			if s.Role == swap.SWAPROLE_SENDER {
+				paidFees += s.Data.OpeningTxFee
+				if s.Type == swap.SWAPTYPE_OUT {
+					SenderSwapsOut++
+					SenderSatsOut += s.Data.Amount
+				} else {
+					SenderSwapsIn++
+					SenderSatsIn += s.Data.Amount
+				}
+			} else {
+				if s.Type == swap.SWAPTYPE_OUT {
+					ReceiverSwapsOut++
+					ReceiverSatsOut += s.Data.Amount
+				} else {
+					ReceiverSwapsIn++
+					ReceiverSatsIn += s.Data.Amount
+				}
+			}
+		}
+
 		peerSwapPeer := &PeerSwapPeer{
 			NodeId: node.Id,
+			AsSender: &SwapStats{
+				SwapsOut: SenderSwapsOut,
+				SwapsIn:  SenderSwapsIn,
+				SatsOut:  SenderSatsOut,
+				SatsIn:   SenderSatsIn,
+			},
+			AsReceiver: &SwapStats{
+				SwapsOut: ReceiverSwapsOut,
+				SwapsIn:  ReceiverSwapsIn,
+				SatsOut:  ReceiverSatsOut,
+				SatsIn:   ReceiverSatsIn,
+			},
+			PaidFee: paidFees,
 		}
 
 		peerSwapPeerChannels := []*PeerSwapPeerChannel{}
@@ -439,9 +481,19 @@ type PeerSwapPeerChannel struct {
 	Balance       float64 `json:"balance"`
 }
 
+type SwapStats struct {
+	SwapsOut uint64 `json:"total_swaps_out"`
+	SwapsIn  uint64 `json:"total_swaps_in"`
+	SatsOut  uint64 `json:"total_sats_swapped_out"`
+	SatsIn   uint64 `json:"total_sats_swapped_in"`
+}
+
 type PeerSwapPeer struct {
-	NodeId   string                 `json:"nodeid"`
-	Channels []*PeerSwapPeerChannel `json:"channels"`
+	NodeId     string                 `json:"nodeid"`
+	Channels   []*PeerSwapPeerChannel `json:"channels"`
+	AsSender   *SwapStats             `json:"sent,omitempty"`
+	AsReceiver *SwapStats             `json:"received,omitempty"`
+	PaidFee    uint64                 `json:"total_fee_paid"`
 }
 
 // checkFeatures checks if a node runs the peerswap plugin
