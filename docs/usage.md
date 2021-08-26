@@ -58,9 +58,40 @@ peerswap-swap-in [amount in sats] [short channel id]
 ```
 
 ## Misc
+`peerswap-listpeers` - command that returns peers that support the peerswap protocol. It also gives statistics about received and sent swaps to a peer.
+
+Example output:
+```bash
+[
+   {
+      "nodeid": "...",
+      "channels": [
+         {
+            "short_channel_id": "...",
+            "local_balance": 7397932,
+            "remote_balance": 2602068,
+            "balance": 0.7397932
+         }
+      ],
+      "sent": {
+         "total_swaps_out": 2,
+         "total_swaps_in": 1,
+         "total_sats_swapped_out": 5300000,
+         "total_sats_swapped_in": 302938
+      },
+      "received": {
+         "total_swaps_out": 1,
+         "total_swaps_in": 0,
+         "total_sats_swapped_out": 2400000,
+         "total_sats_swapped_in": 0
+      },
+      "total_fee_paid": 6082
+   }
+]
+```
+
 
 ```bash
 peerswap-listswaps [readable bool] ## lists all swaps, if readable is true, prints swaps in a more human readable format
 peerswap-getswap [swapid] ## gets a swap
-peerswap-listpeers ## lists all peers and channels that have the peerswap protocol enabled
 ```

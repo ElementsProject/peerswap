@@ -3,13 +3,14 @@ package swap
 import (
 	"encoding/json"
 	"errors"
+	"log"
+	"testing"
+
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/stretchr/testify/assert"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/transaction"
-	"log"
-	"testing"
 )
 
 func Test_SwapMarshalling(t *testing.T) {
@@ -242,7 +243,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = <-msgChan
+	<-msgChan
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 
@@ -286,6 +287,10 @@ func (d *dummyStore) ListAll() ([]*SwapStateMachine, error) {
 	panic("implement me")
 }
 
+func (d *dummyStore) ListAllByPeer(peer string) ([]*SwapStateMachine, error) {
+	panic("implement me")
+}
+
 func (d *dummyStore) UpdateData(data *SwapStateMachine) error {
 	d.dataMap[data.Id] = data
 	return nil
@@ -303,7 +308,6 @@ type dummyMessenger struct {
 }
 
 func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
-	return
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
@@ -492,7 +496,7 @@ func (d *DummyUtility) GetPreimageWitness(signature, preimage, redeemScript []by
 }
 
 func (d *DummyUtility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	return &transaction.Transaction{Inputs: []*transaction.TxInput{&transaction.TxInput{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
+	return &transaction.Transaction{Inputs: []*transaction.TxInput{{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
 }
 
 func (d *DummyUtility) CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {

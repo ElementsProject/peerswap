@@ -3,10 +3,11 @@ package swap
 import (
 	"encoding/json"
 	"errors"
-	"github.com/sputn1ck/glightning/glightning"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/sputn1ck/glightning/glightning"
 )
 
 var (
@@ -396,7 +397,6 @@ func (s *SwapService) OnPayment(payment *glightning.Payment) {
 		log.Printf("error handling onfeeinvoice paid %v", err)
 		return
 	}
-	return
 }
 
 // OnCancelReceived sends the CancelReceived event to the corresponding swap state machine
@@ -415,6 +415,11 @@ func (s *SwapService) OnCancelReceived(swapId string) error {
 // ListSwaps returns all swaps stored
 func (s *SwapService) ListSwaps() ([]*SwapStateMachine, error) {
 	return s.swapServices.swapStore.ListAll()
+}
+
+// ListSwapsByPeer only returns the swaps that are done with a specific peer
+func (s *SwapService) ListSwapsByPeer(peer string) ([]*SwapStateMachine, error) {
+	return s.swapServices.swapStore.ListAllByPeer(peer)
 }
 
 func (s *SwapService) GetSwap(swapId string) (*SwapStateMachine, error) {

@@ -55,6 +55,7 @@ type Store interface {
 	UpdateData(data *SwapStateMachine) error
 	GetData(id string) (*SwapStateMachine, error)
 	ListAll() ([]*SwapStateMachine, error)
+	ListAllByPeer(peer string) ([]*SwapStateMachine, error)
 }
 
 // States represents a mapping of states and their implementations.
