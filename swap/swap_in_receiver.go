@@ -88,7 +88,7 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txHex, err := services.blockchain.GetRawtransaction(swap.OpeningTxId)
+	txHex, err := services.blockchain.GetRawTxFromTxId(swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
 		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal

@@ -38,12 +38,13 @@ type TxWatcher interface {
 
 type Blockchain interface {
 	GetBlockHeight() (uint64, error)
+	GetBlockHash(blockheight uint32) (string, error)
 	GetFee(txHex string) uint64
 	GetAsset() []byte
 	GetNetwork() *network.Network
 	SendRawTx(txHex string) (string, error)
 	GetLocktime() uint64
-	GetRawtransaction(txId string) (string, error)
+	GetRawTxFromTxId(txId string, vout uint32) (string, error)
 }
 
 type Wallet interface {

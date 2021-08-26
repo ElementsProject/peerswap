@@ -444,6 +444,14 @@ func (d *DummyNode) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId st
 	return "txid", nil
 }
 
+func (d *DummyNode) GetBlockHash(blockheight uint32) (string, error) {
+	return "", nil
+}
+
+func (d *DummyNode) GetRawTxFromTxId(txId string, vout uint32) (string, error) {
+	return "txHex", nil
+}
+
 // todo implement
 func (d *DummyNode) CreateOpeningTransaction(swap *SwapData) error {
 	return nil

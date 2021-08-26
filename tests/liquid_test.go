@@ -381,101 +381,13 @@ func Test_FeeEstimation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	txid, err := ecli.SendRawTx(finalized.Hex)
+	txid, err := testSetup.BroadcastAndGenerateN(finalized.Hex, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("tx %s", txid)
-	// create output for redeemtransaction
-	newAddr, err := ecli.GetNewAddress(int(gelements.Bech32))
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	blechScript, err := utils.Blech32ToScript(newAddr, &network.Regtest)
-	if err != nil {
-		t.Fatalf("error creating blechscript %v", err)
-	}
 
-	spendingTx, sigHash, err := util.CreateSpendingTransaction(finalized.Hex, 10000, 500, 0, lbtc, redeemScript, blechScript)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig, err := alicePrivkey.Sign(sigHash[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	spendingTx.Inputs[0].Witness = util.GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("spending txId %s", spendingTxId)
-	rawTx, err := ecli.GetRawtransaction(spendingTxId)
-	if err != nil {
-		t.Fatalf("error getting raw transaction")
-	}
-	if rawTx != spendingTxHex {
-		t.Fatalf("txhex not equal")
-	}
-
-}
-func Test_RpcWalletPreimage(t *testing.T) {
-	testSetup, err := NewTestSetup()
-	if err != nil {
-		t.Fatal(err)
-	}
-	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
-	ecli := gelements.NewElements("admin1", "123")
-	t.Log("new ecli")
-	err = ecli.StartUp("http://localhost", LiquidPort)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	walletCli, err := wallet.NewRpcWallet(ecli, newWalletId())
-	if err != nil {
-		t.Fatalf("err creating wallet %v", err)
-	}
-	err = testSetup.FaucetCli(ecli, 1)
-	if err != nil {
-		t.Fatalf("err fnding wallet %v", err)
-	}
-	blockCount, err := ecli.GetBlockHeight()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("blockcount %v", blockCount)
-
-	// Generate Preimage
-	var preimage lightning.Preimage
-
-	if _, err := rand.Read(preimage[:]); err != nil {
-		t.Fatal(err)
-	}
-	pHash := preimage.Hash()
-
-	alicePrivkey := getRandomPrivkey()
-	bobPrivkey := getRandomPrivkey()
-
-	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+1))
-	if err != nil {
-		t.Fatalf("error creating opening tx: %v", err)
-	}
-	openingTxAddr, err := utils.CreateOpeningAddress(redeemScript)
-	if err != nil {
-		t.Fatalf("error creating opening tx: %v", err)
-	}
-	txId, err := walletCli.SendToAddress(openingTxAddr, 10000)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("txId %s", txId)
-
-	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
+	rawTxHex, err := getRawTx(ecli, txid, finalized.Hex, redeemScript)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -489,13 +401,7 @@ func Test_RpcWalletPreimage(t *testing.T) {
 		t.Fatalf("error creating blechscript %v", err)
 	}
 
-	rawTx, err := ecli.GetRawtransaction(txId)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-
-	util := &utils.Utility{}
-	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, 0, lbtc, redeemScript, blechScript)
+	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTxHex, 10000, 500, 0, lbtc, redeemScript, blechScript)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,115 +421,205 @@ func Test_RpcWalletPreimage(t *testing.T) {
 	}
 	t.Logf("spending txId %s", spendingTxId)
 
-	// generate a blocks
-	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-
 }
-func Test_RpcWalletCltv(t *testing.T) {
-	testSetup, err := NewTestSetup()
-	if err != nil {
-		t.Fatal(err)
-	}
-	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
-	ecli := gelements.NewElements("admin1", "123")
-	t.Log("new ecli")
-	err = ecli.StartUp("http://localhost", LiquidPort)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	walletCli, err := wallet.NewRpcWallet(ecli, newWalletId())
-	if err != nil {
-		t.Fatalf("err creating wallet %v", err)
-	}
-	err = testSetup.FaucetCli(ecli, 1)
-	if err != nil {
-		t.Fatalf("err fnding wallet %v", err)
-	}
-	blockCount, err := ecli.GetBlockHeight()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("blockcount %v", blockCount)
 
-	// Generate Preimage
-	var preimage lightning.Preimage
-
-	if _, err := rand.Read(preimage[:]); err != nil {
-		t.Fatal(err)
-	}
-	pHash := preimage.Hash()
-
-	alicePrivkey := getRandomPrivkey()
-	bobPrivkey := getRandomPrivkey()
-
-	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+5))
-	if err != nil {
-		t.Fatalf("error creating opening tx: %v", err)
-	}
-	openingTxAddr, err := utils.CreateOpeningAddress(redeemScript)
-	if err != nil {
-		t.Fatalf("error creating opening tx: %v", err)
-	}
-	txId, err := walletCli.SendToAddress(openingTxAddr, 10000)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("txId %s", txId)
-
-	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// create output for redeemtransaction
-	newAddr, err := ecli.GetNewAddress(int(gelements.Bech32))
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	blechScript, err := utils.Blech32ToScript(newAddr, &network.Regtest)
-	if err != nil {
-		t.Fatalf("error creating blechscript %v", err)
-	}
-
-	rawTx, err := ecli.GetRawtransaction(txId)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	blockCount, err = ecli.GetBlockHeight()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	util := &utils.Utility{}
-	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, blockCount, lbtc, redeemScript, blechScript)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sig, err := bobPrivkey.Sign(sigHash[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	spendingTx.Inputs[0].Witness = util.GetCltvWitness(sig.Serialize(), redeemScript)
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-	t.Logf("spending txId %s", spendingTxId)
-
-	// generate a blocks
-	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
-
-}
+//func Test_RpcWalletPreimage(t *testing.T) {
+//	testSetup, err := NewTestSetup()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
+//	ecli := gelements.NewElements("admin1", "123")
+//	t.Log("new ecli")
+//	err = ecli.StartUp("http://localhost", LiquidPort)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	walletCli, err := wallet.NewRpcWallet(ecli, newWalletId())
+//	if err != nil {
+//		t.Fatalf("err creating wallet %v", err)
+//	}
+//	err = testSetup.FaucetCli(ecli, 1)
+//	if err != nil {
+//		t.Fatalf("err fnding wallet %v", err)
+//	}
+//	blockCount, err := ecli.GetBlockHeight()
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("blockcount %v", blockCount)
+//
+//	// Generate Preimage
+//	var preimage lightning.Preimage
+//
+//	if _, err := rand.Read(preimage[:]); err != nil {
+//		t.Fatal(err)
+//	}
+//	pHash := preimage.Hash()
+//
+//	alicePrivkey := getRandomPrivkey()
+//	bobPrivkey := getRandomPrivkey()
+//
+//	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+1))
+//	if err != nil {
+//		t.Fatalf("error creating opening tx: %v", err)
+//	}
+//	openingTxAddr, err := utils.CreateOpeningAddress(redeemScript)
+//	if err != nil {
+//		t.Fatalf("error creating opening tx: %v", err)
+//	}
+//	txId, err := walletCli.SendToAddress(openingTxAddr, 10000)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("txId %s", txId)
+//
+//	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	// create output for redeemtransaction
+//	newAddr, err := ecli.GetNewAddress(int(gelements.Bech32))
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	blechScript, err := utils.Blech32ToScript(newAddr, &network.Regtest)
+//	if err != nil {
+//		t.Fatalf("error creating blechscript %v", err)
+//	}
+//
+//	rawTx, err := ecli.GetRawtransaction(txId)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//
+//	util := &utils.Utility{}
+//	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, 0, lbtc, redeemScript, blechScript)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	sig, err := alicePrivkey.Sign(sigHash[:])
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	spendingTx.Inputs[0].Witness = util.GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
+//	spendingTxHex, err := spendingTx.ToHex()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("spending txId %s", spendingTxId)
+//
+//	// generate a blocks
+//	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//
+//}
+//func Test_RpcWalletCltv(t *testing.T) {
+//	testSetup, err := NewTestSetup()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	//eCLi := gbitcoin.NewBitcoin("admin1","123","")
+//	ecli := gelements.NewElements("admin1", "123")
+//	t.Log("new ecli")
+//	err = ecli.StartUp("http://localhost", LiquidPort)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	walletCli, err := wallet.NewRpcWallet(ecli, newWalletId())
+//	if err != nil {
+//		t.Fatalf("err creating wallet %v", err)
+//	}
+//	err = testSetup.FaucetCli(ecli, 1)
+//	if err != nil {
+//		t.Fatalf("err fnding wallet %v", err)
+//	}
+//	blockCount, err := ecli.GetBlockHeight()
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("blockcount %v", blockCount)
+//
+//	// Generate Preimage
+//	var preimage lightning.Preimage
+//
+//	if _, err := rand.Read(preimage[:]); err != nil {
+//		t.Fatal(err)
+//	}
+//	pHash := preimage.Hash()
+//
+//	alicePrivkey := getRandomPrivkey()
+//	bobPrivkey := getRandomPrivkey()
+//
+//	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+5))
+//	if err != nil {
+//		t.Fatalf("error creating opening tx: %v", err)
+//	}
+//	openingTxAddr, err := utils.CreateOpeningAddress(redeemScript)
+//	if err != nil {
+//		t.Fatalf("error creating opening tx: %v", err)
+//	}
+//	txId, err := walletCli.SendToAddress(openingTxAddr, 10000)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("txId %s", txId)
+//
+//	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 5)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	// create output for redeemtransaction
+//	newAddr, err := ecli.GetNewAddress(int(gelements.Bech32))
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	blechScript, err := utils.Blech32ToScript(newAddr, &network.Regtest)
+//	if err != nil {
+//		t.Fatalf("error creating blechscript %v", err)
+//	}
+//
+//	rawTx, err := getRawTx(ecli, )
+//	blockCount, err = ecli.GetBlockHeight()
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	util := &utils.Utility{}
+//	spendingTx, sigHash, err := util.CreateSpendingTransaction(rawTx, 10000, 500, blockCount, lbtc, redeemScript, blechScript)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	sig, err := bobPrivkey.Sign(sigHash[:])
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	spendingTx.Inputs[0].Witness = util.GetCltvWitness(sig.Serialize(), redeemScript)
+//	spendingTxHex, err := spendingTx.ToHex()
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//
+//	spendingTxId, err := testSetup.BroadcastAndGenerateN(spendingTxHex, 1)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//	t.Logf("spending txId %s", spendingTxId)
+//
+//	// generate a blocks
+//	_, err = ecli.GenerateToAddress(regtestOpReturnAddress, 1)
+//	if err != nil {
+//		t.Fatalf("error testing rpc wallet %v", err)
+//	}
+//
+//}
 
 func getRandomPrivkey() *btcec.PrivateKey {
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
@@ -696,4 +692,28 @@ func newWalletId() string {
 func h2b(str string) []byte {
 	buf, _ := hex.DecodeString(str)
 	return buf
+}
+
+func getRawTx(ecli *gelements.Elements, txid, txHex string, redeemScript []byte) (string, error) {
+	vout, err := utils.VoutFromTxHex(txHex, redeemScript)
+	if err != nil {
+		return "", err
+	}
+	txOut, err := ecli.GetTxOut(txid, vout)
+	if err != nil {
+		return "", err
+	}
+	blockheight, err := ecli.GetBlockHeight()
+	if err != nil {
+		return "", err
+	}
+	blockhash, err := ecli.GetBlockHash(uint32(blockheight) - txOut.Confirmations + 1)
+	if err != nil {
+		return "", err
+	}
+	rawTxHex, err := ecli.GetRawtransactionWithBlockHash(txid, blockhash)
+	if err != nil {
+		return "", err
+	}
+	return rawTxHex, nil
 }
