@@ -313,6 +313,52 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 	return swaps, nil
 }
 
+type ListNodes struct {
+	cl *ClightningClient
+}
+
+func (l *ListNodes) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListNodes{cl: client}
+}
+
+func (l *ListNodes) Description() string {
+	return "lists nodes that support the peerswap plugin"
+}
+
+func (l *ListNodes) LongDescription() string {
+	return ""
+}
+
+func (l *ListNodes) New() interface{} {
+	return &ListNodes{
+		cl: l.cl,
+	}
+}
+
+func (l *ListNodes) Name() string {
+	return "peerswap-listnodes"
+}
+
+func (l *ListNodes) Call() (jrpc2.Result, error) {
+	nodes, err := l.cl.glightning.ListNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	peerSwapNodes := []*glightning.Node{}
+	for _, node := range nodes {
+		if node.Features != nil && checkFeatures(node.Features.Raw, featureBit) {
+			peerSwapNodes = append(peerSwapNodes, node)
+		}
+	}
+
+	return peerSwapNodes, nil
+}
+
+type PeerSwapNodes struct {
+	Nodes []*glightning.Node `json:"nodes"`
+}
+
 // ListPeers lists all peerswap-ready peers
 type ListPeers struct {
 	cl *ClightningClient

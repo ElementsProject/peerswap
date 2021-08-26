@@ -6,6 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"math/big"
+	"os"
+	"path/filepath"
+	"strconv"
+
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
@@ -14,14 +20,10 @@ import (
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
-	"log"
-	"math/big"
-	"os"
-	"path/filepath"
-	"strconv"
 )
 
 var methods = []peerswaprpcMethod{
+	&ListNodes{},
 	&ListPeers{},
 	&SendToAddressMethod{},
 	&GetSwap{},
