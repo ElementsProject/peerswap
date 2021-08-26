@@ -359,7 +359,6 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	peerswapPeers := []*PeerSwapPeer{}
 	for _, v := range peers {
 		if v.Id == l.cl.nodeId {
-			log.Printf("hello 1")
 			continue
 		}
 
