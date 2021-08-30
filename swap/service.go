@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -210,6 +211,9 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 // todo check prerequisites
 // SwapOut starts a new swap out process
 func (s *SwapService) SwapOut(peer string, asset string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+	if s.hasActiveSwapOnChannel(channelId) {
+		return nil, fmt.Errorf("already has an active swap on channel")
+	}
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
@@ -447,6 +451,7 @@ func (s *SwapService) GetSwap(swapId string) (*SwapStateMachine, error) {
 
 // AddActiveSwap adds a swap to the active swaps
 func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
+	// todo: why does this function take a swapId if we have a swap struct containing the swapId?
 	s.Lock()
 	defer s.Unlock()
 	s.activeSwaps[swapId] = swap
@@ -465,4 +470,16 @@ func (s *SwapService) RemoveActiveSwap(swapId string) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.activeSwaps, swapId)
+}
+
+func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
+	s.Lock()
+	defer s.Unlock()
+	for _, swap := range s.activeSwaps {
+		if swap.Data.ChannelId == channelId {
+			return true
+		}
+	}
+
+	return false
 }

@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"testing"
 	"time"
 
@@ -188,6 +189,72 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_CLAIMED, aliceReceivedMsg.MessageType())
 	assert.Equal(t, State_ClaimedCltv, bobSwap.Current)
 	assert.Equal(t, State_ClaimedCltv, aliceSwap.Current)
+}
+
+func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
+	service := getTestSetup("alice")
+	service.AddActiveSwap("swapid", &SwapStateMachine{
+		Id: "swapid",
+		Data: &SwapData{
+			Id:                     "swapid",
+			Type:                   0,
+			FSMState:               "",
+			Role:                   0,
+			CreatedAt:              0,
+			InitiatorNodeId:        "",
+			PeerNodeId:             "",
+			Amount:                 0,
+			ChannelId:              "channelID",
+			PrivkeyBytes:           []byte{},
+			ClaimInvoice:           "",
+			ClaimPreimage:          "",
+			ClaimPaymentHash:       "",
+			MakerPubkeyHash:        "",
+			TakerPubkeyHash:        "",
+			Cltv:                   0,
+			FeeInvoice:             "",
+			FeePreimage:            "",
+			OpeningTxId:            "",
+			OpeningTxUnpreparedHex: "",
+			OpeningTxVout:          0,
+			OpeningTxFee:           0,
+			OpeningTxHex:           "",
+			ClaimTxId:              "",
+			CancelMessage:          "",
+			LastErr:                nil,
+			LastErrString:          "",
+		},
+		Type:     0,
+		Role:     0,
+		Previous: "",
+		Current:  "",
+		States: map[StateType]State{
+			"": {
+				Action: nil,
+				Events: map[EventType]StateType{
+					"": "",
+				},
+			},
+		},
+		mutex: sync.Mutex{},
+		swapServices: &SwapServices{
+			swapStore:  nil,
+			blockchain: nil,
+			lightning:  nil,
+			messenger:  nil,
+			policy:     nil,
+			txWatcher:  nil,
+			wallet:     nil,
+			utils:      nil,
+		},
+		retries:  0,
+		failures: 0,
+	})
+
+	_, err := service.SwapOut("peer", "channelID", "alice", uint64(200))
+	if assert.Error(t, err, "expected error") {
+		assert.Equal(t, "already has an active swap on channel", err.Error())
+	}
 }
 
 func getTestSetup(name string) *SwapService {
