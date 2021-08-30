@@ -255,6 +255,11 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	if assert.Error(t, err, "expected error") {
 		assert.Equal(t, "already has an active swap on channel", err.Error())
 	}
+
+	_, err = service.SwapIn("peer", "channelID", "alice", uint64(200))
+	if assert.Error(t, err, "expected error") {
+		assert.Equal(t, "already has an active swap on channel", err.Error())
+	}
 }
 
 func getTestSetup(name string) *SwapService {

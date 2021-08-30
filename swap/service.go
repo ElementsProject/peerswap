@@ -235,6 +235,9 @@ func (s *SwapService) SwapOut(peer string, asset string, channelId string, initi
 // todo check prerequisites
 // SwapIn starts a new swap in process
 func (s *SwapService) SwapIn(peer string, asset string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+	if s.hasActiveSwapOnChannel(channelId) {
+		return nil, fmt.Errorf("already has an active swap on channel")
+	}
 	swap := newSwapInSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
