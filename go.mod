@@ -4,6 +4,8 @@ go 1.16
 
 require (
 	github.com/btcsuite/btcd v0.21.0-beta
+	github.com/btcsuite/btcutil v1.0.3-0.20210527170813-e2ba6805a890 // indirect
+	github.com/btcsuite/btcutil/psbt v1.0.3-0.20210527170813-e2ba6805a890
 	github.com/sputn1ck/glightning v0.8.3-0.20210826123232-548c33f5a280
 	github.com/stretchr/testify v1.7.0
 	github.com/vulpemventures/go-elements v0.3.0
@@ -11,6 +13,6 @@ require (
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 )
 
-//replace github.com/sputn1ck/glightning => ../glightning
+replace github.com/sputn1ck/glightning => ../glightning
 
 //replace github.com/vulpemventures/go-elements => ../go-elements
