@@ -3,7 +3,6 @@ package swap
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/sputn1ck/peerswap/lightning"
 )
 
 const (
@@ -48,7 +47,7 @@ func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, sw
 	}
 	err := services.messenger.SendMessage(swap.PeerNodeId, response)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	return Event_SwapInReceiver_OnAgreementSent
 }
@@ -58,29 +57,34 @@ func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, sw
 type SwapInReceiverOpeningTxBroadcastedAction struct{}
 
 func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	var invoice *lightning.Invoice
 
-	invoice, swap.LastErr = services.lightning.DecodePayreq(swap.ClaimInvoice)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	invoice, err := services.lightning.DecodePayreq(swap.ClaimInvoice)
+	if err != nil {
+		return swap.HandleError(err)
 	}
 
 	if invoice.Amount > (swap.Amount)*1000 {
-		swap.LastErr = errors.New("invalid invoice price")
-		return Event_ActionFailed
+		return swap.HandleError(errors.New("invalid invoice price"))
 	}
 	swap.ClaimPaymentHash = invoice.PHash
-	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
 
 	return Event_Action_Success
 
+}
+
+func (s *SwapData) HandleError(err error) EventType {
+	s.LastErr = err
+	return Event_ActionFailed
 }
 
 // SwapInWaitForConfirmationsAction adds the swap opening tx to the txwatcher
 type SwapInWaitForConfirmationsAction struct{}
 
 func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	services.txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
+	err := services.onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	if err != nil{
+		return swap.HandleError(err)
+	}
 	return NoOp
 }
 
@@ -88,27 +92,16 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txHex, err := services.blockchain.GetRawTxFromTxId(swap.OpeningTxId, swap.OpeningTxVout)
+	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
-		swap.LastErr = err
+		return swap.HandleError(err)
+	}
+	if !ok {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
-	swap.OpeningTxHex = txHex
-
-	swapScript, err := swap.GetSwapScript(services.utils)
+	preimage, err := services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
-		swap.LastErr = err
-		return Event_SwapOutSender_OnAbortSwapInternal
-	}
-	err = services.utils.CheckTransactionValidity(txHex, swap.Amount, swapScript)
-	if err != nil {
-		swap.LastErr = err
-		return Event_SwapOutSender_OnAbortSwapInternal
-	}
-	var preimage string
-	preimage, swap.LastErr = services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.ClaimPreimage = preimage
 
@@ -119,26 +112,20 @@ func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices,
 type SwapInReceiverClaimInvoicePaidAction struct{}
 
 func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	var claimTxHex string
-	claimTxHex, swap.LastErr = CreatePreimageSpendingTransaction(services, swap)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	if swap.ClaimTxId != "" {
+		err := CreatePreimageSpendingTransaction(services, swap)
+		if err != nil {
+			return swap.HandleError(err)
+		}
 	}
-
-	var claimId string
-	claimId, swap.LastErr = services.blockchain.SendRawTx(claimTxHex)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
-	}
-	swap.ClaimTxId = claimId
 	msg := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
-		ClaimTxId: claimId,
+		ClaimTxId: swap.ClaimTxId,
 	}
 	err := services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	return Event_OnClaimedPreimage
 }

@@ -11,27 +11,10 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	takerpubkeyhash := "abcdef"
 	peer := "bar"
 	chanId := "baz"
-	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
+	msgChan := make(chan PeerMessage)
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
+	swapServices := getSwapServices(msgChan)
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
@@ -74,27 +57,10 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
-	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
+	msgChan := make(chan PeerMessage)
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
+	swapServices := getSwapServices(msgChan)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
@@ -137,27 +103,10 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
-	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
+	msgChan := make(chan PeerMessage)
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
+	swapServices := getSwapServices(msgChan)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
@@ -189,27 +138,12 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	peer := "bar"
 	chanId := "baz"
 	FeePreimage := "err"
+
+
 	msgChan := make(chan PeerMessage)
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{msgChan: msgChan}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
-
+	swapServices := getSwapServices(msgChan)
+	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{

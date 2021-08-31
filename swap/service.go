@@ -23,16 +23,13 @@ type SwapService struct {
 	sync.Mutex
 }
 
-func NewSwapService(swapStore Store, blockchain Blockchain, lightning LightningClient, messenger Messenger, policy Policy, txWatcher TxWatcher, wallet Wallet, utils Utility) *SwapService {
+func NewSwapService(swapStore Store, onchain Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
 	services := NewSwapServices(
 		swapStore,
-		blockchain,
 		lightning,
 		messenger,
 		policy,
-		txWatcher,
-		wallet,
-		utils,
+		onchain,
 	)
 	return &SwapService{swapServices: services, activeSwaps: map[string]*SwapStateMachine{}}
 }
@@ -41,8 +38,8 @@ func NewSwapService(swapStore Store, blockchain Blockchain, lightning LightningC
 func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
-	s.swapServices.txWatcher.AddCltvPassedHandler(s.OnCltvPassed)
-	s.swapServices.txWatcher.AddTxConfirmedHandler(s.OnTxConfirmed)
+	s.swapServices.onchain.AddConfirmationCallback(s.OnTxConfirmed)
+	s.swapServices.onchain.AddCltvCallback(s.OnCltvPassed)
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)
 

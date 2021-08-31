@@ -79,7 +79,7 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *SwapData) E
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
+
 		return Event_SwapOutSender_OnCancelSwapOut
 	}
 	return Event_SwapOutSender_OnSendSwapOutSucceed
@@ -93,21 +93,21 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapDat
 	policy := services.policy
 	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
-		swap.LastErr = err
+
 		log.Printf("error decoding %v", err)
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	swap.OpeningTxFee = invoice.Amount / 1000
 	// todo check peerId
 	if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
-		swap.LastErr = err
+
 
 		log.Printf("won't pay fee %v", err)
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	preimage, err := ll.PayInvoice(swap.FeeInvoice)
 	if err != nil {
-		swap.LastErr = err
+
 		log.Printf("error paying out %v", err)
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
@@ -120,11 +120,9 @@ type SwapOutTxBroadCastedAction struct{}
 
 func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	txWatcher := services.txWatcher
 
 	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
 
@@ -132,7 +130,10 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapD
 
 	// todo check policy
 
-	txWatcher.AddConfirmationsTx(swap.Id, swap.OpeningTxId)
+	err = services.onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	if err != nil {
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
 	return NoOp
 }
 
@@ -142,26 +143,15 @@ type SwapOutTxConfirmedAction struct{}
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
 
-	txHex, err := services.blockchain.GetRawTxFromTxId(swap.OpeningTxId, swap.OpeningTxVout)
+	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
-	swap.OpeningTxHex = txHex
-
-	swapScript, err := swap.GetSwapScript(services.utils)
-	if err != nil {
-		swap.LastErr = err
-		return Event_SwapOutSender_OnAbortSwapInternal
-	}
-	err = services.utils.CheckTransactionValidity(txHex, swap.Amount, swapScript)
-	if err != nil {
-		swap.LastErr = err
+	if !ok {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
 	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
 	swap.ClaimPreimage = preimageString
@@ -172,34 +162,21 @@ func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapDat
 type SwapOutClaimInvPaidAction struct{}
 
 func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-
-	node := services.blockchain
-	messenger := services.messenger
-
-	claimTxHex, err := CreatePreimageSpendingTransaction(services, swap)
+	err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
 		log.Printf("error creating spending tx %v", err)
-		swap.LastErr = err
 		return Event_OnRetry
 	}
 
-	claimId, err := node.SendRawTx(claimTxHex)
-	if err != nil {
-		swap.LastErr = err
-		log.Printf("error sendiong raw tx %v", err)
-		return Event_OnRetry
-	}
-	swap.ClaimTxId = claimId
 
 	//todo correct message
 	msg := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
-		ClaimTxId: claimId,
+		ClaimTxId: swap.ClaimTxId,
 	}
-	err = messenger.SendMessage(swap.PeerNodeId, msg)
+	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
 		log.Printf("error sending message tx %v", err)
 		return Event_OnRetry
 	}

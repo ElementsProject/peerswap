@@ -58,7 +58,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.txWatcher.(*DummyTxWatcher).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.onchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.txWatcher.(*DummyTxWatcher).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.onchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	bobReceivedMsg = <-bobMsgChan
 	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg.MessageType())
 	assert.Equal(t, State_SwapOutReceiver_SwapAborted, bobSwap.Current)
-	err = bobSwapService.swapServices.txWatcher.(*DummyTxWatcher).cltvPassedFunc(aliceSwap.Id)
+	err = bobSwapService.swapServices.onchain.(*dummyChain).cltvPassedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,11 +196,8 @@ func getTestSetup(name string) *SwapService {
 	}
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
-	swapService := NewSwapService(store, node, lc, messenger, policy, txWatcher, wallet, utils)
+	chain := &dummyChain{}
+	swapService := NewSwapService(store, chain, lc, messenger, policy)
 	return swapService
 }
 

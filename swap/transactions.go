@@ -1,142 +1,71 @@
 package swap
 
 import (
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/utils"
-	"log"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 // CreateOpeningTransaction creates the opening transaction from a swap
 func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	// Create the opening transaction
-	blockHeight, err := services.blockchain.GetBlockHeight()
+	txHex, fee, cltv, vout, err:= services.onchain.CreateOpeningTransaction(&OpeningParams{
+		TakerPubkeyHash:  swap.TakerPubkeyHash,
+		MakerPubkeyHash:  swap.MakerPubkeyHash,
+		ClaimPaymentHash: swap.ClaimPaymentHash,
+		Amount:           swap.Amount,
+	})
 	if err != nil {
 		return err
 	}
-	spendingBlocktimeHeight := int64(blockHeight + services.blockchain.GetLocktime())
-	swap.Cltv = spendingBlocktimeHeight
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
-	if err != nil {
-		return err
-	}
-
-	openingTx, err := services.utils.CreateOpeningTransaction(redeemScript, services.blockchain.GetAsset(), swap.Amount)
-	if err != nil {
-		return err
-	}
-
-	txHex, fee, err := services.wallet.CreateFundedTransaction(openingTx)
-	if err != nil {
-		return err
-	}
-	vout, err := services.utils.VoutFromTxHex(txHex, redeemScript)
-	if err != nil {
-		return err
-	}
-
 	swap.OpeningTxUnpreparedHex = txHex
 	swap.OpeningTxFee = fee
 	swap.OpeningTxVout = vout
+	swap.Cltv = cltv
 
 	return nil
 }
 
+
 // CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
-func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) (string, error) {
-	blockchain := services.blockchain
-	wallet := services.wallet
-
-	address, err := wallet.GetAddress()
-	if err != nil {
-		log.Printf("error getting address")
-		return "", err
+func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) error {
+	key,_ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+	openingParams := &OpeningParams{
+		TakerPubkeyHash:  swap.TakerPubkeyHash,
+		MakerPubkeyHash:  swap.MakerPubkeyHash,
+		ClaimPaymentHash: swap.ClaimPaymentHash,
+		Amount:           swap.Amount,
 	}
-	outputScript, err := services.utils.Blech32ToScript(address, blockchain.GetNetwork())
-	if err != nil {
-		log.Printf("error creating output script")
-		return "", err
+	spendParams := &ClaimParams{
+		OpeningTxHex: swap.OpeningTxHex,
+		Preimage:     swap.ClaimPreimage,
+		Signer:       key,
 	}
-
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
+	txId, _, err := services.onchain.CreatePreimageSpendingTransaction(openingParams,spendParams)
 	if err != nil {
-		log.Printf("error getting swap script")
-		return "", err
+		return err
 	}
+	swap.ClaimTxId = txId
 
-	blockheight, err := blockchain.GetBlockHeight()
-	if err != nil {
-		log.Printf("error getting block height")
-		return "", err
-	}
-	// todo correct fee
-	spendingTx, sigHash, err := services.utils.CreateSpendingTransaction(swap.OpeningTxHex, swap.Amount, services.blockchain.GetFee(""), blockheight, blockchain.GetAsset(), redeemScript, outputScript)
-	if err != nil {
-		log.Printf("error creating spending tx")
-		return "", err
-	}
-
-	sig, err := swap.GetPrivkey().Sign(sigHash[:])
-	if err != nil {
-		log.Printf("error getting privkey")
-		return "", err
-	}
-
-	preimage, err := lightning.MakePreimageFromStr(swap.ClaimPreimage)
-	if err != nil {
-		log.Printf("error making preimage from string")
-		return "", err
-
-	}
-
-	spendingTx.Inputs[0].Witness = services.utils.GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		log.Printf("error creating spending tx hex")
-		return "", err
-	}
-	return spendingTxHex, nil
+	return  nil
 }
 
 // CreateCltvSpendingTransaction creates the spending transaction from a swap when spending the cltv passed branch
-func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) (string, error) {
-	blockchain := services.blockchain
-	wallet := services.wallet
-
-	address, err := wallet.GetAddress()
-	if err != nil {
-		return "", err
+func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) (error) {
+	key,_ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+	openingParams := &OpeningParams{
+		TakerPubkeyHash:  swap.TakerPubkeyHash,
+		MakerPubkeyHash:  swap.MakerPubkeyHash,
+		ClaimPaymentHash: swap.ClaimPaymentHash,
+		Amount:           swap.Amount,
 	}
-	outputScript, err := services.utils.Blech32ToScript(address, blockchain.GetNetwork())
-	if err != nil {
-		return "", err
+	spendParams := &ClaimParams{
+		OpeningTxHex: swap.OpeningTxHex,
+		Signer:       key,
 	}
-
-	redeemScript, err := services.utils.GetSwapScript(swap.TakerPubkeyHash, swap.MakerPubkeyHash, swap.ClaimPaymentHash, swap.Cltv)
+	txId, _, err := services.onchain.CreatePreimageSpendingTransaction(openingParams,spendParams)
 	if err != nil {
-		return "", err
+		return err
 	}
+	swap.ClaimTxId = txId
 
-	blockheight, err := blockchain.GetBlockHeight()
-	if err != nil {
-		return "", err
-	}
-
-	spendingTx, sigHash, err := services.utils.CreateSpendingTransaction(swap.OpeningTxHex, swap.Amount, services.blockchain.GetFee(""), blockheight, blockchain.GetAsset(), redeemScript, outputScript)
-	if err != nil {
-		return "", err
-	}
-
-	sig, err := swap.GetPrivkey().Sign(sigHash[:])
-	if err != nil {
-		return "", err
-	}
-
-	spendingTx.Inputs[0].Witness = utils.GetCltvWitness(sig.Serialize(), redeemScript)
-
-	spendingTxHex, err := spendingTx.ToHex()
-	if err != nil {
-		return "", err
-	}
-	return spendingTxHex, nil
+	return  nil
 }
