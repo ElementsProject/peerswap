@@ -101,7 +101,6 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapDat
 	// todo check peerId
 	if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 
-
 		log.Printf("won't pay fee %v", err)
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
@@ -142,8 +141,7 @@ type SwapOutTxConfirmedAction struct{}
 
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-
-	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId, swap.OpeningTxVout)
+	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
@@ -167,7 +165,6 @@ func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapDa
 		log.Printf("error creating spending tx %v", err)
 		return Event_OnRetry
 	}
-
 
 	//todo correct message
 	msg := &ClaimedMessage{

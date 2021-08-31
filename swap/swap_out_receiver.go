@@ -18,6 +18,7 @@ const (
 	State_SwapOutReceiver_ClaimInvoicePaid     StateType = "State_SwapOutReceiver_ClaimInvoicePaid"
 	State_SwapOutReceiver_SwapAborted          StateType = "State_SwapOutReceiver_Aborted"
 	State_SwapOutReceiver_CltvPassed           StateType = "State_SwapOutReceiver_CltvPassed"
+	State_SwapOutReceiver_TxClaimed            StateType = "State_SwapOutReceiver_TxClaimed"
 
 	Event_SwapOutReceiver_OnSwapOutRequestReceived EventType = "Event_SwapOutReceiver_OnSwapOutRequestReceived"
 	Event_SwapOutReceiver_OnSwapCreated            EventType = "Event_SwapOutReceiver_SwapCreated"
@@ -174,24 +175,28 @@ func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *SwapData) 
 // CltvPassedAction spends the opening transaction with a signature
 type CltvPassedAction struct{}
 
-// todo seperate into claim state and sendmessage state
 func (c *CltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	err := CreateCltvSpendingTransaction(services, swap)
 	if err != nil {
-
+		swap.HandleError(err)
 		return Event_OnRetry
 	}
+	return Event_SwapOutReceiver_OnCltvClaimed
+}
 
+type CltvTxClaimedAction struct{}
+
+func (c *CltvTxClaimedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	msg := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_CLTV,
 		ClaimTxId: swap.ClaimTxId,
 	}
-	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
+	err := services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		return Event_OnRetry
+		return swap.HandleError(err)
 	}
-	return Event_SwapOutReceiver_OnCltvClaimed
+	return Event_Action_Success
 }
 
 // SendCancelAction sends a cancel message to the swap peer
@@ -302,8 +307,15 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_CltvPassed: {
 			Action: &CltvPassedAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCltvClaimed: State_ClaimedCltv,
+				Event_SwapOutReceiver_OnCltvClaimed: State_SwapOutReceiver_TxClaimed,
 				Event_OnRetry:                       State_SwapOutReceiver_CltvPassed,
+			},
+		},
+		State_SwapOutReceiver_TxClaimed: {
+			Action: &CltvTxClaimedAction{},
+			Events: Events{
+				Event_Action_Success: State_ClaimedCltv,
+				Event_ActionFailed:   State_ClaimedCltv,
 			},
 		},
 		State_ClaimedCltv: {

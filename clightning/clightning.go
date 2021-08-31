@@ -16,7 +16,6 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap"
-	"github.com/sputn1ck/peerswap/blockchain"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
@@ -53,9 +52,8 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
-	wallet     wallet.Wallet
-	swaps      *swap.SwapService
-	blockchain blockchain.Blockchain
+	wallet wallet.Wallet
+	swaps  *swap.SwapService
 
 	Gelements *gelements.Elements
 
@@ -432,10 +430,9 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, blockchain blockchain.Blockchain, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
-	c.blockchain = blockchain
 	c.Gelements = elements
 }
 

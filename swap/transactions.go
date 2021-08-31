@@ -7,7 +7,7 @@ import (
 // CreateOpeningTransaction creates the opening transaction from a swap
 func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	// Create the opening transaction
-	txHex, fee, cltv, vout, err:= services.onchain.CreateOpeningTransaction(&OpeningParams{
+	txHex, fee, cltv, vout, err := services.onchain.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
 		ClaimPaymentHash: swap.ClaimPaymentHash,
@@ -24,10 +24,9 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	return nil
 }
 
-
 // CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
 func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) error {
-	key,_ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 	openingParams := &OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
@@ -35,22 +34,23 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 		Amount:           swap.Amount,
 	}
 	spendParams := &ClaimParams{
-		OpeningTxHex: swap.OpeningTxHex,
-		Preimage:     swap.ClaimPreimage,
-		Signer:       key,
+		Vout:     swap.OpeningTxVout,
+		Preimage: swap.ClaimPreimage,
+		Signer:   key,
+		Cltv:     swap.Cltv,
 	}
-	txId, _, err := services.onchain.CreatePreimageSpendingTransaction(openingParams,spendParams)
+	txId, _, err := services.onchain.CreatePreimageSpendingTransaction(openingParams, spendParams, swap.OpeningTxId)
 	if err != nil {
 		return err
 	}
 	swap.ClaimTxId = txId
 
-	return  nil
+	return nil
 }
 
 // CreateCltvSpendingTransaction creates the spending transaction from a swap when spending the cltv passed branch
-func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) (error) {
-	key,_ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) error {
+	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 	openingParams := &OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
@@ -58,14 +58,15 @@ func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) (erro
 		Amount:           swap.Amount,
 	}
 	spendParams := &ClaimParams{
-		OpeningTxHex: swap.OpeningTxHex,
-		Signer:       key,
+		Vout:   swap.OpeningTxVout,
+		Signer: key,
+		Cltv:   swap.Cltv,
 	}
-	txId, _, err := services.onchain.CreatePreimageSpendingTransaction(openingParams,spendParams)
+	txId, _, err := services.onchain.CreateCltvSpendingTransaction(openingParams, spendParams, swap.OpeningTxHex)
 	if err != nil {
 		return err
 	}
 	swap.ClaimTxId = txId
 
-	return  nil
+	return nil
 }

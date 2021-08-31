@@ -334,25 +334,25 @@ func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
-type dummyChain struct{
+type dummyChain struct {
 	txConfirmedFunc func(swapId string) error
 	cltvPassedFunc  func(swapId string) error
 }
 
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, cltv int64, vout uint32, err error) {
-	return "txhex", 0,0,0, nil
+	return "txhex", 0, 0, 0, nil
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
-	return "txid","txhex",nil
+	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
-	return "txid","txhex",nil
+func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
-	return "txid","txhex",nil
+func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
 }
 
 func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
@@ -371,6 +371,6 @@ func (d *dummyChain) AddCltvCallback(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
-func (d *dummyChain) ValidateTx(swapParams *OpeningParams, openingTxId string, openingTxVout uint32) (bool, error) {
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string, openingTxVout uint32) (bool, error) {
 	return true, nil
 }

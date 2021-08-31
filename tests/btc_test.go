@@ -23,7 +23,6 @@ import (
 	"testing"
 )
 
-
 // btc swap
 // step 1: create opening tx segwit addresss
 // step 2: tx prepare to opening tx
@@ -55,7 +54,6 @@ func Test_BitcoinSwap(t *testing.T) {
 	log.Println(funds)
 
 	txParams := NewTxParams(uint64(100))
-
 
 	addr, err := createOpeningAddress(txParams)
 	if err != nil {
@@ -90,9 +88,7 @@ func Test_BitcoinSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	log.Printf("\n sendRes: %s", sendRes.TxId)
-
 
 	// decode txbytes
 	txBytes, err := hex.DecodeString(sendRes.SignedTx)
@@ -109,8 +105,8 @@ func Test_BitcoinSwap(t *testing.T) {
 	// Find Vout
 	scriptVout := 0
 	changeVout := 0
-	for index,v := range openingMsgTx.TxOut {
-		if v.Value == 10000{
+	for index, v := range openingMsgTx.TxOut {
+		if v.Value == 10000 {
 			scriptVout = index
 		}
 	}
@@ -126,12 +122,10 @@ func Test_BitcoinSwap(t *testing.T) {
 	spendingTx.LockTime = ci.Blocks
 
 	// Add Output
-	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVout].Value - 200, openingMsgTx.TxOut[changeVout].PkScript)
+	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVout].Value-200, openingMsgTx.TxOut[changeVout].PkScript)
 	spendingTx.AddTxOut(spendingTxOut)
 
-
-	redeemScript,_ := utils.GetOpeningTxScript(txParams.AliceKey.PubKey().SerializeCompressed(), txParams.BobKey.PubKey().SerializeCompressed(), txParams.PaymentHash, int64(txParams.Cltv))
-
+	redeemScript, _ := utils.GetOpeningTxScript(txParams.AliceKey.PubKey().SerializeCompressed(), txParams.BobKey.PubKey().SerializeCompressed(), txParams.PaymentHash, int64(txParams.Cltv))
 
 	spendingTxInput := wire.NewTxIn(prevInput, nil, [][]byte{})
 	spendingTxInput.Sequence = 0
@@ -139,7 +133,7 @@ func Test_BitcoinSwap(t *testing.T) {
 	spendingTx.AddTxIn(spendingTxInput)
 
 	sigHashes := txscript.NewTxSigHashes(spendingTx)
-	sigHash,err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, 10000)
+	sigHash, err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, 10000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,28 +174,29 @@ func Test_BitcoinSwap(t *testing.T) {
 func Test_PrintBytes(t *testing.T) {
 	// print 2 privkeys
 	for i := 0; i < 2; i++ {
-		privkey,_ := btcec.NewPrivateKey(btcec.S256())
-		t.Logf("privkey %v: %s",i+1, hex.EncodeToString(privkey.Serialize()))
+		privkey, _ := btcec.NewPrivateKey(btcec.S256())
+		t.Logf("privkey %v: %s", i+1, hex.EncodeToString(privkey.Serialize()))
 	}
 	// print preimageString
 	preimage, _ := lightning.GetPreimage()
-	t.Logf("%s ",preimage.String())
+	t.Logf("%s ", preimage.String())
 }
+
 var privkeyAlice = "de3ed9555a4e245a4bb4dda2e3cdd08506798d9450d0bf9fef640a285cc9804c"
 var privkeyBob = "bd2ba3c638e0bcde93398d535c727e28672e1d98398c1cba9dd863a79ade3d31"
 var preimageString = "d61dafec41bbdd42898f0ce2283128df665a152d35211f2c7e153dcf4ab3415b"
 
 func getFixedSwapParams() (*btcec.PrivateKey, *btcec.PrivateKey, lightning.Preimage) {
 	privkeyAliceBytes, _ := hex.DecodeString(privkeyAlice)
-	pvAlice,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyAliceBytes)
+	pvAlice, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyAliceBytes)
 	privkeyBobBytes, _ := hex.DecodeString(privkeyBob)
-	pvBob,_ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBobBytes)
+	pvBob, _ := btcec.PrivKeyFromBytes(btcec.S256(), privkeyBobBytes)
 
 	preimage, _ := lightning.MakePreimageFromStr(preimageString)
 	return pvAlice, pvBob, preimage
 }
 func createOpeningAddress(params *TxParams) (string, error) {
-	redeemScript,err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, 100)
+	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, 100)
 	if err != nil {
 		return "", err
 	}
@@ -222,6 +217,7 @@ func createOpeningAddress(params *TxParams) (string, error) {
 }
 
 var openingTxHex = "0200000001b4edf4891e095bc20084c9c39978616f30843f7c43849d1076dd81a9608b42a20000000000fdffffff02f723052a01000000160014817bc281a4cbc3b2daedea54a869cc1d8adfdc271027000000000000220020bdbd3cd7ff7f249eb7bfc248e023b3d17d6647c31cd5227e6ca55de2f5737d7396030000"
+
 //func Test_SpendingTx(t *testing.T) {
 //
 //	// decode txbytes
@@ -267,6 +263,7 @@ var openingTxHex = "0200000001b4edf4891e095bc20084c9c39978616f30843f7c43849d1076
 //
 //}
 var rawTx = "020000000193eb2b13a1112e970e4bb817f5cb7125703d79b9744f6c2ddf40566f5d9526fb0100000000ffffffff011027000000000000160014817bc281a4cbc3b2daedea54a869cc1d8adfdc2700000000"
+
 func createSpendingTxPreimage(params *TxParams, openingTxHex string, currentBlock uint64) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	//redeemScript,err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, int64(params.Cltv))
 	//if err != nil {
@@ -278,7 +275,6 @@ func createSpendingTxPreimage(params *TxParams, openingTxHex string, currentBloc
 	//	log.Printf("error creating first tx %s, %v", openingTxHex, err)
 	//	return nil, [32]byte{}, err
 	//}
-
 
 	//swapInValue, err := elementsutil.SatoshiToElementsValue(params.SwapAmount)
 	//if err != nil {
@@ -336,7 +332,7 @@ func createSpendingTxPreimage(params *TxParams, openingTxHex string, currentBloc
 	//	txscript.SigHashAll,
 	//)
 	//return spendingTx, sigHash, nil
-	return nil,[32]byte{},nil
+	return nil, [32]byte{}, nil
 }
 func createPsbtFromSignedTx(serializedSignedTx []byte) (
 	*psbt.Packet, [][]byte, []wire.TxWitness, error) {
@@ -369,23 +365,23 @@ func createPsbtFromSignedTx(serializedSignedTx []byte) (
 }
 
 type TxParams struct {
-	AliceKey *btcec.PrivateKey
-	BobKey *btcec.PrivateKey
-	Preimage lightning.Preimage
+	AliceKey    *btcec.PrivateKey
+	BobKey      *btcec.PrivateKey
+	Preimage    lightning.Preimage
 	PaymentHash []byte
-	SwapAmount uint64
-	Cltv uint64
+	SwapAmount  uint64
+	Cltv        uint64
 }
 
 func NewTxParams(cltv uint64) *TxParams {
 	preimage, _ := lightning.GetPreimage()
 	pHash := preimage.Hash()
 	return &TxParams{
-		AliceKey: getRandomPrivkey(),
-		BobKey: getRandomPrivkey(),
-		Preimage: preimage,
+		AliceKey:    getRandomPrivkey(),
+		BobKey:      getRandomPrivkey(),
+		Preimage:    preimage,
 		PaymentHash: pHash[:],
-		Cltv: cltv,
+		Cltv:        cltv,
 	}
 }
 
@@ -408,7 +404,7 @@ func getFeeSatsFromTx(psbtString, txHex string) (int64, error) {
 		return 0, err
 	}
 
-	tx,err := btcutil.NewTxFromBytes(txBytes)
+	tx, err := btcutil.NewTxFromBytes(txBytes)
 	if err != nil {
 		return 0, err
 	}
@@ -418,17 +414,17 @@ func getFeeSatsFromTx(psbtString, txHex string) (int64, error) {
 		outputSats += out.Value
 	}
 
-	 return inputSats - outputSats, nil
+	return inputSats - outputSats, nil
 }
 
 func getLightningClient() (*glightning.Lightning, error) {
 	l := glightning.NewLightning()
-	err := l.StartUp("lightning-rpc","/tmp/l1-regtest/regtest")
+	err := l.StartUp("lightning-rpc", "/tmp/l1-regtest/regtest")
 
 	return l, err
 }
 
-func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin,  error) {
+func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	configs, err := li.ListConfigs()
 	if err != nil {
 		return nil, err
@@ -443,7 +439,7 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin,  error) {
 		return nil, err
 	}
 	var bcliConfig *ImportantPlugin
-	for _,v := range listconfigRes.ImportantPlugins {
+	for _, v := range listconfigRes.ImportantPlugins {
 		if v.Name == "bcli" {
 			bcliConfig = v
 		}
@@ -458,7 +454,7 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin,  error) {
 	if err != nil {
 		return nil, err
 	}
-	bitcoin.StartUp("http://"+bcliConfig.Options["bitcoin-rpcconnect"],"",uint(rpcPort))
+	bitcoin.StartUp("http://"+bcliConfig.Options["bitcoin-rpcconnect"], "", uint(rpcPort))
 	return bitcoin, nil
 }
 
@@ -467,8 +463,7 @@ type ListConfigRes struct {
 }
 
 type ImportantPlugin struct {
-	Path string
-	Name string
-	Options map[string] string
+	Path    string
+	Name    string
+	Options map[string]string
 }
-

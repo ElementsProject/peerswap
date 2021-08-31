@@ -132,6 +132,9 @@ type PrettyPrintSwapData struct {
 
 func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	timeStamp := time.Unix(s.CreatedAt, 0)
+	if s.LastErr != nil {
+		s.LastErrString = s.LastErr.Error()
+	}
 	return &PrettyPrintSwapData{
 		Id:              s.Id,
 		Type:            s.Type.String(),

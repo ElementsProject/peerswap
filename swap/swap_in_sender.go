@@ -41,7 +41,6 @@ func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *SwapData)
 // SwapInSenderCreatedAction sends the request to the swap peer
 type SwapInSenderCreatedAction struct{}
 
-
 func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	messenger := services.messenger
 

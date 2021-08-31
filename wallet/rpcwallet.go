@@ -60,16 +60,12 @@ func (r *rpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction)
 }
 
 // FinalizeAndBroadcastFundedTransaction finalizes a tx and broadcasts it
-func (r *rpcWallet) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
+func (r *rpcWallet) FinalizeFundedTransaction(rawTx string) (txId string, err error) {
 	finalized, err := r.FinalizeTransaction(rawTx)
 	if err != nil {
 		return "", err
 	}
-	txId, err = r.rpcClient.SendRawTx(finalized)
-	if err != nil {
-		return "", err
-	}
-	return txId, nil
+	return finalized, nil
 }
 
 func NewRpcWallet(rpcClient RpcClient, walletName string) (*rpcWallet, error) {

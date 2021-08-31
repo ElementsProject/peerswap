@@ -30,45 +30,42 @@ type LightningClient interface {
 
 type Onchain interface {
 	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, cltv int64, vout uint32, err error)
-	BroadcastOpeningTx(unpreparedTxHex string) (txId,txHex string, error error)
-	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams)(txId, txHex string, error error)
-	CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams)(txId, txHex string, error error)
+	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
+	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
+	CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string) (txId, txHex string, error error)
 	AddWaitForConfirmationTx(swapId, txId string) (err error)
 	AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error)
 	AddConfirmationCallback(func(swapId string) error)
 	AddCltvCallback(func(swapId string) error)
-	ValidateTx(swapParams *OpeningParams, openingTxId string, openingTxVout uint32) (bool, error)
+	ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string, openingTxVout uint32) (bool, error)
 }
 
 type OpeningParams struct {
-	TakerPubkeyHash string
-	MakerPubkeyHash string
+	TakerPubkeyHash  string
+	MakerPubkeyHash  string
 	ClaimPaymentHash string
-	Amount uint64
+	Amount           uint64
 }
 
 type ClaimParams struct {
-	OpeningTxHex string
+	Cltv     int64
+	Vout     uint32
 	Preimage string
-	Signer Signer
+	Signer   Signer
 }
 
 type Signer interface {
 	Sign(hash []byte) (*btcec.Signature, error)
 }
 
-
-
 type SwapServices struct {
-	swapStore  Store
-	lightning  LightningClient
-	messenger  Messenger
-	policy     Policy
-	onchain 	Onchain
+	swapStore Store
+	lightning LightningClient
+	messenger Messenger
+	policy    Policy
+	onchain   Onchain
 }
 
 func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain) *SwapServices {
 	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain}
 }
-
-

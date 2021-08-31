@@ -14,5 +14,5 @@ type Wallet interface {
 	SendToAddress(string, uint64) (string, error)
 	GetBalance() (uint64, error)
 	CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error)
-	FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error)
+	FinalizeFundedTransaction(unpreparedTx string) (preparedTxHex string, err error)
 }

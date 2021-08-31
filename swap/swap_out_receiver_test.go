@@ -139,7 +139,6 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	chanId := "baz"
 	FeePreimage := "err"
 
-
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
