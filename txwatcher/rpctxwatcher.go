@@ -2,6 +2,7 @@ package txwatcher
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -55,10 +56,15 @@ func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, re
 
 // StartWatchingTxs starts the txwatcher
 func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
+	if s.blockchain == nil {
+		return fmt.Errorf("missing blockchain rpc client")
+	}
+
 	currentBlock, err := s.blockchain.GetBlockHeight()
 	if err != nil {
 		return err
 	}
+
 	go s.StartBlockWatcher(currentBlock)
 	go func() error {
 		for {
@@ -84,19 +90,23 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 
 // StartBlockWatcher starts listening for new blocks
 func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-s.ctx.Done():
-		default:
+		case <-ticker.C:
 			nextBlock, err := s.blockchain.GetBlockHeight()
 			if err != nil {
 				return err
 			}
 			if nextBlock > currentBlock {
 				currentBlock = nextBlock
+				s.Lock()
 				s.newBlockChan <- currentBlock
+				s.Unlock()
 			}
-			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 }
@@ -172,17 +182,21 @@ func (l *BlockchainRpcTxWatcher) AddCltvTx(swapId string, cltv int64) {
 
 func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
 	l.Lock()
+	defer l.Unlock()
 	for _, v := range swaps {
 		delete(l.txWatchList, v)
 		delete(l.timelockWatchlist, v)
 	}
-	l.Unlock()
 }
 
 func (l *BlockchainRpcTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
+	l.Lock()
+	defer l.Unlock()
 	l.txCallback = f
 }
 
 func (l *BlockchainRpcTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
+	l.Lock()
+	defer l.Unlock()
 	l.timelockCallback = f
 }
