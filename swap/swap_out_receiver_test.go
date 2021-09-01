@@ -23,6 +23,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		takerPubkeyHash: takerpubkeyhash,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +71,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		takerPubkeyHash: initiator,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -116,6 +118,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		takerPubkeyHash: initiator,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -151,6 +154,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		takerPubkeyHash: initiator,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -41,7 +41,7 @@ def test_liquid_swap_out(node_factory, bitcoind):
     l2Balance = l2.rpc.call("peerswap-liquid-getbalance")
     assert l2Balance == 100000000
 
-    l1.rpc.call("peerswap-swap-out", {'amt':swapAmt,'short_channel_id':scid12})
+    l1.rpc.call("peerswap-swap-out", {'amt':swapAmt,'short_channel_id':scid12,'asset':'l-btc'})
 
     time.sleep(1)
     l1.rpc.call("dev-liquid-generate", {'amount':1})

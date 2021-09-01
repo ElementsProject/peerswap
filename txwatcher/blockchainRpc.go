@@ -23,10 +23,8 @@ func (e *ElementsBlockChainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, 
 		return nil, err
 	}
 	return &TxOutResp{
-		BestBlockHash: txout.BestBlockHash,
 		Confirmations: txout.Confirmations,
 		Value:         txout.Value,
-		Coinbase:      txout.Coinbase,
 	}, nil
 }
 

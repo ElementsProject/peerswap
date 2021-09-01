@@ -51,6 +51,7 @@ func Test_ValidSwap(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -97,6 +98,7 @@ func Test_Cancel2(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -126,6 +128,7 @@ func Test_Cancel1(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -158,6 +161,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -339,8 +343,8 @@ type dummyChain struct {
 	cltvPassedFunc  func(swapId string) error
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, cltv int64, vout uint32, err error) {
-	return "txhex", 0, 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string,txid string, fee uint64, cltv int64, vout uint32, err error) {
+	return "txhex","", 0, 0, 0, nil
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
@@ -351,7 +355,7 @@ func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string) (txId, txHex string, error error) {
+func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
 }
 
@@ -371,6 +375,6 @@ func (d *dummyChain) AddCltvCallback(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
-func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string, openingTxVout uint32) (bool, error) {
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string) (bool, error) {
 	return true, nil
 }
