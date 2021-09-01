@@ -211,6 +211,32 @@ services:
       local:
         ipv4_address: 10.10.1.20
     restart: unless-stopped
+  esplora:
+    image: vulpemventures/esplora:latest
+    container_name: esplora
+    networks:
+      local:
+        ipv4_address: 10.10.1.28
+    depends_on:
+      - chopsticks
+    environment:
+      API_URL: http://localhost:3000
+    ports:
+      - 5000:5000
+    restart: unless-stopped
+  esplora-liquid:
+    image: vulpemventures/esplora:latest
+    container_name: esplora-liquid
+    networks:
+      local:
+        ipv4_address: 10.10.1.29
+    depends_on:
+      - chopsticks-liquid
+    environment:
+      API_URL: http://localhost:3001
+    ports:
+      - 5001:5000
+    restart: unless-stopped
 
 networks:
   local:

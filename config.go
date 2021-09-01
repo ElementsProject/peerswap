@@ -4,13 +4,16 @@ import "github.com/vulpemventures/go-elements/network"
 
 // Config contains relevant config params for peerswap
 type Config struct {
-	DbPath      string
-	RpcUser     string
-	RpcPassword string
-	RpcHost     string
-	RpcPort     uint
-	RpcWallet   string
-	Network     string
+	DbPath              string
+	LiquidRpcUser       string
+	LiquidRpcPassword   string
+	LiquidRpcHost       string
+	LiquidRpcPort       uint
+	LiquidRpcWallet     string
+	LiquidNetworkString string
+
+	LiquidEnabled bool
+	LiquidNetwork *network.Network
 }
 
 // Test defines the network parameters for the liquid test network.

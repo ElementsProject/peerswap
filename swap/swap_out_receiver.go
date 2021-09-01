@@ -18,6 +18,7 @@ const (
 	State_SwapOutReceiver_ClaimInvoicePaid     StateType = "State_SwapOutReceiver_ClaimInvoicePaid"
 	State_SwapOutReceiver_SwapAborted          StateType = "State_SwapOutReceiver_Aborted"
 	State_SwapOutReceiver_CltvPassed           StateType = "State_SwapOutReceiver_CltvPassed"
+	State_SwapOutReceiver_TxClaimed            StateType = "State_SwapOutReceiver_TxClaimed"
 
 	Event_SwapOutReceiver_OnSwapOutRequestReceived EventType = "Event_SwapOutReceiver_OnSwapOutRequestReceived"
 	Event_SwapOutReceiver_OnSwapCreated            EventType = "Event_SwapOutReceiver_SwapCreated"
@@ -38,25 +39,29 @@ const (
 
 type CreateSwapFromRequestContext struct {
 	amount          uint64
+	asset           string
 	peer            string
 	channelId       string
 	swapId          string
 	takerPubkeyHash string
+	protocolversion uint64
 }
 
 func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
+	swap.Asset = c.asset
 	swap.PeerNodeId = c.peer
 	swap.ChannelId = c.channelId
 	swap.Id = c.swapId
 	swap.TakerPubkeyHash = c.takerPubkeyHash
+	swap.ProtocolVersion = c.protocolversion
 }
 
 // CreateSwapFromRequestAction creates the swap-out process and prepares the opening transaction
 type CreateSwapFromRequestAction struct{}
 
 func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT)
+	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap
 
@@ -69,14 +74,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	pHash := preimage.Hash()
 	log.Printf("maker preimage: %s ", preimage.String())
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
@@ -92,19 +95,19 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 
 	feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
 	if err != nil {
-		swap.LastErr = err
+
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
-		swap.LastErr = err
+
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id)
 	if err != nil {
-		swap.LastErr = err
+
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	swap.FeeInvoice = feeInvoice
@@ -123,7 +126,7 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) E
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
+
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	return Event_SwapOutReceiver_OnSendFeeInvoiceSuceeded
@@ -133,21 +136,12 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) E
 type FeeInvoicePaidAction struct{}
 
 func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	node := services.blockchain
-
-	finalizedTx, err := services.wallet.FinalizeTransaction(swap.OpeningTxUnpreparedHex)
+	txId, finalizedTx, err := services.onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
-		swap.LastErr = err
 		return Event_SwapOutSender_OnCancelSwapOut
 	}
+
 	swap.OpeningTxHex = finalizedTx
-
-	txId, err := node.SendRawTx(finalizedTx)
-	if err != nil {
-		swap.LastErr = err
-		return Event_SwapOutSender_OnCancelSwapOut
-	}
-
 	swap.OpeningTxId = txId
 
 	return Event_SwapOutReceiver_OnTxBroadcasted
@@ -157,6 +151,10 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) E
 type SwapOutReceiverOpeningTxBroadcastedAction struct{}
 
 func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	err := services.onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
+	if err != nil {
+		return swap.HandleError(err)
+	}
 	msg := &TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
@@ -164,10 +162,9 @@ func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServic
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
 	}
-	err := services.messenger.SendMessage(swap.PeerNodeId, msg)
+	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	return Event_Action_Success
 }
@@ -181,34 +178,28 @@ func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *SwapData) 
 // CltvPassedAction spends the opening transaction with a signature
 type CltvPassedAction struct{}
 
-// todo seperate into claim state and sendmessage state
 func (c *CltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	blockchain := services.blockchain
-	messenger := services.messenger
-
-	claimTxHex, err := CreateCltvSpendingTransaction(services, swap)
+	err := CreateCltvSpendingTransaction(services, swap)
 	if err != nil {
-		swap.LastErr = err
-		return Event_OnRetry
-	}
-
-	claimId, err := blockchain.SendRawTx(claimTxHex)
-	if err != nil {
-		swap.LastErr = err
-		return Event_OnRetry
-	}
-	swap.ClaimTxId = claimId
-	msg := &ClaimedMessage{
-		SwapId:    swap.Id,
-		ClaimType: CLAIMTYPE_CLTV,
-		ClaimTxId: claimId,
-	}
-	err = messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		swap.LastErr = err
+		swap.HandleError(err)
 		return Event_OnRetry
 	}
 	return Event_SwapOutReceiver_OnCltvClaimed
+}
+
+type CltvTxClaimedAction struct{}
+
+func (c *CltvTxClaimedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	msg := &ClaimedMessage{
+		SwapId:    swap.Id,
+		ClaimType: CLAIMTYPE_CLTV,
+		ClaimTxId: swap.ClaimTxId,
+	}
+	err := services.messenger.SendMessage(swap.PeerNodeId, msg)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	return Event_Action_Success
 }
 
 // SendCancelAction sends a cancel message to the swap peer
@@ -225,7 +216,6 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
 		return Event_OnRetry
 	}
 	return Event_Action_Success
@@ -319,8 +309,15 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_CltvPassed: {
 			Action: &CltvPassedAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCltvClaimed: State_ClaimedCltv,
+				Event_SwapOutReceiver_OnCltvClaimed: State_SwapOutReceiver_TxClaimed,
 				Event_OnRetry:                       State_SwapOutReceiver_CltvPassed,
+			},
+		},
+		State_SwapOutReceiver_TxClaimed: {
+			Action: &CltvTxClaimedAction{},
+			Events: Events{
+				Event_Action_Success: State_ClaimedCltv,
+				Event_ActionFailed:   State_ClaimedCltv,
 			},
 		},
 		State_ClaimedCltv: {

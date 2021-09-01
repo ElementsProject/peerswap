@@ -24,6 +24,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +68,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,6 +100,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -129,20 +132,16 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: "fee"}
 	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
+	chain := &dummyChain{}
 
 	swapServices := NewSwapServices(
 		store,
-		node,
 		lc,
 		messenger,
 		policy,
-		txWatcher,
-		wallet,
-		utils,
+		chain,
+		chain,
+		chain,
 	)
 	return swapServices
 }

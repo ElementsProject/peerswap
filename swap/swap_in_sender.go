@@ -33,7 +33,7 @@ const (
 type SwapInSenderInitAction struct{}
 
 func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId)
+	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
 	*swap = *newSwap
 	return Event_SwapInSender_OnSwapInCreated
 }
@@ -48,14 +48,15 @@ func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapDa
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
 	msg := &SwapInRequest{
-		SwapId:    swap.Id,
-		ChannelId: swap.ChannelId,
-		Amount:    swap.Amount,
+		SwapId:          swap.Id,
+		ChannelId:       swap.ChannelId,
+		Amount:          swap.Amount,
+		Asset:           swap.Asset,
+		ProtocolVersion: swap.ProtocolVersion,
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		swap.LastErr = err
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	return Event_SwapInSender_OnSwapInRequestSent
 }
@@ -64,50 +65,36 @@ func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapDa
 type SwapInSenderAgreementReceivedAction struct{}
 
 func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	node := services.blockchain
-	txwatcher := services.txWatcher
-
 	pubkey := swap.GetPrivkey().PubKey()
 
 	swap.Role = SWAPROLE_SENDER
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 	// Generate Preimage
-	var preimage lightning.Preimage
-	preimage, swap.LastErr = lightning.GetPreimage()
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	preimage, err := lightning.GetPreimage()
+	if err != nil {
+		return swap.HandleError(err)
 	}
 	pHash := preimage.Hash()
-	var payreq string
-	payreq, swap.LastErr = services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
+	if err != nil {
+		return swap.HandleError(err)
 	}
 
 	swap.ClaimInvoice = payreq
 	swap.ClaimPreimage = preimage.String()
 	swap.ClaimPaymentHash = pHash.String()
 
-	swap.LastErr = CreateOpeningTransaction(services, swap)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	err = CreateOpeningTransaction(services, swap)
+	if err != nil {
+		return swap.HandleError(err)
 	}
-
-	var finalizedTx string
-	finalizedTx, swap.LastErr = services.wallet.FinalizeTransaction(swap.OpeningTxUnpreparedHex)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	txId, txHex, err := services.onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	if err != nil {
+		return swap.HandleError(err)
 	}
-	swap.OpeningTxHex = finalizedTx
-
-	var txId string
-	txId, swap.LastErr = node.SendRawTx(finalizedTx)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
-	}
-
+	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
-	txwatcher.AddCltvTx(swap.Id, swap.Cltv)
+
 	return Event_SwapInSender_OnTxBroadcasted
 }
 
@@ -124,10 +111,11 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
 	}
-	swap.LastErr = messenger.SendMessage(swap.PeerNodeId, msg)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	err := messenger.SendMessage(swap.PeerNodeId, msg)
+	if err != nil {
+		return swap.HandleError(err)
 	}
+
 	return Event_SwapInSender_OnTxMsgSent
 }
 
@@ -135,7 +123,10 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 type WaitCltvAction struct{}
 
 func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	services.txWatcher.AddCltvTx(swap.Id, swap.Cltv)
+	err := services.onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
+	if err != nil {
+		return swap.HandleError(err)
+	}
 	return NoOp
 }
 
@@ -143,28 +134,19 @@ func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 type SwapInSenderCltvPassedAction struct{}
 
 func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	var claimId, claimTxHex string
-	blockchain := services.blockchain
-	messenger := services.messenger
 
-	claimTxHex, swap.LastErr = CreateCltvSpendingTransaction(services, swap)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	err := CreateCltvSpendingTransaction(services, swap)
+	if err != nil {
+		return swap.HandleError(err)
 	}
-
-	claimId, swap.LastErr = blockchain.SendRawTx(claimTxHex)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
-	}
-	swap.ClaimTxId = claimId
 	msg := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_CLTV,
-		ClaimTxId: claimId,
+		ClaimTxId: swap.ClaimTxId,
 	}
-	swap.LastErr = messenger.SendMessage(swap.PeerNodeId, msg)
-	if swap.LastErr != nil {
-		return Event_ActionFailed
+	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
+	if err != nil {
+		return swap.HandleError(err)
 	}
 	return Event_OnClaimedCltv
 }

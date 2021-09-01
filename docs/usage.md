@@ -43,18 +43,18 @@ A swap out is when the initiator wants to pay a lightning payment in order to re
 To swap out call
 
 ```bash
-peerswap-swap-out [amount in sats] [short channel id]
+peerswap-swap-out [amount in sats] [short channel id] [asset: btc or l-brc]
 ```
 
 
 ### Swap-In
 
-A swap out is when the initiator wants to spend liquid bitcoin in order to receive lightning-funds, in channel balancing terms increasing outbound liquidity. In order to swap in you need to 
+A swap out is when the initiator wants to spend onchain bitcoin in order to receive lightning-funds, in channel balancing terms increasing outbound liquidity. In order to swap in you need to 
 
 To swap in call
 
 ```bash
-peerswap-swap-in [amount in sats] [short channel id]
+peerswap-swap-in [amount in sats] [short channel id] [asset: btc or l-brc]
 ```
 
 ## Misc

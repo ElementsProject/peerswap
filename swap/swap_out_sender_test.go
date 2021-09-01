@@ -9,8 +9,6 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/stretchr/testify/assert"
-	"github.com/vulpemventures/go-elements/network"
-	"github.com/vulpemventures/go-elements/transaction"
 )
 
 func Test_SwapMarshalling(t *testing.T) {
@@ -40,27 +38,10 @@ func Test_ValidSwap(t *testing.T) {
 	peer := "ba123"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
-	FeePreimage := "preimage"
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
+	msgChan := make(chan PeerMessage)
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
+	swapServices := getSwapServices(msgChan)
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
@@ -70,6 +51,7 @@ func Test_ValidSwap(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +79,7 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "txHex", swapFSM.Data.OpeningTxHex)
+	assert.Equal(t, "txid", swapFSM.Data.OpeningTxId)
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
@@ -105,30 +87,9 @@ func Test_Cancel2(t *testing.T) {
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
-	FeePreimage := "preimage"
 	msgChan := make(chan PeerMessage)
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{
-		msgChan: msgChan,
-	}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
 
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
-
+	swapServices := getSwapServices(msgChan)
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
@@ -137,6 +98,7 @@ func Test_Cancel2(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -154,32 +116,10 @@ func Test_Cancel1(t *testing.T) {
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
-	FeePreimage := "preimage"
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{
-		msgChan: msgChan,
-	}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
-
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
-
+	swapServices := getSwapServices(msgChan)
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	err := swapFSM.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
@@ -188,6 +128,7 @@ func Test_Cancel1(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -208,28 +149,9 @@ func Test_AbortCltvClaim(t *testing.T) {
 	peer := "bar"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
-	FeePreimage := "preimage"
 	msgChan := make(chan PeerMessage)
 
-	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
-	messenger := &dummyMessenger{msgChan}
-	lc := &dummyLightningClient{preimage: FeePreimage}
-	policy := &dummyPolicy{}
-	txWatcher := &DummyTxWatcher{}
-	node := &DummyNode{}
-	wallet := &DummyWallet{}
-	utils := &DummyUtility{}
-
-	swapServices := NewSwapServices(
-		store,
-		node,
-		lc,
-		messenger,
-		policy,
-		txWatcher,
-		wallet,
-		utils,
-	)
+	swapServices := getSwapServices(msgChan)
 
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
@@ -239,6 +161,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
+		asset: "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -268,7 +191,6 @@ func Test_AbortCltvClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "txHex", swapFSM.Data.OpeningTxHex)
 	msg := <-msgChan
 	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
@@ -416,105 +338,43 @@ func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
 	d.cltvPassedFunc = f
 }
 
-type DummyWallet struct{}
-
-func (d *DummyWallet) GetAddress() (string, error) {
-	return "gude", nil
+type dummyChain struct {
+	txConfirmedFunc func(swapId string) error
+	cltvPassedFunc  func(swapId string) error
 }
 
-func (d *DummyWallet) FinalizeTransaction(rawTx string) (txHex string, err error) {
-	return "txHex", nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string,txid string, fee uint64, cltv int64, vout uint32, err error) {
+	return "txhex","", 0, 0, 0, nil
 }
 
-func (d *DummyWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
-	return "rawtx", 100, nil
+func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
 }
 
-type DummyNode struct{}
-
-func (d *DummyNode) GetRawtransaction(txId string) (string, error) {
-	return "txHex", nil
+func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
 }
 
-func (d *DummyNode) GetLocktime() uint64 {
-	return 100
+func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
 }
 
-func (d *DummyNode) FinalizeAndBroadcastFundedTransaction(rawTx string) (txId string, err error) {
-	return "txid", nil
-}
-
-func (d *DummyNode) GetBlockHash(blockheight uint32) (string, error) {
-	return "", nil
-}
-
-func (d *DummyNode) GetRawTxFromTxId(txId string, vout uint32) (string, error) {
-	return "txHex", nil
-}
-
-// todo implement
-func (d *DummyNode) CreateOpeningTransaction(swap *SwapData) error {
+func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
 	return nil
 }
 
-func (d *DummyNode) GetSwapScript(swap *SwapData) ([]byte, error) {
-	return []byte("script"), nil
-}
-
-func (d *DummyNode) GetBlockHeight() (uint64, error) {
-	return 1, nil
-}
-
-func (d *DummyNode) GetAddress() (string, error) {
-	return "el1qqv7n66qd59mhurtcpnx7w9tjk5pzdrep65zx4q5mztfvgrgxyf73q5k5r50uyrpe2xmpyqs36apx47lzpp6ww6ve7ez6apta3", nil
-}
-
-func (d *DummyNode) GetFee(txHex string) uint64 {
-	return 1000
-}
-
-func (d *DummyNode) GetAsset() []byte {
-	return []byte("lbtc")
-}
-
-func (d *DummyNode) GetNetwork() *network.Network {
-	return &network.Regtest
-}
-
-func (d *DummyNode) SendRawTx(txHex string) (string, error) {
-	return "txid1", nil
-}
-
-type DummyUtility struct{}
-
-func (d *DummyUtility) CheckTransactionValidity(openingTxHex string, swapAmount uint64, redeemScript []byte) error {
+func (d *dummyChain) AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error) {
 	return nil
 }
 
-func (d *DummyUtility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
-	return []byte("redeemscript"), nil
+func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {
+	d.txConfirmedFunc = f
 }
 
-func (d *DummyUtility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
-	return [][]byte{}
+func (d *dummyChain) AddCltvCallback(f func(swapId string) error) {
+	d.cltvPassedFunc = f
 }
 
-func (d *DummyUtility) GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
-	return [][]byte{}
-}
-
-func (d *DummyUtility) CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	return &transaction.Transaction{Inputs: []*transaction.TxInput{{}}}, [32]byte{0, 1, 2, 3, 4, 5}, nil
-}
-
-func (d *DummyUtility) CreateOpeningTransaction(redeemScript []byte, asset []byte, amount uint64) (*transaction.Transaction, error) {
-	return &transaction.Transaction{}, nil
-}
-
-func (d *DummyUtility) VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
-	return 0, nil
-}
-
-func (d *DummyUtility) Blech32ToScript(blech32Addr string, network *network.Network) ([]byte, error) {
-	return []byte("12345"), nil
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string) (bool, error) {
+	return true, nil
 }

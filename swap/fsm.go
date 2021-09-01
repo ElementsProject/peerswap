@@ -116,6 +116,14 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) err
 	if eventCtx != nil {
 		eventCtx.ApplyOnSwap(s.Data)
 	}
+	log.Printf("asset: %v", s.Data)
+	if s.Data.Asset == "btc" {
+		s.swapServices.onchain = s.swapServices.bitcoinOnchain
+	} else if s.Data.Asset == "l-btc" {
+		s.swapServices.onchain = s.swapServices.liquidOnchain
+	} else {
+		return errors.New("asset was not set")
+	}
 	for {
 		// Determine the next state for the event given the machine's current state.
 		log.Printf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
@@ -167,6 +175,13 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) err
 
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() error {
+	if s.Data.Asset == "btc" {
+		s.swapServices.onchain = s.swapServices.bitcoinOnchain
+	} else if s.Data.Asset == "l-btc" {
+		s.swapServices.onchain = s.swapServices.liquidOnchain
+	} else {
+		return errors.New("asset was not set")
+	}
 	state, ok := s.States[s.Current]
 	if !ok || state.Action == nil {
 		// configuration error
