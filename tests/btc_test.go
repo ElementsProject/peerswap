@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
@@ -15,9 +16,6 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/utils"
-	"github.com/vulpemventures/go-elements/address"
-	"github.com/vulpemventures/go-elements/payment"
-	"github.com/vulpemventures/go-elements/transaction"
 	"log"
 	"strconv"
 	"testing"
@@ -54,6 +52,7 @@ func Test_BitcoinSwap(t *testing.T) {
 	log.Println(funds)
 
 	txParams := NewTxParams(uint64(100))
+	txParams.SwapAmount = 10000
 
 	addr, err := createOpeningAddress(txParams)
 	if err != nil {
@@ -63,20 +62,18 @@ func Test_BitcoinSwap(t *testing.T) {
 	outputs := []*glightning.Outputs{
 		&glightning.Outputs{
 			Address: addr,
-			Satoshi: 10000,
+			Satoshi: txParams.SwapAmount,
 		},
 	}
-	confs := uint16(1)
-	prepRes, err := lcli.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, &confs)
+	prepRes, err := lcli.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	//msgtx := &wire.MsgTx{}
-	//err = msgtx.Deserialize(bytes.NewReader([]byte(prepRes.Tx)))
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-
+	_, scriptVout, err := VerifyTx(prepRes.UnsignedTx, txParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("scriptVout %v", scriptVout)
 	feeSats, err := getFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
 	if err != nil {
 		t.Fatal(err)
@@ -96,23 +93,20 @@ func Test_BitcoinSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ok, _, err := VerifyTx(sendRes.SignedTx, txParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal(errors.New("tx should be valid"))
+	}
 	// create wire msgtx
 	openingMsgTx := wire.NewMsgTx(2)
 	err = openingMsgTx.Deserialize(bytes.NewReader(txBytes))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Find Vout
-	scriptVout := 0
-	changeVout := 0
-	for index, v := range openingMsgTx.TxOut {
-		if v.Value == 10000 {
-			scriptVout = index
-		}
-	}
-	if scriptVout == 0 {
-		changeVout = 1
-	}
+
 	// Add Input
 	prevHash := openingMsgTx.TxHash()
 	prevInput := wire.NewOutPoint(&prevHash, uint32(scriptVout))
@@ -122,7 +116,21 @@ func Test_BitcoinSwap(t *testing.T) {
 	spendingTx.LockTime = ci.Blocks
 
 	// Add Output
-	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVout].Value-200, openingMsgTx.TxOut[changeVout].PkScript)
+	newAddr, err := lcli.NewAddr()
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("%s", newAddr)
+	scriptChangeAddr, err := btcutil.DecodeAddress(newAddr, &chaincfg.RegressionNetParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scriptChangeAddrScript := scriptChangeAddr.ScriptAddress()
+	scriptChangeAddrScriptP2pkh, err := txscript.NewScriptBuilder().AddData([]byte{0x00}).AddData(scriptChangeAddrScript).Script()
+	if err != nil {
+		t.Fatal(err)
+	}
+	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVout].Value, scriptChangeAddrScriptP2pkh)
 	spendingTx.AddTxOut(spendingTxOut)
 
 	redeemScript, _ := utils.GetOpeningTxScript(txParams.AliceKey.PubKey().SerializeCompressed(), txParams.BobKey.PubKey().SerializeCompressed(), txParams.PaymentHash, int64(txParams.Cltv))
@@ -131,6 +139,11 @@ func Test_BitcoinSwap(t *testing.T) {
 	spendingTxInput.Sequence = 0
 
 	spendingTx.AddTxIn(spendingTxInput)
+	txsize := spendingTx.SerializeSizeStripped() + 74
+	log.Printf("txsize: %v", txsize)
+	satPerByte := float64(7.1)
+
+	spendingTx.TxOut[0].Value = spendingTx.TxOut[0].Value - int64(float64(txsize)*satPerByte)
 
 	sigHashes := txscript.NewTxSigHashes(spendingTx)
 	sigHash, err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, 10000)
@@ -159,6 +172,7 @@ func Test_BitcoinSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	spendingTxHex := hex.EncodeToString(bytesBuffer.Bytes())
+
 	log.Printf("%s", spendingTxHex)
 	//txSize := tx.MsgTx().SerializeSize()
 	//feerate := float64(feeSats) / float64(txSize)
@@ -195,173 +209,67 @@ func getFixedSwapParams() (*btcec.PrivateKey, *btcec.PrivateKey, lightning.Preim
 	preimage, _ := lightning.MakePreimageFromStr(preimageString)
 	return pvAlice, pvBob, preimage
 }
+
 func createOpeningAddress(params *TxParams) (string, error) {
 	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, 100)
 	if err != nil {
 		return "", err
 	}
-	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
-	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
-	redeemPayment, err := payment.FromScript(scriptPubKey, nil, nil)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], &chaincfg.RegressionNetParams)
 	if err != nil {
 		return "", err
 	}
-	version := byte(0x00)
-	payload := &address.Bech32{"bcrt", version, redeemPayment.WitnessHash}
-	addr, err := address.ToBech32(payload)
-	if err != nil {
-		return "", nil
-	}
-	return addr, nil
+	return addr.EncodeAddress(), nil
 }
 
 var openingTxHex = "0200000001b4edf4891e095bc20084c9c39978616f30843f7c43849d1076dd81a9608b42a20000000000fdffffff02f723052a01000000160014817bc281a4cbc3b2daedea54a869cc1d8adfdc271027000000000000220020bdbd3cd7ff7f249eb7bfc248e023b3d17d6647c31cd5227e6ca55de2f5737d7396030000"
 
-//func Test_SpendingTx(t *testing.T) {
-//
-//	// decode txbytes
-//	txBytes, err := hex.DecodeString(openingTxHex)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	// create wire msgtx
-//	openingMsgTx := wire.NewMsgTx(2)
-//	err = openingMsgTx.Deserialize(bytes.NewReader(txBytes))
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	// create spendingTx
-//	spendingTx := wire.NewMsgTx(2)
-//
-//	// Add Output
-//	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVou].Value - 200, openingMsgTx.TxOut[0].PkScript)
-//	spendingTx.AddTxOut(spendingTxOut)
-//
-//
-//	// Add Input
-//	prevHash := openingMsgTx.TxHash()
-//	prevInput := wire.NewOutPoint(&prevHash, 1)
-//	scriptPubKey := []byte{0x00, 0x20}
-//	redeemSript,_ := utils.GetOpeningTxScript([]byte("aa"),[]byte("aa"),[]byte("aa"),100)
-//	witnessProgram := sha256.Sum256(redeemSript)
-//	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
-//	spendingTxInput := wire.NewTxIn(prevInput, scriptPubKey, [][]byte{})
-//	spendingTx.AddTxIn(spendingTxInput)
-//
-//
-//	bytesBuffer := new(bytes.Buffer)
-//	//writer := bufio.NewWriter()
-//	err = spendingTx.Serialize(bytesBuffer)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	log.Printf("%s", hex.EncodeToString(bytesBuffer.Bytes()))
-//
-//}
 var rawTx = "020000000193eb2b13a1112e970e4bb817f5cb7125703d79b9744f6c2ddf40566f5d9526fb0100000000ffffffff011027000000000000160014817bc281a4cbc3b2daedea54a869cc1d8adfdc2700000000"
 
-func createSpendingTxPreimage(params *TxParams, openingTxHex string, currentBlock uint64) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	//redeemScript,err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, int64(params.Cltv))
-	//if err != nil {
-	//	return nil, [32]byte{}, err
-	//}
+func VerifyTx(txHex string, params *TxParams) (bool, int, error) {
+	msgTx := wire.NewMsgTx(2)
 
-	//firstTx, err := transaction.NewTxFromHex(openingTxHex)
-	//if err != nil {
-	//	log.Printf("error creating first tx %s, %v", openingTxHex, err)
-	//	return nil, [32]byte{}, err
-	//}
-
-	//swapInValue, err := elementsutil.SatoshiToElementsValue(params.SwapAmount)
-	//if err != nil {
-	//	log.Printf("error getting swapin value")
-	//	return nil, [32]byte{}, err
-	//}
-	//vout, err := utils.FindVout(firstTx.Outputs, redeemScript)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//txBytes, err := hex.DecodeString(openingTxHex)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//
-	//openingMsgTx := wire.NewMsgTx(2)
-	//openingPacket, _, _,err := createPsbtFromSignedTx(txBytes)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//
-	//txOut, err := wire.NewTxOut()
-	//
-	//
-	//spendingPsbt,err := psbt.New(nil, nil,2, uint32(currentBlock),nil)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//updater,err := psbt.NewUpdater(spendingPsbt)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//err = updater.AddInWitnessUtxo(openingPacket.Outputs[0].,0)
-	//if err != nil {
-	//	log.Printf("error finding vour")
-	//	return nil, [32]byte{}, err
-	//}
-	//spendingTx := &transaction.Transaction{
-	//	Version:  2,
-	//	Flag:     0,
-	//	Locktime: uint32(currentBlock),
-	//	Inputs:   []*transaction.TxInput{nil},
-	//	Outputs:  nil,
-	//}
-	//
-	//sigHash = spendingTx.HashForWitnessV0(
-	//	0,
-	//	redeemScript[:],
-	//	swapInValue,
-	//	txscript.SigHashAll,
-	//)
-	//return spendingTx, sigHash, nil
-	return nil, [32]byte{}, nil
-}
-func createPsbtFromSignedTx(serializedSignedTx []byte) (
-	*psbt.Packet, [][]byte, []wire.TxWitness, error) {
-
-	tx := wire.NewMsgTx(2)
-	err := tx.Deserialize(bytes.NewReader(serializedSignedTx))
+	txBytes, err := hex.DecodeString(txHex)
 	if err != nil {
-		return nil, nil, nil, err
+		return false, 0, err
 	}
-	scriptSigs := make([][]byte, 0, len(tx.TxIn))
-	witnesses := make([]wire.TxWitness, 0, len(tx.TxIn))
-	tx2 := tx.Copy()
-
-	// Blank out signature info in inputs
-	for i, tin := range tx2.TxIn {
-		tin.SignatureScript = nil
-		scriptSigs = append(scriptSigs, tx.TxIn[i].SignatureScript)
-		tin.Witness = nil
-		witnesses = append(witnesses, tx.TxIn[i].Witness)
-
-	}
-
-	// Outputs always contain: (value, scriptPubkey) so don't need
-	// amending.  Now tx2 is tx with all signing data stripped out
-	unsignedPsbt, err := psbt.NewFromUnsignedTx(tx2)
+	err = msgTx.Deserialize(bytes.NewReader(txBytes))
 	if err != nil {
-		return nil, nil, nil, err
+		return false, 0, err
 	}
-	return unsignedPsbt, scriptSigs, witnesses, nil
+
+	var scriptOut *wire.TxOut
+	var vout int
+	for i, out := range msgTx.TxOut {
+		if out.Value == int64(params.SwapAmount) {
+			scriptOut = out
+			vout = i
+			break
+		}
+	}
+	if scriptOut == nil {
+		return false, 0, err
+	}
+
+	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, 100)
+	if err != nil {
+		return false, 0, err
+	}
+	witnessProgram := sha256.Sum256(redeemScript)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], &chaincfg.RegressionNetParams)
+	if err != nil {
+		return false, 0, err
+	}
+	wantScript, err := txscript.NewScriptBuilder().AddData([]byte{0x00}).AddData(addr.ScriptAddress()).Script()
+	if err != nil {
+		return false, 0, err
+	}
+
+	if bytes.Compare(wantScript, scriptOut.PkScript) != 0 {
+		return false, 0, err
+	}
+	return true, vout, nil
 }
 
 type TxParams struct {

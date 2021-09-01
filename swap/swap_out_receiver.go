@@ -39,25 +39,29 @@ const (
 
 type CreateSwapFromRequestContext struct {
 	amount          uint64
+	asset           string
 	peer            string
 	channelId       string
 	swapId          string
 	takerPubkeyHash string
+	protocolversion uint64
 }
 
 func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
+	swap.Asset = c.asset
 	swap.PeerNodeId = c.peer
 	swap.ChannelId = c.channelId
 	swap.Id = c.swapId
 	swap.TakerPubkeyHash = c.takerPubkeyHash
+	swap.ProtocolVersion = c.protocolversion
 }
 
 // CreateSwapFromRequestAction creates the swap-out process and prepares the opening transaction
 type CreateSwapFromRequestAction struct{}
 
 func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT)
+	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap
 
@@ -70,14 +74,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
-
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	pHash := preimage.Hash()
 	log.Printf("maker preimage: %s ", preimage.String())
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
 	if err != nil {
-
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
@@ -87,6 +89,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
+		swap.LastErr = err
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
@@ -213,7 +216,6 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-
 		return Event_OnRetry
 	}
 	return Event_Action_Success

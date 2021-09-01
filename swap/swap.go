@@ -52,6 +52,8 @@ const (
 // SwapData holds all the data needed for a swap
 type SwapData struct {
 	Id              string
+	Asset           string
+	ProtocolVersion uint64
 	Type            SwapType
 	FSMState        StateType
 	Role            SwapRole
@@ -158,9 +160,10 @@ func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string) *SwapData {
+func NewSwap(swapId string, asset string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string, protocolVersion uint64) *SwapData {
 	return &SwapData{
 		Id:              swapId,
+		Asset:           asset,
 		Role:            swapRole,
 		Type:            swapType,
 		PeerNodeId:      peerNodeId,
@@ -169,13 +172,15 @@ func NewSwap(swapId string, swapType SwapType, swapRole SwapRole, amount uint64,
 		Amount:          amount,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 		CreatedAt:       time.Now().Unix(),
+		ProtocolVersion: protocolVersion,
 	}
 }
 
 // NewSwapFromRequest returns a new swap created from a swap request
-func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, channelId string, swapType SwapType) *SwapData {
+func NewSwapFromRequest(senderNodeId string, asset string, swapId string, amount uint64, channelId string, swapType SwapType, protocolVersion uint64) *SwapData {
 	return &SwapData{
 		Id:              swapId,
+		Asset:           asset,
 		Type:            swapType,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
@@ -183,6 +188,7 @@ func NewSwapFromRequest(senderNodeId string, swapId string, amount uint64, chann
 		ChannelId:       channelId,
 		CreatedAt:       time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
+		ProtocolVersion: protocolVersion,
 	}
 }
 

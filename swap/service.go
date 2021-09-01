@@ -10,6 +10,10 @@ import (
 	"github.com/sputn1ck/glightning/glightning"
 )
 
+const (
+	PEERSWAP_PROTOCOL_VERSION = 1
+)
+
 var (
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
@@ -23,23 +27,33 @@ type SwapService struct {
 	sync.Mutex
 }
 
-func NewSwapService(swapStore Store, onchain Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
+func NewSwapService(swapStore Store, liquidChainService Onchain, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
 	services := NewSwapServices(
 		swapStore,
 		lightning,
 		messenger,
 		policy,
-		onchain,
+		nil,
+		bitcoinChainService,
+		liquidChainService,
 	)
-	return &SwapService{swapServices: services, activeSwaps: map[string]*SwapStateMachine{}}
+
+	return &SwapService{
+		swapServices: services,
+		activeSwaps:  map[string]*SwapStateMachine{},
+	}
 }
 
 // Start adds callback to the messenger, txwatcher services and lightning client
 func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
-	s.swapServices.onchain.AddConfirmationCallback(s.OnTxConfirmed)
-	s.swapServices.onchain.AddCltvCallback(s.OnCltvPassed)
+	if s.swapServices.liquidOnchain != nil {
+		s.swapServices.liquidOnchain.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.liquidOnchain.AddCltvCallback(s.OnCltvPassed)
+	}
+	s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
+	s.swapServices.bitcoinOnchain.AddCltvCallback(s.OnCltvPassed)
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)
 
@@ -91,7 +105,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnSwapOutRequestReceived(peerId, msg.ChannelId, msg.SwapId, msg.TakerPubkeyHash, msg.Amount)
+		err = s.OnSwapOutRequestReceived(peerId, msg.Asset, msg.ChannelId, msg.SwapId, msg.TakerPubkeyHash, msg.Amount, msg.ProtocolVersion)
 		if err != nil {
 			return err
 		}
@@ -131,7 +145,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnSwapInRequestReceived(peerId, msg.ChannelId, msg.SwapId, msg.Amount)
+		err = s.OnSwapInRequestReceived(peerId, msg.Asset, msg.ChannelId, msg.SwapId, msg.Amount, msg.ProtocolVersion)
 		if err != nil {
 			return err
 		}
@@ -195,16 +209,18 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 
 // todo check prerequisites
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapOut(peer string, asset string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
-		amount:      amount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   channelId,
-		swapId:      swap.Id,
+		amount:          amount,
+		asset:           asset,
+		initiatorId:     initiator,
+		peer:            peer,
+		channelId:       channelId,
+		swapId:          swap.Id,
+		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		return nil, err
@@ -214,15 +230,17 @@ func (s *SwapService) SwapOut(peer string, channelId string, initiator string, a
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, asset string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	swap := newSwapInSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
-		amount:      amount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   channelId,
-		swapId:      swap.Id,
+		amount:          amount,
+		asset:           asset,
+		initiatorId:     initiator,
+		peer:            peer,
+		channelId:       channelId,
+		swapId:          swap.Id,
+		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		return nil, err
@@ -231,29 +249,33 @@ func (s *SwapService) SwapIn(peer string, channelId string, initiator string, am
 }
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
-func (s *SwapService) OnSwapInRequestReceived(peer, channelId, swapId string, amount uint64) error {
+func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId string, amount, protocolversion uint64) error {
 	swap := newSwapInReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
 
 	err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:    amount,
-		peer:      peer,
-		channelId: channelId,
-		swapId:    swapId,
+		amount:          amount,
+		asset:           asset,
+		peer:            peer,
+		channelId:       channelId,
+		swapId:          swapId,
+		protocolversion: protocolversion,
 	})
 	return err
 }
 
 // OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
-func (s *SwapService) OnSwapOutRequestReceived(peer, channelId, swapId, takerPubkeyHash string, amount uint64) error {
+func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, takerPubkeyHash string, amount, protocolversion uint64) error {
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
 	err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
+		asset:           asset,
 		peer:            peer,
 		channelId:       channelId,
 		swapId:          swapId,
 		takerPubkeyHash: takerPubkeyHash,
+		protocolversion: protocolversion,
 	})
 	if err != nil {
 		return err

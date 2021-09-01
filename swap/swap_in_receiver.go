@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/hex"
 	"errors"
+	"log"
 )
 
 const (
@@ -27,7 +28,7 @@ const (
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN)
+	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -75,6 +76,7 @@ func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapService
 func (s *SwapData) HandleError(err error) EventType {
 	s.LastErr = err
 	s.LastErrString = err.Error()
+	log.Printf("swap error: %v", err)
 	return Event_ActionFailed
 }
 
@@ -93,7 +95,7 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId, swap.OpeningTxVout)
+	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -113,18 +115,16 @@ func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices,
 type SwapInReceiverClaimInvoicePaidAction struct{}
 
 func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if swap.ClaimTxId != "" {
-		err := CreatePreimageSpendingTransaction(services, swap)
-		if err != nil {
-			return swap.HandleError(err)
-		}
+	err := CreatePreimageSpendingTransaction(services, swap)
+	if err != nil {
+		return swap.HandleError(err)
 	}
 	msg := &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: swap.ClaimTxId,
 	}
-	err := services.messenger.SendMessage(swap.PeerNodeId, msg)
+	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
 		return swap.HandleError(err)
 	}

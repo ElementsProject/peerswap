@@ -40,10 +40,10 @@ func NewLiquidOnChain(elements *gelements.Elements, txWatcher *txwatcher.Blockch
 }
 
 // Getblockheight
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, cltv int64, vout uint32, err error) {
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error) {
 	blockheight, err := l.elements.GetBlockHeight()
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", "", 0, 0, 0, err
 	}
 	cltv = int64(blockheight + LiquidCltv)
 	redeemScript, err := ParamsToTxScript(swapParams, cltv)
@@ -59,15 +59,15 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 
 	unpreparedTxHex, fee, err = l.wallet.CreateFundedTransaction(tx)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", "", 0, 0, 0, err
 	}
 
 	vout, err = l.voutFromTxHex(unpreparedTxHex, redeemScript)
 	if err != nil {
-		return "", 0, 0, 0, err
+		return "", "", 0, 0, 0, err
 	}
 
-	return unpreparedTxHex, fee, cltv, vout, nil
+	return unpreparedTxHex, "", fee, cltv, vout, nil
 }
 
 func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, err error) {
@@ -83,7 +83,7 @@ func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex 
 }
 
 func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId string) (txId, txHex string, err error) {
-	txHex, err = l.getRawTxFromTxId(openingTxId, claimParams.Vout)
+	txHex, err = l.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -111,7 +111,7 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 	return txId, txHex, nil
 }
 
-func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string) (txId, txHex string, error error) {
+func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
 	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, openingTxHex)
 	if err != nil {
 		return "", "", err
@@ -231,13 +231,13 @@ func (l *LiquidOnChain) AddCltvCallback(f func(swapId string) error) {
 	l.txWatcher.AddCltvPassedHandler(f)
 }
 
-func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, openingTxId string, openingTxVout uint32) (bool, error) {
+func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, openingTxId string) (bool, error) {
 	redeemScript, err := ParamsToTxScript(swapParams, cltv)
 	if err != nil {
 		return false, err
 	}
 
-	txHex, err := l.getRawTxFromTxId(openingTxId, openingTxVout)
+	txHex, err := l.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
 		return false, err
 	}

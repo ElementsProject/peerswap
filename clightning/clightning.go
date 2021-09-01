@@ -126,6 +126,10 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	return cl, cl.initChan, nil
 }
 
+func (c *ClightningClient) GetLightningRpc() *glightning.Lightning {
+	return c.glightning
+}
+
 // OnPayment gets called by clightnings hooks
 func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
 	for _, v := range c.paymentSubscriptions {
@@ -386,13 +390,13 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	}
 
 	return &peerswap.Config{
-		DbPath:      dbpath,
-		RpcHost:     rpcHost,
-		RpcPort:     uint(rpcPort),
-		RpcUser:     rpcUser,
-		RpcPassword: rpcPass,
-		Network:     liquidNetwork,
-		RpcWallet:   rpcWallet,
+		DbPath:              dbpath,
+		LiquidRpcHost:       rpcHost,
+		LiquidRpcPort:       uint(rpcPort),
+		LiquidRpcUser:       rpcUser,
+		LiquidRpcPassword:   rpcPass,
+		LiquidNetworkString: liquidNetwork,
+		LiquidRpcWallet:     rpcWallet,
 	}, nil
 }
 
@@ -441,7 +445,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	swapIn := glightning.NewRpcMethod(&SwapIn{
 		cl: c,
 	}, "swap In")
-	swapIn.Category = "liquid-swap"
+	swapIn.Category = "peerswap"
 	err := c.plugin.RegisterMethod(swapIn)
 	if err != nil {
 		return err
@@ -450,7 +454,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	swapOut := glightning.NewRpcMethod(&SwapOut{
 		cl: c,
 	}, "swap out")
-	swapOut.Category = "liquid-swap"
+	swapIn.Category = "peerswap"
 	err = c.plugin.RegisterMethod(swapOut)
 	if err != nil {
 		return err
@@ -459,7 +463,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	listSwaps := glightning.NewRpcMethod(&ListSwaps{
 		cl: c,
 	}, "list swaps")
-	listSwaps.Category = "liquid-swap"
+	swapIn.Category = "peerswap"
 	err = c.plugin.RegisterMethod(listSwaps)
 	if err != nil {
 		return err
@@ -468,7 +472,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
 		cl: c,
 	}, "get new liquid address")
-	getAddress.Category = "liquid-swap"
+	swapIn.Category = "peerswap"
 	err = c.plugin.RegisterMethod(getAddress)
 	if err != nil {
 		return err
@@ -477,7 +481,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
 		cl: c,
 	}, "get liquid wallet balance")
-	getBalance.Category = "liquid-swap"
+	swapIn.Category = "peerswap"
 	err = c.plugin.RegisterMethod(getBalance)
 	if err != nil {
 		return err
@@ -486,7 +490,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	for _, v := range methods {
 		method := v.Get(c)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
-		glightningMethod.Category = "liquid-swap"
+		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
 		err = c.plugin.RegisterMethod(glightningMethod)
@@ -497,7 +501,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	for _, v := range devmethods {
 		method := v.Get(c)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
-		glightningMethod.Category = "liquid-swap-dev"
+		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
 		err = c.plugin.RegisterMethod(glightningMethod)

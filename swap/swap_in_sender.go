@@ -33,7 +33,7 @@ const (
 type SwapInSenderInitAction struct{}
 
 func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId)
+	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
 	*swap = *newSwap
 	return Event_SwapInSender_OnSwapInCreated
 }
@@ -48,9 +48,11 @@ func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapDa
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
 	msg := &SwapInRequest{
-		SwapId:    swap.Id,
-		ChannelId: swap.ChannelId,
-		Amount:    swap.Amount,
+		SwapId:          swap.Id,
+		ChannelId:       swap.ChannelId,
+		Amount:          swap.Amount,
+		Asset:           swap.Asset,
+		ProtocolVersion: swap.ProtocolVersion,
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {

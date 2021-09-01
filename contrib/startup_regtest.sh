@@ -179,6 +179,7 @@ restart() {
 l1-pay() {
   LABEL=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13)
   BOLT11=$(l1-cli invoice $1 $LABEL "foo" | jq -r .bolt11)
+  echo $BOLT11
   RES=$(l2-cli pay $BOLT11)
   echo $RES
 }
@@ -198,6 +199,14 @@ setup_channel() {
 
 fund_node() {
   L1_ADDR=$(l1-cli newaddr | jq .'bech32')
+  L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
+  echo $(bt-cli generatetoaddress 1 $L1_ADDR)
+  echo $(generate 100)
+}
+
+
+fund_node_2() {
+   L1_ADDR=$(l2-cli newaddr | jq .'bech32')
   L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
   echo $(bt-cli generatetoaddress 1 $L1_ADDR)
   echo $(generate 100)

@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/sputn1ck/glightning/glightning"
@@ -108,10 +109,10 @@ func (s *SendToAddressMethod) LongDescription() string {
 
 // SwapOut starts a new swapout (paying an Invoice for onchain liquidity)
 type SwapOut struct {
-	SatAmt         uint64 `json:"amt"`
-	ShortChannelId string `json:"short_channel_id"`
-
-	cl *ClightningClient `json:"-"`
+	SatAmt         uint64            `json:"amt"`
+	ShortChannelId string            `json:"short_channel_id"`
+	Asset          string            `json:"asset"`
+	cl             *ClightningClient `json:"-"`
 }
 
 func (l *SwapOut) New() interface{} {
@@ -153,16 +154,27 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
-	liquidBalance, err := l.cl.wallet.GetBalance()
-	if err != nil {
-		return nil, err
+	log.Printf("asset: %s", l.Asset)
+	if strings.Compare(l.Asset, "l-btc") == 0 {
+		if l.cl.Gelements == nil {
+			return nil, errors.New("peerswap was not started with liquid node config")
+		}
+		liquidBalance, err := l.cl.wallet.GetBalance()
+		if err != nil {
+			return nil, err
+		}
+		// todo fix liquid fee amount
+		if liquidBalance < 500 {
+			return nil, errors.New("you require more than 500 lbtc sats for transaction ")
+		}
+	} else if strings.Compare(l.Asset, "btc") == 0 {
+		//todo get onchain funds
+	} else {
+		return nil, errors.New("invalid asset (btc or l-btc)")
 	}
-	// todo fix liquid fee amount
-	if liquidBalance < 500 {
-		return nil, errors.New("you require more than 500 lbtc sats for transaction ")
-	}
+
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +207,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 type SwapIn struct {
 	SatAmt         uint64 `json:"amt"`
 	ShortChannelId string `json:"short_channel_id"`
+	Asset          string `json:"asset"`
 
 	cl *ClightningClient `json:"-"`
 }
@@ -234,16 +247,26 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
+	log.Printf("asset: %s", l.Asset)
+	if l.Asset == "l-btc" {
+		if l.cl.Gelements == nil {
+			return nil, errors.New("peerswap was not started with liquid node config")
+		}
+		liquidBalance, err := l.cl.wallet.GetBalance()
+		if err != nil {
+			return nil, err
+		}
+		if liquidBalance < l.SatAmt {
+			return nil, errors.New("Not enough balance on liquid wallet")
+		}
+	} else if l.Asset == "btc" {
+		//todo get onchain funds
+	} else {
+		return nil, errors.New("invalid asset (btc or l-btc)")
+	}
 
-	liquidBalance, err := l.cl.wallet.GetBalance()
-	if err != nil {
-		return nil, err
-	}
-	if liquidBalance < l.SatAmt {
-		return nil, errors.New("Not enough balance on liquid wallet")
-	}
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.ShortChannelId, pk, l.SatAmt)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
 	if err != nil {
 		return nil, err
 	}

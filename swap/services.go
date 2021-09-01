@@ -29,15 +29,15 @@ type LightningClient interface {
 }
 
 type Onchain interface {
-	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, cltv int64, vout uint32, err error)
+	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error)
 	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
-	CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string) (txId, txHex string, error error)
+	CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	AddWaitForConfirmationTx(swapId, txId string) (err error)
 	AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error)
 	AddConfirmationCallback(func(swapId string) error)
 	AddCltvCallback(func(swapId string) error)
-	ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string, openingTxVout uint32) (bool, error)
+	ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string) (bool, error)
 }
 
 type OpeningParams struct {
@@ -49,7 +49,6 @@ type OpeningParams struct {
 
 type ClaimParams struct {
 	Cltv     int64
-	Vout     uint32
 	Preimage string
 	Signer   Signer
 }
@@ -59,13 +58,15 @@ type Signer interface {
 }
 
 type SwapServices struct {
-	swapStore Store
-	lightning LightningClient
-	messenger Messenger
-	policy    Policy
-	onchain   Onchain
+	swapStore      Store
+	lightning      LightningClient
+	messenger      Messenger
+	policy         Policy
+	onchain        Onchain
+	bitcoinOnchain Onchain
+	liquidOnchain  Onchain
 }
 
-func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain) *SwapServices {
-	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain}
+func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain, bitcoinOnchain Onchain, liquidOnchain Onchain) *SwapServices {
+	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain, bitcoinOnchain: bitcoinOnchain, liquidOnchain: liquidOnchain}
 }

@@ -37,19 +37,23 @@ const (
 )
 
 type SwapCreationContext struct {
-	swapId      string
-	amount      uint64
-	peer        string
-	channelId   string
-	initiatorId string
+	swapId          string
+	asset           string
+	amount          uint64
+	peer            string
+	channelId       string
+	initiatorId     string
+	protocolversion uint64
 }
 
 func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
 	swap.PeerNodeId = c.peer
 	swap.ChannelId = c.channelId
+	swap.Asset = c.asset
 	swap.Id = c.swapId
 	swap.InitiatorNodeId = c.initiatorId
+	swap.ProtocolVersion = c.protocolversion
 }
 
 // SwapInSenderInitAction creates the swap data
@@ -57,7 +61,7 @@ type SwapOutInitAction struct{}
 
 //todo validate data
 func (a *SwapOutInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId)
+	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
 	*swap = *newSwap
 	return Event_SwapOutSender_OnSwapCreated
 }
@@ -76,6 +80,8 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *SwapData) E
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
+		ProtocolVersion: swap.ProtocolVersion,
+		Asset:           swap.Asset,
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
@@ -141,7 +147,7 @@ type SwapOutTxConfirmedAction struct{}
 
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId, swap.OpeningTxVout)
+	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
@@ -163,6 +169,7 @@ func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapDa
 	err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
 		log.Printf("error creating spending tx %v", err)
+		swap.HandleError(err)
 		return Event_OnRetry
 	}
 
@@ -175,6 +182,7 @@ func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapDa
 	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
 		log.Printf("error sending message tx %v", err)
+		swap.HandleError(err)
 		return Event_OnRetry
 	}
 	return Event_SwapOutSender_FinishSwap

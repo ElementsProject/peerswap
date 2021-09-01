@@ -40,9 +40,11 @@ func InRange(msg string) (bool, error) {
 
 // SwapInRequest gets send when a peer wants to start a new swap.
 type SwapInRequest struct {
-	SwapId    string
-	ChannelId string
-	Amount    uint64
+	SwapId          string
+	Asset           string
+	ChannelId       string
+	Amount          uint64
+	ProtocolVersion uint64
 }
 
 func (s *SwapInRequest) MessageType() MessageType {
@@ -52,16 +54,20 @@ func (s *SwapInRequest) MessageType() MessageType {
 // SwapOutRequest gets send when a peer wants to start a new swap.
 type SwapOutRequest struct {
 	SwapId          string
+	Asset           string
 	ChannelId       string
 	Amount          uint64
 	TakerPubkeyHash string
+	ProtocolVersion uint64
 }
 
 func (s *SwapOutRequest) ApplyOnSwap(swap *SwapData) {
 	swap.Id = s.SwapId
 	swap.ChannelId = s.ChannelId
+	swap.Asset = s.Asset
 	swap.Amount = s.Amount
 	swap.TakerPubkeyHash = s.TakerPubkeyHash
+	swap.ProtocolVersion = s.ProtocolVersion
 }
 
 func (s *SwapOutRequest) MessageType() MessageType {

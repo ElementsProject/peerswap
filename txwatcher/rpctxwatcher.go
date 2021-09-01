@@ -2,7 +2,6 @@ package txwatcher
 
 import (
 	"context"
-	"github.com/sputn1ck/glightning/gelements"
 	"log"
 	"sync"
 	"time"
@@ -10,7 +9,14 @@ import (
 
 type BlockchainRpc interface {
 	GetBlockHeight() (uint64, error)
-	GetTxOut(txid string, vout uint32) (*gelements.TxOutResp, error)
+	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
+}
+
+type TxOutResp struct {
+	BestBlockHash string  `json:"bestblock"`
+	Confirmations uint32  `json:"confirmations"`
+	Value         float64 `json:"value"`
+	Coinbase      bool    `json:"coinbase"`
 }
 
 type SwapTxInfo struct {
@@ -31,17 +37,19 @@ type BlockchainRpcTxWatcher struct {
 	txWatchList       map[string]string
 	timelockWatchlist map[string]int64
 	newBlockChan      chan uint64
+	requiredConfs     uint32
 	ctx               context.Context
 	sync.Mutex
 }
 
-func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc) *BlockchainRpcTxWatcher {
+func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
 		ctx:               ctx,
 		blockchain:        blockchain,
 		txWatchList:       make(map[string]string),
 		timelockWatchlist: make(map[string]int64),
 		newBlockChan:      make(chan uint64),
+		requiredConfs:     requiredConfs,
 	}
 }
 
@@ -130,7 +138,7 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 		if res == nil {
 			continue
 		}
-		if !(res.Confirmations > 1) {
+		if !(res.Confirmations >= s.requiredConfs) {
 			log.Printf("tx does not have enough confirmations")
 			continue
 		}
