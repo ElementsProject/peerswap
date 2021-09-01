@@ -13,7 +13,7 @@ Features:
 Assets:
 
 - [x] Rebalancing of channels using l-btc
-- [ ] Rebalancing of channels using btc
+- [x] Rebalancing of channels using btc
 
 Nodes:
 - [x] c-lightning

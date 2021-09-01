@@ -29,12 +29,14 @@ type BitcoinOnChain struct {
 
 	clightning *glightning.Lightning
 
+	chain *chaincfg.Params
+
 	hexToIdMap map[string]string
 }
 
-func NewBitcoinOnChain(gbitcoin *gbitcoin.Bitcoin, txWatcher *txwatcher.BlockchainRpcTxWatcher, clightning *glightning.Lightning) *BitcoinOnChain {
+func NewBitcoinOnChain(gbitcoin *gbitcoin.Bitcoin, txWatcher *txwatcher.BlockchainRpcTxWatcher, clightning *glightning.Lightning, chain *chaincfg.Params) *BitcoinOnChain {
 	hexMap := make(map[string]string)
-	return &BitcoinOnChain{gbitcoin: gbitcoin, txWatcher: txWatcher, clightning: clightning, hexToIdMap: hexMap}
+	return &BitcoinOnChain{gbitcoin: gbitcoin, txWatcher: txWatcher, clightning: clightning, hexToIdMap: hexMap, chain: chain}
 }
 
 func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error) {
@@ -43,7 +45,7 @@ func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams
 		return "", "", 0, 0, 0, err
 	}
 	cltv = int64(blockheight + BitcoinCltv)
-	addr, err := createOpeningAddress(swapParams, cltv)
+	addr, err := b.createOpeningAddress(swapParams, cltv)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
@@ -62,7 +64,7 @@ func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams
 		return "", "", 0, 0, 0, err
 	}
 
-	_, vout, err = GetVoutAndVerify(prepRes.UnsignedTx, swapParams, cltv)
+	_, vout, err = b.GetVoutAndVerify(prepRes.UnsignedTx, swapParams, cltv)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
@@ -89,7 +91,7 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 	if err != nil {
 		return "", "", err
 	}
-	_, vout, err := GetVoutAndVerify(openingTxHex, swapParams, claimParams.Cltv)
+	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Cltv)
 	if err != nil {
 		return "", "", err
 	}
@@ -175,7 +177,7 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 		return nil, nil, nil, err
 	}
 
-	scriptChangeAddr, err := btcutil.DecodeAddress(newAddr, &chaincfg.RegressionNetParams)
+	scriptChangeAddr, err := btcutil.DecodeAddress(newAddr,b.chain)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -247,7 +249,7 @@ func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, 
 	if err != nil {
 		return false, err
 	}
-	ok, _, err := GetVoutAndVerify(txHex, swapParams, cltv)
+	ok, _, err := b.GetVoutAndVerify(txHex, swapParams, cltv)
 	if err != nil {
 		return false, err
 	}
@@ -280,13 +282,13 @@ func (b *BitcoinOnChain) getRawTxFromTxId(txId string, vout uint32) (string, err
 	return rawTxHex, nil
 }
 
-func createOpeningAddress(params *swap.OpeningParams, locktimeHeight int64) (string, error) {
+func (b *BitcoinOnChain) createOpeningAddress(params *swap.OpeningParams, locktimeHeight int64) (string, error) {
 	redeemScript, err := ParamsToTxScript(params, locktimeHeight)
 	if err != nil {
 		return "", err
 	}
 	witnessProgram := sha256.Sum256(redeemScript)
-	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], &chaincfg.RegressionNetParams)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], b.chain)
 	if err != nil {
 		return "", err
 	}
@@ -320,7 +322,7 @@ func getFeeSatsFromTx(psbtString, txHex string) (uint64, error) {
 	return uint64(inputSats - outputSats), nil
 }
 
-func GetVoutAndVerify(txHex string, params *swap.OpeningParams, cltv int64) (bool, uint32, error) {
+func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams, cltv int64) (bool, uint32, error) {
 	msgTx := wire.NewMsgTx(2)
 
 	txBytes, err := hex.DecodeString(txHex)
@@ -350,7 +352,7 @@ func GetVoutAndVerify(txHex string, params *swap.OpeningParams, cltv int64) (boo
 		return false, 0, err
 	}
 	witnessProgram := sha256.Sum256(redeemScript)
-	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], &chaincfg.RegressionNetParams)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], b.chain)
 	if err != nil {
 		return false, 0, err
 	}

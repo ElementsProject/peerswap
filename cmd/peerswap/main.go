@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap"
@@ -104,12 +105,16 @@ func run() error {
 	}
 
 	// bitcoin
+	chain, err := getBitcoinChain(lightningPlugin.GetLightningRpc())
+	if err != nil {
+
+	}
 	bitcoinCli, err := getBitcoinClient(lightningPlugin.GetLightningRpc())
 	if err != nil {
 		return err
 	}
 	bitcoinTxWatcher := txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-	bitcoinOnChainService := onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc())
+	bitcoinOnChainService := onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc(), chain)
 
 	// db
 	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
@@ -180,6 +185,25 @@ func validateConfig(cfg *peerswap.Config) error {
 
 	cfg.LiquidNetwork = liquidNetwork
 	return nil
+}
+
+func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
+	gi, err := li.GetInfo()
+	if err != nil {
+		return nil, err
+	}
+	switch gi.Network {
+	case "regtest":
+		return &chaincfg.RegressionNetParams, nil
+	case "testnet":
+		return &chaincfg.TestNet3Params, nil
+	case "signet":
+		return &chaincfg.SimNetParams, nil
+	case "bitcoin":
+		return &chaincfg.MainNetParams, nil
+	default:
+		return nil, errors.New("unknown bitcoin network")
+	}
 }
 func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	configs, err := li.ListConfigs()
