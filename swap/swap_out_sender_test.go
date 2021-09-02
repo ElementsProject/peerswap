@@ -51,7 +51,7 @@ func Test_ValidSwap(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func Test_Cancel2(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func Test_Cancel1(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swapFSM.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -343,8 +343,8 @@ type dummyChain struct {
 	cltvPassedFunc  func(swapId string) error
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string,txid string, fee uint64, cltv int64, vout uint32, err error) {
-	return "txhex","", 0, 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txid string, fee uint64, cltv int64, vout uint32, err error) {
+	return "txhex", "", 0, 0, 0, nil
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {

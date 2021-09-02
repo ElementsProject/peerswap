@@ -14,7 +14,7 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	db := &DummyBlockchain{}
 	txWatcherChan := make(chan string)
 
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db,2)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
 
 	err := txWatcher.StartWatchingTxs()
 	if err != nil {

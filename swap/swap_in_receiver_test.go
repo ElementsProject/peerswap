@@ -1,8 +1,9 @@
 package swap
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_SwapInReceiverValid(t *testing.T) {
@@ -23,7 +24,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		peer:      peer,
 		channelId: chanId,
 		swapId:    swapId,
-		asset: "btc",
+		asset:     "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +70,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 		peer:      peer,
 		channelId: chanId,
 		swapId:    swapId,
-		asset: "btc",
+		asset:     "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -103,7 +104,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		peer:      peer,
 		channelId: chanId,
 		swapId:    swapId,
-		asset: "btc",
+		asset:     "btc",
 	})
 	if err != nil {
 		t.Fatal(err)

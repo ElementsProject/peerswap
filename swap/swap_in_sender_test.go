@@ -24,7 +24,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 		peer:        peer,
 		channelId:   chanId,
 		swapId:      swap.Id,
-		asset: "btc",
+		asset:       "btc",
 	})
 	if err != nil {
 		t.Fatal(err)

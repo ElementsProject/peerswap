@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -50,7 +51,7 @@ func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams
 		return "", "", 0, 0, 0, err
 	}
 	outputs := []*glightning.Outputs{
-		&glightning.Outputs{
+		{
 			Address: addr,
 			Satoshi: swapParams.Amount,
 		},
@@ -177,7 +178,7 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 		return nil, nil, nil, err
 	}
 
-	scriptChangeAddr, err := btcutil.DecodeAddress(newAddr,b.chain)
+	scriptChangeAddr, err := btcutil.DecodeAddress(newAddr, b.chain)
 	if err != nil {
 		return nil, nil, nil, err
 	}
