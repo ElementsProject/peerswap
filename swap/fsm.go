@@ -110,33 +110,31 @@ func (s *SwapStateMachine) getNextState(event EventType) (StateType, error) {
 }
 
 // SendEvent sends an event to the state machine.
-func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) error {
+func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	if eventCtx != nil {
 		eventCtx.ApplyOnSwap(s.Data)
 	}
-	log.Printf("asset: %v", s.Data)
-	if s.Data.Asset == "btc" {
-		s.swapServices.onchain = s.swapServices.bitcoinOnchain
-	} else if s.Data.Asset == "l-btc" {
-		s.swapServices.onchain = s.swapServices.liquidOnchain
-	} else {
-		return errors.New("asset was not set")
+
+	if event == Event_Done {
+		return true, nil
 	}
+
 	for {
 		// Determine the next state for the event given the machine's current state.
 		log.Printf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
 		nextState, err := s.getNextState(event)
 		if err != nil {
-			return ErrEventRejected
+			return false, ErrEventRejected
 		}
 
 		// Identify the state definition for the next state.
 		state, ok := s.States[nextState]
 		if !ok || state.Action == nil {
 			// configuration error
-			return ErrFsmConfig
+			return false, ErrFsmConfig
 		}
 
 		// Transition over to the next state.
@@ -151,55 +149,51 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) err
 		nextEvent := state.Action.Execute(s.swapServices, s.Data)
 		err = s.swapServices.swapStore.UpdateData(s)
 		if err != nil {
-			return err
+			return false, err
 		}
-		if nextEvent == NoOp {
-			return nil
-		}
-		if nextEvent == Event_OnRetry {
+
+		switch nextEvent {
+		case Event_Done:
+			return true, nil
+		case NoOp:
+			return false, nil
+		case Event_OnRetry:
 			s.retries++
 			if s.retries > 20 {
 				s.retries = 0
-				return nil
+				return false, nil
+			}
+		case Event_ActionFailed:
+			if s.Data.LastErr != nil {
+				log.Printf("[FSM] Action failure %v", s.Data.LastErr)
+				s.failures++
+				time.Sleep(time.Duration(s.failures) * time.Second)
 			}
 		}
-		if nextEvent == Event_ActionFailed && s.Data.LastErr != nil {
-			log.Printf("[FSM] Action failure %v", s.Data.LastErr)
-			s.failures++
-			time.Sleep(time.Duration(s.failures) * time.Second)
-		}
-		event = nextEvent
 
+		event = nextEvent
 	}
 }
 
 // Recover tries to continue from the current state, by doing the associated Action
-func (s *SwapStateMachine) Recover() error {
-	if s.Data.Asset == "btc" {
-		s.swapServices.onchain = s.swapServices.bitcoinOnchain
-	} else if s.Data.Asset == "l-btc" {
-		s.swapServices.onchain = s.swapServices.liquidOnchain
-	} else {
-		return errors.New("asset was not set")
-	}
+func (s *SwapStateMachine) Recover() (bool, error) {
 	state, ok := s.States[s.Current]
+
 	if !ok || state.Action == nil {
 		// configuration error
-		return ErrFsmConfig
+		return false, ErrFsmConfig
 	}
+
 	nextEvent := state.Action.Execute(s.swapServices, s.Data)
+
 	err := s.swapServices.swapStore.UpdateData(s)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if nextEvent == NoOp {
-		return nil
+		return false, nil
 	}
-	err = s.SendEvent(nextEvent, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.SendEvent(nextEvent, nil)
 }
 
 // IsFinished returns true if the swap is already finished
@@ -207,6 +201,7 @@ func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
 	case State_ClaimedCltv:
 	case State_ClaimedPreimage:
+	case State_Done:
 		return true
 	}
 	return false

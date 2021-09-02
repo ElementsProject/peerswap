@@ -194,6 +194,12 @@ func (n *NoOpAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	return NoOp
 }
 
+type NoOpDoneAction struct{}
+
+func (a *NoOpDoneAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	return Event_Done
+}
+
 // swapOutSenderFromStore recovers a swap statemachine from the swap store
 func swapOutSenderFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
@@ -290,10 +296,10 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_ClaimedPreimage: {
-			Action: &NoOpAction{},
+			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedCltv: {
-			Action: &NoOpAction{},
+			Action: &NoOpDoneAction{},
 		},
 	}
 }

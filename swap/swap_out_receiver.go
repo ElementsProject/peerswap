@@ -2,8 +2,9 @@ package swap
 
 import (
 	"encoding/hex"
-	"github.com/sputn1ck/peerswap/lightning"
 	"log"
+
+	"github.com/sputn1ck/peerswap/lightning"
 )
 
 // todo every send message should be it's own state / action, if msg sending fails, tx will be broadcasted again / error occurs
@@ -169,12 +170,6 @@ func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServic
 	return Event_Action_Success
 }
 
-type ClaimedPreimageAction struct{}
-
-func (c *ClaimedPreimageAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	return NoOp
-}
-
 // CltvPassedAction spends the opening transaction with a signature
 type CltvPassedAction struct{}
 
@@ -297,9 +292,6 @@ func getSwapOutReceiverStates() States {
 				Event_OnClaimedPreimage: State_ClaimedPreimage,
 			},
 		},
-		State_ClaimedPreimage: {
-			Action: &ClaimedPreimageAction{},
-		},
 		State_SwapOutReceiver_SwapAborted: {
 			Action: &NoOpAction{},
 			Events: Events{
@@ -320,9 +312,6 @@ func getSwapOutReceiverStates() States {
 				Event_ActionFailed:   State_ClaimedCltv,
 			},
 		},
-		State_ClaimedCltv: {
-			Action: &NoOpAction{},
-		},
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
@@ -331,6 +320,12 @@ func getSwapOutReceiverStates() States {
 		},
 		State_SwapOut_Canceled: {
 			Action: &CancelAction{},
+		},
+		State_ClaimedCltv: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedPreimage: {
+			Action: &NoOpDoneAction{},
 		},
 	}
 }
