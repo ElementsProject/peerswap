@@ -3,7 +3,6 @@ package swap
 import (
 	"encoding/json"
 	"log"
-	"sync"
 	"testing"
 	"time"
 
@@ -236,27 +235,25 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 				},
 			},
 		},
-		mutex: sync.Mutex{},
 		swapServices: &SwapServices{
-			swapStore:  nil,
-			blockchain: nil,
-			lightning:  nil,
-			messenger:  nil,
-			policy:     nil,
-			txWatcher:  nil,
-			wallet:     nil,
-			utils:      nil,
+			swapStore:      nil,
+			lightning:      nil,
+			messenger:      nil,
+			policy:         nil,
+			onchain:        nil,
+			bitcoinOnchain: nil,
+			liquidOnchain:  nil,
 		},
 		retries:  0,
 		failures: 0,
 	})
 
-	_, err := service.SwapOut("peer", "channelID", "alice", uint64(200))
+	_, err := service.SwapOut("peer", "l-btc", "channelID", "alice", uint64(200))
 	if assert.Error(t, err, "expected error") {
 		assert.Equal(t, "already has an active swap on channel", err.Error())
 	}
 
-	_, err = service.SwapIn("peer", "channelID", "alice", uint64(200))
+	_, err = service.SwapIn("peer", "l-btc", "channelID", "alice", uint64(200))
 	if assert.Error(t, err, "expected error") {
 		assert.Equal(t, "already has an active swap on channel", err.Error())
 	}

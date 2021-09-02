@@ -1,8 +1,9 @@
 package swap
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
@@ -17,7 +18,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapServices := getSwapServices(msgChan)
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	_, err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
 		peer:            peer,
 		channelId:       chanId,
@@ -32,18 +33,18 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
+	_, err = swapFSM.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
+	_, err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_ClaimInvoicePaid, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
+	_, err = swapFSM.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
 		ClaimTxId: "txId",
 	})
 	if err != nil {
@@ -65,7 +66,7 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	_, err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
 		peer:            peer,
 		channelId:       chanId,
@@ -80,18 +81,18 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
 
-	err = swapFSM.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
+	_, err = swapFSM.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, swapFSM.Data.GetCurrentState())
-	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_SwapAborted, swapFSM.Data.GetCurrentState())
 
-	err = swapFSM.SendEvent(Event_OnCltvPassed, nil)
+	_, err = swapFSM.SendEvent(Event_OnCltvPassed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +113,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	_, err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
 		peer:            peer,
 		channelId:       chanId,
@@ -127,7 +128,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
 
-	err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +149,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
 
-	err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	_, err := swapFSM.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          swapAmount,
 		peer:            peer,
 		channelId:       chanId,

@@ -2,6 +2,7 @@ package swap
 
 import (
 	"encoding/hex"
+
 	"github.com/sputn1ck/peerswap/lightning"
 )
 
@@ -228,9 +229,6 @@ func getSwapInSenderStates() States {
 				Event_OnClaimedPreimage: State_ClaimedPreimage,
 			},
 		},
-		State_ClaimedPreimage: {
-			Action: &NoOpAction{},
-		},
 		State_SwapInSender_CltvPassed: {
 			Action: &SwapInSenderCltvPassedAction{},
 			Events: Events{
@@ -250,10 +248,6 @@ func getSwapInSenderStates() States {
 				Event_OnCltvPassed: State_SwapInSender_CltvPassed,
 			},
 		},
-		State_ClaimedCltv: {
-			Action: &NoOpAction{},
-		},
-
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
@@ -263,6 +257,12 @@ func getSwapInSenderStates() States {
 		},
 		State_SwapCanceled: {
 			Action: &CancelAction{},
+		},
+		State_ClaimedPreimage: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedCltv: {
+			Action: &NoOpDoneAction{},
 		},
 	}
 }

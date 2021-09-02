@@ -18,7 +18,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	swapServices := getSwapServices(msgChan)
 	swap := newSwapInSenderFSM(swapServices)
 
-	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -33,19 +33,19 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	_ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
+	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_TxMsgSent, swap.Current)
-	err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
+	_, err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapInSender_ClaimInvPaid, swap.Current)
-	_ = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
+	_, _ = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: "txid",
@@ -62,7 +62,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	swapServices := getSwapServices(msgChan)
 	swap := newSwapInSenderFSM(swapServices)
 
-	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -76,7 +76,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
-	err = swap.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	swapServices := getSwapServices(msgChan)
 	swap := newSwapInSenderFSM(swapServices)
 
-	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
 		amount:      swapAmount,
 		initiatorId: initiator,
 		peer:        peer,
@@ -109,19 +109,19 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
 
-	_ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
+	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_TxMsgSent, swap.Current)
-	err = swap.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_WaitCltv, swap.Current)
-	err = swap.SendEvent(Event_OnCltvPassed, nil)
+	_, err = swap.SendEvent(Event_OnCltvPassed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

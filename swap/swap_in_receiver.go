@@ -16,11 +16,13 @@ const (
 	State_SwapInReceiver_ClaimInvoicePaid     StateType = "State_SwapInReceiver_ClaimInvoicePaid"
 	State_ClaimedCltv                         StateType = "State_ClaimedCltv"
 	State_ClaimedPreimage                     StateType = "State_ClaimedPreimage"
+	State_Done                                StateType = "State_Done"
 
 	Event_SwapInReceiver_OnRequestReceived  EventType = "Event_SwapInReceiver_OnRequestReceived"
 	Event_SwapInReceiver_OnSwapCreated      EventType = "Event_SwapInReceiver_OnSwapCreated"
 	Event_SwapInReceiver_OnAgreementSent    EventType = "Event_SwapInReceiver_OnAgreementSent"
 	Event_SwapInReceiver_OnClaimInvoicePaid EventType = "Event_SwapInReceiver_OnClaimInvoicePaid"
+	Event_Done                              EventType = "Event_Done"
 )
 
 // todo check for policy / balance
@@ -216,10 +218,10 @@ func getSwapInReceiverStates() States {
 			},
 		},
 		State_ClaimedCltv: {
-			Action: &NoOpAction{},
+			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedPreimage: {
-			Action: &NoOpAction{},
+			Action: &NoOpDoneAction{},
 		},
 		State_SendCancel: {
 			Action: &SendCancelAction{},
@@ -227,7 +229,6 @@ func getSwapInReceiverStates() States {
 				Event_Action_Success: State_SwapCanceled,
 			},
 		},
-
 		State_SwapCanceled: {
 			Action: &CancelAction{},
 			Events: Events{

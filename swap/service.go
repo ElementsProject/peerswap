@@ -16,6 +16,7 @@ const (
 )
 
 var (
+	AllowedAssets       = []string{"btc", "l-btc"}
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
 
@@ -82,10 +83,22 @@ func (s *SwapService) RecoverSwaps() error {
 		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
-		s.AddActiveSwap(swap.Id, swap)
-		err = swap.Recover()
+
+		onchain, err := s.getOnchainAsset(swap.Data.Asset)
 		if err != nil {
 			return err
+		}
+		s.swapServices.onchain = onchain
+
+		s.AddActiveSwap(swap.Id, swap)
+
+		done, err := swap.Recover()
+		if err != nil {
+			return err
+		}
+
+		if done {
+			s.RemoveActiveSwap(swap.Id)
 		}
 	}
 	return nil
@@ -184,11 +197,14 @@ func (s *SwapService) OnTxConfirmed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnTxConfirmed, nil)
+	done, err := swap.SendEvent(Event_OnTxConfirmed, nil)
 	if err == ErrEventRejected {
 		return nil
 	} else if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -199,11 +215,14 @@ func (s *SwapService) OnCltvPassed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnCltvPassed, nil)
+	done, err := swap.SendEvent(Event_OnCltvPassed, nil)
 	if err == ErrEventRejected {
 		return nil
 	} else if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -214,10 +233,17 @@ func (s *SwapService) SwapOut(peer string, asset string, channelId string, initi
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
+
+	onchain, err := s.getOnchainAsset(asset)
+	if err != nil {
+		return nil, err
+	}
+	s.swapServices.onchain = onchain
+
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
-	err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
+	done, err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
 		amount:          amount,
 		asset:           asset,
 		initiatorId:     initiator,
@@ -228,6 +254,9 @@ func (s *SwapService) SwapOut(peer string, asset string, channelId string, initi
 	})
 	if err != nil {
 		return nil, err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return swap, nil
 }
@@ -238,9 +267,16 @@ func (s *SwapService) SwapIn(peer string, asset string, channelId string, initia
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
+
+	onchain, err := s.getOnchainAsset(asset)
+	if err != nil {
+		return nil, err
+	}
+	s.swapServices.onchain = onchain
+
 	swap := newSwapInSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
-	err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
+	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
 		amount:          amount,
 		asset:           asset,
 		initiatorId:     initiator,
@@ -252,15 +288,28 @@ func (s *SwapService) SwapIn(peer string, asset string, channelId string, initia
 	if err != nil {
 		return nil, err
 	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
+	}
 	return swap, nil
 }
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId string, amount, protocolversion uint64) error {
+	if s.hasActiveSwapOnChannel(channelId) {
+		return fmt.Errorf("already has an active swap on channel")
+	}
+
+	onchain, err := s.getOnchainAsset(asset)
+	if err != nil {
+		return err
+	}
+	s.swapServices.onchain = onchain
+
 	swap := newSwapInReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
 
-	err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
+	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		asset:           asset,
 		peer:            peer,
@@ -268,14 +317,27 @@ func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId str
 		swapId:          swapId,
 		protocolversion: protocolversion,
 	})
+	if done {
+		s.RemoveActiveSwap(swap.Id)
+	}
 	return err
 }
 
 // OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, takerPubkeyHash string, amount, protocolversion uint64) error {
+	if s.hasActiveSwapOnChannel(channelId) {
+		return fmt.Errorf("already has an active swap on channel")
+	}
+
+	onchain, err := s.getOnchainAsset(asset)
+	if err != nil {
+		return err
+	}
+	s.swapServices.onchain = onchain
+
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
-	err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	done, err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		asset:           asset,
 		peer:            peer,
@@ -287,6 +349,9 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, t
 	if err != nil {
 		return err
 	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
+	}
 	return nil
 }
 
@@ -296,9 +361,12 @@ func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementMessage) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, msg)
+	done, err := swap.SendEvent(Event_SwapInSender_OnAgreementReceived, msg)
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -309,9 +377,12 @@ func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeMessage{Invoice: feeInvoice})
+	done, err := swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeMessage{Invoice: feeInvoice})
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -322,9 +393,12 @@ func (s *SwapService) OnFeeInvoicePaid(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
+	done, err := swap.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -335,9 +409,12 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
+	done, err := swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -348,9 +425,12 @@ func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string)
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{ClaimTxId: txId})
+	done, err := swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -361,9 +441,12 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: txId})
+	done, err := swap.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: txId})
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -374,7 +457,7 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
+	done, err := swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         claimInvoice,
@@ -383,6 +466,9 @@ func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, t
 	})
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -393,9 +479,12 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnTxConfirmed, nil)
+	done, err := swap.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	s.RemoveActiveSwap(swap.Id)
 	return nil
@@ -431,9 +520,12 @@ func (s *SwapService) OnCancelReceived(swapId string) error {
 	if err != nil {
 		return err
 	}
-	err = swap.SendEvent(Event_OnCancelReceived, nil)
+	done, err := swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
@@ -485,4 +577,23 @@ func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
 	}
 
 	return false
+}
+
+type WrongAssetError string
+
+func (e WrongAssetError) Error() string {
+	return fmt.Sprintf("unallowed asset: %s", string(e))
+}
+
+func (s *SwapService) getOnchainAsset(asset string) (Onchain, error) {
+	if asset == "" {
+		return nil, fmt.Errorf("missing asset")
+	}
+	if asset == "btc" {
+		return s.swapServices.bitcoinOnchain, nil
+	}
+	if asset == "l-btc" {
+		return s.swapServices.liquidOnchain, nil
+	}
+	return nil, WrongAssetError(asset)
 }
