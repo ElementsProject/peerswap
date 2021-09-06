@@ -6,22 +6,22 @@ import (
 	"errors"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/sputn1ck/glightning/gbitcoin"
+	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap"
-	"github.com/sputn1ck/peerswap/onchain"
-	"log"
-	"os"
-	"path/filepath"
-	"strconv"
-
-	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/peerswap/clightning"
+	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/txwatcher"
 	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 func main() {
@@ -227,6 +227,10 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	if err != nil {
 		return nil, err
 	}
+	gi, err := li.GetInfo()
+	if err != nil {
+		return nil, err
+	}
 	jsonString, err := json.Marshal(configs)
 	if err != nil {
 		return nil, err
@@ -245,18 +249,82 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	if bcliConfig == nil {
 		return nil, errors.New("bcli config not found")
 	}
+	// todo look for overrides in peerswap config
+	var bitcoin *gbitcoin.Bitcoin
 	if bcliConfig.Options["bitcoin-rpcuser"] == "" {
-		return nil, nil
+
+		log.Printf("looking for bitcoin cookie")
+		// look for cookie file
+		bitcoinDir := bcliConfig.Options["bitcoin-datadir"]
+
+		cookiePath := filepath.Join(bitcoinDir,getNetworkFolder(gi.Network),".cookie")
+		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
+			log.Printf("cannot find bitcoin cookie file at %s", cookiePath)
+			return nil,nil
+		}
+		cookieBytes, err := os.ReadFile(cookiePath)
+		if err != nil {
+			return nil, err
+		}
+
+		cookie := strings.Split(string(cookieBytes),":")
+		// use cookie for auth
+		bitcoin = gbitcoin.NewBitcoin(cookie[0], cookie[1])
+
+
+		// assume localhost and standard network ports
+		rpcHost := "http://localhost"
+		rpcPort := getNetworkPort(gi.Network)
+		log.Printf("connecting with %s, %s to %s, %v", cookie[0], cookie[1], rpcHost, rpcPort)
+		err = bitcoin.StartUp(rpcHost,"",rpcPort)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+
+	 	// assume auth authentication
+		bitcoin = gbitcoin.NewBitcoin(bcliConfig.Options["bitcoin-rpcuser"], bcliConfig.Options["bitcoin-rpcpassword"])
+		bitcoin.SetTimeout(10)
+
+		rpcPort, err := strconv.Atoi(bcliConfig.Options["bitcoin-rpcport"])
+		if err != nil {
+			return nil, err
+		}
+
+		err = bitcoin.StartUp("http://"+bcliConfig.Options["bitcoin-rpcconnect"], "", uint(rpcPort))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	bitcoin := gbitcoin.NewBitcoin(bcliConfig.Options["bitcoin-rpcuser"], bcliConfig.Options["bitcoin-rpcpassword"])
-	bitcoin.SetTimeout(10)
-	rpcPort, err := strconv.Atoi(bcliConfig.Options["bitcoin-rpcport"])
-	if err != nil {
-		return nil, err
-	}
-	bitcoin.StartUp("http://"+bcliConfig.Options["bitcoin-rpcconnect"], "", uint(rpcPort))
+
 	return bitcoin, nil
+}
+
+func getNetworkFolder(network string) (string) {
+	switch network {
+	case "regtest":
+		return "regtest"
+	case "testnet":
+		return "testne3t"
+	case "signet":
+		return "signet"
+	default:
+		return ""
+	}
+}
+
+func getNetworkPort(network string) uint {
+	switch network {
+	case "regtest":
+		return 18332
+	case "testnet":
+		return 18332
+	case "signet":
+		return 38332
+	default:
+		return 8332
+	}
 }
 
 type ListConfigRes struct {

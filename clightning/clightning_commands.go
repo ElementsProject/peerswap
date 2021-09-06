@@ -174,7 +174,17 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
-		//todo get onchain funds
+		funds, err := l.cl.glightning.ListFunds()
+		if err != nil {
+			return nil, err
+		}
+		sats := uint64(0)
+		for _,v := range funds.Outputs {
+			sats+=v.Value
+		}
+		if sats < 5000 {
+			return nil, errors.New("you require more some onchain-btc for fees")
+		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
 	}
@@ -272,7 +282,18 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
-		//todo get onchain funds
+		funds, err := l.cl.glightning.ListFunds()
+		if err != nil {
+			return nil, err
+		}
+		sats := uint64(0)
+		for _,v := range funds.Outputs {
+			sats+=v.Value
+		}
+		// todo need some onchain balance for fees
+		if sats < l.SatAmt {
+			return nil, errors.New("Not enough balance on c-lightning onchain wallet")
+		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
 	}
