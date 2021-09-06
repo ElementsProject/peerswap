@@ -62,6 +62,12 @@ func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
 type CreateSwapFromRequestAction struct{}
 
 func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.Asset == "l-btc" && !services.liquidEnabled {
+		return Event_SwapOutReceiver_OnCancelInternal
+	}
+	if swap.Asset == "btc" && !services.bitcoinEnabled {
+		return Event_SwapOutReceiver_OnCancelInternal
+	}
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap

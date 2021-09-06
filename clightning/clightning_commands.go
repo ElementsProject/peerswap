@@ -156,6 +156,9 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 	log.Printf("asset: %s", l.Asset)
 	if strings.Compare(l.Asset, "l-btc") == 0 {
+		if !l.cl.swaps.LiquidEnabled {
+			return nil, errors.New("liquid swaps are not enabled")
+		}
 		if l.cl.Gelements == nil {
 			return nil, errors.New("peerswap was not started with liquid node config")
 		}
@@ -168,7 +171,20 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 			return nil, errors.New("you require more than 500 lbtc sats for transaction ")
 		}
 	} else if strings.Compare(l.Asset, "btc") == 0 {
-		//todo get onchain funds
+		if !l.cl.swaps.BitcoinEnabled {
+			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		funds, err := l.cl.glightning.ListFunds()
+		if err != nil {
+			return nil, err
+		}
+		sats := uint64(0)
+		for _,v := range funds.Outputs {
+			sats+=v.Value
+		}
+		if sats < 5000 {
+			return nil, errors.New("you require more some onchain-btc for fees")
+		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
 	}
@@ -249,6 +265,9 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 	log.Printf("asset: %s", l.Asset)
 	if l.Asset == "l-btc" {
+		if !l.cl.swaps.LiquidEnabled {
+			return nil, errors.New("liquid swaps are not enabled")
+		}
 		if l.cl.Gelements == nil {
 			return nil, errors.New("peerswap was not started with liquid node config")
 		}
@@ -260,7 +279,21 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 			return nil, errors.New("Not enough balance on liquid wallet")
 		}
 	} else if l.Asset == "btc" {
-		//todo get onchain funds
+		if !l.cl.swaps.BitcoinEnabled {
+			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		funds, err := l.cl.glightning.ListFunds()
+		if err != nil {
+			return nil, err
+		}
+		sats := uint64(0)
+		for _,v := range funds.Outputs {
+			sats+=v.Value
+		}
+		// todo need some onchain balance for fees
+		if sats < l.SatAmt {
+			return nil, errors.New("Not enough balance on c-lightning onchain wallet")
+		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
 	}

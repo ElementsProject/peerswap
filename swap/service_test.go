@@ -36,7 +36,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "l-btc", channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -267,7 +267,7 @@ func getTestSetup(name string) *SwapService {
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapService := NewSwapService(store, chain, chain, lc, messenger, policy)
+	swapService := NewSwapService(store, true, chain, true, chain, lc, messenger, policy)
 	return swapService
 }
 
