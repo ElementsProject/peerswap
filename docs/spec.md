@@ -34,6 +34,8 @@
 ```go
 {
   SwapId: string // Random string that is shared between peers
+  ProtocolVersion: uint64
+  Asset: string // btc or l-btc
   ChannelId: string // chhannelId of rebalanced channel
   Amount: uint64  // amount to be swapped (in msats)
   PubkeyHash: string  // Taker PubkeyHash, for creating/verifying the bitcoin script
@@ -45,6 +47,8 @@
 ```go
 {
   SwapId: string
+  ProtocolVersion: uint64
+  Asset: string // btc or l-btc
   ChannelId: string // chhannelId of rebalanced channel
   Amount: uint64  // amount to be swapped (in msats)
   PubkeyHash: string  // Maker PubkeyHash, for creating/verifying the bitcoin script
