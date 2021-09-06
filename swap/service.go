@@ -24,25 +24,32 @@ var (
 type SwapService struct {
 	swapServices *SwapServices
 
-	activeSwaps map[string]*SwapStateMachine
+	activeSwaps    map[string]*SwapStateMachine
+	BitcoinEnabled bool
+	LiquidEnabled  bool
 
 	sync.Mutex
 }
 
-func NewSwapService(swapStore Store, liquidChainService Onchain, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
+func NewSwapService(swapStore Store, enableLiquid bool, liquidChainService Onchain, enableBitcoin bool, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
+
 	services := NewSwapServices(
 		swapStore,
 		lightning,
 		messenger,
 		policy,
 		nil,
+		enableBitcoin,
 		bitcoinChainService,
+		enableLiquid,
 		liquidChainService,
 	)
 
 	return &SwapService{
-		swapServices: services,
-		activeSwaps:  map[string]*SwapStateMachine{},
+		swapServices:   services,
+		activeSwaps:    map[string]*SwapStateMachine{},
+		LiquidEnabled:  enableLiquid,
+		BitcoinEnabled: enableBitcoin,
 	}
 }
 
@@ -50,12 +57,14 @@ func NewSwapService(swapStore Store, liquidChainService Onchain, bitcoinChainSer
 func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
-	if s.swapServices.liquidOnchain != nil {
+	if s.LiquidEnabled {
 		s.swapServices.liquidOnchain.AddConfirmationCallback(s.OnTxConfirmed)
 		s.swapServices.liquidOnchain.AddCltvCallback(s.OnCltvPassed)
 	}
-	s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-	s.swapServices.bitcoinOnchain.AddCltvCallback(s.OnCltvPassed)
+	if s.BitcoinEnabled {
+		s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.bitcoinOnchain.AddCltvCallback(s.OnCltvPassed)
+	}
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)
 

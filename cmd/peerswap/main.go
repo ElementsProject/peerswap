@@ -77,7 +77,7 @@ func run() error {
 	var liquidRpcWallet *wallet.RpcWallet
 	var liquidCli *gelements.Elements
 	if config.LiquidEnabled {
-		log.Printf("liquid enabled")
+		log.Printf("Liquid swaps enabled")
 		// blockchaincli
 		liquidCli = gelements.NewElements(config.LiquidRpcUser, config.LiquidRpcPassword)
 		err = liquidCli.StartUp(config.LiquidRpcHost, config.LiquidRpcPort)
@@ -101,7 +101,7 @@ func run() error {
 		// LiquidChain
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, config.LiquidNetwork)
 	} else {
-		log.Printf("liquid disabled")
+		log.Printf("Liquid swaps disabled")
 	}
 
 	// bitcoin
@@ -113,8 +113,21 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	bitcoinTxWatcher := txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-	bitcoinOnChainService := onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc(), chain)
+	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
+	var bitcoinOnChainService *onchain.BitcoinOnChain
+	var bitcoinEnabled bool
+	if bitcoinCli != nil {
+		log.Printf("Bitcoin swaps enabled")
+		bitcoinEnabled = true
+		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc(), chain)
+	} else {
+		log.Printf("Bitcoin swaps disabled")
+	}
+
+	if !bitcoinEnabled && !config.LiquidEnabled {
+		return errors.New("bad config, either liquid or bitcoin settings must be set")
+	}
 
 	// db
 	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
@@ -130,7 +143,9 @@ func run() error {
 		return err
 	}
 	swapService := swap.NewSwapService(swapStore,
+		config.LiquidEnabled,
 		liquidOnChainService,
+		bitcoinEnabled,
 		bitcoinOnChainService,
 		lightningPlugin,
 		lightningPlugin,
@@ -145,13 +160,15 @@ func run() error {
 			}
 		}()
 	}
-	go func() {
-		err := bitcoinTxWatcher.StartWatchingTxs()
-		if err != nil {
-			log.Printf("%v", err)
-			os.Exit(1)
-		}
-	}()
+	if bitcoinTxWatcher != nil {
+		go func() {
+			err := bitcoinTxWatcher.StartWatchingTxs()
+			if err != nil {
+				log.Printf("%v", err)
+				os.Exit(1)
+			}
+		}()
+	}
 
 	err = swapService.Start()
 	if err != nil {
@@ -227,6 +244,9 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	}
 	if bcliConfig == nil {
 		return nil, errors.New("bcli config not found")
+	}
+	if bcliConfig.Options["bitcoin-rpcuser"] == "" {
+		return nil, nil
 	}
 
 	bitcoin := gbitcoin.NewBitcoin(bcliConfig.Options["bitcoin-rpcuser"], bcliConfig.Options["bitcoin-rpcpassword"])

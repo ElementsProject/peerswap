@@ -64,9 +64,11 @@ type SwapServices struct {
 	policy         Policy
 	onchain        Onchain
 	bitcoinOnchain Onchain
+	bitcoinEnabled bool
 	liquidOnchain  Onchain
+	liquidEnabled  bool
 }
 
-func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain, bitcoinOnchain Onchain, liquidOnchain Onchain) *SwapServices {
-	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain, bitcoinOnchain: bitcoinOnchain, liquidOnchain: liquidOnchain}
+func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain, bitcoinEnabled bool, bitcoinOnchain Onchain, liquidEnabled bool, liquidOnchain Onchain) *SwapServices {
+	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain, bitcoinOnchain: bitcoinOnchain, bitcoinEnabled: bitcoinEnabled, liquidEnabled: liquidEnabled, liquidOnchain: liquidOnchain}
 }
