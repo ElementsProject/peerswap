@@ -39,7 +39,7 @@ jobs:
           docker logs nigiri_liquid2_1
 
       - name: Test
-        run: make test
+        run: make test_all
 
       - name: Checkout c-lightning@master
         uses: actions/checkout@v2
