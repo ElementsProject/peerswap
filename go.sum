@@ -36,8 +36,6 @@ github.com/onsi/gomega v1.4.1/go.mod h1:C1qb7wdrVGGVU+Z6iS04AVkA3Q65CEZX59MT0QO5
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/sputn1ck/glightning v0.8.3-0.20210906154433-1d64cb5e3b47 h1:spWyKsfzmKTlCOz5TGk9QZD2QTV3koSBY7a1A7Rd8qU=
-github.com/sputn1ck/glightning v0.8.3-0.20210906154433-1d64cb5e3b47/go.mod h1:5H0LPmWqAtoDWSm8ZjK6KvyAA/P80XwGkzNHA3I3O0Y=
 github.com/sputn1ck/glightning v0.8.3-0.20210906154637-cb7f5eec2d28 h1:HB8RTc8uxZI+8EEePdcqQ1/0BP4rerXtq8IK3YXVtUI=
 github.com/sputn1ck/glightning v0.8.3-0.20210906154637-cb7f5eec2d28/go.mod h1:5H0LPmWqAtoDWSm8ZjK6KvyAA/P80XwGkzNHA3I3O0Y=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

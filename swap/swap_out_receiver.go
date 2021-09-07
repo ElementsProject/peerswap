@@ -143,9 +143,13 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) E
 type FeeInvoicePaidAction struct{}
 
 func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txId, finalizedTx, err := services.onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_SwapOutSender_OnCancelSwapOut
+		return Event_SwapOutReceiver_OnCancelInternal
+	}
+	txId, finalizedTx, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	if err != nil {
+		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
 	swap.OpeningTxHex = finalizedTx
@@ -158,7 +162,11 @@ func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) E
 type SwapOutReceiverOpeningTxBroadcastedAction struct{}
 
 func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	err := services.onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return Event_ActionFailed
+	}
+	err = onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
 	if err != nil {
 		return swap.HandleError(err)
 	}

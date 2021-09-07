@@ -139,7 +139,6 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 		lc,
 		messenger,
 		policy,
-		chain,
 		true,
 		chain,
 		true,

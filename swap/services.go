@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
@@ -62,14 +63,25 @@ type SwapServices struct {
 	lightning      LightningClient
 	messenger      Messenger
 	policy         Policy
-	onchain        Onchain
 	bitcoinOnchain Onchain
 	bitcoinEnabled bool
 	liquidOnchain  Onchain
 	liquidEnabled  bool
 }
 
-func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, onchain Onchain, bitcoinEnabled bool, bitcoinOnchain Onchain, liquidEnabled bool, liquidOnchain Onchain) *SwapServices {
-	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, onchain: onchain, bitcoinOnchain: bitcoinOnchain, bitcoinEnabled: bitcoinEnabled, liquidEnabled: liquidEnabled, liquidOnchain: liquidOnchain}
+func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, bitcoinEnabled bool, bitcoinOnchain Onchain, liquidEnabled bool, liquidOnchain Onchain) *SwapServices {
+	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, bitcoinOnchain: bitcoinOnchain, bitcoinEnabled: bitcoinEnabled, liquidEnabled: liquidEnabled, liquidOnchain: liquidOnchain}
 }
 
+func (s *SwapServices) getOnchainAsset(asset string) (Onchain, error) {
+	if asset == "" {
+		return nil, fmt.Errorf("missing asset")
+	}
+	if asset == "btc" {
+		return s.bitcoinOnchain, nil
+	}
+	if asset == "l-btc" {
+		return s.liquidOnchain, nil
+	}
+	return nil, WrongAssetError(asset)
+}

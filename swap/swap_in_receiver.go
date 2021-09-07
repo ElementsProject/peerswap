@@ -92,7 +92,11 @@ func (s *SwapData) HandleError(err error) EventType {
 type SwapInWaitForConfirmationsAction struct{}
 
 func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	err := services.onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -103,7 +107,11 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 type SwapInReceiverOpeningTxConfirmedAction struct{}
 
 func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
 		return swap.HandleError(err)
 	}

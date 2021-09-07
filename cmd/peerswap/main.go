@@ -257,32 +257,31 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 		// look for cookie file
 		bitcoinDir := bcliConfig.Options["bitcoin-datadir"]
 
-		cookiePath := filepath.Join(bitcoinDir,getNetworkFolder(gi.Network),".cookie")
+		cookiePath := filepath.Join(bitcoinDir, getNetworkFolder(gi.Network), ".cookie")
 		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
 			log.Printf("cannot find bitcoin cookie file at %s", cookiePath)
-			return nil,nil
+			return nil, nil
 		}
 		cookieBytes, err := os.ReadFile(cookiePath)
 		if err != nil {
 			return nil, err
 		}
 
-		cookie := strings.Split(string(cookieBytes),":")
+		cookie := strings.Split(string(cookieBytes), ":")
 		// use cookie for auth
 		bitcoin = gbitcoin.NewBitcoin(cookie[0], cookie[1])
-
 
 		// assume localhost and standard network ports
 		rpcHost := "http://localhost"
 		rpcPort := getNetworkPort(gi.Network)
 		log.Printf("connecting with %s, %s to %s, %v", cookie[0], cookie[1], rpcHost, rpcPort)
-		err = bitcoin.StartUp(rpcHost,"",rpcPort)
+		err = bitcoin.StartUp(rpcHost, "", rpcPort)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 
-	 	// assume auth authentication
+		// assume auth authentication
 		bitcoin = gbitcoin.NewBitcoin(bcliConfig.Options["bitcoin-rpcuser"], bcliConfig.Options["bitcoin-rpcpassword"])
 		bitcoin.SetTimeout(10)
 
@@ -297,11 +296,10 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 		}
 	}
 
-
 	return bitcoin, nil
 }
 
-func getNetworkFolder(network string) (string) {
+func getNetworkFolder(network string) string {
 	switch network {
 	case "regtest":
 		return "regtest"

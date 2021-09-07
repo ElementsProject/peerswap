@@ -125,6 +125,10 @@ type SwapOutTxBroadCastedAction struct{}
 
 func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
 
 	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
@@ -135,7 +139,7 @@ func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapD
 
 	// todo check policy
 
-	err = services.onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
 	if err != nil {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}
@@ -147,7 +151,11 @@ type SwapOutTxConfirmedAction struct{}
 
 func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	ok, err := services.onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return Event_SwapOutSender_OnAbortSwapInternal
+	}
+	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
 		return Event_SwapOutSender_OnAbortSwapInternal
 	}

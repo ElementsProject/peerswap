@@ -66,6 +66,10 @@ func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapDa
 type SwapInSenderAgreementReceivedAction struct{}
 
 func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
 	pubkey := swap.GetPrivkey().PubKey()
 
 	swap.Role = SWAPROLE_SENDER
@@ -89,7 +93,7 @@ func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, sw
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	txId, txHex, err := services.onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	txId, txHex, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -124,7 +128,11 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 type WaitCltvAction struct{}
 
 func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	err := services.onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	err = onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
 	if err != nil {
 		return swap.HandleError(err)
 	}

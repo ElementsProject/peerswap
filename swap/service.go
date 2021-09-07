@@ -38,7 +38,6 @@ func NewSwapService(swapStore Store, enableLiquid bool, liquidChainService Oncha
 		lightning,
 		messenger,
 		policy,
-		nil,
 		enableBitcoin,
 		bitcoinChainService,
 		enableLiquid,
@@ -92,12 +91,6 @@ func (s *SwapService) RecoverSwaps() error {
 		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
-
-		onchain, err := s.getOnchainAsset(swap.Data.Asset)
-		if err != nil {
-			return err
-		}
-		s.swapServices.onchain = onchain
 
 		s.AddActiveSwap(swap.Id, swap)
 
@@ -243,12 +236,6 @@ func (s *SwapService) SwapOut(peer string, asset string, channelId string, initi
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
-	onchain, err := s.getOnchainAsset(asset)
-	if err != nil {
-		return nil, err
-	}
-	s.swapServices.onchain = onchain
-
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
@@ -277,12 +264,6 @@ func (s *SwapService) SwapIn(peer string, asset string, channelId string, initia
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
-	onchain, err := s.getOnchainAsset(asset)
-	if err != nil {
-		return nil, err
-	}
-	s.swapServices.onchain = onchain
-
 	swap := newSwapInSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
@@ -309,12 +290,6 @@ func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId str
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	onchain, err := s.getOnchainAsset(asset)
-	if err != nil {
-		return err
-	}
-	s.swapServices.onchain = onchain
-
 	swap := newSwapInReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
 
@@ -337,12 +312,6 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, t
 	if s.hasActiveSwapOnChannel(channelId) {
 		return fmt.Errorf("already has an active swap on channel")
 	}
-
-	onchain, err := s.getOnchainAsset(asset)
-	if err != nil {
-		return err
-	}
-	s.swapServices.onchain = onchain
 
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
@@ -592,17 +561,4 @@ type WrongAssetError string
 
 func (e WrongAssetError) Error() string {
 	return fmt.Sprintf("unallowed asset: %s", string(e))
-}
-
-func (s *SwapService) getOnchainAsset(asset string) (Onchain, error) {
-	if asset == "" {
-		return nil, fmt.Errorf("missing asset")
-	}
-	if asset == "btc" {
-		return s.swapServices.bitcoinOnchain, nil
-	}
-	if asset == "l-btc" {
-		return s.swapServices.liquidOnchain, nil
-	}
-	return nil, WrongAssetError(asset)
 }
