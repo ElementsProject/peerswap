@@ -72,8 +72,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap
 
+	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
+		log.Println("HERE I AM")
+		swap.CancelMessage = "peer not allowed to request swaps"
+		return Event_SwapOutReceiver_OnCancelInternal
+	}
 	//todo check balance/policy if we want to create the swap
-
 	pubkey := swap.GetPrivkey().PubKey()
 
 	swap.Role = SWAPROLE_RECEIVER
@@ -100,11 +104,14 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
-	feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
-	if err != nil {
+	/*
+		 feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
+		 if err != nil {
 
 		return Event_SwapOutReceiver_OnCancelInternal
-	}
+		}
+	*/
+	feeSat := swap.OpeningTxFee
 
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()

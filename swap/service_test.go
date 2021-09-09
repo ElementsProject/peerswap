@@ -108,7 +108,8 @@ func Test_FeePaymentFailed(t *testing.T) {
 	}
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg.MessageType())
-	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.Id)
+	assert.NoError(t, err)
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
@@ -172,7 +173,10 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOut_Canceled, aliceSwap.Current)
+	// wants to await the cltv claim before it goes to a
+	// finish state, such that the channel is still
+	// locked for furhter peerswap requests.
+	assert.Equal(t, State_SwapOutSender_AwaitCLTV, aliceSwap.Current)
 
 	// trigger bob payment received
 

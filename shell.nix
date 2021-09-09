@@ -16,7 +16,11 @@ let
 
   packageOverrides = pkgs.callPackage ./python-packages.nix {};
   python = pkgs.python36.override { inherit packageOverrides; };
-  pythonWithPackages = python.withPackages(ps: [ ps.pytest ps.pyln-client ps.pyln-testing]);
+  my-python-packages = python-packages: with python-packages; [
+    pip
+  ];
+  pythonWithPackages = python.withPackages(ps: [ ps.pytest ps.pyln-client ps.pyln-testing ps.python-bitcoinrpc ps.black]);
+
 in
 with pkgs;
     stdenv.mkDerivation rec {
@@ -24,7 +28,7 @@ with pkgs;
      # python packages python39Full python39Packages.pip python39Packages.bitcoinlib sqlite
      li = nixpkgs-unstable.clightning;
      nativeBuildInputs = [openssl ];
-     buildInputs = [pythonWithPackages docker-compose bitcoin nixpkgs-unstable.elementsd li jq];
+     buildInputs = [pythonWithPackages docker-compose bitcoin nixpkgs-unstable.elementsd li jq nixpkgs-unstable.go];
      path = lib.makeBinPath [  ];
      
      shellHook = ''

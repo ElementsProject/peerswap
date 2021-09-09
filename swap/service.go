@@ -20,6 +20,13 @@ var (
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
 
+type PeerNotAllowedError string
+
+func (s PeerNotAllowedError) Error() string {
+	log.Printf("unalowed request from non-whitelist peer: %s", string(s))
+	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
+}
+
 // SwapService contains the logic for swaps
 type SwapService struct {
 	swapServices *SwapServices
@@ -28,7 +35,7 @@ type SwapService struct {
 	BitcoinEnabled bool
 	LiquidEnabled  bool
 
-	sync.Mutex
+	sync.RWMutex
 }
 
 func NewSwapService(swapStore Store, enableLiquid bool, liquidChainService Onchain, enableBitcoin bool, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
@@ -286,6 +293,7 @@ func (s *SwapService) SwapIn(peer string, asset string, channelId string, initia
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId string, amount, protocolversion uint64) error {
+	// check if a swap is already active on the channel
 	if s.hasActiveSwapOnChannel(channelId) {
 		return fmt.Errorf("already has an active swap on channel")
 	}
@@ -309,6 +317,7 @@ func (s *SwapService) OnSwapInRequestReceived(peer, asset, channelId, swapId str
 
 // OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, takerPubkeyHash string, amount, protocolversion uint64) error {
+	// check if a swap is already active on the channel
 	if s.hasActiveSwapOnChannel(channelId) {
 		return fmt.Errorf("already has an active swap on channel")
 	}
@@ -532,6 +541,8 @@ func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
 
 // GetActiveSwap returns the active swap, or an error if it does not exist
 func (s *SwapService) GetActiveSwap(swapId string) (*SwapStateMachine, error) {
+	s.RLock()
+	defer s.RUnlock()
 	if swap, ok := s.activeSwaps[swapId]; ok {
 		return swap, nil
 	}
@@ -546,8 +557,8 @@ func (s *SwapService) RemoveActiveSwap(swapId string) {
 }
 
 func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	for _, swap := range s.activeSwaps {
 		if swap.Data.ChannelId == channelId {
 			return true

@@ -106,13 +106,25 @@ EOF
         --peerswap-liquid-rpcuser=admin1 \
         --peerswap-liquid-rpcpassword=123 \
         --peerswap-liquid-network=regtest \
-        --peerswap-liquid-rpcwallet=swap-$i
+        --peerswap-liquid-rpcwallet=swap-$i \
+        --peerswap-policy-path=/tmp/l$i-$network/policy.conf
     # shellcheck disable=SC2139 disable=SC2086
     alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
     # shellcheck disable=SC2139 disable=SC2086
     alias l$i-log="less /tmp/l$i-$network/log"
     alias l$i-follow="tail -f /tmp/l$i-$network/log"
     alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
+  done
+  # set peer whitelist in policy
+  for i in $(seq $node_count); do
+    POLICY="/tmp/l$i-$network/policy.conf"
+    if [ ! -f "$POLICY" ]; then
+      for j in $(seq $node_count); do
+        cat <<-EOF >>"/tmp/l$i-$network/policy.conf"
+whitelisted_peers=$($LCLI --lightning-dir=/tmp/l$j-$network getinfo | jq -r .id)
+EOF
+      done
+    fi
   done
   # Give a hint.
   echo "Commands: "
@@ -204,9 +216,8 @@ fund_node() {
   echo $(generate 100)
 }
 
-
 fund_node_2() {
-   L1_ADDR=$(l2-cli newaddr | jq .'bech32')
+  L1_ADDR=$(l2-cli newaddr | jq .'bech32')
   L1_ADDR=$(sed -e 's/^"//' -e 's/"$//' <<<"$L1_ADDR")
   echo $(bt-cli generatetoaddress 1 $L1_ADDR)
   echo $(generate 100)

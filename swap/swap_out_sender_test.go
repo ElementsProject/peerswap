@@ -192,7 +192,10 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, State_SwapOut_Canceled, swapFSM.Data.GetCurrentState())
+	// wants to await the cltv claim before it goes to a
+	// finish state, such that the channel is still
+	// locked for furhter peerswap requests.
+	assert.Equal(t, State_SwapOutSender_AwaitCLTV, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	_, err = swapFSM.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: "tx"})
 	if err != nil {
@@ -306,6 +309,14 @@ func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err e
 }
 
 type dummyPolicy struct {
+}
+
+func (d *dummyPolicy) GetTankReserve() uint64 {
+	return 1
+}
+
+func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
+	return true
 }
 
 // todo implement
