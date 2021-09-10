@@ -215,7 +215,7 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	spendingTx.TxOut[0].Value = spendingTx.TxOut[0].Value - int64(fee)
 
 	sigHashes := txscript.NewTxSigHashes(spendingTx)
-	sigHash, err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, 10000)
+	sigHash, err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, int64(swapParams.Amount))
 	if err != nil {
 		return nil, nil, nil, err
 	}
