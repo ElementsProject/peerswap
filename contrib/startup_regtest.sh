@@ -120,10 +120,11 @@ EOF
     POLICY="/tmp/l$i-$network/policy.conf"
     if [ ! -f "$POLICY" ]; then
       for j in $(seq $node_count); do
-        cat <<-EOF >>"/tmp/l$i-$network/policy.conf"
+        cat <<-EOF >> $POLICY
 whitelisted_peers=$($LCLI --lightning-dir=/tmp/l$j-$network getinfo | jq -r .id)
 EOF
       done
+      echo "accept_all_peers=1" >> $POLICY
     fi
   done
   # Give a hint.

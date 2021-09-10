@@ -11,6 +11,7 @@ const (
 	// kept as a reserve in the onchain wallet and
 	// can not be spent by incomming swap requests.
 	defaultReserveTankMsat uint64 = 0
+	defaultAcceptAllPeers         = false
 )
 
 var (
@@ -24,11 +25,16 @@ var (
 // respected.
 type Policy struct {
 	ReserveTankMsat uint64   `long:"reserve_tank_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
-	PeerWhitelist   []string `long:"whitelisted_peers" description:"A list of peers that are allowed to send swap requests to the node.x"`
+	PeerWhitelist   []string `long:"whitelisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
+	AcceptAllPeers  bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer whitelist is ignored and all incomming swap requests are allowed"`
 }
 
 func (p Policy) String() string {
-	return fmt.Sprintf("reserve_tank_msat: %d\nwhitelisted_peers: %s", p.ReserveTankMsat, p.PeerWhitelist)
+	str := fmt.Sprintf("reserve_tank_msat: %d\nwhitelisted_peers: %s\naccept_all_peers: %t\n", p.ReserveTankMsat, p.PeerWhitelist, p.AcceptAllPeers)
+	if p.AcceptAllPeers {
+		return fmt.Sprintf("%sCAUTION: Accept all incomming swap requests", str)
+	}
+	return str
 }
 
 // GetTankReserve returns the amount of msats that
@@ -41,6 +47,9 @@ func (p Policy) GetTankReserve() uint64 {
 // IsPeerAllowed returns if a peer or node is part
 // of the whitelist.
 func (p Policy) IsPeerAllowed(peer string) bool {
+	if p.AcceptAllPeers {
+		return true
+	}
 	for _, allowedPeer := range p.PeerWhitelist {
 		if peer == allowedPeer {
 			return true
@@ -53,6 +62,7 @@ func DefaultPolicy() Policy {
 	return Policy{
 		ReserveTankMsat: defaultReserveTankMsat,
 		PeerWhitelist:   defaultPeerWhitelist,
+		AcceptAllPeers:  defaultAcceptAllPeers,
 	}
 }
 
