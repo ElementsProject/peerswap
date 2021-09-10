@@ -125,7 +125,7 @@ lightning-cli --signet newaddr
 lightning-cli --signet connect 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072@49.12.106.176:39735
 
 # fund a channel
-lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393
+lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072 [amt]
 
 
 # generate liquid address
