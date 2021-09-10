@@ -66,12 +66,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	if swap.Asset == "l-btc" && !services.liquidEnabled {
 		swap.LastErr = errors.New("l-btc swaps are not supported")
 		swap.CancelMessage = "l-btc swaps are not supported"
-		return Event_ActionFailed
+		return Event_SwapOutReceiver_OnCancelInternal
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
-		return Event_ActionFailed
+		return Event_SwapOutReceiver_OnCancelInternal
 	}
 
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)

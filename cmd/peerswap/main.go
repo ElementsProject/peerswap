@@ -221,7 +221,7 @@ func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	case "testnet":
 		return &chaincfg.TestNet3Params, nil
 	case "signet":
-		return &chaincfg.SimNetParams, nil
+		return &chaincfg.SigNetParams, nil
 	case "bitcoin":
 		return &chaincfg.MainNetParams, nil
 	default:

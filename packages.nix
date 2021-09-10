@@ -34,5 +34,5 @@ in with pkgs;
         elements = nix-bitcoin-unstable-pkgs.elementsd;
     };
     testpkgs = [ go bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
-    devpkgs = [ go bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev ];
+    devpkgs = [ bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev ];
 }
