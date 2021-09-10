@@ -158,7 +158,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnCancelReceived(msg.SwapId)
+		err = s.OnCancelReceived(msg.SwapId, msg)
 		if err != nil {
 			return err
 		}
@@ -502,12 +502,12 @@ func (s *SwapService) OnPayment(payment *glightning.Payment) {
 }
 
 // OnCancelReceived sends the CancelReceived event to the corresponding swap state machine
-func (s *SwapService) OnCancelReceived(swapId string) error {
+func (s *SwapService) OnCancelReceived(swapId string, cancelMsg *CancelMessage) error {
 	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnCancelReceived, nil)
+	done, err := swap.SendEvent(Event_OnCancelReceived, cancelMsg)
 	if err != nil {
 		return err
 	}

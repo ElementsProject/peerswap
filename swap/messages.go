@@ -148,6 +148,10 @@ func (e *CancelMessage) MessageType() MessageType {
 	return MESSAGETYPE_CANCELED
 }
 
+func (c *CancelMessage) ApplyOnSwap(swap *SwapData) {
+	swap.CancelMessage = c.Error
+}
+
 // MessageTypeToHexString returns the hex encoded string of the messagetype
 func MessageTypeToHexString(messageIndex MessageType) string {
 	return strconv.FormatInt(MESSAGE_BASE+int64(messageIndex), 16)

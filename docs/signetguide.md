@@ -86,6 +86,16 @@ sudo apt-get install -y \
   libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev \
   gettext
 
+# create clightning config
+mkdir -p ~/.lightning
+
+cat <<EOF >> ~/.lightning/config
+signet
+bitcoin-datadir=$HOME/.bitcoin
+addr=0.0.0.0:39375
+log-level=debug
+log-file=$HOME/.lightning/log
+EOF
 ```
 ## Peerswap
 ```
@@ -98,8 +108,8 @@ cd peerswap
 make release
 
 # start lightningd NOTE: the peerswap plugin might not be located under root for you
-lightningd --signet --daemon --log-file ~/l.log \
-        --plugin=~/peerswap/peerswap \
+lightningd --daemon \
+        --plugin=$HOME/peerswap/peerswap \
         --peerswap-liquid-rpchost=http://localhost \
         --peerswap-liquid-rpcport=18884 \
         --peerswap-liquid-rpcuser=admin1 \
@@ -119,7 +129,7 @@ lightning-cli --signet fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d
 
 
 # generate liquid address
-lightning-cli --signet liquid-wallet-getaddress
+lightning-cli --signet peerswap-liquid-getaddress
 
 # goto https://liquidtestnet.com/faucet and receive some testnet lbtc
 
@@ -127,6 +137,6 @@ lightning-cli --signet liquid-wallet-getaddress
 channel=$(lightning-cli --signet listfunds | jq '."channels"[0]."short_channel_id"')
 
 # perform a swap out NOTE: you need liquid btc in order to pay for the swap
-lightning-cli --signet swap-out 2000000 $channel
+lightning-cli --signet peerswap-swap-out 2000000 $channel l-btc
 ```
 
