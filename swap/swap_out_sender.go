@@ -6,14 +6,17 @@ import (
 )
 
 const (
-	State_SwapOutSender_Init               StateType = "State_SwapOutSender_Init"
-	State_SwapOutSender_Created            StateType = "State_SwapOutSender_Created"
-	State_SwapOutSender_RequestSent        StateType = "State_SwapOutSender_RequestSent"
-	State_SwapOutSender_FeeInvoiceReceived StateType = "State_SwapOutSender_FeeInvoiceReceived"
-	State_SwapOutSender_FeeInvoicePaid     StateType = "State_SwapOutSender_FeeInvoicePaid"
-	State_SwapOutSender_TxBroadcasted      StateType = "State_SwapOutSender_TxBroadcasted"
-	State_SwapOutSender_TxConfirmed        StateType = "State_SwapOutSender_TxConfirmed"
-	State_SwapOutSender_ClaimInvPaid       StateType = "State_SwapOutSender_ClaimInvPaid"
+	State_SwapOutSender_Init                   StateType = "State_SwapOutSender_Init"
+	State_SwapOutSender_Created                StateType = "State_SwapOutSender_Created"
+	State_SwapOutSender_RequestSent            StateType = "State_SwapOutSender_RequestSent"
+	State_SwapOutSender_FeeInvoiceReceived     StateType = "State_SwapOutSender_FeeInvoiceReceived"
+	State_SwapOutSender_FeeInvoicePaid         StateType = "State_SwapOutSender_FeeInvoicePaid"
+	State_SwapOutSender_TxBroadcasted          StateType = "State_SwapOutSender_TxBroadcasted"
+	State_SwapOutSender_TxConfirmed            StateType = "State_SwapOutSender_TxConfirmed"
+	State_SwapOutSender_ClaimInvPaid           StateType = "State_SwapOutSender_ClaimInvPaid"
+	State_SwapOutSender_RequestCanceled        StateType = "State_SwapOutSender_RequestCanceled"
+	State_SwapOutSender_SendCancelAndAwaitCLTV StateType = "State_SwapOutSender_SendCancelAndAwaitCLTV"
+	State_SwapOutSender_AwaitCLTV              StateType = "State_SwapOutSender_AwaitCLTV"
 
 	State_SendCancel       StateType = "State_SendCancel"
 	State_SwapOut_Canceled StateType = "State_SwapOut_Canceled"
@@ -96,7 +99,7 @@ type FeeInvoiceReceivedAction struct{}
 
 func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
-	policy := services.policy
+	// policy := services.policy
 	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
 
@@ -105,11 +108,13 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapDat
 	}
 	swap.OpeningTxFee = invoice.Amount / 1000
 	// todo check peerId
-	if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
+	/*
+		if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 
-		log.Printf("won't pay fee %v", err)
-		return Event_SwapOutReceiver_OnCancelInternal
-	}
+			log.Printf("won't pay fee %v", err)
+			return Event_SwapOutReceiver_OnCancelInternal
+		}
+	*/
 	preimage, err := ll.PayInvoice(swap.FeeInvoice)
 	if err != nil {
 
@@ -276,23 +281,17 @@ func getSwapOutSenderStates() States {
 				Event_OnRetry:        State_SendCancel,
 			},
 		},
-		State_SwapOut_Canceled: {
-			Action: &CancelAction{},
-			Events: Events{
-				Event_OnClaimedCltv: State_ClaimedCltv,
-			},
-		},
 		State_SwapOutSender_TxBroadcasted: {
 			Action: &SwapOutTxBroadCastedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancelAndAwaitCLTV,
 				Event_OnTxConfirmed:                     State_SwapOutSender_TxConfirmed,
 			},
 		},
 		State_SwapOutSender_TxConfirmed: {
 			Action: &SwapOutTxConfirmedAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SendCancel,
+				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancelAndAwaitCLTV,
 				Event_SwapOutSender_OnClaimTxPreimage:   State_SwapOutSender_ClaimInvPaid,
 			},
 		},
@@ -302,6 +301,22 @@ func getSwapOutSenderStates() States {
 				Event_SwapOutSender_FinishSwap: State_ClaimedPreimage,
 				Event_OnRetry:                  State_SwapOutSender_ClaimInvPaid,
 			},
+		},
+		State_SwapOutSender_SendCancelAndAwaitCLTV: {
+			Action: &SendCancelAction{},
+			Events: Events{
+				Event_Action_Success: State_SwapOutSender_AwaitCLTV,
+			},
+		},
+		State_SwapOutSender_AwaitCLTV: {
+			Action: &NoOpAction{},
+			Events: Events{
+				Event_OnClaimedCltv: State_ClaimedCltv,
+				Event_OnCltvPassed:  State_SwapOut_Canceled,
+			},
+		},
+		State_SwapOut_Canceled: {
+			Action: &CancelAction{},
 		},
 		State_ClaimedPreimage: {
 			Action: &NoOpDoneAction{},

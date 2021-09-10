@@ -50,6 +50,11 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 type SwapInReceiverRequestReceivedAction struct{}
 
 func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
+		swap.CancelMessage = "peer not allowed to request swaps"
+		return Event_ActionFailed
+	}
+
 	response := &SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
@@ -153,7 +158,7 @@ func (c *CancelAction) Execute(services *SwapServices, swap *SwapData) EventType
 	if swap.LastErr != nil {
 		swap.LastErrString = swap.LastErr.Error()
 	}
-	return NoOp
+	return Event_Done
 }
 
 // swapInReceiverFromStore recovers a swap statemachine from the swap store

@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	"strings"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/glightning/gelements"
@@ -17,11 +24,6 @@ import (
 	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
-	"log"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 func main() {
@@ -136,7 +138,11 @@ func run() error {
 	}
 
 	// policy
-	simplepolicy := &policy.SimplePolicy{}
+	pol, err := policy.CreatePolicy(config.PolicyPath)
+	if err != nil {
+		return err
+	}
+	log.Printf("using policy:\n%s", pol)
 
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
@@ -149,7 +155,7 @@ func run() error {
 		bitcoinOnChainService,
 		lightningPlugin,
 		lightningPlugin,
-		simplepolicy)
+		pol)
 
 	if liquidTxWatcher != nil {
 		go func() {

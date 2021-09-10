@@ -31,15 +31,14 @@ var methods = []peerswaprpcMethod{
 var devmethods = []peerswaprpcMethod{}
 
 const (
-	dbOption          = "peerswap-db-path"
-	rpcHostOption     = "peerswap-liquid-rpchost"
-	rpcPortOption     = "peerswap-liquid-rpcport"
-	rpcUserOption     = "peerswap-liquid-rpcuser"
-	rpcPasswordOption = "peerswap-liquid-rpcpassword"
-
-	rpcWalletOption = "peerswap-liquid-rpcwallet"
-
+	dbOption            = "peerswap-db-path"
+	rpcHostOption       = "peerswap-liquid-rpchost"
+	rpcPortOption       = "peerswap-liquid-rpcport"
+	rpcUserOption       = "peerswap-liquid-rpcuser"
+	rpcPasswordOption   = "peerswap-liquid-rpcpassword"
+	rpcWalletOption     = "peerswap-liquid-rpcwallet"
 	liquidNetworkOption = "peerswap-liquid-network"
+	policyPathOption    = "peerswap-policy-path"
 
 	featureBit = 69
 
@@ -389,6 +388,12 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		rpcWallet = hex.EncodeToString(idBytes)
 	}
 
+	// get policy path
+	policyPath, err := c.plugin.GetOption(policyPathOption)
+	if err != nil {
+		return nil, err
+	}
+
 	return &peerswap.Config{
 		DbPath:              dbpath,
 		LiquidRpcHost:       rpcHost,
@@ -397,6 +402,7 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		LiquidRpcPassword:   rpcPass,
 		LiquidNetworkString: liquidNetwork,
 		LiquidRpcWallet:     rpcWallet,
+		PolicyPath:          policyPath,
 	}, nil
 }
 
@@ -427,6 +433,12 @@ func (c *ClightningClient) RegisterOptions() error {
 		return err
 	}
 	err = c.plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
+	if err != nil {
+		return err
+	}
+
+	// register policy options
+	err = c.plugin.RegisterNewOption(policyPathOption, "Path to the policy file. If empty the default policy is used", "")
 	if err != nil {
 		return err
 	}

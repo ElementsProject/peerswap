@@ -31,6 +31,10 @@ func (e *ElementsBlockChainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, 
 	}, nil
 }
 
+func (e *ElementsBlockChainRpc) String() string {
+	return "l-btc"
+}
+
 type BitcoinBlockchainRpc struct {
 	bcli *gbitcoin.Bitcoin
 }
@@ -55,4 +59,8 @@ func (b *BitcoinBlockchainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, e
 		Confirmations: txout.Confirmations,
 		Value:         txout.Value,
 	}, nil
+}
+
+func (e *BitcoinBlockchainRpc) String() string {
+	return "btc"
 }

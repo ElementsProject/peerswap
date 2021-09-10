@@ -11,6 +11,7 @@ type Config struct {
 	LiquidRpcPort       uint
 	LiquidRpcWallet     string
 	LiquidNetworkString string
+	PolicyPath          string
 
 	LiquidEnabled bool
 	LiquidNetwork *network.Network

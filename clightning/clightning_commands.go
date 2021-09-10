@@ -33,6 +33,7 @@ func (g *GetAddressMethod) Name() string {
 }
 
 func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
+	//fixme: HERE IS A NIL POINTER EXCEPTION
 	res, err := g.cl.wallet.GetAddress()
 	if err != nil {
 		return nil, err

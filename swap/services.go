@@ -17,8 +17,8 @@ type PeerMessage interface {
 }
 
 type Policy interface {
-	ShouldPayFee(swapAmount, feeAmount uint64, peerId, channelId string) bool
-	GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error)
+	IsPeerAllowed(peer string) bool
+	GetTankReserve() uint64
 }
 type LightningClient interface {
 	DecodePayreq(payreq string) (*lightning.Invoice, error)
