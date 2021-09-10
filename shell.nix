@@ -16,7 +16,7 @@ stdenv.mkDerivation rec {
     alias bitcoind='${execs.bitcoin}/bin/bitcoind'
     alias bitcoin-cli='${execs.bitcoin}/bin/bitcoin-cli'
     alias elementsd='${execs.elements}/bin/elementsd'
-    alias elements-cli='${execs.bitcoin}/bin/elements-cli'
+    alias elements-cli='${execs.elements}/bin/elements-cli'
 
     . ./contrib/startup_regtest.sh
     setup_alias
