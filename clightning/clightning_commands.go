@@ -206,6 +206,9 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 				continue
 			}
 			if swapOut.Current == swap.State_SwapOut_Canceled {
+				if swapOut.Data.CancelMessage != "" {
+					return nil, errors.New(fmt.Sprintf("Swap canceld, cancel message: %s", swapOut.Data.CancelMessage))
+				}
 				if swapOut.Data.LastErr == nil {
 					return nil, errors.New("swap canceled")
 				}
@@ -315,6 +318,9 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 				continue
 			}
 			if swapIn.Current == swap.State_SwapCanceled {
+				if swapIn.Data.CancelMessage != "" {
+					return nil, errors.New(fmt.Sprintf("Swap canceld, cancel message: %s", swapIn.Data.CancelMessage))
+				}
 				if swapIn.Data.LastErr == nil {
 					return nil, errors.New("swap canceled")
 				}

@@ -31,9 +31,11 @@ type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	if swap.Asset == "l-btc" && !services.liquidEnabled {
+		swap.LastErr = errors.New("l-btc swaps are not supported")
 		return Event_ActionFailed
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
+		swap.LastErr = errors.New("btc swaps are not supported")
 		return Event_ActionFailed
 	}
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
