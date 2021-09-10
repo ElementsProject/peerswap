@@ -20,10 +20,10 @@ os.environ["TEST_DEBUG"] = "1"
 os.environ["SLOW_MACHINE"] = "1"
 
 
-def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
+def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
     FUNDAMOUNT = 10 ** 7
 
-    options = [{"start": True}, {"start": False}]
+    options = [{"start": False}, {"start": True}]
 
     options[0].update(
         get_plugin_options(
@@ -43,10 +43,10 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
     nodes = node_factory.get_nodes(2, opts=options)
 
     # whitelist node 0 on node 1
-    policy = "whitelisted_peers={}".format(nodes[0].info["id"])
-    write_policy_file(nodes[1].daemon.lightning_dir, policy)
-    add_policy_path_to_options(nodes[1])
-    nodes[1].start()
+    policy = "whitelisted_peers={}".format(nodes[1].info["id"])
+    write_policy_file(nodes[0].daemon.lightning_dir, policy)
+    add_policy_path_to_options(nodes[0])
+    nodes[0].start()
 
     # create channel between 0 and 1
     node_factory.join_nodes(nodes, fundchannel=True, fundamount=FUNDAMOUNT)
@@ -70,23 +70,10 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
 
     # swap out 5000000 sat
     swap_amt = 5 * 10 ** 6
-    nodes[0].rpc.call(
-        "peerswap-swap-out",
+    nodes[1].rpc.call(
+        "peerswap-swap-in",
         {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
     )
-
-    # wait for fee beeing payed
-    wait_for(
-        lambda: with_liquid_generate(
-            elementsd,
-            1,
-            lambda: channel_balance_changed(nodes[0], chfunds),
-        )
-    )
-    chfunds_after_fee_payed = nodes[0].rpc.call("listfunds")["channels"][0][
-        "channel_sat"
-    ]
-    assert chfunds_after_fee_payed - chfunds == -1 * FEE
 
     # wait for tx beeing broadcasted
     wait_for(
@@ -94,22 +81,22 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
             elementsd, 1, lambda: liquid_balance_changed(nodes[1], balances[1])
         )
     )
-    balances_invoice_payed = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
-    assert balances_invoice_payed[0] == balances[0]
-    assert balances_invoice_payed[1] == balances[1] - FEE - swap_amt
+    balances_tx_broadcasted = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    assert balances_tx_broadcasted[0] == balances[0]
+    assert balances_tx_broadcasted[1] == balances[1] - FEE - swap_amt
 
     # wait for invoice being payed
     wait_for(
         lambda: with_liquid_generate(
             elementsd,
             1,
-            lambda: channel_balance_changed(nodes[0], chfunds_after_fee_payed),
+            lambda: channel_balance_changed(nodes[0], 10 ** 7),
         )
     )
     chfunds_after_invoice_payed = nodes[0].rpc.call("listfunds")["channels"][0][
         "channel_sat"
     ]
-    assert chfunds - FEE - swap_amt == chfunds_after_invoice_payed
+    assert chfunds - swap_amt == chfunds_after_invoice_payed
 
     # wait for claiming tx
     wait_for(
