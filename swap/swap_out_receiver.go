@@ -320,7 +320,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_SwapAborted: {
-			Action: &NoOpAction{},
+			Action: &CltvPassedAction{},
 			Events: Events{
 				Event_OnCltvPassed: State_SwapOutReceiver_CltvPassed,
 			},
