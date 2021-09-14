@@ -16,7 +16,7 @@ func Test_ReadFromSamplePolicy(t *testing.T) {
 
 	err := iniParser.ParseFile(filepath.Join("..", "sample_policy.conf"))
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(200000), p.ReserveTankMsat)
+	assert.Equal(t, uint64(0), p.ReserveOnchainMsat)
 	assert.Equal(t, []string{"peer1", "peer2", "peer3"}, p.PeerWhitelist)
 }
 

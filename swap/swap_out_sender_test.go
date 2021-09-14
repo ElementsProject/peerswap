@@ -312,7 +312,7 @@ func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err e
 type dummyPolicy struct {
 }
 
-func (d *dummyPolicy) GetTankReserve() uint64 {
+func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
 	return 1
 }
 
