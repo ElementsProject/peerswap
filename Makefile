@@ -1,4 +1,4 @@
-.PHONY: build test release pytest
+.PHONY: build test release pytest build-mermaid-parser
 
 build:
 	go build -tags dev -o peerswap ./cmd/peerswap/main.go
@@ -15,3 +15,7 @@ release:
 
 pytest: build
 	pytest ./test
+
+build_mermaid_parser:
+	go build -o mermaid-parser ./contrib/stateparser.go
+	chmod a+x mermaid-parser

@@ -19,6 +19,7 @@ db
 dist/
 
 peerswap
+mermaid-parser
 
 peerswap_pytest/__pycache__/
 
