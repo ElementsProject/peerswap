@@ -583,6 +583,50 @@ func (g *GetSwap) LongDescription() string {
 	return ""
 }
 
+type FileReloader interface {
+	ReloadFile() error
+}
+
+type Stringer interface {
+	String() string
+}
+
+type FileReloaderStringer interface {
+	FileReloader
+	Stringer
+}
+type ReloadPolicyFile struct {
+	cl   *ClightningClient
+	name string
+}
+
+func (c ReloadPolicyFile) Name() string {
+	return c.name
+}
+
+func (c ReloadPolicyFile) New() interface{} {
+	return c
+}
+
+func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
+	log.Println(c.cl.policy)
+	err := c.cl.policy.ReloadFile()
+	if err != nil {
+		return nil, err
+	}
+	return c.cl.policy.String(), nil
+}
+
+// func (c ReloadPolicyFile) Description() string {
+// 	return "Reload the policy file."
+// }
+
+// func (c *ReloadPolicyFile) LongDescription() string {
+// 	return `If the policy file has changed, reload the policy
+// 	from the file specified in the config. Overrides the
+// 	default config, so fields that are not set are interpreted as default.`
+// }
+
 type PeerSwapPeerChannel struct {
 	ChannelId     string  `json:"short_channel_id"`
 	LocalBalance  uint64  `json:"local_balance"`
