@@ -129,7 +129,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 
 	// todo this might fail, msats...
-	if invoice.Amount != swap.Amount {
+	if invoice.Amount != swap.Amount*1000 {
 		return swap.HandleError(errors.New("invoice amount does not equal swap amount"))
 	}
 
@@ -247,15 +247,8 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_ClaimSwap: {
 			Action: &ClaimSwapTransactionWithPreimageAction{},
 			Events: Events{
-				Event_ActionSucceeded: State_SwapOutSender_SendClaimMessage,
-				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
-			},
-		},
-		State_SwapOutSender_SendClaimMessage: {
-			Action: &SendMessageAction{},
-			Events: Events{
 				Event_ActionSucceeded: State_ClaimedPreimage,
-				Event_ActionFailed:    State_ClaimedPreimage,
+				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
 			},
 		},
 		State_SwapCanceled: {

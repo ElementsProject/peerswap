@@ -280,7 +280,7 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, 
 	}
 	return &lightning.Invoice{
 		PHash:       "foo",
-		Amount:      100,
+		Amount:      100 * 1000,
 		Description: "gude",
 	}, nil
 }

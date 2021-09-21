@@ -6,25 +6,6 @@ import (
 	"log"
 )
 
-const (
-	State_SwapInReceiver_Init                 StateType = "State_SwapInReceiver_Init"
-	State_SwapInReceiver_RequestReceived      StateType = "State_SwapInReceiver_RequestReceived"
-	State_SwapInReceiver_AgreementSent        StateType = "State_SwapInReceiver_AgreementSent"
-	State_SwapInReceiver_OpeningTxBroadcasted StateType = "State_SwapInReceiver_OpeningTxBroadcasted"
-	State_SwapInReceiver_WaitForConfirmations StateType = "State_SwapInReceiver_WaitForConfirmations"
-	State_SwapInReceiver_OpeningTxConfirmed   StateType = "State_SwapInReceiver_OpeningTxConfirmed"
-	State_SwapInReceiver_ClaimInvoicePaid     StateType = "State_SwapInReceiver_ClaimInvoicePaid"
-	State_ClaimedCltv                         StateType = "State_ClaimedCltv"
-	State_ClaimedPreimage                     StateType = "State_ClaimedPreimage"
-	State_Done                                StateType = "State_Done"
-
-	Event_SwapInReceiver_OnRequestReceived  EventType = "Event_SwapInReceiver_OnRequestReceived"
-	Event_SwapInReceiver_OnSwapCreated      EventType = "Event_SwapInReceiver_OnSwapCreated"
-	Event_SwapInReceiver_OnAgreementSent    EventType = "Event_SwapInReceiver_OnAgreementSent"
-	Event_SwapInReceiver_OnClaimInvoicePaid EventType = "Event_SwapInReceiver_OnClaimInvoicePaid"
-	Event_Done                              EventType = "Event_Done"
-)
-
 // todo check for policy / balance
 // SwapInReceiverInitAction creates the swap-in process
 type SwapInReceiverInitAction struct{}
@@ -40,54 +21,24 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 		swap.CancelMessage = "btc swaps are not supported"
 		return Event_ActionFailed
 	}
+
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
 	*swap = *newSwap
 
-	pubkey := swap.GetPrivkey().PubKey()
-	swap.Role = SWAPROLE_RECEIVER
-	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
-
-	return Event_SwapInReceiver_OnSwapCreated
-}
-
-// SwapInReceiverRequestReceivedAction sends the agreement message to the peer
-type SwapInReceiverRequestReceivedAction struct{}
-
-func (s *SwapInReceiverRequestReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
 		swap.CancelMessage = "peer not allowed to request swaps"
 		return Event_ActionFailed
 	}
 
-	response := &SwapInAgreementMessage{
+	pubkey := swap.GetPrivkey().PubKey()
+	swap.Role = SWAPROLE_RECEIVER
+	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+
+	swap.NextMessage = SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 	}
-	err := services.messenger.SendMessage(swap.PeerNodeId, response)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	return Event_SwapInReceiver_OnAgreementSent
-}
-
-// SwapInReceiverOpeningTxBroadcastedAction checks if the
-// invoice is correct and adss the transaction to the txwatcher
-type SwapInReceiverOpeningTxBroadcastedAction struct{}
-
-func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-
-	invoice, err := services.lightning.DecodePayreq(swap.ClaimInvoice)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	if invoice.Amount > (swap.Amount)*1000 {
-		return swap.HandleError(errors.New("invalid invoice price"))
-	}
-	swap.ClaimPaymentHash = invoice.PHash
-
 	return Event_ActionSucceeded
-
 }
 
 func (s *SwapData) HandleError(err error) EventType {
@@ -112,30 +63,6 @@ func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap 
 	return NoOp
 }
 
-// SwapInWaitForConfirmationsAction pays the claim invoice
-type SwapInReceiverOpeningTxConfirmedAction struct{}
-
-func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	if !ok {
-		return Event_ActionFailed
-	}
-	preimage, err := services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.ClaimPreimage = preimage
-
-	return Event_SwapInReceiver_OnClaimInvoicePaid
-}
-
 // ClaimSwapTransactionWithPreimageAction spends the opening transaction to the nodes liquid wallet
 type ClaimSwapTransactionWithPreimageAction struct{}
 
@@ -144,11 +71,6 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 	err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
 		return Event_OnRetry
-	}
-	swap.NextMessage = ClaimedMessage{
-		SwapId:    swap.Id,
-		ClaimType: CLAIMTYPE_PREIMAGE,
-		ClaimTxId: swap.ClaimTxId,
 	}
 	return Event_ActionSucceeded
 }
@@ -186,59 +108,51 @@ func getSwapInReceiverStates() States {
 	return States{
 		Default: State{
 			Events: Events{
-				Event_SwapInReceiver_OnRequestReceived: State_SwapInReceiver_Init,
+				Event_SwapInReceiver_OnRequestReceived: State_SwapInReceiver_CreateSwap,
 			},
 		},
-		State_SwapInReceiver_Init: {
+		State_SwapInReceiver_CreateSwap: {
 			Action: &SwapInReceiverInitAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnSwapCreated: State_SwapInReceiver_RequestReceived,
-				Event_ActionFailed:                 State_SendCancel,
-			},
-		},
-		State_SwapInReceiver_RequestReceived: {
-			Action: &SwapInReceiverRequestReceivedAction{},
-			Events: Events{
-				Event_SwapInReceiver_OnAgreementSent: State_SwapInReceiver_AgreementSent,
-				Event_ActionFailed:                   State_SendCancel,
-			},
-		},
-		State_SwapInReceiver_AgreementSent: {
-			Action: &NoOpAction{},
-			Events: Events{
-				Event_OnTxOpenedMessage: State_SwapInReceiver_OpeningTxBroadcasted,
-				Event_OnCancelReceived:  State_SwapCanceled,
-			},
-		},
-		State_SwapInReceiver_OpeningTxBroadcasted: {
-			Action: &SwapInReceiverOpeningTxBroadcastedAction{},
-			Events: Events{
-				Event_ActionSucceeded: State_SwapInReceiver_WaitForConfirmations,
+				Event_ActionSucceeded: State_SwapInReceiver_SendAgreement,
 				Event_ActionFailed:    State_SendCancel,
 			},
 		},
-		State_SwapInReceiver_WaitForConfirmations: {
-			Action: &SwapInWaitForConfirmationsAction{},
+		State_SwapInReceiver_SendAgreement: {
+			Action: &SendMessageAction{},
 			Events: Events{
-				Event_OnTxConfirmed:    State_SwapInReceiver_OpeningTxConfirmed,
+				Event_ActionSucceeded: State_SwapInReceiver_AwaitTxBroadcastedMessage,
+				Event_ActionFailed:    State_SendCancel,
+			},
+		},
+		State_SwapInReceiver_AwaitTxBroadcastedMessage: {
+			Action: &NoOpAction{},
+			Events: Events{
+				Event_OnTxOpenedMessage: State_SwapInReceiver_AwaitTxConfirmation,
+				Event_OnCancelReceived:  State_SwapCanceled,
+			},
+		},
+		State_SwapInReceiver_AwaitTxConfirmation: {
+			Action: &AwaitTxConfirmationAction{},
+			Events: Events{
+				Event_OnTxConfirmed:    State_SwapInReceiver_ValidateTxAndPayClaimInvoice,
+				Event_ActionFailed:     State_SendCancel,
 				Event_OnCancelReceived: State_SwapCanceled,
 			},
 		},
-		State_SwapInReceiver_OpeningTxConfirmed: {
-			Action: &SwapInReceiverOpeningTxConfirmedAction{},
+		State_SwapInReceiver_ValidateTxAndPayClaimInvoice: {
+			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
-				Event_SwapInReceiver_OnClaimInvoicePaid: State_SwapInReceiver_ClaimInvoicePaid,
-				Event_ActionFailed:                      State_SendCancel,
+				Event_ActionSucceeded: State_SwapInReceiver_ClaimSwap,
+				Event_ActionFailed:    State_SendCancel,
 			},
 		},
-		State_SwapInReceiver_ClaimInvoicePaid: {
+		State_SwapInReceiver_ClaimSwap: {
 			Action: &ClaimSwapTransactionWithPreimageAction{},
 			Events: Events{
-				Event_OnClaimedPreimage: State_ClaimedPreimage,
+				Event_ActionSucceeded: State_ClaimedPreimage,
+				Event_OnRetry:         State_SwapInReceiver_ClaimSwap,
 			},
-		},
-		State_ClaimedCltv: {
-			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedPreimage: {
 			Action: &NoOpDoneAction{},
@@ -247,13 +161,11 @@ func getSwapInReceiverStates() States {
 			Action: &SendCancelAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapCanceled,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
 		},
 		State_SwapCanceled: {
 			Action: &CancelAction{},
-			Events: Events{
-				Event_OnClaimedCltv: State_ClaimedCltv,
-			},
 		},
 	}
 }

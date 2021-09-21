@@ -2,9 +2,12 @@ package swap
 
 // Shared States
 const (
-	State_SendCancel   StateType = "State_SendCancel"
-	State_SwapCanceled StateType = "State_SwapCanceled"
-	State_WaitCltv     StateType = "State_WaitCltv"
+	State_SendCancel      StateType = "State_SendCancel"
+	State_SwapCanceled    StateType = "State_SwapCanceled"
+	State_WaitCltv        StateType = "State_WaitCltv"
+	State_ClaimedCltv     StateType = "State_ClaimedCltv"
+	State_ClaimedPreimage StateType = "State_ClaimedPreimage"
+	State_Done            StateType = "State_Done"
 )
 
 // Swap Out Sender States
@@ -17,8 +20,6 @@ const (
 	State_SwapOutSender_AwaitTxConfirmation          StateType = "State_SwapOutSender_AwaitTxConfirmation"
 	State_SwapOutSender_ValidateTxAndPayClaimInvoice StateType = "State_SwapOutSender_ValidateTxAndPayClaimInvoice"
 	State_SwapOutSender_ClaimSwap                    StateType = "State_SwapOutSender_ClaimSwap"
-	State_SwapOutSender_SendClaimMessage             StateType = "State_SwapOutSender_SendClaimMessage"
-	State_SwapOutSender_AwaitCLTV                    StateType = "State_SwapOutSender_AwaitCLTV"
 )
 
 // Swap Out Receiver states
@@ -45,6 +46,16 @@ const (
 	State_SwapInSender_ClaimSwap                StateType = "State_SwapInSender_ClaimSwap"
 )
 
+// Swap In Receiver States
+const (
+	State_SwapInReceiver_CreateSwap                   StateType = "State_SwapInReceiver_CreateSwap"
+	State_SwapInReceiver_SendAgreement                StateType = "State_SwapInReceiver_SendAgreement"
+	State_SwapInReceiver_AwaitTxBroadcastedMessage    StateType = "State_SwapInReceiver_AwaitTxBroadcastedMessage"
+	State_SwapInReceiver_AwaitTxConfirmation          StateType = "State_SwapInReceiver_AwaitTxConfirmation"
+	State_SwapInReceiver_ValidateTxAndPayClaimInvoice StateType = "State_SwapInReceiver_ValidateTxAndPayClaimInvoice"
+	State_SwapInReceiver_ClaimSwap                    StateType = "State_SwapInReceiver_ClaimSwap"
+)
+
 // Events
 const (
 	Event_OnSwapOutStarted     EventType = "Event_OnSwapOutStarted"
@@ -69,6 +80,7 @@ const (
 	Event_ActionSucceeded                  EventType = "Event_ActionSucceeded"
 	Event_SwapInSender_OnSwapInRequested   EventType = "Event_SwapInSender_OnSwapInRequested"
 	Event_SwapInSender_OnAgreementReceived EventType = "Event_SwapInSender_OnAgreementReceived"
-
-	Event_ActionFailed EventType = "Event_ActionFailed"
+	Event_ActionFailed                     EventType = "Event_ActionFailed"
+	Event_SwapInReceiver_OnRequestReceived EventType = "Event_SwapInReceiver_OnRequestReceived"
+	Event_Done                             EventType = "Event_Done"
 )

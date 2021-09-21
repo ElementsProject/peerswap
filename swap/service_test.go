@@ -69,8 +69,6 @@ func Test_GoodCase(t *testing.T) {
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "claim_" + bobSwap.Id,
 	})
-	bobReceivedMsg = <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_CLAIMED, bobReceivedMsg.MessageType())
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
@@ -176,7 +174,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	// wants to await the cltv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
-	assert.Equal(t, State_SwapOutSender_AwaitCLTV, aliceSwap.Current)
+	assert.Equal(t, State_SwapCanceled, aliceSwap.Current)
 
 	// trigger bob payment received
 
@@ -187,11 +185,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceReceivedMsg = <-aliceMsgChan
-
-	assert.Equal(t, MESSAGETYPE_CLAIMED, aliceReceivedMsg.MessageType())
 	assert.Equal(t, State_ClaimedCltv, bobSwap.Current)
-	assert.Equal(t, State_ClaimedCltv, aliceSwap.Current)
 }
 
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
