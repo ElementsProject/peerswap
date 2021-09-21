@@ -2,41 +2,8 @@ package swap
 
 import (
 	"encoding/hex"
+	"errors"
 	"log"
-)
-
-const (
-	State_SwapOutSender_Init                   StateType = "State_SwapOutSender_Init"
-	State_SwapOutSender_Created                StateType = "State_SwapOutSender_Created"
-	State_SwapOutSender_RequestSent            StateType = "State_SwapOutSender_RequestSent"
-	State_SwapOutSender_FeeInvoiceReceived     StateType = "State_SwapOutSender_FeeInvoiceReceived"
-	State_SwapOutSender_FeeInvoicePaid         StateType = "State_SwapOutSender_FeeInvoicePaid"
-	State_SwapOutSender_TxBroadcasted          StateType = "State_SwapOutSender_TxBroadcasted"
-	State_SwapOutSender_TxConfirmed            StateType = "State_SwapOutSender_TxConfirmed"
-	State_SwapOutSender_ClaimInvPaid           StateType = "State_SwapOutSender_ClaimInvPaid"
-	State_SwapOutSender_RequestCanceled        StateType = "State_SwapOutSender_RequestCanceled"
-	State_SwapOutSender_SendCancelAndAwaitCLTV StateType = "State_SwapOutSender_SendCancelAndAwaitCLTV"
-	State_SwapOutSender_AwaitCLTV              StateType = "State_SwapOutSender_AwaitCLTV"
-
-	State_SendCancel       StateType = "State_SendCancel"
-	State_SwapOut_Canceled StateType = "State_SwapOut_Canceled"
-
-	Event_SwapOutSender_OnSwapOutRequested   EventType = "Event_SwapOutSender_OnSwapOutRequested"
-	Event_SwapOutSender_OnSwapCreated        EventType = "Event_SwapOutSender_OnSwapCreated"
-	Event_SwapOutSender_OnSendSwapOutSucceed EventType = "Event_SwapOutSender_OnSendSwapOutSucceed"
-	Event_SwapOutSender_OnFeeInvReceived     EventType = "Event_SwapOutSender_OnFeeInvoiceReceived"
-	Event_SwapOutSender_OnCancelSwapOut      EventType = "Event_SwapOutSender_OnCancelSwapOut"
-	Event_SwapOutSender_OnFeeInvoicePaid     EventType = "Event_SwapOutSender_WaitInvoiceMessage"
-
-	Event_OnTxOpenedMessage        EventType = "Event_OnTxOpenedMessage"
-	Event_OnTxConfirmed            EventType = "Event_OnTxConfirmed"
-	Event_SwapOutSender_FinishSwap EventType = "Event_SwapOutSender_FinishSwap"
-	// todo retrystate? failstate? refundstate?
-	Event_OnRetry                           EventType = "Event_OnRetry"
-	Event_OnRecover                         EventType = "Event_OnRecover"
-	Event_SwapOutSender_OnAbortSwapInternal EventType = "Event_SwapOutSender_OnAbortSwapInternal"
-	Event_SwapOutSender_OnClaimTxPreimage   EventType = "Event_SwapOutSender_OnClaimTxPreimage"
-	Event_OnClaimedCltv                     EventType = "Event_OnClaimedCltv"
 )
 
 type SwapCreationContext struct {
@@ -60,25 +27,17 @@ func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
 }
 
 // SwapInSenderInitAction creates the swap data
-type SwapOutInitAction struct{}
+type CreateSwapOutAction struct{}
 
 //todo validate data
-func (a *SwapOutInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
+func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
 	*swap = *newSwap
-	return Event_SwapOutSender_OnSwapCreated
-}
-
-// SwapOutCreatedAction sends the request to the swap peer
-type SwapOutCreatedAction struct{}
-
-func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	messenger := services.messenger
 
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	msg := &SwapOutRequest{
+	swap.NextMessage = SwapOutRequest{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
@@ -86,25 +45,33 @@ func (s *SwapOutCreatedAction) Execute(services *SwapServices, swap *SwapData) E
 		ProtocolVersion: swap.ProtocolVersion,
 		Asset:           swap.Asset,
 	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-
-		return Event_SwapOutSender_OnCancelSwapOut
-	}
-	return Event_SwapOutSender_OnSendSwapOutSucceed
+	return Event_ActionSucceeded
 }
 
-// FeeInvoiceReceivedAction checks the feeinvoice and pays it
-type FeeInvoiceReceivedAction struct{}
+type SendMessageAction struct{}
 
-func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+func (s *SendMessageAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.NextMessage == nil {
+		return swap.HandleError(errors.New("swap.NextMessage is nil"))
+	}
+	err := services.messenger.SendMessage(swap.PeerNodeId, swap.NextMessage)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	return Event_ActionSucceeded
+}
+
+// PayFeeInvoiceAction checks the feeinvoice and pays it
+type PayFeeInvoiceAction struct{}
+
+func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
 	// policy := services.policy
 	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
 
 		log.Printf("error decoding %v", err)
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	swap.OpeningTxFee = invoice.Amount / 1000
 	// todo check peerId
@@ -112,93 +79,75 @@ func (r *FeeInvoiceReceivedAction) Execute(services *SwapServices, swap *SwapDat
 		if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 
 			log.Printf("won't pay fee %v", err)
-			return Event_SwapOutReceiver_OnCancelInternal
+			return Event_ActionFailed
 		}
 	*/
 	preimage, err := ll.PayInvoice(swap.FeeInvoice)
 	if err != nil {
 
 		log.Printf("error paying out %v", err)
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	swap.FeePreimage = preimage
-	return Event_SwapOutSender_OnFeeInvoicePaid
+	return Event_ActionSucceeded
 }
 
-// SwapOutTxBroadCastedAction  checks the claim invoice and adds the transaction to the txwatcher
-type SwapOutTxBroadCastedAction struct{}
+// AwaitTxConfirmationAction  checks the claim invoice and adds the transaction to the txwatcher
+type AwaitTxConfirmationAction struct{}
 
-func (t *SwapOutTxBroadCastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	lc := services.lightning
+//todo this will not ever throw an error
+func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
-
-	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
-	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
-	}
-
-	swap.ClaimPaymentHash = invoice.PHash
 
 	// todo check policy
 
 	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
 	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
 	return NoOp
 }
 
-// SwapOutTxConfirmedAction pays the claim invoice
-type SwapOutTxConfirmedAction struct{}
+// todo
 
-func (p *SwapOutTxConfirmedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+// ValidateTxAndPayClaimInvoiceAction pays the claim invoice
+type ValidateTxAndPayClaimInvoiceAction struct{}
+
+func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
+
+	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
+	if err != nil {
+		return Event_ActionFailed
+	}
+
+	// todo this might fail, msats...
+	if invoice.Amount != swap.Amount {
+		return swap.HandleError(errors.New("invoice amount does not equal swap amount"))
+	}
+
+	swap.ClaimPaymentHash = invoice.PHash
+
 	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
 	if !ok {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
 	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
 	swap.ClaimPreimage = preimageString
-	return Event_SwapOutSender_OnClaimTxPreimage
-}
-
-// SwapOutTxConfirmedAction spends the opening transaction to the liquid wallet
-type SwapOutClaimInvPaidAction struct{}
-
-func (c *SwapOutClaimInvPaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	err := CreatePreimageSpendingTransaction(services, swap)
-	if err != nil {
-		log.Printf("error creating spending tx %v", err)
-		swap.HandleError(err)
-		return Event_OnRetry
-	}
-
-	//todo correct message
-	msg := &ClaimedMessage{
-		SwapId:    swap.Id,
-		ClaimType: CLAIMTYPE_PREIMAGE,
-		ClaimTxId: swap.ClaimTxId,
-	}
-	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		log.Printf("error sending message tx %v", err)
-		swap.HandleError(err)
-		return Event_OnRetry
-	}
-	return Event_SwapOutSender_FinishSwap
+	return Event_ActionSucceeded
 }
 
 type NoOpAction struct{}
@@ -237,91 +186,82 @@ func getSwapOutSenderStates() States {
 	return States{
 		Default: State{
 			Events: Events{
-				Event_SwapOutSender_OnSwapOutRequested: State_SwapOutSender_Init,
+				Event_OnSwapOutStarted: State_SwapOutSender_CreateSwap,
 			},
 		},
-		State_SwapOutSender_Init: {
-			Action: &SwapOutInitAction{},
+		State_SwapOutSender_CreateSwap: {
+			Action: &CreateSwapOutAction{},
 			Events: Events{
-				Event_SwapOutSender_OnSwapCreated: State_SwapOutSender_Created,
+				Event_ActionSucceeded: State_SwapOutSender_SendRequest,
 			},
 		},
-		State_SwapOutSender_Created: {
-			Action: &SwapOutCreatedAction{},
+		State_SwapOutSender_SendRequest: {
+			Action: &SendMessageAction{},
 			Events: Events{
-				Event_SwapOutSender_OnCancelSwapOut:      State_SwapOut_Canceled,
-				Event_SwapOutSender_OnSendSwapOutSucceed: State_SwapOutSender_RequestSent,
+				Event_ActionFailed:    State_SwapCanceled,
+				Event_ActionSucceeded: State_SwapOutSender_AwaitFeeResponse,
 			},
 		},
-		State_SwapOutSender_RequestSent: {
+		State_SwapOutSender_AwaitFeeResponse: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_OnCancelReceived:               State_SwapOut_Canceled,
-				Event_SwapOutSender_OnFeeInvReceived: State_SwapOutSender_FeeInvoiceReceived,
+				Event_OnCancelReceived:     State_SwapCanceled,
+				Event_OnFeeInvoiceReceived: State_SwapOutSender_PayFeeInvoice,
 			},
 		},
-		State_SwapOutSender_FeeInvoiceReceived: {
-			Action: &FeeInvoiceReceivedAction{},
+		State_SwapOutSender_PayFeeInvoice: {
+			Action: &PayFeeInvoiceAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
-				Event_SwapOutSender_OnFeeInvoicePaid:   State_SwapOutSender_FeeInvoicePaid,
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_SwapOutSender_AwaitTxBroadcastedMessage,
 			},
 		},
-		State_SwapOutSender_FeeInvoicePaid: {
+		State_SwapOutSender_AwaitTxBroadcastedMessage: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
-				Event_OnTxOpenedMessage:                State_SwapOutSender_TxBroadcasted,
+				Event_OnCancelReceived:  State_SwapCanceled,
+				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
 			},
 		},
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapOut_Canceled,
-				Event_OnRetry:        State_SendCancel,
+				Event_ActionSucceeded: State_SwapCanceled,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
 		},
-		State_SwapOutSender_TxBroadcasted: {
-			Action: &SwapOutTxBroadCastedAction{},
+		State_SwapOutSender_AwaitTxConfirmation: {
+			Action: &AwaitTxConfirmationAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancelAndAwaitCLTV,
-				Event_OnTxConfirmed:                     State_SwapOutSender_TxConfirmed,
+				Event_ActionFailed:  State_SendCancel,
+				Event_OnTxConfirmed: State_SwapOutSender_ValidateTxAndPayClaimInvoice,
 			},
 		},
-		State_SwapOutSender_TxConfirmed: {
-			Action: &SwapOutTxConfirmedAction{},
+		State_SwapOutSender_ValidateTxAndPayClaimInvoice: {
+			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
-				Event_SwapOutSender_OnAbortSwapInternal: State_SwapOutSender_SendCancelAndAwaitCLTV,
-				Event_SwapOutSender_OnClaimTxPreimage:   State_SwapOutSender_ClaimInvPaid,
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_SwapOutSender_ClaimSwap,
 			},
 		},
-		State_SwapOutSender_ClaimInvPaid: {
-			Action: &SwapOutClaimInvPaidAction{},
+		State_SwapOutSender_ClaimSwap: {
+			Action: &ClaimSwapTransactionWithPreimageAction{},
 			Events: Events{
-				Event_SwapOutSender_FinishSwap: State_ClaimedPreimage,
-				Event_OnRetry:                  State_SwapOutSender_ClaimInvPaid,
+				Event_ActionSucceeded: State_SwapOutSender_SendClaimMessage,
+				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
 			},
 		},
-		State_SwapOutSender_SendCancelAndAwaitCLTV: {
-			Action: &SendCancelAction{},
+		State_SwapOutSender_SendClaimMessage: {
+			Action: &SendMessageAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapOutSender_AwaitCLTV,
+				Event_ActionSucceeded: State_ClaimedPreimage,
+				Event_ActionFailed:    State_ClaimedPreimage,
 			},
 		},
-		State_SwapOutSender_AwaitCLTV: {
-			Action: &NoOpAction{},
-			Events: Events{
-				Event_OnClaimedCltv: State_ClaimedCltv,
-				Event_OnCltvPassed:  State_SwapOut_Canceled,
-			},
-		},
-		State_SwapOut_Canceled: {
+		State_SwapCanceled: {
 			Action: &CancelAction{},
 		},
 		State_ClaimedPreimage: {
-			Action: &NoOpDoneAction{},
-		},
-		State_ClaimedCltv: {
 			Action: &NoOpDoneAction{},
 		},
 	}

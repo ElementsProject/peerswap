@@ -86,6 +86,9 @@ type SwapData struct {
 
 	ClaimTxId string
 
+	NextMessage     PeerMessage
+	ReceivedMessage PeerMessage
+
 	CancelMessage string
 
 	LastErr       error  `json:"-"`

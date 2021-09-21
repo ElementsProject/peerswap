@@ -86,7 +86,7 @@ func (s *SwapInReceiverOpeningTxBroadcastedAction) Execute(services *SwapService
 	}
 	swap.ClaimPaymentHash = invoice.PHash
 
-	return Event_Action_Success
+	return Event_ActionSucceeded
 
 }
 
@@ -125,7 +125,7 @@ func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices,
 		return swap.HandleError(err)
 	}
 	if !ok {
-		return Event_SwapOutSender_OnAbortSwapInternal
+		return Event_ActionFailed
 	}
 	preimage, err := services.lightning.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
@@ -136,24 +136,21 @@ func (s *SwapInReceiverOpeningTxConfirmedAction) Execute(services *SwapServices,
 	return Event_SwapInReceiver_OnClaimInvoicePaid
 }
 
-// SwapInWaitForConfirmationsAction spends the opening transaction to the nodes liquid wallet
-type SwapInReceiverClaimInvoicePaidAction struct{}
+// ClaimSwapTransactionWithPreimageAction spends the opening transaction to the nodes liquid wallet
+type ClaimSwapTransactionWithPreimageAction struct{}
 
-func (s *SwapInReceiverClaimInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
+// todo this is very critical
+func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
-		return swap.HandleError(err)
+		return Event_OnRetry
 	}
-	msg := &ClaimedMessage{
+	swap.NextMessage = ClaimedMessage{
 		SwapId:    swap.Id,
 		ClaimType: CLAIMTYPE_PREIMAGE,
 		ClaimTxId: swap.ClaimTxId,
 	}
-	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	return Event_OnClaimedPreimage
+	return Event_ActionSucceeded
 }
 
 type CancelAction struct{}
@@ -216,8 +213,8 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_OpeningTxBroadcasted: {
 			Action: &SwapInReceiverOpeningTxBroadcastedAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapInReceiver_WaitForConfirmations,
-				Event_ActionFailed:   State_SendCancel,
+				Event_ActionSucceeded: State_SwapInReceiver_WaitForConfirmations,
+				Event_ActionFailed:    State_SendCancel,
 			},
 		},
 		State_SwapInReceiver_WaitForConfirmations: {
@@ -235,7 +232,7 @@ func getSwapInReceiverStates() States {
 			},
 		},
 		State_SwapInReceiver_ClaimInvoicePaid: {
-			Action: &SwapInReceiverClaimInvoicePaidAction{},
+			Action: &ClaimSwapTransactionWithPreimageAction{},
 			Events: Events{
 				Event_OnClaimedPreimage: State_ClaimedPreimage,
 			},
@@ -249,7 +246,7 @@ func getSwapInReceiverStates() States {
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapCanceled,
+				Event_ActionSucceeded: State_SwapCanceled,
 			},
 		},
 		State_SwapCanceled: {

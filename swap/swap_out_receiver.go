@@ -33,10 +33,9 @@ const (
 	Event_OnCltvPassed                             EventType = "Event_OnCltvPassed"
 	Event_SwapOutReceiver_OnCltvClaimed            EventType = "Event_SwapOutReceiver_OnCltvClaimed"
 
-	Event_OnCancelReceived                 EventType = "Event_OnCancelReceived"
-	Event_SwapOutReceiver_OnCancelInternal EventType = "Event_SwapOutReceiver_OnCancelInternal"
+	Event_OnCancelReceived EventType = "Event_OnCancelReceived"
 
-	Event_Action_Success EventType = "Event_Action_Success"
+	Event_ActionSucceeded EventType = "Event_ActionSucceeded"
 )
 
 type CreateSwapFromRequestContext struct {
@@ -66,12 +65,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	if swap.Asset == "l-btc" && !services.liquidEnabled {
 		swap.LastErr = errors.New("l-btc swaps are not supported")
 		swap.CancelMessage = "l-btc swaps are not supported"
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
@@ -79,9 +78,8 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	*swap = *newSwap
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
-		log.Println("HERE I AM")
 		swap.CancelMessage = "peer not allowed to request swaps"
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	//todo check balance/policy if we want to create the swap
 	pubkey := swap.GetPrivkey().PubKey()
@@ -91,13 +89,13 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	pHash := preimage.Hash()
 	log.Printf("maker preimage: %s ", preimage.String())
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
 	if err != nil {
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 
 	swap.ClaimInvoice = payreq
@@ -107,14 +105,14 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		swap.LastErr = err
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 
 	/*
 		 feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
 		 if err != nil {
 
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 		}
 	*/
 	feeSat := swap.OpeningTxFee
@@ -123,12 +121,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
 
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id)
 	if err != nil {
 
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	swap.FeeInvoice = feeInvoice
 	return Event_SwapOutReceiver_OnSwapCreated
@@ -147,7 +145,7 @@ func (s *SendFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) E
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
 
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	return Event_SwapOutReceiver_OnSendFeeInvoiceSuceeded
 }
@@ -158,11 +156,11 @@ type FeeInvoicePaidAction struct{}
 func (b *FeeInvoicePaidAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 	txId, finalizedTx, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
-		return Event_SwapOutReceiver_OnCancelInternal
+		return Event_ActionFailed
 	}
 
 	swap.OpeningTxHex = finalizedTx
@@ -194,7 +192,7 @@ func (s *SwapOutReceiverOpeningTxBroadcastedAction) Execute(services *SwapServic
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	return Event_Action_Success
+	return Event_ActionSucceeded
 }
 
 // CltvPassedAction spends the opening transaction with a signature
@@ -221,7 +219,7 @@ func (c *CltvTxClaimedAction) Execute(services *SwapServices, swap *SwapData) Ev
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	return Event_Action_Success
+	return Event_ActionSucceeded
 }
 
 // SendCancelAction sends a cancel message to the swap peer
@@ -238,9 +236,9 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	}
 	err := messenger.SendMessage(swap.PeerNodeId, msg)
 	if err != nil {
-		return Event_OnRetry
+		return Event_ActionFailed
 	}
-	return Event_Action_Success
+	return Event_ActionSucceeded
 }
 
 // swapOutReceiverFromStore recovers a swap statemachine from the swap store
@@ -273,14 +271,14 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_Init: {
 			Action: &CreateSwapFromRequestAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnSwapCreated:    State_SwapOutReceiver_RequestReceived,
-				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
+				Event_SwapOutReceiver_OnSwapCreated: State_SwapOutReceiver_RequestReceived,
+				Event_ActionFailed:                  State_SendCancel,
 			},
 		},
 		State_SwapOutReceiver_RequestReceived: {
 			Action: &SendFeeInvoiceAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnCancelInternal:         State_SendCancel,
+				Event_ActionFailed: State_SendCancel,
 				Event_SwapOutReceiver_OnSendFeeInvoiceSuceeded: State_SwapOutReceiver_FeeInvoiceSent,
 			},
 		},
@@ -288,25 +286,25 @@ func getSwapOutReceiverStates() States {
 			Action: &NoOpAction{},
 			Events: Events{
 				Event_SwapOutReceiver_OnFeeInvoicePaid: State_SwapOutReceiver_FeeInvoicePaid,
-				Event_OnCancelReceived:                 State_SwapOut_Canceled,
+				Event_OnCancelReceived:                 State_SwapCanceled,
 			},
 		},
 		State_SwapOutReceiver_FeeInvoicePaid: {
 			Action: &FeeInvoicePaidAction{},
 			Events: Events{
-				Event_SwapOutReceiver_OnTxBroadcasted:  State_SwapOutReceiver_OpeningTxBroadcasted,
-				Event_SwapOutReceiver_OnCancelInternal: State_SendCancel,
+				Event_SwapOutReceiver_OnTxBroadcasted: State_SwapOutReceiver_OpeningTxBroadcasted,
+				Event_ActionFailed:                    State_SendCancel,
 			},
 		},
 		State_SwapOutReceiver_OpeningTxBroadcasted: {
 			Action: &SwapOutReceiverOpeningTxBroadcastedAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapOutReceiver_TxMsgSent,
-				Event_ActionFailed:   State_SwapOutReceiver_OpeningTxBroadcasted,
+				Event_ActionSucceeded: State_SwapOutReceiver_TxMsgSent,
+				Event_ActionFailed:    State_SwapOutReceiver_OpeningTxBroadcasted,
 			},
 		},
 		State_SwapOutReceiver_TxMsgSent: {
-			Action: &WaitCltvAction{},
+			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid: State_SwapOutReceiver_ClaimInvoicePaid,
 				Event_OnCancelReceived:   State_SwapOutReceiver_SwapAborted,
@@ -320,7 +318,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_SwapAborted: {
-			Action: &WaitCltvAction{},
+			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnCltvPassed: State_SwapOutReceiver_CltvPassed,
 			},
@@ -335,17 +333,17 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_TxClaimed: {
 			Action: &CltvTxClaimedAction{},
 			Events: Events{
-				Event_Action_Success: State_ClaimedCltv,
-				Event_ActionFailed:   State_ClaimedCltv,
+				Event_ActionSucceeded: State_ClaimedCltv,
+				Event_ActionFailed:    State_ClaimedCltv,
 			},
 		},
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapOut_Canceled,
+				Event_ActionSucceeded: State_SwapCanceled,
 			},
 		},
-		State_SwapOut_Canceled: {
+		State_SwapCanceled: {
 			Action: &CancelAction{},
 		},
 		State_ClaimedCltv: {

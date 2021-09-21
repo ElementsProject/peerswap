@@ -15,7 +15,5 @@ release:
 
 pytest: build
 	pytest ./test
-
-build_mermaid_parser:
-	go build -o mermaid-parser ./contrib/stateparser.go
-	chmod a+x mermaid-parser
+mermaid:
+	go run ./contrib/stateparser.go --dir=./docs

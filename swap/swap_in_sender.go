@@ -124,10 +124,11 @@ func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *
 	return Event_SwapInSender_OnTxMsgSent
 }
 
-// WaitCltvAction adds the opening tx to the txwatcher
-type WaitCltvAction struct{}
+// AwaitCltvAction adds the opening tx to the txwatcher
+type AwaitCltvAction struct{}
 
-func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
+//todo this will never throw an error
+func (w *AwaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
@@ -224,7 +225,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_TxMsgSent: {
-			Action: &WaitCltvAction{},
+			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid: State_SwapInSender_ClaimInvPaid,
 				Event_OnCltvPassed:       State_SwapInSender_CltvPassed,
@@ -247,11 +248,11 @@ func getSwapInSenderStates() States {
 		State_SendCancelThenWaitCltv: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_WaitCltv,
+				Event_ActionSucceeded: State_WaitCltv,
 			},
 		},
 		State_WaitCltv: {
-			Action: &WaitCltvAction{},
+			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnCltvPassed: State_SwapInSender_CltvPassed,
 			},
@@ -259,8 +260,8 @@ func getSwapInSenderStates() States {
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapCanceled,
-				Event_OnRetry:        State_SendCancel,
+				Event_ActionSucceeded: State_SwapCanceled,
+				Event_OnRetry:         State_SendCancel,
 			},
 		},
 		State_SwapCanceled: {

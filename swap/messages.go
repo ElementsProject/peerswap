@@ -47,7 +47,7 @@ type SwapInRequest struct {
 	ProtocolVersion uint64
 }
 
-func (s *SwapInRequest) MessageType() MessageType {
+func (s SwapInRequest) MessageType() MessageType {
 	return MESSAGETYPE_SWAPINREQUEST
 }
 
@@ -61,7 +61,7 @@ type SwapOutRequest struct {
 	ProtocolVersion uint64
 }
 
-func (s *SwapOutRequest) ApplyOnSwap(swap *SwapData) {
+func (s SwapOutRequest) ApplyOnSwap(swap *SwapData) {
 	swap.Id = s.SwapId
 	swap.ChannelId = s.ChannelId
 	swap.Asset = s.Asset
@@ -70,7 +70,7 @@ func (s *SwapOutRequest) ApplyOnSwap(swap *SwapData) {
 	swap.ProtocolVersion = s.ProtocolVersion
 }
 
-func (s *SwapOutRequest) MessageType() MessageType {
+func (s SwapOutRequest) MessageType() MessageType {
 	return MESSAGETYPE_SWAPOUTREQUEST
 }
 
@@ -81,11 +81,11 @@ type FeeMessage struct {
 	Invoice string
 }
 
-func (s *FeeMessage) ApplyOnSwap(swap *SwapData) {
+func (s FeeMessage) ApplyOnSwap(swap *SwapData) {
 	swap.FeeInvoice = s.Invoice
 }
 
-func (s *FeeMessage) MessageType() MessageType {
+func (s FeeMessage) MessageType() MessageType {
 	return MESSAGETYPE_FEERESPONSE
 }
 
@@ -95,11 +95,11 @@ type SwapInAgreementMessage struct {
 	TakerPubkeyHash string
 }
 
-func (s *SwapInAgreementMessage) ApplyOnSwap(swap *SwapData) {
+func (s SwapInAgreementMessage) ApplyOnSwap(swap *SwapData) {
 	swap.TakerPubkeyHash = s.TakerPubkeyHash
 }
 
-func (s *SwapInAgreementMessage) MessageType() MessageType {
+func (s SwapInAgreementMessage) MessageType() MessageType {
 	return MESSAGETYPE_SWAPINAGREEMENT
 }
 
@@ -112,14 +112,14 @@ type TxOpenedMessage struct {
 	Cltv            int64
 }
 
-func (t *TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
+func (t TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.MakerPubkeyHash = t.MakerPubkeyHash
 	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxId = t.TxId
 	swap.Cltv = t.Cltv
 }
 
-func (t *TxOpenedMessage) MessageType() MessageType {
+func (t TxOpenedMessage) MessageType() MessageType {
 	return MESSAGETYPE_TXOPENEDRESPONSE
 }
 
@@ -130,11 +130,11 @@ type ClaimedMessage struct {
 	ClaimTxId string
 }
 
-func (c *ClaimedMessage) ApplyOnSwap(swap *SwapData) {
+func (c ClaimedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.ClaimTxId = c.ClaimTxId
 }
 
-func (c *ClaimedMessage) MessageType() MessageType {
+func (c ClaimedMessage) MessageType() MessageType {
 	return MESSAGETYPE_CLAIMED
 }
 
@@ -144,11 +144,11 @@ type CancelMessage struct {
 	Error  string
 }
 
-func (e *CancelMessage) MessageType() MessageType {
+func (e CancelMessage) MessageType() MessageType {
 	return MESSAGETYPE_CANCELED
 }
 
-func (c *CancelMessage) ApplyOnSwap(swap *SwapData) {
+func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 	swap.CancelMessage = c.Error
 }
 
