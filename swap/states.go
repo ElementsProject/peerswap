@@ -2,10 +2,12 @@ package swap
 
 // Shared States
 const (
-	State_SendCancel StateType = "State_SendCancel"
+	State_SendCancel   StateType = "State_SendCancel"
+	State_SwapCanceled StateType = "State_SwapCanceled"
+	State_WaitCltv     StateType = "State_WaitCltv"
 )
 
-// Swap Out sender states
+// Swap Out Sender States
 const (
 	State_SwapOutSender_CreateSwap                   StateType = "State_SwapOutSender_CreateSwap"
 	State_SwapOutSender_SendRequest                  StateType = "State_SwapOutSender_SendRequest"
@@ -19,7 +21,7 @@ const (
 	State_SwapOutSender_AwaitCLTV                    StateType = "State_SwapOutSender_AwaitCLTV"
 )
 
-// Swap Out receiver states
+// Swap Out Receiver states
 const (
 	State_SwapOutReceiver_CreateSwap               StateType = "State_SwapOutReceiver_CreateSwap"
 	State_SwapOutReceiver_SendFeeInvoice           StateType = "State_SwapOutReceiver_SendFeeInvoice"
@@ -29,6 +31,18 @@ const (
 	State_SwapOutReceiver_AwaitClaimInvoicePayment StateType = "State_SwapOutReceiver_AwaitClaimInvoicePayment"
 	State_SwapOutReceiver_SwapAborted              StateType = "State_SwapOutReceiver_Aborted"
 	State_SwapOutReceiver_ClaimSwap                StateType = "State_SwapOutReceiver_ClaimSwap"
+)
+
+// Swap In Sender States
+const (
+	State_SwapInSender_CreateSwap               StateType = "State_SwapInSender_CreateSwap"
+	State_SwapInSender_SendRequest              StateType = "State_SwapInSender_SendRequest"
+	State_SwapInSender_AwaitAgreement           StateType = "State_SwapInSender_AwaitAgreement"
+	State_SwapInSender_BroadcastOpeningTx       StateType = "State_SwapInSender_BroadcastOpeningTx"
+	State_SwapInSender_SendTxBroadcastedMessage StateType = "State_SwapInSender_SendTxBroadcastedMessage"
+	State_SwapInSender_AwaitClaimPayment        StateType = "State_SwapInSender_AwaitClaimPayment"
+	State_SwapInSender_ClaimInvPaid             StateType = "State_SwapInSender_ClaimInvPaid"
+	State_SwapInSender_ClaimSwap                StateType = "State_SwapInSender_ClaimSwap"
 )
 
 // Events
@@ -52,5 +66,9 @@ const (
 
 	Event_OnCancelReceived EventType = "Event_OnCancelReceived"
 
-	Event_ActionSucceeded EventType = "Event_ActionSucceeded"
+	Event_ActionSucceeded                  EventType = "Event_ActionSucceeded"
+	Event_SwapInSender_OnSwapInRequested   EventType = "Event_SwapInSender_OnSwapInRequested"
+	Event_SwapInSender_OnAgreementReceived EventType = "Event_SwapInSender_OnAgreementReceived"
+
+	Event_ActionFailed EventType = "Event_ActionFailed"
 )

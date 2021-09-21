@@ -26,7 +26,7 @@ func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
 	swap.ProtocolVersion = c.protocolversion
 }
 
-// SwapInSenderInitAction creates the swap data
+// SwapInSenderCreateSwapAction creates the swap data
 type CreateSwapOutAction struct{}
 
 //todo validate data

@@ -31,7 +31,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
-	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
+	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
@@ -39,18 +39,13 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	})
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
-	assert.Equal(t, State_SwapInSender_TxMsgSent, swap.Current)
+	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapInSender_ClaimInvPaid, swap.Current)
-	_, _ = swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{
-		SwapId:    swap.Id,
-		ClaimType: CLAIMTYPE_PREIMAGE,
-		ClaimTxId: "txid",
-	})
 	assert.Equal(t, State_ClaimedPreimage, swap.Current)
+
 }
 func Test_SwapInSenderCancel1(t *testing.T) {
 	swapAmount := uint64(100)
@@ -75,7 +70,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
-	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
+	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +102,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
-	assert.Equal(t, State_SwapInSender_SwapInRequestSent, swap.Current)
+	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
 		SwapId:          swap.Id,
@@ -115,7 +110,7 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	})
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
-	assert.Equal(t, State_SwapInSender_TxMsgSent, swap.Current)
+	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
