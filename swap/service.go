@@ -324,7 +324,7 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, t
 
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
-	done, err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	done, err := swap.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		asset:           asset,
 		peer:            peer,
@@ -380,7 +380,7 @@ func (s *SwapService) OnFeeInvoicePaid(swapId string) error {
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
+	done, err := swap.SendEvent(Event_OnFeeInvoicePaid, nil)
 	if err != nil {
 		return err
 	}

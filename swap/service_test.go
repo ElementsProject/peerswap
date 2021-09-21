@@ -48,12 +48,12 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
 
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
-	assert.Equal(t, State_SwapOutReceiver_FeeInvoiceSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
@@ -157,12 +157,12 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
 
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
-	assert.Equal(t, State_SwapOutReceiver_FeeInvoiceSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
