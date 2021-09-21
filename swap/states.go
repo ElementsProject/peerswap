@@ -42,7 +42,6 @@ const (
 	State_SwapInSender_BroadcastOpeningTx       StateType = "State_SwapInSender_BroadcastOpeningTx"
 	State_SwapInSender_SendTxBroadcastedMessage StateType = "State_SwapInSender_SendTxBroadcastedMessage"
 	State_SwapInSender_AwaitClaimPayment        StateType = "State_SwapInSender_AwaitClaimPayment"
-	State_SwapInSender_ClaimInvPaid             StateType = "State_SwapInSender_ClaimInvPaid"
 	State_SwapInSender_ClaimSwap                StateType = "State_SwapInSender_ClaimSwap"
 )
 

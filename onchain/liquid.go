@@ -46,6 +46,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 		return "", "", 0, 0, 0, err
 	}
 	cltv = int64(blockheight + LiquidCltv)
+
 	redeemScript, err := ParamsToTxScript(swapParams, cltv)
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
@@ -75,6 +76,7 @@ func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex 
 	if err != nil {
 		return "", "", err
 	}
+
 	txId, err = l.elements.SendRawTx(txHex)
 	if err != nil {
 		return "", "", err
@@ -246,14 +248,17 @@ func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, o
 	if err != nil {
 		return false, err
 	}
-	swapInValue, err := elementsutil.SatoshiToElementsValue(swapParams.Amount)
-	if err != nil {
-		return false, err
-	}
+
 	vout, err := l.findVout(openingTx.Outputs, redeemScript)
 	if err != nil {
 		return false, err
 	}
+
+	swapInValue, err := elementsutil.SatoshiToElementsValue(swapParams.Amount)
+	if err != nil {
+		return false, err
+	}
+
 	if bytes.Compare(openingTx.Outputs[vout].Value, swapInValue) != 0 {
 		return false, errors.New("swap value does not match tx value")
 	}

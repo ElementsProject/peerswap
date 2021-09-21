@@ -3,7 +3,6 @@ package clightning
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -142,12 +141,8 @@ func (c *ClightningClient) Start() error {
 }
 
 // SendMessage sends a hexmessage to a peer
-func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) error {
-	messageBytes, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-	msg := swap.MessageTypeToHexString(message.MessageType()) + hex.EncodeToString(messageBytes)
+func (c *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
+	msg := swap.MessageTypeToHexString(swap.MessageType(messageType)) + hex.EncodeToString(message)
 	res, err := c.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
@@ -156,6 +151,23 @@ func (c *ClightningClient) SendMessage(peerId string, message swap.PeerMessage) 
 		return errors.New(res.Message)
 	}
 	return nil
+}
+
+// OnCustomMsg is the hook that c-lightning calls
+func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
+	typeString := event.Payload[:4]
+	payload := event.Payload[4:]
+	payloadDecoded, err := hex.DecodeString(payload)
+	if err != nil {
+		log.Printf("[Messenger] error decoding payload %v", err)
+	}
+	for _, v := range c.msgHandlers {
+		err := v(event.PeerId, typeString, string(payloadDecoded))
+		if err != nil {
+			log.Printf("\n msghandler err: %v", err)
+		}
+	}
+	return event.Continue(), nil
 }
 
 // AddMessageHandler adds a listener for incoming peermessages
@@ -292,23 +304,6 @@ func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.Deco
 	log.Printf("message %s", res.Message)
 
 	return res.PaymentPreimage, nil
-}
-
-// OnCustomMsg is the hook that c-lightning calls
-func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
-	typeString := event.Payload[:4]
-	payload := event.Payload[4:]
-	payloadDecoded, err := hex.DecodeString(payload)
-	if err != nil {
-		log.Printf("[Messenger] error decoding payload %v", err)
-	}
-	for _, v := range c.msgHandlers {
-		err := v(event.PeerId, typeString, string(payloadDecoded))
-		if err != nil {
-			log.Printf("\n msghandler err: %v", err)
-		}
-	}
-	return event.Continue(), nil
 }
 
 // This is called after the plugin starts up successfully

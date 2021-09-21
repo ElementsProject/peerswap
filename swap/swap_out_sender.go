@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 )
 
@@ -37,14 +38,20 @@ func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) Ev
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	swap.NextMessage = SwapOutRequest{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequest{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 		ProtocolVersion: swap.ProtocolVersion,
 		Asset:           swap.Asset,
+	})
+	if err != nil {
+		return swap.HandleError(err)
 	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
+
 	return Event_ActionSucceeded
 }
 
@@ -54,7 +61,8 @@ func (s *SendMessageAction) Execute(services *SwapServices, swap *SwapData) Even
 	if swap.NextMessage == nil {
 		return swap.HandleError(errors.New("swap.NextMessage is nil"))
 	}
-	err := services.messenger.SendMessage(swap.PeerNodeId, swap.NextMessage)
+
+	err := services.messenger.SendMessage(swap.PeerNodeId, swap.NextMessage, swap.NextMessageType)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -120,31 +128,31 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	lc := services.lightning
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	// todo this might fail, msats...
 	if invoice.Amount != swap.Amount*1000 {
-		return swap.HandleError(errors.New("invoice amount does not equal swap amount"))
+		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", invoice.Amount, swap.Amount))
 	}
 
 	swap.ClaimPaymentHash = invoice.PHash
 
 	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	if !ok {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.ClaimPreimage = preimageString
 	return Event_ActionSucceeded

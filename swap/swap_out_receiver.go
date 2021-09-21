@@ -94,20 +94,24 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
-
 		return Event_ActionFailed
 	}
 	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id)
 	if err != nil {
-
 		return Event_ActionFailed
 	}
 	swap.FeeInvoice = feeInvoice
 
-	swap.NextMessage = FeeMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&FeeMessage{
 		SwapId:  swap.Id,
 		Invoice: swap.FeeInvoice,
+	})
+	if err != nil {
+		return swap.HandleError(err)
 	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
+
 	return Event_ActionSucceeded
 }
 
@@ -127,15 +131,18 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	swap.OpeningTxHex = finalizedTx
 	swap.OpeningTxId = txId
 
-	// todo this will never throw an error
-
-	swap.NextMessage = TxOpenedMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
+	})
+	if err != nil {
+		return swap.HandleError(err)
 	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
 
 	return Event_ActionSucceeded
 }
@@ -160,11 +167,13 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 		log.Printf("[FSM] Canceling because of %s", swap.LastErr.Error())
 	}
 	messenger := services.messenger
-	msg := &CancelMessage{
+
+	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
 		SwapId: swap.Id,
 		Error:  swap.CancelMessage,
-	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
+	})
+
+	err = messenger.SendMessage(swap.PeerNodeId, msgBytes, msgType)
 	if err != nil {
 		return Event_ActionFailed
 	}

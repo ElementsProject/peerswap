@@ -64,7 +64,6 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("new block on %s height: %d", s.blockchain, currentBlock)
 
 	go s.StartBlockWatcher(currentBlock)
 	go func() error {
@@ -73,7 +72,6 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 			case <-s.ctx.Done():
 				return nil
 			case nb := <-s.newBlockChan:
-				log.Printf("new block on %s height: %d", s.blockchain, nb)
 				err := s.HandleConfirmedTx(nb)
 				if err != nil {
 					return err

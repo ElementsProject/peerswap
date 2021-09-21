@@ -2,6 +2,7 @@ package swap
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log"
 )
@@ -34,11 +35,24 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 	swap.Role = SWAPROLE_RECEIVER
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	swap.NextMessage = SwapInAgreementMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInAgreementMessage{
 		SwapId:          swap.Id,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
+	})
+	if err != nil {
+		return swap.HandleError(err)
 	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
 	return Event_ActionSucceeded
+}
+
+func MarshalPeerswapMessage(msg PeerMessage) ([]byte, int, error) {
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return nil, 0, err
+	}
+	return msgBytes, int(msg.MessageType()), nil
 }
 
 func (s *SwapData) HandleError(err error) EventType {

@@ -13,7 +13,34 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
-	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+
+	swap.Role = SWAPROLE_SENDER
+	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequest{
+		SwapId:          swap.Id,
+		ChannelId:       swap.ChannelId,
+		Amount:          swap.Amount,
+		Asset:           swap.Asset,
+		ProtocolVersion: swap.ProtocolVersion,
+	})
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
+
+	return Event_ActionSucceeded
+}
+
+type CreateAndBroadcastOpeningTransaction struct{}
+
+func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	pubkey := swap.GetPrivkey().PubKey()
 
 	swap.Role = SWAPROLE_SENDER
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
@@ -36,14 +63,26 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
-	swap.NextMessage = SwapInRequest{
-		SwapId:          swap.Id,
-		ChannelId:       swap.ChannelId,
-		Amount:          swap.Amount,
-		Asset:           swap.Asset,
-		ProtocolVersion: swap.ProtocolVersion,
+	txId, txHex, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	if err != nil {
+		return swap.HandleError(err)
 	}
+	swap.OpeningTxHex = txHex
+	swap.OpeningTxId = txId
+
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
+		SwapId:          swap.Id,
+		MakerPubkeyHash: swap.MakerPubkeyHash,
+		Invoice:         swap.ClaimInvoice,
+		TxId:            swap.OpeningTxId,
+		Cltv:            swap.Cltv,
+	})
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
+
 	return Event_ActionSucceeded
 }
 
@@ -112,7 +151,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_BroadcastOpeningTx: {
-			Action: &BroadCastOpeningTxAction{},
+			Action: &CreateAndBroadcastOpeningTransaction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInSender_SendTxBroadcastedMessage,
 				Event_ActionFailed:    State_SendCancel,

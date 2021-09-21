@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
 	"go.etcd.io/bbolt"
 )
 
@@ -36,6 +35,9 @@ func (p *bboltStore) GetData(id string) (*SwapStateMachine, error) {
 	swap, err := p.GetById(id)
 	if err == ErrDoesNotExist {
 		return nil, ErrDataNotAvailable
+	}
+	if err != nil {
+		return nil, err
 	}
 	return swap, nil
 }

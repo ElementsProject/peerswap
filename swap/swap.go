@@ -86,8 +86,8 @@ type SwapData struct {
 
 	ClaimTxId string
 
-	NextMessage     PeerMessage
-	ReceivedMessage PeerMessage
+	NextMessage     []byte
+	NextMessageType int
 
 	CancelMessage string
 

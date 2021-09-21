@@ -230,12 +230,18 @@ type dummyMessenger struct {
 func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
 }
 
-func (d *dummyMessenger) SendMessage(peerId string, msg PeerMessage) error {
+func (d *dummyMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
 	log.Printf("Dummy sending message %v to %s", msg, peerId)
 	if d.msgChan != nil {
-		go func() { d.msgChan <- msg }()
+		go func() { d.msgChan <- DummyMessageType(msgType) }()
 	}
 	return nil
+}
+
+type DummyMessageType MessageType
+
+func (d DummyMessageType) MessageType() MessageType {
+	return MessageType(d)
 }
 
 type dummyLightningClient struct {
