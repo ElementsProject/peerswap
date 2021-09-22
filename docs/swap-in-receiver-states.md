@@ -1,0 +1,28 @@
+```mermaid
+stateDiagram-v2
+State_SwapInReceiver_ClaimSwap
+State_SwapInReceiver_ClaimSwap --> State_ClaimedPreimage: Event_ActionSucceeded
+State_SwapInReceiver_ClaimSwap --> State_SwapInReceiver_ClaimSwap: Event_OnRetry
+State_ClaimedPreimage
+State_SwapInReceiver_AwaitTxBroadcastedMessage
+State_SwapInReceiver_AwaitTxBroadcastedMessage --> State_SwapInReceiver_AwaitTxConfirmation: Event_OnTxOpenedMessage
+State_SwapInReceiver_AwaitTxBroadcastedMessage --> State_SwapCanceled: Event_OnCancelReceived
+State_SwapInReceiver_AwaitTxConfirmation
+State_SwapInReceiver_AwaitTxConfirmation --> State_SwapInReceiver_ValidateTxAndPayClaimInvoice: Event_OnTxConfirmed
+State_SwapInReceiver_AwaitTxConfirmation --> State_SendCancel: Event_ActionFailed
+State_SwapInReceiver_AwaitTxConfirmation --> State_SwapCanceled: Event_OnCancelReceived
+State_SwapInReceiver_ValidateTxAndPayClaimInvoice
+State_SwapInReceiver_ValidateTxAndPayClaimInvoice --> State_SwapInReceiver_ClaimSwap: Event_ActionSucceeded
+State_SwapInReceiver_ValidateTxAndPayClaimInvoice --> State_SendCancel: Event_ActionFailed
+State_SendCancel
+State_SendCancel --> State_SwapCanceled: Event_ActionFailed
+State_SendCancel --> State_SwapCanceled: Event_ActionSucceeded
+State_SwapCanceled
+[*] --> State_SwapInReceiver_CreateSwap: Event_SwapInReceiver_OnRequestReceived
+State_SwapInReceiver_CreateSwap
+State_SwapInReceiver_CreateSwap --> State_SwapInReceiver_SendAgreement: Event_ActionSucceeded
+State_SwapInReceiver_CreateSwap --> State_SendCancel: Event_ActionFailed
+State_SwapInReceiver_SendAgreement
+State_SwapInReceiver_SendAgreement --> State_SwapInReceiver_AwaitTxBroadcastedMessage: Event_ActionSucceeded
+State_SwapInReceiver_SendAgreement --> State_SendCancel: Event_ActionFailed
+```
