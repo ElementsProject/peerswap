@@ -31,7 +31,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
-	assert.Equal(t, State_SwapInReceiver_AgreementSent, swap.Current)
+	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		SwapId:          swap.Id,
@@ -43,13 +43,13 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapInReceiver_WaitForConfirmations, swap.Current)
+
+	assert.Equal(t, State_SwapInReceiver_AwaitTxConfirmation, swap.Current)
 	_, err = swap.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg = <-msgChan
-	assert.Equal(t, MESSAGETYPE_CLAIMED, msg.MessageType())
+
 	assert.Equal(t, State_ClaimedPreimage, swap.Current)
 
 }
@@ -77,7 +77,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
-	assert.Equal(t, State_SwapInReceiver_AgreementSent, swap.Current)
+	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
@@ -111,7 +111,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	}
 	msg := <-msgChan
 	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
-	assert.Equal(t, State_SwapInReceiver_AgreementSent, swap.Current)
+	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		SwapId:          swap.Id,
@@ -123,7 +123,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapInReceiver_WaitForConfirmations, swap.Current)
+	assert.Equal(t, State_SwapInReceiver_AwaitTxConfirmation, swap.Current)
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)

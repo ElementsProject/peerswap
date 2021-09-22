@@ -11,8 +11,8 @@ func main() {
 	dir := flag.String("dir", "./", "destination directory")
 	flag.Parse()
 
-	swap.SwapInReceiverStatesToMermaid(filepath.Join(*dir, "states_swapin_receiver.md"))
-	swap.SwapOutReceiverStatesToMermaid(filepath.Join(*dir, "states_swapout_receiver.md"))
-	swap.SwapInSenderStatesToMermaid(filepath.Join(*dir, "states_swapin_sender.md"))
-	swap.SwapOutSenderStatesToMermaid(filepath.Join(*dir, "states_swapout_sender.md"))
+	swap.SwapInSenderStatesToMermaid(filepath.Join(*dir, "swap-in-sender-states.md"))
+	swap.SwapInReceiverStatesToMermaid(filepath.Join(*dir, "swap-in-receiver-states.md"))
+	swap.SwapOutSenderStatesToMermaid(filepath.Join(*dir, "swap-out-sender-states.md"))
+	swap.SwapOutReceiverStatesToMermaid(filepath.Join(*dir, "swap-out-receiver-states.md"))
 }

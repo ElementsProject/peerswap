@@ -202,10 +202,10 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		case <-ctx.Done():
 			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 		default:
-			if swapOut.Current == swap.State_SwapOutSender_RequestSent || swapOut.Current == swap.State_SwapOutSender_FeeInvoiceReceived || swapOut.Current == swap.State_SwapOutSender_FeeInvoicePaid {
+			if swapOut.Current == swap.State_SwapOutSender_AwaitFeeResponse || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
 				continue
 			}
-			if swapOut.Current == swap.State_SwapOut_Canceled {
+			if swapOut.Current == swap.State_SwapCanceled {
 				if swapOut.Data.CancelMessage != "" {
 					return nil, errors.New(fmt.Sprintf("Swap canceled, cancel message: %s", swapOut.Data.CancelMessage))
 				}
@@ -215,7 +215,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 				return nil, swapOut.Data.LastErr
 
 			}
-			if swapOut.Current == swap.State_SwapOutSender_TxBroadcasted {
+			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
 				return swapOut.Data.ToPrettyPrint(), nil
 			}
 
@@ -314,7 +314,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		case <-ctx.Done():
 			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 		default:
-			if swapIn.Current == swap.State_SwapInSender_SwapInRequestSent || swapIn.Current == swap.State_SwapInSender_AgreementReceived {
+			if swapIn.Current == swap.State_SwapInSender_AwaitAgreement || swapIn.Current == swap.State_SwapInSender_BroadcastOpeningTx {
 				continue
 			}
 			if swapIn.Current == swap.State_SwapCanceled {
@@ -327,7 +327,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 				return nil, swapIn.Data.LastErr
 
 			}
-			if swapIn.Current == swap.State_SwapInSender_TxBroadcasted {
+			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
 				return swapIn.Data.ToPrettyPrint(), nil
 			}
 

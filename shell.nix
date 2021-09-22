@@ -7,7 +7,7 @@ let
 in with pkgs;
 stdenv.mkDerivation rec {
     name = "peerswap-dev-env";
-    nativeBuildInputs = [openssl];
+    # nativeBuildInputs = [nodejs];
     buildInputs = [peerswap-pkgs.devpkgs];
     
     shellHook = ''

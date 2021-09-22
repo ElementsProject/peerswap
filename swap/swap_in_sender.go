@@ -2,70 +2,40 @@ package swap
 
 import (
 	"encoding/hex"
-
 	"github.com/sputn1ck/peerswap/lightning"
 )
 
-const (
-	State_SwapInSender_Init              StateType = "State_SwapInSender_Init"
-	State_SwapInSender_Created           StateType = "State_SwapInSender_Created"
-	State_SwapInSender_SwapInRequestSent StateType = "State_SwapInSender_SwapInRequestSent"
-	State_SwapInSender_AgreementReceived StateType = "State_SwapInSender_AgreementReceived"
-	State_SwapInSender_TxBroadcasted     StateType = "State_SwapInSender_TxBroadcasted"
-	State_SwapInSender_TxMsgSent         StateType = "State_SwapInSender_TxMsgSent"
-	State_SwapInSender_ClaimInvPaid      StateType = "State_SwapInSender_ClaimInvPaid"
-	State_SwapInSender_CltvPassed        StateType = "State_SwapInSender_CltvPassed"
+// SwapInSenderCreateSwapAction creates the swap data
+type SwapInSenderCreateSwapAction struct{}
 
-	State_SwapCanceled           StateType = "State_SwapCanceled"
-	State_SendCancelThenWaitCltv StateType = "State_SendCancelThenWaitCltv"
-	State_WaitCltv               StateType = "State_WaitCltv"
-
-	Event_SwapInSender_OnSwapInRequested   EventType = "Event_SwapInSender_OnSwapInRequested"
-	Event_SwapInSender_OnSwapInCreated     EventType = "Event_SwapInSender_OnSwapInCreated"
-	Event_SwapInSender_OnSwapInRequestSent EventType = "Event_SwapInSender_OnSwapInRequestSent"
-	Event_SwapInSender_OnAgreementReceived EventType = "Event_SwapInSender_OnAgreementReceived"
-	Event_SwapInSender_OnTxBroadcasted     EventType = "Event_SwapInSender_OnTxBroadcasted"
-	Event_SwapInSender_OnTxMsgSent         EventType = "Event_SwapInSender_OnTxMsgSent"
-
-	Event_ActionFailed EventType = "Event_ActionFailed"
-)
-
-// SwapInSenderInitAction creates the swap data
-type SwapInSenderInitAction struct{}
-
-func (s *SwapInSenderInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
+func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
 	*swap = *newSwap
-	return Event_SwapInSender_OnSwapInCreated
-}
-
-// SwapInSenderCreatedAction sends the request to the swap peer
-type SwapInSenderCreatedAction struct{}
-
-func (s *SwapInSenderCreatedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	messenger := services.messenger
 
 	pubkey := swap.GetPrivkey().PubKey()
-	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	msg := &SwapInRequest{
+	swap.Role = SWAPROLE_SENDER
+	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequest{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
 		Asset:           swap.Asset,
 		ProtocolVersion: swap.ProtocolVersion,
-	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
+	})
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	return Event_SwapInSender_OnSwapInRequestSent
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
+
+	return Event_ActionSucceeded
 }
 
-// SwapInSenderAgreementReceivedAction creates and broadcasts the redeem transaction
-type SwapInSenderAgreementReceivedAction struct{}
+type CreateAndBroadcastOpeningTransaction struct{}
 
-func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, swap *SwapData) EventType {
+func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
@@ -100,34 +70,27 @@ func (s *SwapInSenderAgreementReceivedAction) Execute(services *SwapServices, sw
 	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
 
-	return Event_SwapInSender_OnTxBroadcasted
-}
-
-// SwapInSenderTxBroadcastedAction sends the claim tx information to the swap peer
-type SwapInSenderTxBroadcastedAction struct{}
-
-func (s *SwapInSenderTxBroadcastedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	messenger := services.messenger
-
-	msg := &TxOpenedMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
-	}
-	err := messenger.SendMessage(swap.PeerNodeId, msg)
+	})
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
 
-	return Event_SwapInSender_OnTxMsgSent
+	return Event_ActionSucceeded
 }
 
-// WaitCltvAction adds the opening tx to the txwatcher
-type WaitCltvAction struct{}
+// AwaitCltvAction adds the opening tx to the txwatcher
+type AwaitCltvAction struct{}
 
-func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
+//todo this will never throw an error
+func (w *AwaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
@@ -137,27 +100,6 @@ func (w *WaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 		return swap.HandleError(err)
 	}
 	return NoOp
-}
-
-// SwapInSenderCltvPassedAction claims the claim tx and sends the claim msg to the swap peer
-type SwapInSenderCltvPassedAction struct{}
-
-func (s *SwapInSenderCltvPassedAction) Execute(services *SwapServices, swap *SwapData) EventType {
-
-	err := CreateCltvSpendingTransaction(services, swap)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	msg := &ClaimedMessage{
-		SwapId:    swap.Id,
-		ClaimType: CLAIMTYPE_CLTV,
-		ClaimTxId: swap.ClaimTxId,
-	}
-	err = services.messenger.SendMessage(swap.PeerNodeId, msg)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	return Event_OnClaimedCltv
 }
 
 // swapInSenderFromStore recovers a swap statemachine from the swap store
@@ -184,83 +126,70 @@ func getSwapInSenderStates() States {
 	return States{
 		Default: State{
 			Events: Events{
-				Event_SwapInSender_OnSwapInRequested: State_SwapInSender_Init,
+				Event_SwapInSender_OnSwapInRequested: State_SwapInSender_CreateSwap,
 			},
 		},
-		State_SwapInSender_Init: {
-			Action: &SwapInSenderInitAction{},
+		State_SwapInSender_CreateSwap: {
+			Action: &SwapInSenderCreateSwapAction{},
 			Events: Events{
-				Event_SwapInSender_OnSwapInCreated: State_SwapInSender_Created,
-				Event_ActionFailed:                 State_SwapCanceled,
+				Event_ActionSucceeded: State_SwapInSender_SendRequest,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
 		},
-		State_SwapInSender_Created: {
-			Action: &SwapInSenderCreatedAction{},
+		State_SwapInSender_SendRequest: {
+			Action: &SendMessageAction{},
 			Events: Events{
-				Event_SwapInSender_OnSwapInRequestSent: State_SwapInSender_SwapInRequestSent,
-				Event_ActionFailed:                     State_SwapCanceled,
+				Event_ActionSucceeded: State_SwapInSender_AwaitAgreement,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
 		},
-		State_SwapInSender_SwapInRequestSent: {
+		State_SwapInSender_AwaitAgreement: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_AgreementReceived,
+				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_BroadcastOpeningTx,
 				Event_OnCancelReceived:                 State_SwapCanceled,
 			},
 		},
-		State_SwapInSender_AgreementReceived: {
-			Action: &SwapInSenderAgreementReceivedAction{},
+		State_SwapInSender_BroadcastOpeningTx: {
+			Action: &CreateAndBroadcastOpeningTransaction{},
 			Events: Events{
-				Event_SwapInSender_OnTxBroadcasted: State_SwapInSender_TxBroadcasted,
-				Event_ActionFailed:                 State_SendCancel,
+				Event_ActionSucceeded: State_SwapInSender_SendTxBroadcastedMessage,
+				Event_ActionFailed:    State_SendCancel,
 			},
 		},
-		State_SwapInSender_TxBroadcasted: {
-			Action: &SwapInSenderTxBroadcastedAction{},
+		State_SwapInSender_SendTxBroadcastedMessage: {
+			Action: &SendMessageAction{},
 			Events: Events{
-				Event_SwapInSender_OnTxMsgSent: State_SwapInSender_TxMsgSent,
-				Event_OnCltvPassed:             State_SwapInSender_CltvPassed,
-				Event_ActionFailed:             State_SendCancelThenWaitCltv,
+				Event_ActionSucceeded: State_SwapInSender_AwaitClaimPayment,
+				Event_ActionFailed:    State_WaitCltv,
 			},
 		},
-		State_SwapInSender_TxMsgSent: {
-			Action: &WaitCltvAction{},
+		State_SwapInSender_AwaitClaimPayment: {
+			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnClaimInvoicePaid: State_SwapInSender_ClaimInvPaid,
-				Event_OnCltvPassed:       State_SwapInSender_CltvPassed,
+				Event_OnClaimInvoicePaid: State_ClaimedPreimage,
+				Event_OnCltvPassed:       State_SwapInSender_ClaimSwap,
 				Event_OnCancelReceived:   State_WaitCltv,
 			},
 		},
-		State_SwapInSender_ClaimInvPaid: {
-			Action: &NoOpAction{},
+		State_SwapInSender_ClaimSwap: {
+			Action: &ClaimSwapTransactionWithCltv{},
 			Events: Events{
-				Event_OnClaimedPreimage: State_ClaimedPreimage,
-			},
-		},
-		State_SwapInSender_CltvPassed: {
-			Action: &SwapInSenderCltvPassedAction{},
-			Events: Events{
-				Event_OnClaimedCltv: State_ClaimedCltv,
-				Event_ActionFailed:  State_SwapCanceled,
-			},
-		},
-		State_SendCancelThenWaitCltv: {
-			Action: &SendCancelAction{},
-			Events: Events{
-				Event_Action_Success: State_WaitCltv,
+				Event_ActionSucceeded: State_ClaimedCltv,
+				Event_OnRetry:         State_SwapInSender_ClaimSwap,
 			},
 		},
 		State_WaitCltv: {
-			Action: &WaitCltvAction{},
+			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnCltvPassed: State_SwapInSender_CltvPassed,
+				Event_OnCltvPassed: State_SwapInSender_ClaimSwap,
 			},
 		},
 		State_SendCancel: {
 			Action: &SendCancelAction{},
 			Events: Events{
-				Event_Action_Success: State_SwapCanceled,
-				Event_OnRetry:        State_SendCancel,
+				Event_ActionSucceeded: State_SwapCanceled,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
 		},
 		State_SwapCanceled: {

@@ -7,10 +7,9 @@
   - [Messages](#messages)
     - [Swap out request](#swap-out-request)
     - [Swap in request](#swap-in-request)
+    - [Swap out agreement response](#swap-out-agreement-response)
     - [Swap in agreement response](#swap-in-agreement-response)
-    - [Fee response](#fee-response)
     - [Tx opened response](#tx-opened-response)
-    - [Claim message](#claim-message)
     - [Cancel message](#cancel-message)
   - [Notes](#notes)
     - [Premiums](#premiums)
@@ -21,11 +20,11 @@
 
 ### Swap out
 
-![swap out](img/SwapOut.png)
+![swap out](img/swap-out-sequence.png)
 
 ### Swap in
 
-![swap in](img/SwapIn.png)
+![swap in](img/swap-in-sequence.png)
 
 ## Messages
 
@@ -55,22 +54,22 @@
 }
 ```
 
+### Swap out agreement response
+
+```go
+{
+  SwapId: string 
+  Invoice: string  // Bolt11 string of fee invoice
+  Premium: uint64 // Premium that bob wants in order to accept the swap
+}
+```
+
 ### Swap in agreement response
 
 ```go
 {
   SwapId: string
   PubkeyHash: string // Taker PubkeyHash, for creating/verifying the bitcoin script
-  Premium: uint64 // Premium that bob wants in order to accept the swap
-}
-```
-
-### Fee response
-
-```go
-{
-  SwapId: string 
-  Invoice: string  // Bolt11 string of fee invoice
   Premium: uint64 // Premium that bob wants in order to accept the swap
 }
 ```
@@ -83,15 +82,6 @@
   PubkeyHash: string // Maker pubkey hash, for verifying the bitcoin script
   Payreq: string // Invoice that claims the transaction
   TxId: string // TxId of broadcasted commitment transaction
-}
-```
-
-### Claim message
-
-```go
-{
-  SwapId: string 
-  TxId:  string // TxId of claim transaction
 }
 ```
 

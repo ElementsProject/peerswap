@@ -1,7 +1,6 @@
 package swap
 
 import (
-	"encoding/json"
 	"log"
 	"testing"
 	"time"
@@ -22,8 +21,8 @@ func Test_GoodCase(t *testing.T) {
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
-	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
-	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
 
 	aliceMsgChan := aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
 	bobMsgChan := bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
@@ -41,22 +40,22 @@ func Test_GoodCase(t *testing.T) {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
 	bobReceivedMsg := <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
 
-	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, aliceSwap.Current)
-	assert.Equal(t, State_SwapOutReceiver_FeeInvoiceSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
-	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
 	err = aliceSwapService.swapServices.liquidOnchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
@@ -69,8 +68,6 @@ func Test_GoodCase(t *testing.T) {
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "claim_" + bobSwap.Id,
 	})
-	bobReceivedMsg = <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_CLAIMED, bobReceivedMsg.MessageType())
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
@@ -88,8 +85,8 @@ func Test_FeePaymentFailed(t *testing.T) {
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
-	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
-	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
 
 	aliceMsgChan := aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
 	bobMsgChan := bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
@@ -107,18 +104,18 @@ func Test_FeePaymentFailed(t *testing.T) {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
 	bobReceivedMsg := <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
 	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.Id)
 	assert.NoError(t, err)
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
 
-	assert.Equal(t, State_SwapOut_Canceled, aliceSwap.Current)
+	assert.Equal(t, State_SwapCanceled, aliceSwap.Current)
 
 	bobReceivedMsg = <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg.MessageType())
-	assert.Equal(t, State_SwapOut_Canceled, bobSwap.Current)
+	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg)
+	assert.Equal(t, State_SwapCanceled, bobSwap.Current)
 }
 func Test_ClaimPaymentFailed(t *testing.T) {
 	channelId := "chanId"
@@ -131,8 +128,8 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
-	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
-	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan PeerMessage)
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan MessageType)
 
 	aliceMsgChan := aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
 	bobMsgChan := bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
@@ -150,22 +147,22 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
 	bobReceivedMsg := <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
 
-	assert.Equal(t, State_SwapOutSender_FeeInvoicePaid, aliceSwap.Current)
-	assert.Equal(t, State_SwapOutReceiver_FeeInvoiceSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
-	assert.Equal(t, State_SwapOutReceiver_TxMsgSent, bobSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
-	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
@@ -176,22 +173,18 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 	// wants to await the cltv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
-	assert.Equal(t, State_SwapOutSender_AwaitCLTV, aliceSwap.Current)
+	assert.Equal(t, State_SwapCanceled, aliceSwap.Current)
 
 	// trigger bob payment received
 
 	bobReceivedMsg = <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg.MessageType())
+	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg)
 	assert.Equal(t, State_SwapOutReceiver_SwapAborted, bobSwap.Current)
 	err = bobSwapService.swapServices.liquidOnchain.(*dummyChain).cltvPassedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceReceivedMsg = <-aliceMsgChan
-
-	assert.Equal(t, MESSAGETYPE_CLAIMED, aliceReceivedMsg.MessageType())
 	assert.Equal(t, State_ClaimedCltv, bobSwap.Current)
-	assert.Equal(t, State_ClaimedCltv, aliceSwap.Current)
 }
 
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
@@ -278,23 +271,19 @@ type ConnectedMessenger struct {
 	thisPeerId      string
 	OnMessage       func(peerId string, msgType string, msgBytes string) error
 	other           *ConnectedMessenger
-	msgReceivedChan chan PeerMessage
+	msgReceivedChan chan MessageType
 }
 
-func (c *ConnectedMessenger) SendMessage(peerId string, msg PeerMessage) error {
+func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
 	go func() {
 		time.Sleep(time.Millisecond * 10)
-		msgBytes, err := json.Marshal(msg)
-		if err != nil {
-			log.Printf("error on marshalling %v", err)
-		}
-		msgString := MessageTypeToHexString(msg.MessageType())
-		err = c.other.OnMessage(c.thisPeerId, msgString, string(msgBytes))
+		msgString := MessageTypeToHexString(MessageType(msgType))
+		err := c.other.OnMessage(c.thisPeerId, msgString, string(msg))
 		if err != nil {
 			log.Printf("error on message send %v", err)
 		}
 		if c.other.msgReceivedChan != nil {
-			c.other.msgReceivedChan <- msg
+			c.other.msgReceivedChan <- MessageType(msgType)
 		}
 	}()
 

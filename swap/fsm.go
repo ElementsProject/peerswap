@@ -109,17 +109,35 @@ func (s *SwapStateMachine) getNextState(event EventType) (StateType, error) {
 	return Default, ErrEventRejected
 }
 
+// EventIsValid returns true if the event is valid for the current statemachine transition
+func (s *SwapStateMachine) EventIsValid(event EventType) bool {
+	nextState, err := s.getNextState(event)
+	if err != nil {
+		return false
+	}
+
+	// Identify the state definition for the next state.
+	state, ok := s.States[nextState]
+	if !ok || state.Action == nil {
+		// configuration error
+		return false
+	}
+
+	return true
+}
+
 // SendEvent sends an event to the state machine.
 func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if eventCtx != nil {
-		eventCtx.ApplyOnSwap(s.Data)
-	}
-
 	if event == Event_Done {
 		return true, nil
+	}
+
+	// apply new event data
+	if eventCtx != nil && s.EventIsValid(event) {
+		eventCtx.ApplyOnSwap(s.Data)
 	}
 
 	for {

@@ -86,6 +86,9 @@ type SwapData struct {
 
 	ClaimTxId string
 
+	NextMessage     []byte
+	NextMessageType int
+
 	CancelMessage string
 
 	LastErr       error  `json:"-"`

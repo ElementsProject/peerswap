@@ -246,7 +246,7 @@ func (s *SwapService) SwapOut(peer string, asset string, channelId string, initi
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
-	done, err := swap.SendEvent(Event_SwapOutSender_OnSwapOutRequested, &SwapCreationContext{
+	done, err := swap.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
 		amount:          amount,
 		asset:           asset,
 		initiatorId:     initiator,
@@ -324,7 +324,7 @@ func (s *SwapService) OnSwapOutRequestReceived(peer, asset, channelId, swapId, t
 
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId, swap)
-	done, err := swap.SendEvent(Event_SwapOutReceiver_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
+	done, err := swap.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
 		amount:          amount,
 		asset:           asset,
 		peer:            peer,
@@ -364,7 +364,7 @@ func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_SwapOutSender_OnFeeInvReceived, &FeeMessage{Invoice: feeInvoice})
+	done, err := swap.SendEvent(Event_OnFeeInvoiceReceived, &FeeMessage{Invoice: feeInvoice})
 	if err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (s *SwapService) OnFeeInvoicePaid(swapId string) error {
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_SwapOutReceiver_OnFeeInvoicePaid, nil)
+	done, err := swap.SendEvent(Event_OnFeeInvoicePaid, nil)
 	if err != nil {
 		return err
 	}
