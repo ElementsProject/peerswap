@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -97,16 +98,21 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 		return "", "", err
 	}
 
-	tx, sigBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
 	if err != nil {
 		return "", "", err
 	}
+	sigBytes,err := claimParams.Signer.Sign(sigHash)
+	if err != nil {
+		return "", "", err
+	}
+
 	preimage, err := lightning.MakePreimageFromStr(claimParams.Preimage)
 	if err != nil {
 		return "", "", err
 	}
 
-	tx.TxIn[0].Witness = GetPreimageWitness(sigBytes, preimage[:], redeemScript)
+	tx.TxIn[0].Witness = GetPreimageWitness(sigBytes.Serialize(), preimage[:], redeemScript)
 
 	bytesBuffer := new(bytes.Buffer)
 
@@ -125,12 +131,16 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 }
 
 func (b *BitcoinOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-	tx, sigBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
+	if err != nil {
+		return "", "", err
+	}
+	sigBytes,err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
 		return "", "", err
 	}
 
-	tx.TxIn[0].Witness = GetCltvWitness(sigBytes, redeemScript)
+	tx.TxIn[0].Witness = GetCltvWitness(sigBytes.Serialize(), redeemScript)
 
 	bytesBuffer := new(bytes.Buffer)
 
@@ -148,7 +158,59 @@ func (b *BitcoinOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningP
 	return txId, txHex, nil
 }
 
-func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (tx *wire.MsgTx, sigBytes, redeemScript []byte, err error) {
+func (b *BitcoinOnChain) PrepareCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txHex, sigHash string, error error) {
+	tx, sigHashBytes, _, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
+	if err != nil {
+		return "", "", err
+	}
+
+
+	bytesBuffer := new(bytes.Buffer)
+	err = tx.Serialize(bytesBuffer)
+	if err != nil {
+		return "", "", err
+	}
+
+	txHex = hex.EncodeToString(bytesBuffer.Bytes())
+	sigHash = hex.EncodeToString(sigHashBytes)
+	log.Printf("%s", sigHash)
+	return txHex, sigHash, nil
+}
+func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error){
+	tx, sigHashBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, openingTxHex, vout)
+	if err != nil {
+		return "", "", err
+	}
+
+	log.Printf("sighash at cooperative %s", hex.EncodeToString(sigHashBytes))
+	sigBytes,err := claimParams.Signer.Sign(sigHashBytes)
+	if err != nil {
+		return "", "", err
+	}
+
+	takerSigBytes, err := hex.DecodeString(takerSignatureHex)
+	if err != nil {
+		return "", "", err
+	}
+
+	tx.TxIn[0].Witness = GetCooperativeWitness(takerSigBytes, sigBytes.Serialize(), redeemScript)
+
+	bytesBuffer := new(bytes.Buffer)
+
+	err = tx.Serialize(bytesBuffer)
+	if err != nil {
+		return "", "", err
+	}
+
+	txHex = hex.EncodeToString(bytesBuffer.Bytes())
+
+	txId, err = b.gbitcoin.SendRawTx(txHex)
+	if err != nil {
+		return "", "", err
+	}
+	return txId, txHex, nil
+}
+func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
 	openingMsgTx := wire.NewMsgTx(2)
 	txBytes, err := hex.DecodeString(openingTxHex)
 	if err != nil {
@@ -215,16 +277,12 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	spendingTx.TxOut[0].Value = spendingTx.TxOut[0].Value - int64(fee)
 
 	sigHashes := txscript.NewTxSigHashes(spendingTx)
-	sigHash, err := txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, int64(swapParams.Amount))
+	sigHash, err = txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, int64(swapParams.Amount))
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	sig, err := claimParams.Signer.Sign(sigHash[:])
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return spendingTx, sig.Serialize(), redeemScript, nil
+	return spendingTx, sigHash, redeemScript, nil
 }
 
 func (b *BitcoinOnChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {

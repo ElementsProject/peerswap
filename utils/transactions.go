@@ -23,20 +23,24 @@ type TxSigner interface {
 // where the taker is the peer paying the invoice and the maker the peer providing the lbtc
 func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []byte, locktimeHeight int64) ([]byte, error) {
 	script := txscript.NewScriptBuilder().
-		AddData(takerPubkeyHash).
+		AddData(makerPubkeyHash).
 		AddOp(txscript.OP_CHECKSIG).
 		AddOp(txscript.OP_NOTIF).
 		AddData(makerPubkeyHash).
-		AddOp(txscript.OP_CHECKSIGVERIFY).
-		AddInt64(locktimeHeight).
-		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
-		AddOp(txscript.OP_ELSE).
+		AddOp(txscript.OP_CHECKSIG).
+		AddOp(txscript.OP_NOTIF).
 		AddOp(txscript.OP_SIZE).
 		AddData(h2b("20")).
 		AddOp(txscript.OP_EQUALVERIFY).
 		AddOp(txscript.OP_SHA256).
 		AddData(pHash[:]).
-		AddOp(txscript.OP_EQUAL).
+		AddOp(txscript.OP_EQUALVERIFY).
+		AddOp(txscript.OP_ENDIF).
+		AddData(takerPubkeyHash).
+		AddOp(txscript.OP_CHECKSIG).
+		AddOp(txscript.OP_ELSE).
+		AddInt64(locktimeHeight).
+		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
 		AddOp(txscript.OP_ENDIF)
 	return script.Script()
 }
@@ -157,6 +161,8 @@ func CreateSpendingTransaction(openingTxHex string, swapAmount, feeAmount, curre
 func GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
 	sigWithHashType := append(signature, byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)
+	witness = append(witness, []byte{})
+	witness = append(witness, []byte{})
 	witness = append(witness, preimage[:])
 	witness = append(witness, sigWithHashType)
 	witness = append(witness, redeemScript)
@@ -168,7 +174,16 @@ func GetCltvWitness(signature, redeemScript []byte) [][]byte {
 	sigWithHashType := append(signature, byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)
 	witness = append(witness, sigWithHashType)
+
+	witness = append(witness, redeemScript)
+	return witness
+}
+
+func GetCooperativeWitness(takerSig, makerSig, redeemScript []byte) [][]byte {
+	witness := make([][]byte, 0)
 	witness = append(witness, []byte{})
+	witness = append(witness, append(makerSig, byte(txscript.SigHashAll)))
+	witness = append(witness, append(takerSig, byte(txscript.SigHashAll)))
 	witness = append(witness, redeemScript)
 	return witness
 }
