@@ -73,8 +73,8 @@ func GetCltvWitness(signature, redeemScript []byte) [][]byte {
 
 func GetCooperativeWitness(takerSig, makerSig, redeemScript []byte) [][]byte {
 	witness := make([][]byte, 0)
-	witness = append(witness, append(makerSig, byte(txscript.SigHashAll)))
 	witness = append(witness, append(takerSig, byte(txscript.SigHashAll)))
+	witness = append(witness, append(makerSig, byte(txscript.SigHashAll)))
 	witness = append(witness, []byte{})
 	witness = append(witness, redeemScript)
 	return witness

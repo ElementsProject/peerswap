@@ -87,6 +87,10 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Printf("%s", claimTxId)
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 func Test_BitcoinSwapCltv(t *testing.T) {
 	lcli, err := getLightningClient()
@@ -172,7 +176,7 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 	log.Printf("%v", cltv)
 
 
-	_, openingTxHex, err := bitcoinOnchain.BroadcastOpeningTx(unpreppedtxHex)
+	openingTxId, openingTxHex, err := bitcoinOnchain.BroadcastOpeningTx(unpreppedtxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,29 +185,38 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimParams := &swap.ClaimParams{
+
+	takerClaimParams := &swap.ClaimParams{
+		Cltv:     cltv,
+		Preimage: txParams.Preimage.String(),
+		Signer:   txParams.AliceKey,
+	}
+	makerClaimParams := &swap.ClaimParams{
 		Cltv:     cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.BobKey,
 	}
-	_, sigHash, err := bitcoinOnchain.PrepareCooperativeSpendingTransaction(openingParams,claimParams,openingTxHex,vout)
+
+	refundAddr, err := lcli.NewAddr()
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Printf("sighash at test %s", sigHash)
-	sigHashBytes, err := hex.DecodeString(sigHash)
+
+	takerSigHashString, err := bitcoinOnchain.TakerCreateCoopSigHash(openingParams, takerClaimParams, openingTxId, refundAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	takerSigBytes, err := txParams.AliceKey.Sign(sigHashBytes)
+
+	claimTxId, _, err := bitcoinOnchain.CreateCooperativeSpendingTransaction(openingParams, makerClaimParams, refundAddr, openingTxHex, vout, takerSigHashString)
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimTxId, _, err := bitcoinOnchain.CreateCooperativeSpendingTransaction(openingParams, claimParams, openingTxHex, vout, hex.EncodeToString(takerSigBytes.Serialize()))
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	log.Printf("%s", claimTxId)
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 func Test_BitcoinSwap(t *testing.T) {
 	lcli, err := getLightningClient()
