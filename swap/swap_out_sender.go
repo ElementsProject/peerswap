@@ -77,7 +77,6 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	// policy := services.policy
 	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
-
 		log.Printf("error decoding %v", err)
 		return Event_ActionFailed
 	}

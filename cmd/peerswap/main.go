@@ -46,7 +46,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = lightningPlugin.RegisterMethods()
 	if err != nil {
 		return err

@@ -3,7 +3,6 @@ package swap
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/sputn1ck/glightning/glightning"
@@ -23,7 +22,6 @@ func Test_SwapMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("%s", string(swapBytes))
 	var sm *SwapStateMachine
 
 	err = json.Unmarshal(swapBytes, &sm)
@@ -231,7 +229,6 @@ func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string,
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
-	log.Printf("Dummy sending message %v to %s", msg, peerId)
 	if d.msgChan != nil {
 		go func() { d.msgChan <- DummyMessageType(msgType) }()
 	}

@@ -184,12 +184,12 @@ def test_peer_not_whitelisted(elementsd: ElementsD, node_factory: NodeFactory):
         )
 
     # wait for nodes to receive events
-    nodes[0].daemon.wait_for_log("Event_OnCancelReceived on State_SwapOutSender_RequestSent")
-    nodes[1].daemon.wait_for_log("Event_Action_Success on State_SendCancel")
+    nodes[0].daemon.wait_for_log("Event_OnCancelReceived on State_SwapOutSender_AwaitFeeResponse")
+    nodes[1].daemon.wait_for_log("Event_ActionSucceeded on State_SendCancel")
 
     # assert swap canceled on both nodes
-    wait_for(lambda: has_current_state(nodes[0], "State_SwapOut_Canceled"))
-    wait_for(lambda: has_current_state(nodes[1], "State_SwapOut_Canceled"))
+    wait_for(lambda: has_current_state(nodes[0], "State_SwapCanceled"))
+    wait_for(lambda: has_current_state(nodes[1], "State_SwapCanceled"))
     res = [x.rpc.call("peerswap-listswaps") for x in nodes]
     assert res[0][0]["Data"]["CancelMessage"] == CANCEL_MSG
     assert res[1][0]["Data"]["CancelMessage"] == CANCEL_MSG
@@ -265,5 +265,5 @@ def test_accept_all_peers(elementsd: ElementsD, node_factory: NodeFactory):
     # assert opening tx broadcasted and tx broadcasted
     # msg sent and also awaiting confirmations on
     # receiver.
-    wait_for(lambda: has_current_state(nodes[0], "State_SwapOutSender_TxBroadcasted"))
-    wait_for(lambda: has_current_state(nodes[1], "State_SwapOutReceiver_TxMsgSent"))
+    wait_for(lambda: has_current_state(nodes[0], "State_SwapOutSender_AwaitTxConfirmation"))
+    wait_for(lambda: has_current_state(nodes[1], "State_SwapOutReceiver_AwaitClaimInvoicePayment"))

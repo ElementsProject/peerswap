@@ -34,6 +34,6 @@ in with pkgs;
         elements = nix-bitcoin-unstable-pkgs.elementsd;
         mermaid = nodePackages.mermaid-cli;
     };
-    testpkgs = [ openssl go bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
-    devpkgs = [ openssl bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
+    devpkgs = [ bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev nodePackages.mermaid-cli ];
 }

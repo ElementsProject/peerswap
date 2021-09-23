@@ -174,8 +174,8 @@ def test_peer_not_whitelisted(elementsd: ElementsD, node_factory: NodeFactory):
         )
 
     # wait for nodes to receive events
-    nodes[0].daemon.wait_for_log("Event_Action_Success on State_SendCancel")
-    nodes[1].daemon.wait_for_log("Event_OnCancelReceived on State_SwapInSender_SwapInRequestSent")
+    nodes[0].daemon.wait_for_log("Event_ActionSucceeded on State_SendCancel")
+    nodes[1].daemon.wait_for_log("Event_OnCancelReceived on State_SwapInSender_AwaitAgreement")
 
     wait_for(lambda: has_current_state(nodes[0], "State_SwapCanceled"))
     wait_for(lambda: has_current_state(nodes[1], "State_SwapCanceled"))
@@ -253,5 +253,5 @@ def test_accept_all_peers(elementsd: ElementsD, node_factory: NodeFactory):
     # assert opening tx broadcasted and tx broadcasted
     # msg sent and also awaiting confirmations on
     # receiver.
-    wait_for(lambda: has_current_state(nodes[0], "State_SwapInReceiver_WaitForConfirmations"))
-    wait_for(lambda: has_current_state(nodes[1], "State_SwapInSender_TxMsgSent"))
+    wait_for(lambda: has_current_state(nodes[0], "State_SwapInReceiver_AwaitTxConfirmation"))
+    wait_for(lambda: has_current_state(nodes[1], "State_SwapInSender_AwaitClaimPayment"))

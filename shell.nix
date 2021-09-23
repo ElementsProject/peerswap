@@ -8,7 +8,7 @@ in with pkgs;
 stdenv.mkDerivation rec {
     name = "peerswap-dev-env";
     # nativeBuildInputs = [nodejs];
-    buildInputs = [peerswap-pkgs.devpkgs];
+    buildInputs = [openssl peerswap-pkgs.devpkgs];
     
     shellHook = ''
     alias lightning-cli='${execs.clightning}/bin/lightning-cli'
