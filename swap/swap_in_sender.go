@@ -59,6 +59,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.ClaimPreimage = preimage.String()
 	swap.ClaimPaymentHash = pHash.String()
 
+	err = SetRefundAddress(services, swap)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		return swap.HandleError(err)
@@ -76,6 +81,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
+		RefundAddr:      swap.MakerRefundAddr,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -168,21 +174,28 @@ func getSwapInSenderStates() States {
 			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid: State_ClaimedPreimage,
-				Event_OnCltvPassed:       State_SwapInSender_ClaimSwap,
-				Event_OnCancelReceived:   State_WaitCltv,
+				Event_OnCltvPassed:       State_SwapInSender_ClaimSwapCltv,
+				Event_OnCancelReceived:   State_SwapInSender_ClaimSwapCoop,
 			},
 		},
-		State_SwapInSender_ClaimSwap: {
+		State_SwapInSender_ClaimSwapCltv: {
 			Action: &ClaimSwapTransactionWithCltv{},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCltv,
-				Event_OnRetry:         State_SwapInSender_ClaimSwap,
+				Event_OnRetry:         State_SwapInSender_ClaimSwapCltv,
+			},
+		},
+		State_SwapInSender_ClaimSwapCoop: {
+			Action: &ClaimSwapTransactionCoop{},
+			Events: Events{
+				Event_ActionFailed:    State_WaitCltv,
+				Event_ActionSucceeded: State_ClaimedCoop,
 			},
 		},
 		State_WaitCltv: {
 			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnCltvPassed: State_SwapInSender_ClaimSwap,
+				Event_OnCltvPassed: State_SwapInSender_ClaimSwapCltv,
 			},
 		},
 		State_SendCancel: {
@@ -199,6 +212,9 @@ func getSwapInSenderStates() States {
 			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedCltv: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedCoop: {
 			Action: &NoOpDoneAction{},
 		},
 	}

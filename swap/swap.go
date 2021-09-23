@@ -73,6 +73,9 @@ type SwapData struct {
 	MakerPubkeyHash string
 	TakerPubkeyHash string
 
+	MakerRefundAddr    string
+	TakerRefundSigHash string
+
 	Cltv int64
 
 	FeeInvoice  string

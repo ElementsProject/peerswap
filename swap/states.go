@@ -7,6 +7,7 @@ const (
 	State_WaitCltv        StateType = "State_WaitCltv"
 	State_ClaimedCltv     StateType = "State_ClaimedCltv"
 	State_ClaimedPreimage StateType = "State_ClaimedPreimage"
+	State_ClaimedCoop     StateType = "State_ClaimedCoop"
 	State_Done            StateType = "State_Done"
 )
 
@@ -20,6 +21,7 @@ const (
 	State_SwapOutSender_AwaitTxConfirmation          StateType = "State_SwapOutSender_AwaitTxConfirmation"
 	State_SwapOutSender_ValidateTxAndPayClaimInvoice StateType = "State_SwapOutSender_ValidateTxAndPayClaimInvoice"
 	State_SwapOutSender_ClaimSwap                    StateType = "State_SwapOutSender_ClaimSwap"
+	State_SwapOutSender_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
 )
 
 // Swap Out Receiver states
@@ -31,7 +33,8 @@ const (
 	State_SwapOutReceiver_SendTxBroadcastedMessage StateType = "State_SwapOutReceiver_SendTxBroadcastedMessage"
 	State_SwapOutReceiver_AwaitClaimInvoicePayment StateType = "State_SwapOutReceiver_AwaitClaimInvoicePayment"
 	State_SwapOutReceiver_SwapAborted              StateType = "State_SwapOutReceiver_Aborted"
-	State_SwapOutReceiver_ClaimSwap                StateType = "State_SwapOutReceiver_ClaimSwap"
+	State_SwapOutReceiver_ClaimSwapCltv            StateType = "State_SwapOutReceiver_ClaimSwapCltv"
+	State_SwapOutReceiver_ClaimSwapCoop            StateType = "State_SwapOutReceiver_ClaimSwapCoop"
 )
 
 // Swap In Sender States
@@ -42,7 +45,8 @@ const (
 	State_SwapInSender_BroadcastOpeningTx       StateType = "State_SwapInSender_BroadcastOpeningTx"
 	State_SwapInSender_SendTxBroadcastedMessage StateType = "State_SwapInSender_SendTxBroadcastedMessage"
 	State_SwapInSender_AwaitClaimPayment        StateType = "State_SwapInSender_AwaitClaimPayment"
-	State_SwapInSender_ClaimSwap                StateType = "State_SwapInSender_ClaimSwap"
+	State_SwapInSender_ClaimSwapCltv            StateType = "State_SwapInSender_ClaimSwapCltv"
+	State_SwapInSender_ClaimSwapCoop            StateType = "State_SwapInSender_ClaimSwapCoop"
 )
 
 // Swap In Receiver States
@@ -53,6 +57,7 @@ const (
 	State_SwapInReceiver_AwaitTxConfirmation          StateType = "State_SwapInReceiver_AwaitTxConfirmation"
 	State_SwapInReceiver_ValidateTxAndPayClaimInvoice StateType = "State_SwapInReceiver_ValidateTxAndPayClaimInvoice"
 	State_SwapInReceiver_ClaimSwap                    StateType = "State_SwapInReceiver_ClaimSwap"
+	State_SwapInReceiver_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
 )
 
 // Events

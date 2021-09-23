@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/btcsuite/btcd/btcec"
 	"log"
 
 	"github.com/sputn1ck/peerswap/lightning"
@@ -76,6 +77,11 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	swap.ClaimPreimage = preimage.String()
 	swap.ClaimPaymentHash = pHash.String()
 
+	err = SetRefundAddress(services, swap)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		swap.LastErr = err
@@ -137,6 +143,7 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		Cltv:            swap.Cltv,
+		RefundAddr:      swap.MakerRefundAddr,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -159,6 +166,33 @@ func (c *ClaimSwapTransactionWithCltv) Execute(services *SwapServices, swap *Swa
 	return Event_ActionSucceeded
 }
 
+// ClaimSwapTransactionWithCltv spends the opening transaction with maker and taker Signatures
+type ClaimSwapTransactionCoop struct{}
+
+func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+	openingParams := &OpeningParams{
+		TakerPubkeyHash:  swap.TakerPubkeyHash,
+		MakerPubkeyHash:  swap.MakerPubkeyHash,
+		ClaimPaymentHash: swap.ClaimPaymentHash,
+		Amount:           swap.Amount,
+	}
+	spendParams := &ClaimParams{
+		Signer: key,
+		Cltv:   swap.Cltv,
+	}
+	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.ClaimTxId = txId
+	return Event_ActionSucceeded
+}
+
 // SendCancelAction sends a cancel message to the swap peer
 type SendCancelAction struct{}
 
@@ -169,14 +203,34 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	messenger := services.messenger
 
 	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-		SwapId: swap.Id,
-		Error:  swap.CancelMessage,
+		SwapId:             swap.Id,
+		Error:              swap.CancelMessage,
+		TakerRefundSigHash: swap.TakerRefundSigHash,
 	})
 
 	err = messenger.SendMessage(swap.PeerNodeId, msgBytes, msgType)
 	if err != nil {
 		return Event_ActionFailed
 	}
+	return Event_ActionSucceeded
+}
+
+// TakerBuildSigHashAction builds the sighash to send the maker for cooperatively closing the swap
+type TakerBuildSigHashAction struct{}
+
+func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+	claimParams := &ClaimParams{Signer: key}
+	sigHash, err := onchain.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.TakerRefundSigHash = sigHash
+
 	return Event_ActionSucceeded
 }
 
@@ -246,22 +300,28 @@ func getSwapOutReceiverStates() States {
 			Action: &AwaitCltvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid: State_ClaimedPreimage,
-				// todo this will be coop close
-				Event_OnCancelReceived: State_SwapOutReceiver_SwapAborted,
-				Event_OnCltvPassed:     State_SwapOutReceiver_ClaimSwap,
+				Event_OnCancelReceived:   State_SwapOutReceiver_ClaimSwapCoop,
+				Event_OnCltvPassed:       State_SwapOutReceiver_ClaimSwapCltv,
+			},
+		},
+		State_SwapOutReceiver_ClaimSwapCoop: {
+			Action: &ClaimSwapTransactionCoop{},
+			Events: Events{
+				Event_ActionSucceeded: State_ClaimedCoop,
+				Event_ActionFailed:    State_SwapOutReceiver_SwapAborted,
 			},
 		},
 		State_SwapOutReceiver_SwapAborted: {
 			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnCltvPassed: State_SwapOutReceiver_ClaimSwap,
+				Event_OnCltvPassed: State_SwapOutReceiver_ClaimSwapCltv,
 			},
 		},
-		State_SwapOutReceiver_ClaimSwap: {
+		State_SwapOutReceiver_ClaimSwapCltv: {
 			Action: &ClaimSwapTransactionWithCltv{},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCltv,
-				Event_OnRetry:         State_SwapOutReceiver_ClaimSwap,
+				Event_OnRetry:         State_SwapOutReceiver_ClaimSwapCltv,
 			},
 		},
 		State_SendCancel: {
@@ -278,6 +338,9 @@ func getSwapOutReceiverStates() States {
 			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedPreimage: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedCoop: {
 			Action: &NoOpDoneAction{},
 		},
 	}

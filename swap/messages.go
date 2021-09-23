@@ -107,6 +107,7 @@ func (s SwapInAgreementMessage) MessageType() MessageType {
 type TxOpenedMessage struct {
 	SwapId          string
 	MakerPubkeyHash string
+	RefundAddr      string
 	Invoice         string
 	TxId            string
 	Cltv            int64
@@ -117,6 +118,7 @@ func (t TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxId = t.TxId
 	swap.Cltv = t.Cltv
+	swap.MakerRefundAddr = t.RefundAddr
 }
 
 func (t TxOpenedMessage) MessageType() MessageType {
@@ -140,8 +142,9 @@ func (c ClaimedMessage) MessageType() MessageType {
 
 // CancelMessage is the message sent by a peer if he wants to / has to cancel the swap
 type CancelMessage struct {
-	SwapId string
-	Error  string
+	SwapId             string
+	Error              string
+	TakerRefundSigHash string
 }
 
 func (e CancelMessage) MessageType() MessageType {
@@ -150,6 +153,7 @@ func (e CancelMessage) MessageType() MessageType {
 
 func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 	swap.CancelMessage = c.Error
+	swap.TakerRefundSigHash = c.TakerRefundSigHash
 }
 
 // MessageTypeToHexString returns the hex encoded string of the messagetype

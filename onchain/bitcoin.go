@@ -101,14 +101,14 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 
 	newAddr, err := b.clightning.NewAddr()
 	if err != nil {
-		return "","", err
+		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout,0)
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, 0)
 	if err != nil {
 		return "", "", err
 	}
-	sigBytes,err := claimParams.Signer.Sign(sigHash)
+	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
 		return "", "", err
 	}
@@ -137,21 +137,20 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 }
 
 func (b *BitcoinOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-
 	newAddr, err := b.clightning.NewAddr()
 	if err != nil {
-		return "","", err
+		return "", "", err
 	}
 
 	blockheight, err := b.gbitcoin.GetBlockHeight()
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout,uint32(blockheight))
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, uint32(blockheight))
 	if err != nil {
 		return "", "", err
 	}
-	sigBytes,err := claimParams.Signer.Sign(sigHash)
+	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
 		return "", "", err
 	}
@@ -177,19 +176,19 @@ func (b *BitcoinOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningP
 func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
 	openingTxHex, err := b.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
-		return "",  err
+		return "", err
 	}
 
 	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Cltv)
 	if err != nil {
-		return "",  err
+		return "", err
 	}
-	_, sigHashBytes, _, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout,0)
+	_, sigHashBytes, _, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0)
 	if err != nil {
-		return "",  err
+		return "", err
 	}
 	log.Printf("sighash at takercreate %s", hex.EncodeToString(sigHashBytes))
-	sigBytes,err := claimParams.Signer.Sign(sigHashBytes)
+	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
 	if err != nil {
 		return "", err
 	}
@@ -197,14 +196,14 @@ func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, 
 
 }
 
-func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error){
-	tx, sigHashBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout,0)
+func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
+	tx, sigHashBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0)
 	if err != nil {
 		return "", "", err
 	}
 
 	log.Printf("sighash at cooperative %s", hex.EncodeToString(sigHashBytes))
-	sigBytes,err := claimParams.Signer.Sign(sigHashBytes)
+	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
 	if err != nil {
 		return "", "", err
 	}
@@ -231,6 +230,15 @@ func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.O
 	}
 	return txId, txHex, nil
 }
+
+func (b *BitcoinOnChain) CreateRefundAddress() (string, error) {
+	newAddr, err := b.clightning.NewAddr()
+	if err != nil {
+		return "", err
+	}
+	return newAddr, nil
+}
+
 func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, blockheight uint32) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
 	openingMsgTx := wire.NewMsgTx(2)
 	txBytes, err := hex.DecodeString(openingTxHex)
@@ -246,13 +254,9 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	prevHash := openingMsgTx.TxHash()
 	prevInput := wire.NewOutPoint(&prevHash, vout)
 
-
-
 	// create spendingTx
 	spendingTx := wire.NewMsgTx(2)
 	spendingTx.LockTime = blockheight
-
-
 
 	scriptChangeAddr, err := btcutil.DecodeAddress(spendingAddr, b.chain)
 	if err != nil {

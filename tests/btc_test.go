@@ -1,4 +1,5 @@
-
+//go:build docker
+// +build docker
 
 package tests
 
@@ -67,7 +68,6 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 	}
 	log.Printf("%v", cltv)
 
-
 	openingTxId, _, err := bitcoinOnchain.BroadcastOpeningTx(unpreppedtxHex)
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.AliceKey,
 	}
-	claimTxId, _, err := bitcoinOnchain.CreatePreimageSpendingTransaction(openingParams, claimParams,openingTxId)
+	claimTxId, _, err := bitcoinOnchain.CreatePreimageSpendingTransaction(openingParams, claimParams, openingTxId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,6 @@ func Test_BitcoinSwapCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Printf("%v", cltv)
-
 
 	_, openingTxHex, err := bitcoinOnchain.BroadcastOpeningTx(unpreppedtxHex)
 	if err != nil {
@@ -174,7 +173,6 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Printf("%v", cltv)
-
 
 	openingTxId, openingTxHex, err := bitcoinOnchain.BroadcastOpeningTx(unpreppedtxHex)
 	if err != nil {

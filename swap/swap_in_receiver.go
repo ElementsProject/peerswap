@@ -151,14 +151,21 @@ func getSwapInReceiverStates() States {
 			Events: Events{
 				Event_OnTxConfirmed:    State_SwapInReceiver_ValidateTxAndPayClaimInvoice,
 				Event_ActionFailed:     State_SendCancel,
-				Event_OnCancelReceived: State_SwapCanceled,
+				Event_OnCancelReceived: State_SwapInReceiver_BuildSigHash,
 			},
 		},
 		State_SwapInReceiver_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInReceiver_ClaimSwap,
+				Event_ActionFailed:    State_SwapInReceiver_BuildSigHash,
+			},
+		},
+		State_SwapInReceiver_BuildSigHash: {
+			Action: &TakerBuildSigHashAction{},
+			Events: Events{
 				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_SendCancel,
 			},
 		},
 		State_SwapInReceiver_ClaimSwap: {
