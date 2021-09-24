@@ -2,10 +2,10 @@ package lightning
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
-	"log"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -37,6 +37,5 @@ func checkFeatures(features []byte, featureBit int64) bool {
 	bitInt = bitInt.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
 	compareInt := big.NewInt(0)
 	compareInt = compareInt.And(featuresInt, bitInt)
-	log.Printf("compare: %v %v %v", featuresInt, bitInt, compareInt)
 	return compareInt.Cmp(bitInt) == 0
 }

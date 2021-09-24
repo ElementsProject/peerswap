@@ -2,51 +2,70 @@ package policy
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/jessevdk/go-flags"
 )
 
 const (
-	// reserveTankMsat is the amount of msat that is
+	// ReserveOnchainMsat is the amount of msat that is
 	// kept as a reserve in the onchain wallet and
 	// can not be spent by incomming swap requests.
-	defaultReserveTankMsat uint64 = 0
-	defaultAcceptAllPeers         = false
+	defaultReserveOnchainMsat uint64 = 0
+	defaultAcceptAllPeers            = false
 )
 
 var (
 	defaultPeerWhitelist = []string{}
 )
 
-// PolicyConfig will ensure that a swap request is only
-// performed if the policy is matched. In this case
-// this means that the requesting peer is part of
-// the whitelist and that the tank reserve is
-// respected.
-type Policy struct {
-	ReserveTankMsat uint64   `long:"reserve_tank_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
-	PeerWhitelist   []string `long:"whitelisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
-	AcceptAllPeers  bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer whitelist is ignored and all incomming swap requests are allowed"`
+// Error definitions
+var ErrNoPolicyFile error = fmt.Errorf("no policy file given")
+
+type ErrCreatePolicy string
+
+func (e ErrCreatePolicy) Error() string {
+	return fmt.Sprintf("policy could not be created: %v", string(e))
 }
 
-func (p Policy) String() string {
-	str := fmt.Sprintf("reserve_tank_msat: %d\nwhitelisted_peers: %s\naccept_all_peers: %t\n", p.ReserveTankMsat, p.PeerWhitelist, p.AcceptAllPeers)
+type ErrReloadPolicy string
+
+func (e ErrReloadPolicy) Error() string {
+	return fmt.Sprintf("policy could not be reloaded: %v", string(e))
+}
+
+// PolicyConfig will ensure that a swap request is
+// only performed if the policy is matched. In this
+// case this means that the requesting peer is part
+// of the whitelist and that the tank reserve is
+// respected.
+type Policy struct {
+	path string
+
+	ReserveOnchainMsat uint64   `long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
+	PeerWhitelist      []string `long:"whitelisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
+	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer whitelist is ignored and all incomming swap requests are allowed"`
+}
+
+func (p *Policy) String() string {
+	str := fmt.Sprintf("reserve_onchain_msat: %d\nwhitelisted_peers: %s\naccept_all_peers: %t\n", p.ReserveOnchainMsat, p.PeerWhitelist, p.AcceptAllPeers)
 	if p.AcceptAllPeers {
 		return fmt.Sprintf("%sCAUTION: Accept all incomming swap requests", str)
 	}
 	return str
 }
 
-// GetTankReserve returns the amount of msats that
-// should be keept in the wallet when receiving a
-// peerswap request.
-func (p Policy) GetTankReserve() uint64 {
-	return p.ReserveTankMsat
+// GetReserveOnchainMsat returns the amount of msats
+// that should be keept in the wallet when receiving
+// a peerswap request.
+func (p *Policy) GetReserveOnchainMsat() uint64 {
+	return p.ReserveOnchainMsat
 }
 
-// IsPeerAllowed returns if a peer or node is part
-// of the whitelist.
-func (p Policy) IsPeerAllowed(peer string) bool {
+// IsPeerAllowed returns if a peer or node is part of
+// the whitelist.
+func (p *Policy) IsPeerAllowed(peer string) bool {
 	if p.AcceptAllPeers {
 		return true
 	}
@@ -58,27 +77,82 @@ func (p Policy) IsPeerAllowed(peer string) bool {
 	return false
 }
 
-func DefaultPolicy() Policy {
-	return Policy{
-		ReserveTankMsat: defaultReserveTankMsat,
-		PeerWhitelist:   defaultPeerWhitelist,
-		AcceptAllPeers:  defaultAcceptAllPeers,
+// ReloadFile reloads and and sets the policy
+// to the policy file. This might be becaus the
+// policy file changed and the runtime should use the
+// new policy.
+func (p *Policy) ReloadFile() error {
+	if p.path == "" {
+		return ErrNoPolicyFile
+	}
+	path := p.path
+
+	file, err := os.Open(p.path)
+	if err != nil {
+		return ErrReloadPolicy(err.Error())
+	}
+	defer file.Close()
+
+	err = p.reload(file)
+	if err != nil {
+		return err
+	}
+
+	p.path = path
+	return nil
+}
+
+func (p *Policy) reload(r io.Reader) error {
+	newp, err := create(r)
+	if err != nil {
+		return err
+	}
+
+	*p = *newp
+	return nil
+}
+
+// DefaultPolicy returns a policy struct made from
+// the default values.
+func DefaultPolicy() *Policy {
+	return &Policy{
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerWhitelist:      defaultPeerWhitelist,
+		AcceptAllPeers:     defaultAcceptAllPeers,
 	}
 }
 
-// CreatePolicy returns a policy based on a
-// DefaultPolicy. If the path to the policy file
-// (ini notation) is empty, the default policy is used.
-func CreatePolicy(path string) (Policy, error) {
-	policy := DefaultPolicy()
-
+// CreateFromFile returns a policy based on a
+// DefaultPolicy and a ini file with a policy
+// configuration. If the path to the policy file (ini
+// notation) is empty, the default policy is used.
+func CreateFromFile(path string) (*Policy, error) {
 	if path == "" {
-		return policy, nil
+		return DefaultPolicy(), nil
 	}
 
-	err := flags.IniParse(path, &policy)
+	file, err := os.Open(path)
 	if err != nil {
-		return policy, err
+		return nil, ErrCreatePolicy(err.Error())
+	}
+	defer file.Close()
+
+	policy, err := create(file)
+	if err != nil {
+		return nil, err
+	}
+
+	policy.path = path
+	return policy, nil
+}
+
+// Create returns a policy based on a DefaultPolicy.
+func create(r io.Reader) (*Policy, error) {
+	policy := DefaultPolicy()
+
+	err := flags.NewIniParser(flags.NewParser(policy, 0)).Parse(r)
+	if err != nil {
+		return nil, ErrCreatePolicy(err.Error())
 	}
 
 	return policy, nil

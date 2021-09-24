@@ -16,7 +16,7 @@ from pyln.testing.utils import (
     wait_for,
     write_config,
     BitcoinRpcProxy,
-    ElementsD
+    ElementsD,
 )
 
 import pytest
@@ -34,11 +34,13 @@ def has_liquid_balance(node: LightningNode, amt: int):
 def has_blockcount(node: ElementsD, n: int):
     return node.rpc.getblockcount() >= n
 
+
 def with_generate(node, blocks, success):
     if success():
         return True
     node.rpc.generatetoaddress(blocks, BURN_ADDR)
     return False
+
 
 def with_liquid_generate(node: ElementsD, blocks: int, test, *args, **kwargs):
     print("ARGS: {}".format(args))
@@ -73,6 +75,11 @@ def has_log(node: TailableProc, regexs):
             exs.remove(r)
             return True
     return False
+
+
+def has_current_state(node: LightningNode, state: str):
+    st = node.rpc.call("peerswap-listswaps")
+    return st[0]["Current"] == state
 
 
 def get_plugin_options(walletname, rpcport, path_to_plugin):

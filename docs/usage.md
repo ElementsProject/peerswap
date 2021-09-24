@@ -1,20 +1,48 @@
 # Usage guide
 
-PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
+PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for channel rebalincing via atomic swaps with onchain coins. Supported blockchains:
 
-Currently only swapping with liquid bitcoin is supported.
+- btc (bitcoin)
+- l-btc (liquid)
 
-## Setup
+### Build
 
-In order to use peerswap start `lightningd` with the following options, replacing as necessary
+To build the peerswap plugin a [golang](https://golang.org/doc/install) installation is needed.
+
+Clone the repository and build the plugin
+
+```bash
+git clone git@github.com:sputn1ck/peerswap.git && \
+cd peerswap && \
+make release
 ```
-lightningd \ 
- --peerswap-liquid-rpchost=http://localhost \
- --peerswap-liquid-rpcport=7041 \
- --peerswap-liquid-rpcuser=admin1 \
- --peerswap-liquid-rpcpassword=123 \
- --peerswap-liquid-network=regtest \
- --peerswap-liquid-rpcwallet=swap1
+
+### Policy
+
+To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
+
+```bash
+# ~/lightning/policy.conf
+whitelisted_peers=<trusted node1>
+whitelisted_peers=<trusted node2>
+```
+
+__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the whitelist and allow for all peers to send swap requests.
+
+### Run (Clightning)
+
+start the c-lightning daemon with the following config flags
+
+```bash
+lightningd --daemon \
+        --plugin=$HOME/peerswap/peerswap \
+        --peerswap-liquid-rpchost=http://localhost \
+        --peerswap-liquid-rpcport=18884 \
+        --peerswap-liquid-rpcuser=admin1 \
+        --peerswap-liquid-rpcpassword=123 \
+        --peerswap-liquid-network=testnet \
+        --peerswap-liquid-rpcwallet=swap \
+        --peerswap-policy-path=$HOME/lightning/policy.conf
 ```
 
 ## Liquid Wallet

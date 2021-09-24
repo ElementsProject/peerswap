@@ -46,6 +46,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	err = lightningPlugin.RegisterMethods()
 	if err != nil {
 		return err
@@ -138,7 +139,7 @@ func run() error {
 	}
 
 	// policy
-	pol, err := policy.CreatePolicy(config.PolicyPath)
+	pol, err := policy.CreateFromFile(config.PolicyPath)
 	if err != nil {
 		return err
 	}
@@ -184,7 +185,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, liquidCli)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, liquidCli)
 
 	log.Printf("peerswap initialized")
 	<-quitChan

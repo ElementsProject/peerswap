@@ -2,6 +2,7 @@ package swap
 
 import (
 	"fmt"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
@@ -18,7 +19,7 @@ type PeerMessage interface {
 
 type Policy interface {
 	IsPeerAllowed(peer string) bool
-	GetTankReserve() uint64
+	GetReserveOnchainMsat() uint64
 }
 type LightningClient interface {
 	DecodePayreq(payreq string) (*lightning.Invoice, error)

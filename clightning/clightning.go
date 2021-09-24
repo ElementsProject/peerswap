@@ -52,6 +52,7 @@ type ClightningClient struct {
 
 	wallet wallet.Wallet
 	swaps  *swap.SwapService
+	policy FileReloaderStringer
 
 	Gelements *gelements.Elements
 
@@ -441,9 +442,10 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, policy FileReloaderStringer, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
+	c.policy = policy
 	c.Gelements = elements
 }
 
@@ -461,7 +463,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	swapOut := glightning.NewRpcMethod(&SwapOut{
 		cl: c,
 	}, "swap out")
-	swapIn.Category = "peerswap"
+	swapOut.Category = "peerswap"
 	err = c.plugin.RegisterMethod(swapOut)
 	if err != nil {
 		return err
@@ -470,7 +472,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	listSwaps := glightning.NewRpcMethod(&ListSwaps{
 		cl: c,
 	}, "list swaps")
-	swapIn.Category = "peerswap"
+	listSwaps.Category = "peerswap"
 	err = c.plugin.RegisterMethod(listSwaps)
 	if err != nil {
 		return err
@@ -479,7 +481,7 @@ func (c *ClightningClient) RegisterMethods() error {
 	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
 		cl: c,
 	}, "get new liquid address")
-	swapIn.Category = "peerswap"
+	getAddress.Category = "peerswap"
 	err = c.plugin.RegisterMethod(getAddress)
 	if err != nil {
 		return err
@@ -488,8 +490,25 @@ func (c *ClightningClient) RegisterMethods() error {
 	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
 		cl: c,
 	}, "get liquid wallet balance")
-	swapIn.Category = "peerswap"
+	getBalance.Category = "peerswap"
 	err = c.plugin.RegisterMethod(getBalance)
+	if err != nil {
+		return err
+	}
+
+	long := `If the policy file has changed, reload the policy
+	from the file specified in the config. Overrides the default
+	config, so fields that are not set are interpreted as default.`
+	reloadPolicyFile := &glightning.RpcMethod{
+		Method: &ReloadPolicyFile{
+			cl:   c,
+			name: "peerswap-reload-policy",
+		},
+		Desc:     "Reload the policy file.",
+		LongDesc: long,
+		Category: "peerswap",
+	}
+	err = c.plugin.RegisterMethod(reloadPolicyFile)
 	if err != nil {
 		return err
 	}
