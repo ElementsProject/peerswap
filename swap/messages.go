@@ -21,6 +21,8 @@ const (
 	MESSAGETYPE_CANCELED
 	_
 	MESSAGETYPE_CLAIMED
+	_
+	MESSAGETYPE_COOPCLOSE
 	MESSAGE_END int64 = iota
 
 	MESSAGE_BASE = 42069
@@ -107,6 +109,7 @@ func (s SwapInAgreementMessage) MessageType() MessageType {
 type TxOpenedMessage struct {
 	SwapId          string
 	MakerPubkeyHash string
+	RefundAddr      string
 	Invoice         string
 	TxId            string
 	Cltv            int64
@@ -117,6 +120,7 @@ func (t TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxId = t.TxId
 	swap.Cltv = t.Cltv
+	swap.MakerRefundAddr = t.RefundAddr
 }
 
 func (t TxOpenedMessage) MessageType() MessageType {
@@ -150,6 +154,20 @@ func (e CancelMessage) MessageType() MessageType {
 
 func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 	swap.CancelMessage = c.Error
+}
+
+// CoopCloseMessage is the message sent by the transaction taker if he wants to cancel the swap, but allow the maker a quick close
+type CoopCloseMessage struct {
+	SwapId             string
+	TakerRefundSigHash string
+}
+
+func (c CoopCloseMessage) MessageType() MessageType {
+	return MESSAGETYPE_COOPCLOSE
+}
+
+func (c CoopCloseMessage) ApplyOnSwap(swap *SwapData) {
+	swap.TakerRefundSigHash = c.TakerRefundSigHash
 }
 
 // MessageTypeToHexString returns the hex encoded string of the messagetype

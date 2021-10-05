@@ -77,10 +77,10 @@ start_nodes() {
 network=$network
 log-level=debug
 log-file=/tmp/l$i-$network/log
-addr=localhost:$socket
+addr=127.0.0.1:$socket
 bitcoin-rpcuser=admin1
 bitcoin-rpcpassword=123
-bitcoin-rpcconnect=localhost
+bitcoin-rpcconnect=127.0.0.1
 bitcoin-rpcport=18443
 EOF
     # If we've configured to use developer, add dev options
@@ -101,7 +101,7 @@ EOF
     test -f "/tmp/l$i-$network/lightningd-$network.pid" ||
       "$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
         "--plugin=$PWD/peerswap" \
-        --peerswap-liquid-rpchost=http://localhost \
+        --peerswap-liquid-rpchost=http://127.0.0.1 \
         --peerswap-liquid-rpcport=$liquidrpcPort \
         --peerswap-liquid-rpcuser=admin1 \
         --peerswap-liquid-rpcpassword=123 \
@@ -165,9 +165,9 @@ setup_alias() {
     echo "	l$i-cli, l$i-log, l$i-follow, l$i-followf"
   done
 
-  alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18443'
-  alias et-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18884'
-  alias et-cli2='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=localhost -rpcport=18885'
+  alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18443'
+  alias et-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18884'
+  alias et-cli2='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18885'
 
 }
 

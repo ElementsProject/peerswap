@@ -240,14 +240,14 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_AwaitTxConfirmation: {
 			Action: &AwaitTxConfirmationAction{},
 			Events: Events{
-				Event_ActionFailed:  State_SendCancel,
+				Event_ActionFailed:  State_SwapOutSender_BuildSigHash,
 				Event_OnTxConfirmed: State_SwapOutSender_ValidateTxAndPayClaimInvoice,
 			},
 		},
 		State_SwapOutSender_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
-				Event_ActionFailed:    State_SendCancel,
+				Event_ActionFailed:    State_SwapOutSender_BuildSigHash,
 				Event_ActionSucceeded: State_SwapOutSender_ClaimSwap,
 			},
 		},
@@ -258,10 +258,27 @@ func getSwapOutSenderStates() States {
 				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
 			},
 		},
+		State_SwapOutSender_BuildSigHash: {
+			Action: &TakerBuildSigHashAction{},
+			Events: Events{
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_SwapOutSender_SendCoopClose,
+			},
+		},
+		State_SwapOutSender_SendCoopClose: {
+			Action: &SendMessageAction{},
+			Events: Events{
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_ClaimedCoop,
+			},
+		},
 		State_SwapCanceled: {
 			Action: &CancelAction{},
 		},
 		State_ClaimedPreimage: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedCoop: {
 			Action: &NoOpDoneAction{},
 		},
 	}

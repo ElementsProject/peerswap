@@ -77,7 +77,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapCanceled, swap.Current)
 }
-func Test_SwapInSenderCancel2(t *testing.T) {
+func Test_SwapInSenderCoopClose(t *testing.T) {
 
 	swapAmount := uint64(100)
 	initiator := "ab123"
@@ -111,16 +111,12 @@ func Test_SwapInSenderCancel2(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
-	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swap.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_WaitCltv, swap.Current)
-	_, err = swap.SendEvent(Event_OnCltvPassed, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, State_ClaimedCltv, swap.Current)
+	assert.Equal(t, State_ClaimedCoop, swap.Current)
+
 }
 func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}

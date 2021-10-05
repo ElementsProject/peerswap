@@ -45,7 +45,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 
 }
-func Test_SwapOutReceiverAbortCltv(t *testing.T) {
+func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := "swapid"
 	initiator := "foo"
@@ -78,18 +78,12 @@ func Test_SwapOutReceiverAbortCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Data.GetCurrentState())
-	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_SwapAborted, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedCoop, swapFSM.Data.GetCurrentState())
 
-	_, err = swapFSM.SendEvent(Event_OnCltvPassed, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, State_ClaimedCltv, swapFSM.Data.GetCurrentState())
 }
 
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {

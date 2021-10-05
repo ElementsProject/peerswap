@@ -3,6 +3,7 @@ package onchain
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/glightning/gelements"
@@ -89,7 +90,12 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, txHex)
+	newAddr, err := l.wallet.GetAddress()
+	if err != nil {
+		return "", "", err
+	}
+
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, txHex, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -114,7 +120,16 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 }
 
 func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, openingTxHex)
+	newAddr, err := l.wallet.GetAddress()
+	if err != nil {
+		return "", "", err
+	}
+
+	blockheight, err := l.elements.GetBlockHeight()
+	if err != nil {
+		return "", "", err
+	}
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, blockheight)
 	if err != nil {
 		return "", "", err
 	}
@@ -129,21 +144,55 @@ func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningPa
 	}
 	return txId, txHex, nil
 }
-
-func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
-	newaddr, err := l.wallet.GetAddress()
+func (l *LiquidOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
+	txHex, err := l.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", err
 	}
-	outputScript, err := l.blech32ToScript(newaddr)
+	_, sigBytes, _, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, txHex, 0)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(sigBytes), nil
+}
+
+func (l *LiquidOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, txHex, 0)
+	if err != nil {
+		return "", "", err
+	}
+	takerSigBytes, err := hex.DecodeString(takerSignatureHex)
+	if err != nil {
+		return "", "", err
+	}
+
+	tx.Inputs[0].Witness = GetCooperativeWitness(takerSigBytes, sigBytes, redeemScript)
+
+	txHex, err = tx.ToHex()
+	if err != nil {
+		return "", "", err
+	}
+	txId, err = l.elements.SendRawTx(txHex)
+	if err != nil {
+		return "", "", err
+	}
+	return txId, txHex, nil
+}
+
+func (l *LiquidOnChain) CreateRefundAddress() (string, error) {
+	addr, err := l.wallet.GetAddress()
+	if err != nil {
+		return "", err
+	}
+	return addr, nil
+}
+
+func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, blockheight uint64) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
+	outputScript, err := l.blech32ToScript(spendingAddr)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	redeemScript, err = ParamsToTxScript(swapParams, claimParams.Cltv)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	blockheight, err := l.elements.GetBlockHeight()
 	if err != nil {
 		return nil, nil, nil, err
 	}

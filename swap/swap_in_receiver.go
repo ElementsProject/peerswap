@@ -151,13 +151,27 @@ func getSwapInReceiverStates() States {
 			Events: Events{
 				Event_OnTxConfirmed:    State_SwapInReceiver_ValidateTxAndPayClaimInvoice,
 				Event_ActionFailed:     State_SendCancel,
-				Event_OnCancelReceived: State_SwapCanceled,
+				Event_OnCancelReceived: State_SwapInReceiver_BuildSigHash,
 			},
 		},
 		State_SwapInReceiver_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInReceiver_ClaimSwap,
+				Event_ActionFailed:    State_SwapInReceiver_BuildSigHash,
+			},
+		},
+		State_SwapInReceiver_BuildSigHash: {
+			Action: &TakerBuildSigHashAction{},
+			Events: Events{
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_SwapInReceiver_SendCoopClose,
+			},
+		},
+		State_SwapInReceiver_SendCoopClose: {
+			Action: &SendMessageAction{},
+			Events: Events{
+				Event_ActionSucceeded: State_ClaimedCoop,
 				Event_ActionFailed:    State_SendCancel,
 			},
 		},
@@ -180,6 +194,9 @@ func getSwapInReceiverStates() States {
 		},
 		State_SwapCanceled: {
 			Action: &CancelAction{},
+		},
+		State_ClaimedCoop: {
+			Action: &NoOpDoneAction{},
 		},
 	}
 }

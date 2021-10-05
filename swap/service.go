@@ -138,7 +138,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnFeeInvoiceReceived(msg.SwapId, msg.Invoice)
+		err = s.OnFeeInvoiceReceived(msg)
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		err = s.OnTxOpenedMessage(msg.SwapId, msg.MakerPubkeyHash, msg.Invoice, msg.TxId, msg.Cltv)
+		err = s.OnTxOpenedMessage(msg)
 		if err != nil {
 			return err
 		}
@@ -182,6 +182,16 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+	case MESSAGETYPE_COOPCLOSE:
+		var msg *CoopCloseMessage
+		err := json.Unmarshal(msgBytes, &msg)
+		if err != nil {
+			return err
+		}
+		err = s.OnCoopCloseReceived(msg.SwapId, msg)
+		if err != nil {
+			return err
+		}
 	case MESSAGETYPE_CLAIMED:
 		var msg *ClaimedMessage
 		err := json.Unmarshal(msgBytes, &msg)
@@ -189,9 +199,9 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 		if msg.ClaimType == CLAIMTYPE_CLTV {
-			err = s.OnCltvClaimMessageReceived(msg.SwapId, msg.ClaimTxId)
+			err = s.OnCltvClaimMessageReceived(msg)
 		} else if msg.ClaimType == CLAIMTYPE_PREIMAGE {
-			err = s.OnPreimageClaimMessageReceived(msg.SwapId, msg.ClaimTxId)
+			err = s.OnPreimageClaimMessageReceived(msg)
 		}
 		if err != nil {
 			return err
@@ -359,12 +369,12 @@ func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementMessage) error {
 }
 
 // OnFeeInvoiceReceived sends the FeeInvoiceReceived event to the corresponding swap state machine
-func (s *SwapService) OnFeeInvoiceReceived(swapId, feeInvoice string) error {
-	swap, err := s.GetActiveSwap(swapId)
+func (s *SwapService) OnFeeInvoiceReceived(message *FeeMessage) error {
+	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnFeeInvoiceReceived, &FeeMessage{Invoice: feeInvoice})
+	done, err := swap.SendEvent(Event_OnFeeInvoiceReceived, message)
 	if err != nil {
 		return err
 	}
@@ -407,12 +417,12 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 }
 
 // OnPreimageClaimMessageReceived sends the ClaimedPreimage event to the corresponding swap state machine
-func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string) error {
-	swap, err := s.GetActiveSwap(swapId)
+func (s *SwapService) OnPreimageClaimMessageReceived(message *ClaimedMessage) error {
+	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnClaimedPreimage, &ClaimedMessage{ClaimTxId: txId})
+	done, err := swap.SendEvent(Event_OnClaimedPreimage, message)
 	if err != nil {
 		return err
 	}
@@ -423,12 +433,12 @@ func (s *SwapService) OnPreimageClaimMessageReceived(swapId string, txId string)
 }
 
 // OnCltvClaimMessageReceived sends the ClaimedCltv event to the corresponding swap state machine
-func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) error {
-	swap, err := s.GetActiveSwap(swapId)
+func (s *SwapService) OnCltvClaimMessageReceived(message *ClaimedMessage) error {
+	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnClaimedCltv, &ClaimedMessage{ClaimTxId: txId})
+	done, err := swap.SendEvent(Event_OnClaimedCltv, message)
 	if err != nil {
 		return err
 	}
@@ -439,18 +449,12 @@ func (s *SwapService) OnCltvClaimMessageReceived(swapId string, txId string) err
 }
 
 // OnTxOpenedMessage sends the TxOpenedMessage event to the corresponding swap state machine
-func (s *SwapService) OnTxOpenedMessage(swapId, makerPubkeyHash, claimInvoice, txId string, cltv int64) error {
-	swap, err := s.GetActiveSwap(swapId)
+func (s *SwapService) OnTxOpenedMessage(message *TxOpenedMessage) error {
+	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: makerPubkeyHash,
-		Invoice:         claimInvoice,
-		TxId:            txId,
-		Cltv:            cltv,
-	})
+	done, err := swap.SendEvent(Event_OnTxOpenedMessage, message)
 	if err != nil {
 		return err
 	}
@@ -508,6 +512,22 @@ func (s *SwapService) OnCancelReceived(swapId string, cancelMsg *CancelMessage) 
 		return err
 	}
 	done, err := swap.SendEvent(Event_OnCancelReceived, cancelMsg)
+	if err != nil {
+		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
+	}
+	return nil
+}
+
+// OnCoopCloseReceived sends the CoopMessage event to the corresponding swap state mahcine
+func (s *SwapService) OnCoopCloseReceived(swapId string, coopCloseMessage *CoopCloseMessage) error {
+	swap, err := s.GetActiveSwap(swapId)
+	if err != nil {
+		return err
+	}
+	done, err := swap.SendEvent(Event_OnCoopCloseReceived, coopCloseMessage)
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,8 @@ func TestInRange(t *testing.T) {
 		{"t1", args{"a455"}, true, false},
 		{"t2", args{"a456"}, false, false},
 		{"t3", args{"a461"}, true, false},
-		{"t4", args{"a463"}, false, false},
+		{"t4", args{"a463"}, true, false},
+		{"t4", args{"a465"}, false, false},
 		{"t5", args{"z"}, false, true},
 	}
 	for _, tt := range tests {
@@ -45,7 +46,8 @@ func TestHexStrToMsgType(t *testing.T) {
 		{"t1", args{"a455"}, MESSAGETYPE_SWAPINREQUEST, false},
 		{"t2", args{"a456"}, 0, true},
 		{"t3", args{"a461"}, MESSAGETYPE_CLAIMED, false},
-		{"t4", args{"a463"}, 0, true},
+		{"t4", args{"a463"}, MESSAGETYPE_COOPCLOSE, false},
+		{"t4", args{"a465"}, 0, true},
 		{"t5", args{"z"}, 0, true},
 	}
 	for _, tt := range tests {
