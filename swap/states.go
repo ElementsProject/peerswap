@@ -22,6 +22,7 @@ const (
 	State_SwapOutSender_ValidateTxAndPayClaimInvoice StateType = "State_SwapOutSender_ValidateTxAndPayClaimInvoice"
 	State_SwapOutSender_ClaimSwap                    StateType = "State_SwapOutSender_ClaimSwap"
 	State_SwapOutSender_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
+	State_SwapOutSender_SendCoopClose                StateType = "State_SwapOutSender_SendCoopClose"
 )
 
 // Swap Out Receiver states
@@ -58,6 +59,7 @@ const (
 	State_SwapInReceiver_ValidateTxAndPayClaimInvoice StateType = "State_SwapInReceiver_ValidateTxAndPayClaimInvoice"
 	State_SwapInReceiver_ClaimSwap                    StateType = "State_SwapInReceiver_ClaimSwap"
 	State_SwapInReceiver_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
+	State_SwapInReceiver_SendCoopClose                StateType = "State_SwapInReceiver_SendCoopClose"
 )
 
 // Events
@@ -79,7 +81,8 @@ const (
 	Event_OnClaimedPreimage  EventType = "Event_OnClaimedPreimage"
 	Event_OnCltvPassed       EventType = "Event_OnCltvPassed"
 
-	Event_OnCancelReceived EventType = "Event_OnCancelReceived"
+	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"
+	Event_OnCoopCloseReceived EventType = "Event_OnCoopCloseReceived"
 
 	Event_ActionSucceeded                  EventType = "Event_ActionSucceeded"
 	Event_SwapInSender_OnSwapInRequested   EventType = "Event_SwapInSender_OnSwapInRequested"

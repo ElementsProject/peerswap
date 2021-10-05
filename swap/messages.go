@@ -21,6 +21,8 @@ const (
 	MESSAGETYPE_CANCELED
 	_
 	MESSAGETYPE_CLAIMED
+	_
+	MESSAGETYPE_COOPCLOSE
 	MESSAGE_END int64 = iota
 
 	MESSAGE_BASE = 42069
@@ -142,9 +144,8 @@ func (c ClaimedMessage) MessageType() MessageType {
 
 // CancelMessage is the message sent by a peer if he wants to / has to cancel the swap
 type CancelMessage struct {
-	SwapId             string
-	Error              string
-	TakerRefundSigHash string
+	SwapId string
+	Error  string
 }
 
 func (e CancelMessage) MessageType() MessageType {
@@ -153,6 +154,19 @@ func (e CancelMessage) MessageType() MessageType {
 
 func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 	swap.CancelMessage = c.Error
+}
+
+// CoopCloseMessage is the message sent by the transaction taker if he wants to cancel the swap, but allow the maker a quick close
+type CoopCloseMessage struct {
+	SwapId             string
+	TakerRefundSigHash string
+}
+
+func (c CoopCloseMessage) MessageType() MessageType {
+	return MESSAGETYPE_COOPCLOSE
+}
+
+func (c CoopCloseMessage) ApplyOnSwap(swap *SwapData) {
 	swap.TakerRefundSigHash = c.TakerRefundSigHash
 }
 

@@ -193,8 +193,8 @@ func Test_AbortCltvClaim(t *testing.T) {
 	// wants to await the cltv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
-	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
+	assert.Equal(t, State_ClaimedCoop, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, MESSAGETYPE_COOPCLOSE, msg.MessageType())
 }
 
 type dummyStore struct {
@@ -357,11 +357,11 @@ func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimPara
 }
 
 func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
-	return "txid","txhex",nil
+	return "txid", "txhex", nil
 }
 
 func (d *dummyChain) CreateRefundAddress() (string, error) {
-	return "addr",nil
+	return "addr", nil
 }
 
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txid string, fee uint64, cltv int64, vout uint32, err error) {

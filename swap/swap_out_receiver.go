@@ -203,9 +203,8 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	messenger := services.messenger
 
 	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-		SwapId:             swap.Id,
-		Error:              swap.CancelMessage,
-		TakerRefundSigHash: swap.TakerRefundSigHash,
+		SwapId: swap.Id,
+		Error:  swap.CancelMessage,
 	})
 
 	err = messenger.SendMessage(swap.PeerNodeId, msgBytes, msgType)
@@ -230,6 +229,15 @@ func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData
 		return swap.HandleError(err)
 	}
 	swap.TakerRefundSigHash = sigHash
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
+		SwapId:             swap.Id,
+		TakerRefundSigHash: sigHash,
+	})
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.NextMessage = nextMessage
+	swap.NextMessageType = nextMessageType
 
 	return Event_ActionSucceeded
 }
@@ -299,9 +307,10 @@ func getSwapOutReceiverStates() States {
 		State_SwapOutReceiver_AwaitClaimInvoicePayment: {
 			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnClaimInvoicePaid: State_ClaimedPreimage,
-				Event_OnCancelReceived:   State_SwapOutReceiver_ClaimSwapCoop,
-				Event_OnCltvPassed:       State_SwapOutReceiver_ClaimSwapCltv,
+				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
+				Event_OnCancelReceived:    State_SwapOutReceiver_ClaimSwapCltv,
+				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
+				Event_OnCltvPassed:        State_SwapOutReceiver_ClaimSwapCltv,
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCoop: {

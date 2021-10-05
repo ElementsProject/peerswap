@@ -182,6 +182,16 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+	case MESSAGETYPE_COOPCLOSE:
+		var msg *CoopCloseMessage
+		err := json.Unmarshal(msgBytes, &msg)
+		if err != nil {
+			return err
+		}
+		err = s.OnCoopCloseReceived(msg.SwapId, msg)
+		if err != nil {
+			return err
+		}
 	case MESSAGETYPE_CLAIMED:
 		var msg *ClaimedMessage
 		err := json.Unmarshal(msgBytes, &msg)
@@ -502,6 +512,22 @@ func (s *SwapService) OnCancelReceived(swapId string, cancelMsg *CancelMessage) 
 		return err
 	}
 	done, err := swap.SendEvent(Event_OnCancelReceived, cancelMsg)
+	if err != nil {
+		return err
+	}
+	if done {
+		s.RemoveActiveSwap(swap.Id)
+	}
+	return nil
+}
+
+// OnCoopCloseReceived sends the CoopMessage event to the corresponding swap state mahcine
+func (s *SwapService) OnCoopCloseReceived(swapId string, coopCloseMessage *CoopCloseMessage) error {
+	swap, err := s.GetActiveSwap(swapId)
+	if err != nil {
+		return err
+	}
+	done, err := swap.SendEvent(Event_OnCoopCloseReceived, coopCloseMessage)
 	if err != nil {
 		return err
 	}

@@ -173,12 +173,12 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	// wants to await the cltv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
-	assert.Equal(t, State_SwapCanceled, aliceSwap.Current)
+	assert.Equal(t, State_ClaimedCoop, aliceSwap.Current)
 
 	// trigger bob payment received
 
 	bobReceivedMsg = <-bobMsgChan
-	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg)
+	assert.Equal(t, MESSAGETYPE_COOPCLOSE, bobReceivedMsg)
 	assert.Equal(t, State_ClaimedCoop, bobSwap.Current)
 }
 

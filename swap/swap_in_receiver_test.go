@@ -128,6 +128,6 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapCanceled, swap.Current)
+	assert.Equal(t, State_ClaimedCoop, swap.Current)
 
 }

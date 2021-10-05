@@ -16,11 +16,13 @@ Note over B: create openening tx
 B->>A: tx opened message
 deactivate B
 alt claim with preimage
-activate A
 Note over A: await opening tx has N confirmations
 A-->>B: pay claim invoice
 Note over A: broadcast claim tx (preimage, pubkey alice)
-deactivate A
+else claim cooperatively
+Note over A: paying invoice fails
+A-->>B: send coop close message
+Note over B: broadcast claim tx(pk alice and bob)
 else claim after cltv passes
 Note over B: broadcast claim tx (pubkey bob)
 end

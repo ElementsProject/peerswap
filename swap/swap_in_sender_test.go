@@ -111,7 +111,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
-	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swap.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

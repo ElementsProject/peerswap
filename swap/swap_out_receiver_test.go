@@ -78,7 +78,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Data.GetCurrentState())
-	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
+	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

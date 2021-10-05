@@ -262,13 +262,23 @@ func getSwapOutSenderStates() States {
 			Action: &TakerBuildSigHashAction{},
 			Events: Events{
 				Event_ActionFailed:    State_SendCancel,
-				Event_ActionSucceeded: State_SendCancel,
+				Event_ActionSucceeded: State_SwapOutSender_SendCoopClose,
+			},
+		},
+		State_SwapOutSender_SendCoopClose: {
+			Action: &SendMessageAction{},
+			Events: Events{
+				Event_ActionFailed:    State_SendCancel,
+				Event_ActionSucceeded: State_ClaimedCoop,
 			},
 		},
 		State_SwapCanceled: {
 			Action: &CancelAction{},
 		},
 		State_ClaimedPreimage: {
+			Action: &NoOpDoneAction{},
+		},
+		State_ClaimedCoop: {
 			Action: &NoOpDoneAction{},
 		},
 	}

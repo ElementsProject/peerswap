@@ -173,9 +173,10 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_AwaitClaimPayment: {
 			Action: &AwaitCltvAction{},
 			Events: Events{
-				Event_OnClaimInvoicePaid: State_ClaimedPreimage,
-				Event_OnCltvPassed:       State_SwapInSender_ClaimSwapCltv,
-				Event_OnCancelReceived:   State_SwapInSender_ClaimSwapCoop,
+				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
+				Event_OnCltvPassed:        State_SwapInSender_ClaimSwapCltv,
+				Event_OnCancelReceived:    State_SwapInSender_ClaimSwapCltv,
+				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 			},
 		},
 		State_SwapInSender_ClaimSwapCltv: {
@@ -188,8 +189,8 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_ClaimSwapCoop: {
 			Action: &ClaimSwapTransactionCoop{},
 			Events: Events{
-				Event_ActionFailed:    State_WaitCltv,
 				Event_ActionSucceeded: State_ClaimedCoop,
+				Event_ActionFailed:    State_WaitCltv,
 			},
 		},
 		State_WaitCltv: {
