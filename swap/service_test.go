@@ -117,7 +117,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg)
 	assert.Equal(t, State_SwapCanceled, bobSwap.Current)
 }
-func Test_ClaimPaymentFailed(t *testing.T) {
+func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	channelId := "chanId"
 	amount := uint64(100)
 	peer := "bob"
@@ -179,12 +179,7 @@ func Test_ClaimPaymentFailed(t *testing.T) {
 
 	bobReceivedMsg = <-bobMsgChan
 	assert.Equal(t, MESSAGETYPE_CANCELED, bobReceivedMsg)
-	assert.Equal(t, State_SwapOutReceiver_SwapAborted, bobSwap.Current)
-	err = bobSwapService.swapServices.liquidOnchain.(*dummyChain).cltvPassedFunc(aliceSwap.Id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, State_ClaimedCltv, bobSwap.Current)
+	assert.Equal(t, State_ClaimedCoop, bobSwap.Current)
 }
 
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {

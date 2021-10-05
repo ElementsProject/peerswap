@@ -352,6 +352,18 @@ type dummyChain struct {
 	cltvPassedFunc  func(swapId string) error
 }
 
+func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
+	return "takersighash", nil
+}
+
+func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
+	return "txid","txhex",nil
+}
+
+func (d *dummyChain) CreateRefundAddress() (string, error) {
+	return "addr",nil
+}
+
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txid string, fee uint64, cltv int64, vout uint32, err error) {
 	return "txhex", "", 0, 0, 0, nil
 }
