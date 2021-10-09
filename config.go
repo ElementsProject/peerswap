@@ -7,6 +7,7 @@ type Config struct {
 	DbPath              string
 	LiquidRpcUser       string
 	LiquidRpcPassword   string
+	LiquidRpcPasswordFile string
 	LiquidRpcHost       string
 	LiquidRpcPort       uint
 	LiquidRpcWallet     string

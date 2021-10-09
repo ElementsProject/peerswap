@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -198,16 +199,27 @@ func validateConfig(cfg *peerswap.Config) error {
 	} else {
 		cfg.LiquidEnabled = true
 	}
-	var liquidNetwork *network.Network
-	if cfg.LiquidNetworkString == "regtest" {
-		liquidNetwork = &network.Regtest
-	} else if cfg.LiquidNetworkString == "testnet" {
-		liquidNetwork = &peerswap.Testnet
-	} else {
-		liquidNetwork = &network.Liquid
+	if cfg.LiquidEnabled {
+		var liquidNetwork *network.Network
+		if cfg.LiquidNetworkString == "regtest" {
+			liquidNetwork = &network.Regtest
+		} else if cfg.LiquidNetworkString == "testnet" {
+			liquidNetwork = &peerswap.Testnet
+		} else {
+			liquidNetwork = &network.Liquid
+		}
+		cfg.LiquidNetwork = liquidNetwork
+
+		if cfg.LiquidRpcPasswordFile != "" {
+			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
+			if err != nil {
+				return err
+			}
+			cfg.LiquidRpcPassword = string(passBytes)
+		}
+
 	}
 
-	cfg.LiquidNetwork = liquidNetwork
 	return nil
 }
 
