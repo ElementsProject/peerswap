@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	defaultPeerWhitelist = []string{}
+	defaultPeerAllowlist = []string{}
 )
 
 // Error definitions
@@ -38,18 +38,18 @@ func (e ErrReloadPolicy) Error() string {
 // PolicyConfig will ensure that a swap request is
 // only performed if the policy is matched. In this
 // case this means that the requesting peer is part
-// of the whitelist and that the tank reserve is
+// of the allowlist and that the tank reserve is
 // respected.
 type Policy struct {
 	path string
 
 	ReserveOnchainMsat uint64   `long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
-	PeerWhitelist      []string `long:"whitelisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
-	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer whitelist is ignored and all incomming swap requests are allowed"`
+	PeerAllowlist      []string `long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
+	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incomming swap requests are allowed"`
 }
 
 func (p *Policy) String() string {
-	str := fmt.Sprintf("reserve_onchain_msat: %d\nwhitelisted_peers: %s\naccept_all_peers: %t\n", p.ReserveOnchainMsat, p.PeerWhitelist, p.AcceptAllPeers)
+	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\n", p.ReserveOnchainMsat, p.PeerAllowlist, p.AcceptAllPeers)
 	if p.AcceptAllPeers {
 		return fmt.Sprintf("%sCAUTION: Accept all incomming swap requests", str)
 	}
@@ -64,12 +64,12 @@ func (p *Policy) GetReserveOnchainMsat() uint64 {
 }
 
 // IsPeerAllowed returns if a peer or node is part of
-// the whitelist.
+// the allowlist.
 func (p *Policy) IsPeerAllowed(peer string) bool {
 	if p.AcceptAllPeers {
 		return true
 	}
-	for _, allowedPeer := range p.PeerWhitelist {
+	for _, allowedPeer := range p.PeerAllowlist {
 		if peer == allowedPeer {
 			return true
 		}
@@ -117,7 +117,7 @@ func (p *Policy) reload(r io.Reader) error {
 func DefaultPolicy() *Policy {
 	return &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      defaultPeerWhitelist,
+		PeerAllowlist:      defaultPeerAllowlist,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}
 }

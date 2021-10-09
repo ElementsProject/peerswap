@@ -115,13 +115,13 @@ EOF
     alias l$i-follow="tail -f /tmp/l$i-$network/log"
     alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
   done
-  # set peer whitelist in policy
+  # set peer allowlist in policy
   for i in $(seq $node_count); do
     POLICY="/tmp/l$i-$network/policy.conf"
     if [ ! -f "$POLICY" ]; then
       for j in $(seq $node_count); do
         cat <<-EOF >> $POLICY
-whitelisted_peers=$($LCLI --lightning-dir=/tmp/l$j-$network getinfo | jq -r .id)
+allowlisted_peers=$($LCLI --lightning-dir=/tmp/l$j-$network getinfo | jq -r .id)
 EOF
       done
       echo "accept_all_peers=1" >> $POLICY

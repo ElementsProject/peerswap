@@ -214,11 +214,11 @@ To ensure that only trusted nodes can send a peerswap request to your node it is
 
 ```bash
 # ~/lightning/policy.conf
-whitelisted_peers=<trusted node1>
-whitelisted_peers=<trusted node2>
+allowlisted_peers=<trusted node1>
+allowlisted_peers=<trusted node2>
 ```
 
-__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the whitelist and allow for all peers to send swap requests.
+__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.
 
 ### Run
 

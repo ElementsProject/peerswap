@@ -44,8 +44,8 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
 
     nodes = node_factory.get_nodes(2, opts=options)
 
-    # whitelist node 0 on node 1
-    policy = "whitelisted_peers={}".format(nodes[0].info["id"])
+    # allowlist node 0 on node 1
+    policy = "allowlisted_peers={}".format(nodes[0].info["id"])
     write_policy_file(nodes[1].daemon.lightning_dir, policy)
     add_policy_path_to_options(nodes[1])
     nodes[1].start()
@@ -124,7 +124,7 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
     assert balances[1] - swap_amt - FEE == balances_after_claim[1]
 
 
-def test_peer_not_whitelisted(elementsd: ElementsD, node_factory: NodeFactory):
+def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     FUNDAMOUNT = 10 ** 7
 
     options = [{"start": True}, {"start": False}]
@@ -146,7 +146,7 @@ def test_peer_not_whitelisted(elementsd: ElementsD, node_factory: NodeFactory):
 
     nodes = node_factory.get_nodes(2, opts=options)
 
-    # do NOT whitelist node 0 on node 1
+    # do NOT allowlist node 0 on node 1
     policy = ""
     write_policy_file(nodes[1].daemon.lightning_dir, policy)
     add_policy_path_to_options(nodes[1])
@@ -175,7 +175,7 @@ def test_peer_not_whitelisted(elementsd: ElementsD, node_factory: NodeFactory):
     # swap out 5000000 sat
     swap_amt = 5 * 10 ** 6
 
-    # assert error message as peer is not whitelisted
+    # assert error message as peer is not allowlisted
     CANCEL_MSG = "peer not allowed to request swaps"
     with pytest.raises(RpcError, match=CANCEL_MSG):
         nodes[0].rpc.call(

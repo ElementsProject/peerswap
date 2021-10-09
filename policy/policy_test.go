@@ -16,7 +16,7 @@ func Test_Create(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      defaultPeerWhitelist,
+		PeerAllowlist:      defaultPeerAllowlist,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 
@@ -28,13 +28,13 @@ func Test_Create(t *testing.T) {
 		acceptInt = 1
 	}
 
-	conf := fmt.Sprintf("accept_all_peers=%d\nwhitelisted_peers=%s\nwhitelisted_peers=%s", acceptInt, peer1, peer2)
+	conf := fmt.Sprintf("accept_all_peers=%d\nallowlisted_peers=%s\nallowlisted_peers=%s", acceptInt, peer1, peer2)
 
 	policy2, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      []string{peer1, peer2},
+		PeerAllowlist:      []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 	}, policy2)
 }
@@ -48,24 +48,24 @@ func Test_Reload(t *testing.T) {
 		acceptInt = 1
 	}
 
-	conf := fmt.Sprintf("accept_all_peers=%d\nwhitelisted_peers=%s\nwhitelisted_peers=%s", acceptInt, peer1, peer2)
+	conf := fmt.Sprintf("accept_all_peers=%d\nallowlisted_peers=%s\nallowlisted_peers=%s", acceptInt, peer1, peer2)
 
 	policy, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      []string{peer1, peer2},
+		PeerAllowlist:      []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 	}, policy)
 
 	newPeer := "new_peer"
-	newConf := fmt.Sprintf("whitelisted_peers=%s", newPeer)
+	newConf := fmt.Sprintf("allowlisted_peers=%s", newPeer)
 
 	err = policy.reload(strings.NewReader(newConf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      []string{newPeer},
+		PeerAllowlist:      []string{newPeer},
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 }
@@ -79,13 +79,13 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 		acceptInt = 1
 	}
 
-	conf := fmt.Sprintf("accept_all_peers=%d\nwhitelisted_peers=%s\nwhitelisted_peers=%s", acceptInt, peer1, peer2)
+	conf := fmt.Sprintf("accept_all_peers=%d\nallowlisted_peers=%s\nallowlisted_peers=%s", acceptInt, peer1, peer2)
 
 	policy, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerWhitelist:      []string{peer1, peer2},
+		PeerAllowlist:      []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 	}, policy)
 
@@ -103,13 +103,13 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 	assert.EqualValues(t, oldPolicy, policy)
 }
 
-func Test_IsPeerAllowed_Whitelist(t *testing.T) {
-	// is on whitelist and not
+func Test_IsPeerAllowed_Allowlist(t *testing.T) {
+	// is on allowlist and not
 	peer1 := "peer1"
 	peer2 := "peer2"
 
-	// peer1 is whitelisted, peer2 not
-	conf := fmt.Sprintf("whitelisted_peers=%s", peer1)
+	// peer1 is allowlisted, peer2 not
+	conf := fmt.Sprintf("allowlisted_peers=%s", peer1)
 
 	policy, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)

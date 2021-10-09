@@ -23,7 +23,7 @@ var (
 type PeerNotAllowedError string
 
 func (s PeerNotAllowedError) Error() string {
-	log.Printf("unalowed request from non-whitelist peer: %s", string(s))
+	log.Printf("unalowed request from non-allowlist peer: %s", string(s))
 	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
 }
 
