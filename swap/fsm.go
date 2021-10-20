@@ -217,7 +217,7 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 // IsFinished returns true if the swap is already finished
 func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
-	case State_ClaimedCltv:
+	case State_ClaimedCsv:
 	case State_ClaimedPreimage:
 	case State_Done:
 		return true

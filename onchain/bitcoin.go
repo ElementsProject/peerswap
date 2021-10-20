@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	BitcoinCltv   = 2016
+	BitcoinCsv    = 100
 	Target_Blocks = 6
 )
 
@@ -41,13 +41,9 @@ func NewBitcoinOnChain(gbitcoin *gbitcoin.Bitcoin, txWatcher *txwatcher.Blockcha
 	return &BitcoinOnChain{gbitcoin: gbitcoin, txWatcher: txWatcher, clightning: clightning, hexToIdMap: hexMap, chain: chain}
 }
 
-func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error) {
-	blockheight, err := b.gbitcoin.GetBlockHeight()
-	if err != nil {
-		return "", "", 0, 0, 0, err
-	}
-	cltv = int64(blockheight + BitcoinCltv)
-	addr, err := b.createOpeningAddress(swapParams, cltv)
+func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
+
+	addr, err := b.createOpeningAddress(swapParams, BitcoinCsv)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
@@ -66,12 +62,12 @@ func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams
 		return "", "", 0, 0, 0, err
 	}
 
-	_, vout, err = b.GetVoutAndVerify(prepRes.UnsignedTx, swapParams, cltv)
+	_, vout, err = b.GetVoutAndVerify(prepRes.UnsignedTx, swapParams, BitcoinCsv)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
 	b.hexToIdMap[prepRes.UnsignedTx] = prepRes.TxId
-	return prepRes.UnsignedTx, prepRes.TxId, fee, cltv, vout, nil
+	return prepRes.UnsignedTx, prepRes.TxId, fee, BitcoinCsv, vout, nil
 }
 
 func (b *BitcoinOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
@@ -94,7 +90,7 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 		return "", "", err
 	}
 
-	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Cltv)
+	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, BitcoinCsv)
 	if err != nil {
 		return "", "", err
 	}
@@ -136,26 +132,24 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 	return txId, txHex, nil
 }
 
-func (b *BitcoinOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
+func (b *BitcoinOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
 	newAddr, err := b.clightning.NewAddr()
 	if err != nil {
 		return "", "", err
 	}
 
-	blockheight, err := b.gbitcoin.GetBlockHeight()
+
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, BitcoinCsv)
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, uint32(blockheight))
-	if err != nil {
-		return "", "", err
-	}
+
 	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
 		return "", "", err
 	}
 
-	tx.TxIn[0].Witness = GetCltvWitness(sigBytes.Serialize(), redeemScript)
+	tx.TxIn[0].Witness = GetCsvWitness(sigBytes.Serialize(), redeemScript)
 
 	bytesBuffer := new(bytes.Buffer)
 
@@ -179,7 +173,7 @@ func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, 
 		return "", err
 	}
 
-	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Cltv)
+	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Csv)
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +250,6 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 
 	// create spendingTx
 	spendingTx := wire.NewMsgTx(2)
-	spendingTx.LockTime = blockheight
 
 	scriptChangeAddr, err := btcutil.DecodeAddress(spendingAddr, b.chain)
 	if err != nil {
@@ -271,14 +264,13 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[vout].Value-200, scriptChangeAddrScriptP2pkh)
 	spendingTx.AddTxOut(spendingTxOut)
 
-	redeemScript, err = ParamsToTxScript(swapParams, claimParams.Cltv)
+	redeemScript, err = ParamsToTxScript(swapParams, BitcoinCsv)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	spendingTxInput := wire.NewTxIn(prevInput, nil, [][]byte{})
-	spendingTxInput.Sequence = 0
-
+	spendingTxInput.Sequence = 0 | blockheight
 	spendingTx.AddTxIn(spendingTxInput)
 
 	feeRes, err := b.gbitcoin.EstimateFee(Target_Blocks, "ECONOMICAL")
@@ -308,8 +300,8 @@ func (b *BitcoinOnChain) AddWaitForConfirmationTx(swapId, txId string) (err erro
 	return nil
 }
 
-func (b *BitcoinOnChain) AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error) {
-	b.txWatcher.AddCltvTx(swapId, int64(blockheight))
+func (b *BitcoinOnChain) AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error) {
+	b.txWatcher.AddCsvTx(swapId,txId,vout, csv)
 	return nil
 }
 
@@ -317,16 +309,16 @@ func (b *BitcoinOnChain) AddConfirmationCallback(f func(swapId string) error) {
 	b.txWatcher.AddTxConfirmedHandler(f)
 }
 
-func (b *BitcoinOnChain) AddCltvCallback(f func(swapId string) error) {
-	b.txWatcher.AddCltvPassedHandler(f)
+func (b *BitcoinOnChain) AddCsvCallback(f func(swapId string) error) {
+	b.txWatcher.AddCsvPassedHandler(f)
 }
 
-func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, openingTxId string) (bool, error) {
+func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, csv uint32, openingTxId string) (bool, error) {
 	txHex, err := b.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
 		return false, err
 	}
-	ok, _, err := b.GetVoutAndVerify(txHex, swapParams, cltv)
+	ok, _, err := b.GetVoutAndVerify(txHex, swapParams, csv)
 	if err != nil {
 		return false, err
 	}
@@ -359,8 +351,8 @@ func (b *BitcoinOnChain) getRawTxFromTxId(txId string, vout uint32) (string, err
 	return rawTxHex, nil
 }
 
-func (b *BitcoinOnChain) createOpeningAddress(params *swap.OpeningParams, locktimeHeight int64) (string, error) {
-	redeemScript, err := ParamsToTxScript(params, locktimeHeight)
+func (b *BitcoinOnChain) createOpeningAddress(params *swap.OpeningParams, csv uint32) (string, error) {
+	redeemScript, err := ParamsToTxScript(params, csv)
 	if err != nil {
 		return "", err
 	}
@@ -399,7 +391,7 @@ func getFeeSatsFromTx(psbtString, txHex string) (uint64, error) {
 	return uint64(inputSats - outputSats), nil
 }
 
-func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams, cltv int64) (bool, uint32, error) {
+func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams, csv uint32) (bool, uint32, error) {
 	msgTx := wire.NewMsgTx(2)
 
 	txBytes, err := hex.DecodeString(txHex)
@@ -424,7 +416,7 @@ func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningPara
 		return false, 0, err
 	}
 
-	redeemScript, err := ParamsToTxScript(params, cltv)
+	redeemScript, err := ParamsToTxScript(params, csv)
 	if err != nil {
 		return false, 0, err
 	}

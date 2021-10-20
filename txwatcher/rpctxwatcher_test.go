@@ -36,14 +36,15 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	assert.Equal(t, swapId, txConfirmedId)
 }
 
-func Test_RpcTxWatcherCltv(t *testing.T) {
-	cltv := int64(100)
+func Test_RpcTxWatcherCsv(t *testing.T) {
+	csv := uint32(100)
 	swapId := "foo"
-
+	txid := "bar"
+	vout := uint32(0)
 	db := &DummyBlockchain{
 		nextBlockheight: 12,
 		nextTxOutResp: &TxOutResp{
-			Confirmations: 2,
+			Confirmations: 0,
 		},
 	}
 
@@ -56,15 +57,15 @@ func Test_RpcTxWatcherCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	txWatcher.AddCltvTx(swapId, cltv)
-	txWatcher.AddCltvPassedHandler(func(swapId string) error {
+	txWatcher.AddCsvTx(swapId, txid, vout, csv)
+	txWatcher.AddCsvPassedHandler(func(swapId string) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
 
 	db.SetBlockHeight(101)
 	db.SetNextTxOutResp(&TxOutResp{
-		Confirmations: 2,
+		Confirmations: 101,
 	})
 
 	txConfirmedId := <-txWatcherChan

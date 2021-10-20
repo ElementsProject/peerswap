@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	LiquidCltv = 120
+	LiquidCsv = 60
 )
 
 type LiquidOnChain struct {
@@ -40,15 +40,11 @@ func NewLiquidOnChain(elements *gelements.Elements, txWatcher *txwatcher.Blockch
 	return &LiquidOnChain{elements: elements, txWatcher: txWatcher, wallet: wallet, network: network, asset: lbtc}
 }
 
-// Getblockheight
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error) {
-	blockheight, err := l.elements.GetBlockHeight()
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
+	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
-	cltv = int64(blockheight + LiquidCltv)
-
-	redeemScript, err := ParamsToTxScript(swapParams, cltv)
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
 	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
@@ -69,7 +65,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 		return "", "", 0, 0, 0, err
 	}
 
-	return unpreparedTxHex, "", fee, cltv, vout, nil
+	return unpreparedTxHex, "", fee, LiquidCsv, vout, nil
 }
 
 func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, err error) {
@@ -119,7 +115,7 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 	return txId, txHex, nil
 }
 
-func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
+func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
 	newAddr, err := l.wallet.GetAddress()
 	if err != nil {
 		return "", "", err
@@ -129,11 +125,11 @@ func (l *LiquidOnChain) CreateCltvSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, blockheight)
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, uint32(blockheight))
 	if err != nil {
 		return "", "", err
 	}
-	tx.Inputs[0].Witness = GetCltvWitness(sigBytes, redeemScript)
+	tx.Inputs[0].Witness = GetCsvWitness(sigBytes, redeemScript)
 	txHex, err = tx.ToHex()
 	if err != nil {
 		return "", "", err
@@ -187,12 +183,12 @@ func (l *LiquidOnChain) CreateRefundAddress() (string, error) {
 	return addr, nil
 }
 
-func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, blockheight uint64) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
+func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, blockheight uint32) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
 	outputScript, err := l.blech32ToScript(spendingAddr)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	redeemScript, err = ParamsToTxScript(swapParams, claimParams.Cltv)
+	redeemScript, err = ParamsToTxScript(swapParams, claimParams.Csv)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -212,7 +208,7 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 }
 
 // CreateSpendingTransaction returns the spendningTransaction for the swap
-func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount, feeAmount, currentBlock uint64, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
+func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount, feeAmount uint64, currentBlock uint32, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
 		log.Printf("error creating first tx %s", openingTxHex)
@@ -232,7 +228,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	txHash := firstTx.TxHash()
 	spendingInput := transaction.NewTxInput(txHash[:], vout)
-	spendingInput.Sequence = 0
+	spendingInput.Sequence = 0 | uint32(currentBlock)
 	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(swapAmount - feeAmount)
 
 	var txOutputs = []*transaction.TxOutput{}
@@ -250,7 +246,6 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	spendingTx := &transaction.Transaction{
 		Version:  2,
 		Flag:     0,
-		Locktime: uint32(currentBlock),
 		Inputs:   []*transaction.TxInput{spendingInput},
 		Outputs:  txOutputs,
 	}
@@ -269,8 +264,8 @@ func (l *LiquidOnChain) AddWaitForConfirmationTx(swapId, txId string) (err error
 	return nil
 }
 
-func (l *LiquidOnChain) AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error) {
-	l.txWatcher.AddCltvTx(swapId, int64(blockheight))
+func (l *LiquidOnChain) AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error) {
+	l.txWatcher.AddCsvTx(swapId,txId,vout, csv)
 	return nil
 }
 
@@ -278,12 +273,12 @@ func (l *LiquidOnChain) AddConfirmationCallback(f func(swapId string) error) {
 	l.txWatcher.AddTxConfirmedHandler(f)
 }
 
-func (l *LiquidOnChain) AddCltvCallback(f func(swapId string) error) {
-	l.txWatcher.AddCltvPassedHandler(f)
+func (l *LiquidOnChain) AddCsvCallback(f func(swapId string) error) {
+	l.txWatcher.AddCsvPassedHandler(f)
 }
 
-func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, cltv int64, openingTxId string) (bool, error) {
-	redeemScript, err := ParamsToTxScript(swapParams, cltv)
+func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, csv uint32, openingTxId string) (bool, error) {
+	redeemScript, err := ParamsToTxScript(swapParams, csv)
 	if err != nil {
 		return false, err
 	}

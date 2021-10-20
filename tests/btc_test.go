@@ -6,6 +6,7 @@ package tests
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -37,6 +38,20 @@ import (
 // step 7: build claim tx
 // step 8: send claim tx
 
+func Test_Sequence(t *testing.T) {
+	a := 0x13C7 | 0x400000
+	bs := make([]byte, 32)
+	binary.LittleEndian.PutUint32(bs, uint32(a))
+
+	log.Printf("%x", bs)
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("%v", a)
+	log.Printf("%x", buf.Bytes())
+}
 func Test_BitcoinSwapPreimage(t *testing.T) {
 	lcli, err := getLightningClient()
 	if err != nil {
@@ -53,7 +68,7 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 
 	bitcoinOnchain := onchain.NewBitcoinOnChain(bitcoin, nil, lcli, &chaincfg.RegressionNetParams)
 
-	txParams := NewTxParams(uint64(100))
+	txParams := NewTxParams(uint32(100))
 	txParams.SwapAmount = 10000
 
 	openingParams := &swap.OpeningParams{
@@ -62,6 +77,7 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 		Amount:           txParams.SwapAmount,
 	}
+	log.Printf("%s %s %s", openingParams.TakerPubkeyHash, openingParams.MakerPubkeyHash, openingParams.ClaimPaymentHash)
 	unpreppedtxHex, _, _, cltv, _, err := bitcoinOnchain.CreateOpeningTransaction(openingParams)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +94,7 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		t.Fatal(err)
 	}
 	claimParams := &swap.ClaimParams{
-		Cltv:     cltv,
+		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.AliceKey,
 	}
@@ -92,7 +108,7 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func Test_BitcoinSwapCltv(t *testing.T) {
+func Test_BitcoinSwapCsv(t *testing.T) {
 	lcli, err := getLightningClient()
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +124,7 @@ func Test_BitcoinSwapCltv(t *testing.T) {
 
 	bitcoinOnchain := onchain.NewBitcoinOnChain(bitcoin, nil, lcli, &chaincfg.RegressionNetParams)
 
-	txParams := NewTxParams(uint64(100))
+	txParams := NewTxParams(uint32(100))
 	txParams.SwapAmount = 10000
 
 	openingParams := &swap.OpeningParams{
@@ -128,16 +144,16 @@ func Test_BitcoinSwapCltv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 2016)
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
 	claimParams := &swap.ClaimParams{
-		Cltv:     cltv,
+		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.BobKey,
 	}
-	claimTxId, _, err := bitcoinOnchain.CreateCltvSpendingTransaction(openingParams, claimParams, openingTxHex, vout)
+	claimTxId, _, err := bitcoinOnchain.CreateCsvSpendingTransaction(openingParams, claimParams, openingTxHex, vout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +175,7 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 
 	bitcoinOnchain := onchain.NewBitcoinOnChain(bitcoin, nil, lcli, &chaincfg.RegressionNetParams)
 
-	txParams := NewTxParams(uint64(100))
+	txParams := NewTxParams(uint32(100))
 	txParams.SwapAmount = 10000
 
 	openingParams := &swap.OpeningParams{
@@ -185,12 +201,12 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 	}
 
 	takerClaimParams := &swap.ClaimParams{
-		Cltv:     cltv,
+		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.AliceKey,
 	}
 	makerClaimParams := &swap.ClaimParams{
-		Cltv:     cltv,
+		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.BobKey,
 	}
@@ -237,7 +253,7 @@ func Test_BitcoinSwap(t *testing.T) {
 
 	log.Println(funds)
 
-	txParams := NewTxParams(uint64(100))
+	txParams := NewTxParams(uint32(100))
 	txParams.SwapAmount = 10000
 
 	addr, err := createOpeningAddress(txParams)
@@ -320,7 +336,7 @@ func Test_BitcoinSwap(t *testing.T) {
 	spendingTxOut := wire.NewTxOut(openingMsgTx.TxOut[scriptVout].Value, scriptChangeAddrScriptP2pkh)
 	spendingTx.AddTxOut(spendingTxOut)
 
-	redeemScript, _ := utils.GetOpeningTxScript(txParams.AliceKey.PubKey().SerializeCompressed(), txParams.BobKey.PubKey().SerializeCompressed(), txParams.PaymentHash, int64(txParams.Cltv))
+	redeemScript, _ := utils.GetOpeningTxScript(txParams.AliceKey.PubKey().SerializeCompressed(), txParams.BobKey.PubKey().SerializeCompressed(), txParams.PaymentHash, txParams.Csv)
 
 	spendingTxInput := wire.NewTxIn(prevInput, nil, [][]byte{})
 	spendingTxInput.Sequence = 0
@@ -347,7 +363,7 @@ func Test_BitcoinSwap(t *testing.T) {
 	//	t.Fatal(err)
 	//}
 
-	//preimageWitness := utils.GetCltvWitness(sig.Serialize(),  redeemScript)
+	//preimageWitness := utils.GetCsvWitness(sig.Serialize(),  redeemScript)
 	spendingTx.TxIn[0].Witness = utils.GetPreimageWitness(takerSig.Serialize(), txParams.Preimage[:], redeemScript)
 	//spendingTx.TxIn[0].Witness = utils.GetCooperativeWitness(takerSig.Serialize(),makerSig.Serialize(),redeemScript)
 	bytesBuffer := new(bytes.Buffer)
@@ -396,7 +412,7 @@ func getFixedSwapParams() (*btcec.PrivateKey, *btcec.PrivateKey, lightning.Preim
 }
 
 func createOpeningAddress(params *TxParams) (string, error) {
-	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, int64(params.Cltv))
+	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, params.Csv)
 	if err != nil {
 		return "", err
 	}
@@ -437,7 +453,7 @@ func VerifyTx(txHex string, params *TxParams) (bool, int, error) {
 		return false, 0, err
 	}
 
-	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, int64(params.Cltv))
+	redeemScript, err := utils.GetOpeningTxScript(params.AliceKey.PubKey().SerializeCompressed(), params.BobKey.PubKey().SerializeCompressed(), params.PaymentHash, params.Csv)
 	if err != nil {
 		return false, 0, err
 	}
@@ -462,11 +478,11 @@ type TxParams struct {
 	BobKey      *btcec.PrivateKey
 	Preimage    lightning.Preimage
 	PaymentHash []byte
-	SwapAmount  uint64
-	Cltv        uint64
+	SwapAmount uint64
+	Csv        uint32
 }
 
-func NewTxParams(cltv uint64) *TxParams {
+func NewTxParams(csv uint32) *TxParams {
 	preimage, _ := lightning.GetPreimage()
 	pHash := preimage.Hash()
 	return &TxParams{
@@ -474,7 +490,7 @@ func NewTxParams(cltv uint64) *TxParams {
 		BobKey:      getRandomPrivkey(),
 		Preimage:    preimage,
 		PaymentHash: pHash[:],
-		Cltv:        cltv,
+		Csv:         csv,
 	}
 }
 

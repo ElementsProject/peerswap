@@ -66,7 +66,7 @@ func Test_ValidSwap(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		Cltv:            1,
+		Csv:             1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +141,7 @@ func Test_Cancel1(t *testing.T) {
 	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
 }
-func Test_AbortCltvClaim(t *testing.T) {
+func Test_AbortCsvClaim(t *testing.T) {
 	swapAmount := uint64(100)
 	initiator := "foo"
 	peer := "bar"
@@ -177,7 +177,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		Cltv:            1,
+		Csv:             1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -190,7 +190,7 @@ func Test_AbortCltvClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	// wants to await the cltv claim before it goes to a
+	// wants to await the csv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
 	assert.Equal(t, State_ClaimedCoop, swapFSM.Data.GetCurrentState())
@@ -328,7 +328,7 @@ func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channel
 
 type DummyTxWatcher struct {
 	txConfirmedFunc func(swapId string) error
-	cltvPassedFunc  func(swapId string) error
+	csvPassedFunc   func(swapId string) error
 }
 
 func (d *DummyTxWatcher) AddCltvTx(swapId string, cltv int64) {
@@ -343,14 +343,25 @@ func (d *DummyTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
 	d.txConfirmedFunc = f
 }
 
-func (d *DummyTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
-	d.cltvPassedFunc = f
+func (d *DummyTxWatcher) AddCsvPassedHandler(f func(swapId string) error) {
+	d.csvPassedFunc = f
 }
 
 type dummyChain struct {
 	txConfirmedFunc func(swapId string) error
-	cltvPassedFunc  func(swapId string) error
+	csvPassedFunc   func(swapId string) error
 }
+
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
+	return "txhex", "", 0, 0, 0, nil
+}
+
+
+
+func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
+	d.csvPassedFunc = f
+}
+
 
 func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
 	return "takersighash", nil
@@ -364,9 +375,6 @@ func (d *dummyChain) CreateRefundAddress() (string, error) {
 	return "addr", nil
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txid string, fee uint64, cltv int64, vout uint32, err error) {
-	return "txhex", "", 0, 0, 0, nil
-}
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
@@ -376,7 +384,7 @@ func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
+func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
 }
 
@@ -384,7 +392,7 @@ func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
 	return nil
 }
 
-func (d *dummyChain) AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error) {
+func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout,csv uint32) (err error) {
 	return nil
 }
 
@@ -392,10 +400,7 @@ func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {
 	d.txConfirmedFunc = f
 }
 
-func (d *dummyChain) AddCltvCallback(f func(swapId string) error) {
-	d.cltvPassedFunc = f
-}
 
-func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string) (bool, error) {
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv uint32, openingTxId string) (bool, error) {
 	return true, nil
 }

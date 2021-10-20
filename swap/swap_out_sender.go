@@ -142,7 +142,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 
 	swap.ClaimPaymentHash = invoice.PHash
 
-	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Cltv, swap.OpeningTxId)
+	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.Csv, swap.OpeningTxId)
 	if err != nil {
 		return swap.HandleError(err)
 	}

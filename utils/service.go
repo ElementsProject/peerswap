@@ -51,7 +51,7 @@ func (u *Utility) CheckTransactionValidity(openingTxHex string, swapAmount uint6
 }
 
 // GetSwapScript returns the swap script
-func (u *Utility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, cltv int64) ([]byte, error) {
+func (u *Utility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash string, csv uint32) ([]byte, error) {
 	// check script
 	takerPubkeyHashBytes, err := hex.DecodeString(takerPubkeyHash)
 	if err != nil {
@@ -65,7 +65,7 @@ func (u *Utility) GetSwapScript(takerPubkeyHash, makerPubkeyHash, paymentHash st
 	if err != nil {
 		return nil, err
 	}
-	script, err := GetOpeningTxScript(takerPubkeyHashBytes, makerPubkeyHashBytes, pHashBytes, cltv)
+	script, err := GetOpeningTxScript(takerPubkeyHashBytes, makerPubkeyHashBytes, pHashBytes, csv)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (u *Utility) GetPreimageWitness(signature, preimage, redeemScript []byte) [
 	return GetPreimageWitness(signature, preimage, redeemScript)
 }
 
-// GetCltvWitness returns the witness for spending the transaction with a passed cltv
-func (u *Utility) GetCltvWitness(signature, redeemScript []byte) [][]byte {
-	return GetCltvWitness(signature, redeemScript)
+// GetCsvWitness returns the witness for spending the transaction with a passed csv
+func (u *Utility) GetCsvWitness(signature, redeemScript []byte) [][]byte {
+	return GetCsvWitness(signature, redeemScript)
 }

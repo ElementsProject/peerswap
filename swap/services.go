@@ -31,15 +31,15 @@ type LightningClient interface {
 }
 
 type Onchain interface {
-	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, cltv int64, vout uint32, err error)
+	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error)
 	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
-	CreateCltvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
+	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	AddWaitForConfirmationTx(swapId, txId string) (err error)
-	AddWaitForCltvTx(swapId, txId string, blockheight uint64) (err error)
+	AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error)
 	AddConfirmationCallback(func(swapId string) error)
-	AddCltvCallback(func(swapId string) error)
-	ValidateTx(swapParams *OpeningParams, cltv int64, openingTxId string) (bool, error)
+	AddCsvCallback(func(swapId string) error)
+	ValidateTx(swapParams *OpeningParams, csv uint32, openingTxId string) (bool, error)
 	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error)
 	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error)
 	CreateRefundAddress() (string, error)
@@ -53,7 +53,7 @@ type OpeningParams struct {
 }
 
 type ClaimParams struct {
-	Cltv     int64
+	Csv      uint32
 	Preimage string
 	Signer   Signer
 }

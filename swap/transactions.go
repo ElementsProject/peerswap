@@ -12,7 +12,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	}
 
 	// Create the opening transaction
-	txHex, _, fee, cltv, vout, err := onchain.CreateOpeningTransaction(&OpeningParams{
+	txHex, _, fee, csv, vout, err := onchain.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
 		ClaimPaymentHash: swap.ClaimPaymentHash,
@@ -25,7 +25,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	swap.OpeningTxFee = fee
 	swap.OpeningTxVout = vout
 
-	swap.Cltv = cltv
+	swap.Csv = csv
 
 	return nil
 }
@@ -60,7 +60,7 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 	spendParams := &ClaimParams{
 		Preimage: swap.ClaimPreimage,
 		Signer:   key,
-		Cltv:     swap.Cltv,
+		Csv:      swap.Csv,
 	}
 	txId, _, err := onchain.CreatePreimageSpendingTransaction(openingParams, spendParams, swap.OpeningTxId)
 	if err != nil {
@@ -71,8 +71,8 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 	return nil
 }
 
-// CreateCltvSpendingTransaction creates the spending transaction from a swap when spending the cltv passed branch
-func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) error {
+// CreateCsvSpendingTransaction creates the spending transaction from a swap when spending the csv passed branch
+func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return err
@@ -86,9 +86,9 @@ func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) error
 	}
 	spendParams := &ClaimParams{
 		Signer: key,
-		Cltv:   swap.Cltv,
+		Csv:    swap.Csv,
 	}
-	txId, _, err := onchain.CreateCltvSpendingTransaction(openingParams, spendParams, swap.OpeningTxHex, swap.OpeningTxVout)
+	txId, _, err := onchain.CreateCsvSpendingTransaction(openingParams, spendParams, swap.OpeningTxHex, swap.OpeningTxVout)
 	if err != nil {
 		return err
 	}
@@ -97,28 +97,3 @@ func CreateCltvSpendingTransaction(services *SwapServices, swap *SwapData) error
 	return nil
 }
 
-// CreateCltvSpendingTransaction creates the spending transaction from a swap when spending the cltv passed branch
-func Crea(services *SwapServices, swap *SwapData) error {
-	onchain, err := services.getOnchainAsset(swap.Asset)
-	if err != nil {
-		return err
-	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
-	openingParams := &OpeningParams{
-		TakerPubkeyHash:  swap.TakerPubkeyHash,
-		MakerPubkeyHash:  swap.MakerPubkeyHash,
-		ClaimPaymentHash: swap.ClaimPaymentHash,
-		Amount:           swap.Amount,
-	}
-	spendParams := &ClaimParams{
-		Signer: key,
-		Cltv:   swap.Cltv,
-	}
-	txId, _, err := onchain.CreateCltvSpendingTransaction(openingParams, spendParams, swap.OpeningTxHex, swap.OpeningTxVout)
-	if err != nil {
-		return err
-	}
-	swap.ClaimTxId = txId
-
-	return nil
-}
