@@ -23,7 +23,7 @@ type TxOutResp struct {
 type SwapTxInfo struct {
 	TxId   string
 	TxVout uint32
-	Csv   uint32
+	Csv    uint32
 }
 
 // todo zmq notifications
@@ -32,26 +32,25 @@ type SwapTxInfo struct {
 type BlockchainRpcTxWatcher struct {
 	blockchain BlockchainRpc
 
-	txCallback       func(swapId string) error
+	txCallback        func(swapId string) error
 	csvPassedCallback func(swapId string) error
 
-
-	txWatchList       map[string]string
-	csvtxWatchList       map[string]*SwapTxInfo
-	newBlockChan      chan uint64
-	requiredConfs     uint32
-	ctx               context.Context
+	txWatchList    map[string]string
+	csvtxWatchList map[string]*SwapTxInfo
+	newBlockChan   chan uint64
+	requiredConfs  uint32
+	ctx            context.Context
 	sync.Mutex
 }
 
 func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
-		ctx:               ctx,
-		blockchain:        blockchain,
-		txWatchList:       make(map[string]string),
+		ctx:            ctx,
+		blockchain:     blockchain,
+		txWatchList:    make(map[string]string),
 		csvtxWatchList: make(map[string]*SwapTxInfo),
-		newBlockChan:      make(chan uint64),
-		requiredConfs:     requiredConfs,
+		newBlockChan:   make(chan uint64),
+		requiredConfs:  requiredConfs,
 	}
 }
 
@@ -192,7 +191,6 @@ func (l *BlockchainRpcTxWatcher) AddCsvTx(swapId, txId string, vout uint32, csv 
 		Csv:    csv,
 	}
 }
-
 
 func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
 	l.Lock()

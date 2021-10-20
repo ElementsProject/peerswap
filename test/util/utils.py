@@ -18,7 +18,7 @@ from pyln.testing.utils import (
     BitcoinRpcProxy,
     ElementsD,
 )
-
+import re
 import pytest
 
 
@@ -64,18 +64,39 @@ def liquid_balance_changed(node: LightningNode, before: int):
     return False
 
 
-def has_log(node: TailableProc, regexs):
-    logging.debug("Waiting for {} in the logs".format(regexs))
-    exs = [re.compile(r) for r in regexs]
+def has_log(node: TailableProc, regex):
+    ex = re.compile(regex)
     pos = node.logsearch_start
-    for r in exs.copy():
-        node.logsearch_start = pos + 1
-        if r.search(node.logs[pos]):
-            logging.debug("Found {}} in logs".format(r))
-            exs.remove(r)
-            return True
-    return False
+    print("waiting for {} in the log".format(regex))
 
+    with node.logs_cond:
+        # check if end of log is reached, wait and return false
+        if pos >= len(node.logs):
+            if not node.running:
+                raise ValueError('Process died while waiting for logs')
+            node.logs_cond.wait(1)
+            return False
+
+        # if log lines are left go to next log line and try to find the regex
+        node.logsearch_start = pos + 1
+        if ex.search(node.logs[pos]):
+            print("Found {} in logs".format(regex))
+            return True
+        return False
+
+def not_in_log(node: TailableProc, regex):
+    ex = re.compile(regex)
+    pos = 0
+
+    while True:
+        with node.logs_cond:
+            if pos >= len(node.logs):
+                return True
+            if ex.search(node.logs[pos]):
+                print("Found {} in line {}".format(regex, pos + 1))
+                print(node.logs[pos])
+                return False
+            pos += 1
 
 def has_current_state(node: LightningNode, state: str):
     st = node.rpc.call("peerswap-listswaps")
