@@ -184,11 +184,7 @@ def test_swap_out_claim_cltv(elementsd: ElementsD, node_factory: NodeFactory):
 
     # wait for fee beeing payed
     wait_for(
-        lambda: with_liquid_generate(
-            elementsd,
-            1,
             lambda: channel_balance_changed(nodes[0], chfunds),
-        )
     )
     chfunds_after_fee_payed = nodes[0].rpc.call("listfunds")["channels"][0][
         "channel_sat"
@@ -209,8 +205,6 @@ def test_swap_out_claim_cltv(elementsd: ElementsD, node_factory: NodeFactory):
     # the second node so that the invoice never gets
     # payed and the csv claim is performet eventually!
     nodes[0].stop()
-    # mine openinig tx
-    elementsd.rpc.generatetoaddress(1, BURN_ADDR)
 
     # assert 60 blocks difference until csv is claimed
     block_diff = 60

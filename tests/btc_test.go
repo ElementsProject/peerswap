@@ -144,7 +144,7 @@ func Test_BitcoinSwapCsv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 100)
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", uint(cltv))
 	if err != nil {
 		t.Fatal(err)
 	}

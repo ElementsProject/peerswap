@@ -120,12 +120,7 @@ func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPar
 	if err != nil {
 		return "", "", err
 	}
-
-	blockheight, err := l.elements.GetBlockHeight()
-	if err != nil {
-		return "", "", err
-	}
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, uint32(blockheight))
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, LiquidCsv)
 	if err != nil {
 		return "", "", err
 	}
@@ -183,7 +178,7 @@ func (l *LiquidOnChain) CreateRefundAddress() (string, error) {
 	return addr, nil
 }
 
-func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, blockheight uint32) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
+func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, csv uint32) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
 	outputScript, err := l.blech32ToScript(spendingAddr)
 	if err != nil {
 		return nil, nil, nil, err
@@ -196,7 +191,7 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	spendingTx, sigHash, err := l.createSpendingTransaction(openingTxHex, swapParams.Amount, fee, blockheight, l.asset, redeemScript, outputScript)
+	spendingTx, sigHash, err := l.createSpendingTransaction(openingTxHex, swapParams.Amount, fee, csv, l.asset, redeemScript, outputScript)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -208,7 +203,7 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 }
 
 // CreateSpendingTransaction returns the spendningTransaction for the swap
-func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount, feeAmount uint64, currentBlock uint32, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
+func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount, feeAmount uint64, csv uint32, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
 		log.Printf("error creating first tx %s", openingTxHex)
@@ -228,7 +223,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	txHash := firstTx.TxHash()
 	spendingInput := transaction.NewTxInput(txHash[:], vout)
-	spendingInput.Sequence = 0 | uint32(currentBlock)
+	spendingInput.Sequence = 0 | csv
 	spendingSatsBytes, _ := elementsutil.SatoshiToElementsValue(swapAmount - feeAmount)
 
 	var txOutputs = []*transaction.TxOutput{}

@@ -233,7 +233,7 @@ func (b *BitcoinOnChain) CreateRefundAddress() (string, error) {
 	return newAddr, nil
 }
 
-func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, blockheight uint32) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
+func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, csv uint32) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
 	openingMsgTx := wire.NewMsgTx(2)
 	txBytes, err := hex.DecodeString(openingTxHex)
 	if err != nil {
@@ -270,7 +270,7 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	}
 
 	spendingTxInput := wire.NewTxIn(prevInput, nil, [][]byte{})
-	spendingTxInput.Sequence = 0 | blockheight
+	spendingTxInput.Sequence = 0 | csv
 	spendingTx.AddTxIn(spendingTxInput)
 
 	feeRes, err := b.gbitcoin.EstimateFee(Target_Blocks, "ECONOMICAL")
