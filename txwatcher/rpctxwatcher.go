@@ -22,35 +22,35 @@ type TxOutResp struct {
 
 type SwapTxInfo struct {
 	TxId   string
-	TxVout string
-	Cltv   int64
+	TxVout uint32
+	Csv    uint32
 }
 
 // todo zmq notifications
 
-// BlockchainRpcTxWatcher handles notifications of confirmed and cltv-passed events
+// BlockchainRpcTxWatcher handles notifications of confirmed and csv-passed events
 type BlockchainRpcTxWatcher struct {
 	blockchain BlockchainRpc
 
-	txCallback       func(swapId string) error
-	timelockCallback func(swapId string) error
+	txCallback        func(swapId string) error
+	csvPassedCallback func(swapId string) error
 
-	txWatchList       map[string]string
-	timelockWatchlist map[string]int64
-	newBlockChan      chan uint64
-	requiredConfs     uint32
-	ctx               context.Context
+	txWatchList    map[string]string
+	csvtxWatchList map[string]*SwapTxInfo
+	newBlockChan   chan uint64
+	requiredConfs  uint32
+	ctx            context.Context
 	sync.Mutex
 }
 
 func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
-		ctx:               ctx,
-		blockchain:        blockchain,
-		txWatchList:       make(map[string]string),
-		timelockWatchlist: make(map[string]int64),
-		newBlockChan:      make(chan uint64),
-		requiredConfs:     requiredConfs,
+		ctx:            ctx,
+		blockchain:     blockchain,
+		txWatchList:    make(map[string]string),
+		csvtxWatchList: make(map[string]*SwapTxInfo),
+		newBlockChan:   make(chan uint64),
+		requiredConfs:  requiredConfs,
 	}
 }
 
@@ -76,7 +76,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 				if err != nil {
 					return err
 				}
-				err = s.HandleTimelockTx(nb)
+				err = s.HandleCsvTx(nb)
 				if err != nil {
 					return err
 				}
@@ -109,29 +109,6 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
 			}
 		}
 	}
-}
-
-// HandleTimelockTx looks for transactions that have passed their cltv height
-func (s *BlockchainRpcTxWatcher) HandleTimelockTx(blockheight uint64) error {
-	s.Lock()
-	var toRemove []string
-	for k, v := range s.timelockWatchlist {
-		if v >= int64(blockheight) {
-			continue
-		}
-		log.Printf("timelock triggered")
-		if s.timelockCallback == nil {
-			continue
-		}
-		err := s.timelockCallback(k)
-		if err != nil {
-			return err
-		}
-		toRemove = append(toRemove, k)
-	}
-	s.Unlock()
-	s.TxClaimed(toRemove)
-	return nil
 }
 
 // HandleConfirmedTx looks for transactions that are confirmed
@@ -168,16 +145,52 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 	return nil
 }
 
+// HandleCsvTx looks for transactions that have enough confirmations to be spend using the csv path
+func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
+	var toRemove []string
+	s.Lock()
+	for k, v := range s.csvtxWatchList {
+		// todo does vout matter here?
+		res, err := s.blockchain.GetTxOut(v.TxId, v.TxVout)
+		if err != nil {
+			log.Printf("watchlist fetchtx err: %v", err)
+			continue
+		}
+		if res == nil {
+			continue
+		}
+		if v.Csv > res.Confirmations {
+			continue
+		}
+		log.Printf("watchlist want to claim: csv %v confs %v vout %v txid %s", v.Csv,res.Confirmations, v.TxVout, v.TxId)
+		if s.csvPassedCallback == nil {
+			continue
+		}
+		err = s.csvPassedCallback(k)
+		if err != nil {
+			log.Printf("tx callback error %v", err)
+			continue
+		}
+		toRemove = append(toRemove, k)
+	}
+	s.Unlock()
+	s.TxClaimed(toRemove)
+	return nil
+}
 func (l *BlockchainRpcTxWatcher) AddConfirmationsTx(swapId, txId string) {
 	l.Lock()
 	defer l.Unlock()
 	l.txWatchList[swapId] = txId
 }
 
-func (l *BlockchainRpcTxWatcher) AddCltvTx(swapId string, cltv int64) {
+func (l *BlockchainRpcTxWatcher) AddCsvTx(swapId, txId string, vout uint32, csv uint32) {
 	l.Lock()
 	defer l.Unlock()
-	l.timelockWatchlist[swapId] = cltv
+	l.csvtxWatchList[swapId] = &SwapTxInfo{
+		TxId:   txId,
+		TxVout: vout,
+		Csv:    csv,
+	}
 }
 
 func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
@@ -185,7 +198,7 @@ func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
 	defer l.Unlock()
 	for _, v := range swaps {
 		delete(l.txWatchList, v)
-		delete(l.timelockWatchlist, v)
+		delete(l.csvtxWatchList, v)
 	}
 }
 
@@ -195,8 +208,8 @@ func (l *BlockchainRpcTxWatcher) AddTxConfirmedHandler(f func(swapId string) err
 	l.txCallback = f
 }
 
-func (l *BlockchainRpcTxWatcher) AddCltvPassedHandler(f func(swapId string) error) {
+func (l *BlockchainRpcTxWatcher) AddCsvPassedHandler(f func(swapId string) error) {
 	l.Lock()
 	defer l.Unlock()
-	l.timelockCallback = f
+	l.csvPassedCallback = f
 }

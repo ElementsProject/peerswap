@@ -23,7 +23,7 @@ else claim cooperatively
 Note over A: paying invoice fails
 A-->>B: send coop close message
 Note over B: broadcast claim tx(pk alice and bob)
-else claim after cltv passes
+else claim after csv passes
 Note over B: broadcast claim tx (pubkey bob)
 end
 ```

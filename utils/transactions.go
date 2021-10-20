@@ -21,7 +21,7 @@ type TxSigner interface {
 
 // GetOpeningTxScript returns the script for the opening transaction of a swap,
 // where the taker is the peer paying the invoice and the maker the peer providing the lbtc
-func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []byte, locktimeHeight int64) ([]byte, error) {
+func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []byte, csv uint32) ([]byte, error) {
 	script := txscript.NewScriptBuilder().
 		AddData(makerPubkeyHash).
 		AddOp(txscript.OP_CHECKSIG).
@@ -39,7 +39,7 @@ func GetOpeningTxScript(takerPubkeyHash []byte, makerPubkeyHash []byte, pHash []
 		AddData(takerPubkeyHash).
 		AddOp(txscript.OP_CHECKSIG).
 		AddOp(txscript.OP_ELSE).
-		AddInt64(locktimeHeight).
+		AddInt64(int64(csv)).
 		AddOp(txscript.OP_CHECKLOCKTIMEVERIFY).
 		AddOp(txscript.OP_ENDIF)
 	return script.Script()
@@ -169,8 +169,8 @@ func GetPreimageWitness(signature, preimage, redeemScript []byte) [][]byte {
 	return witness
 }
 
-// GetCltvWitness returns the witness for spending the transaction with a passed cltv
-func GetCltvWitness(signature, redeemScript []byte) [][]byte {
+// GetCsvWitness returns the witness for spending the transaction with a passed csv
+func GetCsvWitness(signature, redeemScript []byte) [][]byte {
 	sigWithHashType := append(signature, byte(txscript.SigHashAll))
 	witness := make([][]byte, 0)
 	witness = append(witness, sigWithHashType)

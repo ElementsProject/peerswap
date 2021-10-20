@@ -310,10 +310,7 @@ func Test_FeeEstimation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blockCount, err := ecli.GetBlockHeight()
-	if err != nil {
-		t.Fatalf("error testing rpc wallet %v", err)
-	}
+
 	// Generate Preimage
 	var preimage lightning.Preimage
 
@@ -325,7 +322,7 @@ func Test_FeeEstimation(t *testing.T) {
 	alicePrivkey := getRandomPrivkey()
 	bobPrivkey := getRandomPrivkey()
 
-	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], int64(blockCount+1))
+	redeemScript, err := utils.GetOpeningTxScript(alicePrivkey.PubKey().SerializeCompressed(), bobPrivkey.PubKey().SerializeCompressed(), pHash[:], uint32(100))
 	if err != nil {
 		t.Fatalf("error creating opening tx: %v", err)
 	}
@@ -524,7 +521,7 @@ func Test_FeeEstimation(t *testing.T) {
 //	}
 //
 //}
-//func Test_RpcWalletCltv(t *testing.T) {
+//func Test_RpcWalletCsv(t *testing.T) {
 //	testSetup, err := NewTestSetup()
 //	if err != nil {
 //		t.Fatal(err)
@@ -604,7 +601,7 @@ func Test_FeeEstimation(t *testing.T) {
 //		t.Fatal(err)
 //	}
 //
-//	spendingTx.Inputs[0].Witness = util.GetCltvWitness(sig.Serialize(), redeemScript)
+//	spendingTx.Inputs[0].Witness = util.GetCsvWitness(sig.Serialize(), redeemScript)
 //	spendingTxHex, err := spendingTx.ToHex()
 //	if err != nil {
 //		t.Fatal(err)

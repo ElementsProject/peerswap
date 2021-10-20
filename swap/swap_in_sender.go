@@ -80,7 +80,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
-		Cltv:            swap.Cltv,
+		Csv:             swap.Csv,
 		RefundAddr:      swap.MakerRefundAddr,
 	})
 	if err != nil {
@@ -92,16 +92,16 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	return Event_ActionSucceeded
 }
 
-// AwaitCltvAction adds the opening tx to the txwatcher
-type AwaitCltvAction struct{}
+// AwaitCsvAction adds the opening tx to the txwatcher
+type AwaitCsvAction struct{}
 
 //todo this will never throw an error
-func (w *AwaitCltvAction) Execute(services *SwapServices, swap *SwapData) EventType {
+func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	err = onchain.AddWaitForCltvTx(swap.Id, swap.OpeningTxId, uint64(swap.Cltv))
+	err = onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.Csv)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -167,36 +167,36 @@ func getSwapInSenderStates() States {
 			Action: &SendMessageAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInSender_AwaitClaimPayment,
-				Event_ActionFailed:    State_WaitCltv,
+				Event_ActionFailed:    State_WaitCsv,
 			},
 		},
 		State_SwapInSender_AwaitClaimPayment: {
-			Action: &AwaitCltvAction{},
+			Action: &AwaitCsvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
-				Event_OnCltvPassed:        State_SwapInSender_ClaimSwapCltv,
-				Event_OnCancelReceived:    State_SwapInSender_ClaimSwapCltv,
+				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
+				Event_OnCancelReceived:    State_SwapInSender_ClaimSwapCsv,
 				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 			},
 		},
-		State_SwapInSender_ClaimSwapCltv: {
-			Action: &ClaimSwapTransactionWithCltv{},
+		State_SwapInSender_ClaimSwapCsv: {
+			Action: &ClaimSwapTransactionWithCsv{},
 			Events: Events{
-				Event_ActionSucceeded: State_ClaimedCltv,
-				Event_OnRetry:         State_SwapInSender_ClaimSwapCltv,
+				Event_ActionSucceeded: State_ClaimedCsv,
+				Event_OnRetry:         State_SwapInSender_ClaimSwapCsv,
 			},
 		},
 		State_SwapInSender_ClaimSwapCoop: {
 			Action: &ClaimSwapTransactionCoop{},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCoop,
-				Event_ActionFailed:    State_WaitCltv,
+				Event_ActionFailed:    State_WaitCsv,
 			},
 		},
-		State_WaitCltv: {
-			Action: &AwaitCltvAction{},
+		State_WaitCsv: {
+			Action: &AwaitCsvAction{},
 			Events: Events{
-				Event_OnCltvPassed: State_SwapInSender_ClaimSwapCltv,
+				Event_OnCsvPassed: State_SwapInSender_ClaimSwapCsv,
 			},
 		},
 		State_SendCancel: {
@@ -212,7 +212,7 @@ func getSwapInSenderStates() States {
 		State_ClaimedPreimage: {
 			Action: &NoOpDoneAction{},
 		},
-		State_ClaimedCltv: {
+		State_ClaimedCsv: {
 			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedCoop: {

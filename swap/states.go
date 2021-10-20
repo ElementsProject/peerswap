@@ -3,9 +3,9 @@ package swap
 // Shared States
 const (
 	State_SendCancel      StateType = "State_SendCancel"
-	State_SwapCanceled    StateType = "State_SwapCanceled"
-	State_WaitCltv        StateType = "State_WaitCltv"
-	State_ClaimedCltv     StateType = "State_ClaimedCltv"
+	State_SwapCanceled StateType = "State_SwapCanceled"
+	State_WaitCsv      StateType = "State_WaitCsv"
+	State_ClaimedCsv   StateType = "State_ClaimedCsv"
 	State_ClaimedPreimage StateType = "State_ClaimedPreimage"
 	State_ClaimedCoop     StateType = "State_ClaimedCoop"
 	State_Done            StateType = "State_Done"
@@ -33,9 +33,9 @@ const (
 	State_SwapOutReceiver_BroadcastOpeningTx       StateType = "State_SwapOutReceiver_BroadcastOpeningTx"
 	State_SwapOutReceiver_SendTxBroadcastedMessage StateType = "State_SwapOutReceiver_SendTxBroadcastedMessage"
 	State_SwapOutReceiver_AwaitClaimInvoicePayment StateType = "State_SwapOutReceiver_AwaitClaimInvoicePayment"
-	State_SwapOutReceiver_SwapAborted              StateType = "State_SwapOutReceiver_Aborted"
-	State_SwapOutReceiver_ClaimSwapCltv            StateType = "State_SwapOutReceiver_ClaimSwapCltv"
-	State_SwapOutReceiver_ClaimSwapCoop            StateType = "State_SwapOutReceiver_ClaimSwapCoop"
+	State_SwapOutReceiver_SwapAborted   StateType = "State_SwapOutReceiver_Aborted"
+	State_SwapOutReceiver_ClaimSwapCsv  StateType = "State_SwapOutReceiver_ClaimSwapCsv"
+	State_SwapOutReceiver_ClaimSwapCoop StateType = "State_SwapOutReceiver_ClaimSwapCoop"
 )
 
 // Swap In Sender States
@@ -45,9 +45,9 @@ const (
 	State_SwapInSender_AwaitAgreement           StateType = "State_SwapInSender_AwaitAgreement"
 	State_SwapInSender_BroadcastOpeningTx       StateType = "State_SwapInSender_BroadcastOpeningTx"
 	State_SwapInSender_SendTxBroadcastedMessage StateType = "State_SwapInSender_SendTxBroadcastedMessage"
-	State_SwapInSender_AwaitClaimPayment        StateType = "State_SwapInSender_AwaitClaimPayment"
-	State_SwapInSender_ClaimSwapCltv            StateType = "State_SwapInSender_ClaimSwapCltv"
-	State_SwapInSender_ClaimSwapCoop            StateType = "State_SwapInSender_ClaimSwapCoop"
+	State_SwapInSender_AwaitClaimPayment StateType = "State_SwapInSender_AwaitClaimPayment"
+	State_SwapInSender_ClaimSwapCsv      StateType = "State_SwapInSender_ClaimSwapCsv"
+	State_SwapInSender_ClaimSwapCoop     StateType = "State_SwapInSender_ClaimSwapCoop"
 )
 
 // Swap In Receiver States
@@ -71,15 +71,15 @@ const (
 	Event_OnTxConfirmed     EventType = "Event_OnTxConfirmed"
 
 	// todo retrystate? failstate? refundstate?
-	Event_OnRetry       EventType = "Event_OnRetry"
-	Event_OnClaimedCltv EventType = "Event_OnClaimedCltv"
+	Event_OnRetry      EventType = "Event_OnRetry"
+	Event_OnClaimedCsv EventType = "Event_OnClaimedCsv"
 
 	Event_OnSwapOutRequestReceived EventType = "Event_OnSwapOutRequestReceived"
 
 	Event_OnFeeInvoicePaid   EventType = "Event_OnFeeInvoicePaid"
 	Event_OnClaimInvoicePaid EventType = "Event_OnClaimInvoicePaid"
-	Event_OnClaimedPreimage  EventType = "Event_OnClaimedPreimage"
-	Event_OnCltvPassed       EventType = "Event_OnCltvPassed"
+	Event_OnClaimedPreimage EventType = "Event_OnClaimedPreimage"
+	Event_OnCsvPassed       EventType = "Event_OnCsvPassed"
 
 	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"
 	Event_OnCoopCloseReceived EventType = "Event_OnCoopCloseReceived"

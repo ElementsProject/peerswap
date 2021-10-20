@@ -17,6 +17,7 @@ release:
 
 pytest: build
 	pytest ./test
+.PHONY: pytest
 
 parse-states-md:
 	go run ./contrib/stateparser.go --dir=./docs/mmd

@@ -170,7 +170,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// wants to await the cltv claim before it goes to a
+	// wants to await the csv claim before it goes to a
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
 	assert.Equal(t, State_ClaimedCoop, aliceSwap.Current)
@@ -202,7 +202,7 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			ClaimPaymentHash:       "",
 			MakerPubkeyHash:        "",
 			TakerPubkeyHash:        "",
-			Cltv:                   0,
+			Csv:                    0,
 			FeeInvoice:             "",
 			FeePreimage:            "",
 			OpeningTxId:            "",

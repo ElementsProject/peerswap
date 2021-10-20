@@ -65,11 +65,11 @@ func (s *SwapService) Start() error {
 
 	if s.LiquidEnabled {
 		s.swapServices.liquidOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.liquidOnchain.AddCltvCallback(s.OnCltvPassed)
+		s.swapServices.liquidOnchain.AddCsvCallback(s.OnCsvPassed)
 	}
 	if s.BitcoinEnabled {
 		s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.bitcoinOnchain.AddCltvCallback(s.OnCltvPassed)
+		s.swapServices.bitcoinOnchain.AddCsvCallback(s.OnCsvPassed)
 	}
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)
@@ -198,8 +198,8 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-		if msg.ClaimType == CLAIMTYPE_CLTV {
-			err = s.OnCltvClaimMessageReceived(msg)
+		if msg.ClaimType == CLAIMTYPE_CSV {
+			err = s.OnCsvClaimMessageReceived(msg)
 		} else if msg.ClaimType == CLAIMTYPE_PREIMAGE {
 			err = s.OnPreimageClaimMessageReceived(msg)
 		}
@@ -228,13 +228,13 @@ func (s *SwapService) OnTxConfirmed(swapId string) error {
 	return nil
 }
 
-// OnCltvPassed sends the cltvpassed event to the corresponding swap
-func (s *SwapService) OnCltvPassed(swapId string) error {
+// OnCsvPassed sends the csvpassed event to the corresponding swap
+func (s *SwapService) OnCsvPassed(swapId string) error {
 	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnCltvPassed, nil)
+	done, err := swap.SendEvent(Event_OnCsvPassed, nil)
 	if err == ErrEventRejected {
 		return nil
 	} else if err != nil {
@@ -432,13 +432,13 @@ func (s *SwapService) OnPreimageClaimMessageReceived(message *ClaimedMessage) er
 	return nil
 }
 
-// OnCltvClaimMessageReceived sends the ClaimedCltv event to the corresponding swap state machine
-func (s *SwapService) OnCltvClaimMessageReceived(message *ClaimedMessage) error {
+// OnCsvClaimMessageReceived sends the ClaimedCsv event to the corresponding swap state machine
+func (s *SwapService) OnCsvClaimMessageReceived(message *ClaimedMessage) error {
 	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
 	}
-	done, err := swap.SendEvent(Event_OnClaimedCltv, message)
+	done, err := swap.SendEvent(Event_OnClaimedCsv, message)
 	if err != nil {
 		return err
 	}

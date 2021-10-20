@@ -46,7 +46,7 @@ const (
 )
 const (
 	CLAIMTYPE_PREIMAGE = iota
-	CLAIMTYPE_CLTV
+	CLAIMTYPE_CSV
 )
 
 // SwapData holds all the data needed for a swap
@@ -76,7 +76,7 @@ type SwapData struct {
 	MakerRefundAddr    string
 	TakerRefundSigHash string
 
-	Cltv int64
+	Csv uint32
 
 	FeeInvoice  string
 	FeePreimage string
@@ -133,7 +133,7 @@ type PrettyPrintSwapData struct {
 
 	ClaimTxId string `json:",omitempty"`
 
-	CltvHeight int64 `json:",omitempty"`
+	Csv uint32 `json:",omitempty"`
 
 	CancelMessage string `json:",omitempty"`
 }
@@ -154,7 +154,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 		ShortChannelId:  s.ChannelId,
 		OpeningTxId:     s.OpeningTxId,
 		ClaimTxId:       s.ClaimTxId,
-		CltvHeight:      s.Cltv,
+		Csv:             s.Csv,
 		CreatedAt:       timeStamp.String(),
 		CancelMessage:   s.LastErrString,
 	}
