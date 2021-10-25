@@ -213,9 +213,11 @@ func validateConfig(cfg *peerswap.Config) error {
 		if cfg.LiquidRpcPasswordFile != "" {
 			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
 			if err != nil {
+				log.Printf("error reading file: %v", err)
 				return err
 			}
-			cfg.LiquidRpcPassword = string(passBytes)
+			passString := strings.TrimRight(string(passBytes), "\r\n")
+			cfg.LiquidRpcPassword = passString
 		}
 
 	}
@@ -291,7 +293,7 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 		bitcoin = gbitcoin.NewBitcoin(cookie[0], cookie[1])
 
 		// assume localhost and standard network ports
-		rpcHost := "http://localhost"
+		rpcHost := "http://127.0.0.1"
 		rpcPort := getNetworkPort(gi.Network)
 		log.Printf("connecting with %s, %s to %s, %v", cookie[0], cookie[1], rpcHost, rpcPort)
 		err = bitcoin.StartUp(rpcHost, "", rpcPort)

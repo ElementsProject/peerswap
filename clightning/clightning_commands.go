@@ -33,7 +33,9 @@ func (g *GetAddressMethod) Name() string {
 }
 
 func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
-	//fixme: HERE IS A NIL POINTER EXCEPTION
+	if g.cl == nil {
+		return nil, errors.New("liquid swaps are not enabled")
+	}
 	res, err := g.cl.wallet.GetAddress()
 	if err != nil {
 		return nil, err
@@ -58,6 +60,9 @@ func (g *GetBalanceMethod) New() interface{} {
 }
 
 func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
+	if g.cl == nil {
+		return nil, errors.New("liquid swaps are not enabled")
+	}
 	res, err := g.cl.wallet.GetBalance()
 	if err != nil {
 		return nil, err
@@ -89,6 +94,9 @@ func (s *SendToAddressMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (s *SendToAddressMethod) Call() (jrpc2.Result, error) {
+	if s.cl == nil {
+		return nil, errors.New("liquid swaps are not enabled")
+	}
 	if s.Address == "" {
 		return nil, errors.New("address must be set")
 	}
