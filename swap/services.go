@@ -36,10 +36,10 @@ type Onchain interface {
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	AddWaitForConfirmationTx(swapId, txId string) (err error)
-	AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error)
+	AddWaitForCsvTx(swapId, txId string, vout uint32) (err error)
 	AddConfirmationCallback(func(swapId string) error)
 	AddCsvCallback(func(swapId string) error)
-	ValidateTx(swapParams *OpeningParams, csv uint32, openingTxId string) (bool, error)
+	ValidateTx(swapParams *OpeningParams, openingTxId string) (bool, error)
 	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error)
 	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error)
 	CreateRefundAddress() (string, error)
@@ -53,7 +53,6 @@ type OpeningParams struct {
 }
 
 type ClaimParams struct {
-	Csv      uint32
 	Preimage string
 	Signer   Signer
 }

@@ -202,7 +202,6 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			ClaimPaymentHash:       "",
 			MakerPubkeyHash:        "",
 			TakerPubkeyHash:        "",
-			Csv:                    0,
 			FeeInvoice:             "",
 			FeePreimage:            "",
 			OpeningTxId:            "",

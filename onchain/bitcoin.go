@@ -62,7 +62,7 @@ func (b *BitcoinOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams
 		return "", "", 0, 0, 0, err
 	}
 
-	_, vout, err = b.GetVoutAndVerify(prepRes.UnsignedTx, swapParams, BitcoinCsv)
+	_, vout, err = b.GetVoutAndVerify(prepRes.UnsignedTx, swapParams)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
@@ -90,7 +90,7 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 		return "", "", err
 	}
 
-	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, BitcoinCsv)
+	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams)
 	if err != nil {
 		return "", "", err
 	}
@@ -173,7 +173,7 @@ func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, 
 		return "", err
 	}
 
-	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams, claimParams.Csv)
+	_, vout, err := b.GetVoutAndVerify(openingTxHex, swapParams)
 	if err != nil {
 		return "", err
 	}
@@ -300,8 +300,8 @@ func (b *BitcoinOnChain) AddWaitForConfirmationTx(swapId, txId string) (err erro
 	return nil
 }
 
-func (b *BitcoinOnChain) AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error) {
-	b.txWatcher.AddCsvTx(swapId,txId,vout, csv)
+func (b *BitcoinOnChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
+	b.txWatcher.AddCsvTx(swapId,txId,vout, BitcoinCsv)
 	return nil
 }
 
@@ -313,12 +313,12 @@ func (b *BitcoinOnChain) AddCsvCallback(f func(swapId string) error) {
 	b.txWatcher.AddCsvPassedHandler(f)
 }
 
-func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, csv uint32, openingTxId string) (bool, error) {
+func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, openingTxId string) (bool, error) {
 	txHex, err := b.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
 		return false, err
 	}
-	ok, _, err := b.GetVoutAndVerify(txHex, swapParams, csv)
+	ok, _, err := b.GetVoutAndVerify(txHex, swapParams)
 	if err != nil {
 		return false, err
 	}
@@ -391,7 +391,7 @@ func getFeeSatsFromTx(psbtString, txHex string) (uint64, error) {
 	return uint64(inputSats - outputSats), nil
 }
 
-func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams, csv uint32) (bool, uint32, error) {
+func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams) (bool, uint32, error) {
 	msgTx := wire.NewMsgTx(2)
 
 	txBytes, err := hex.DecodeString(txHex)
@@ -416,7 +416,7 @@ func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningPara
 		return false, 0, err
 	}
 
-	redeemScript, err := ParamsToTxScript(params, csv)
+	redeemScript, err := ParamsToTxScript(params, BitcoinCsv)
 	if err != nil {
 		return false, 0, err
 	}

@@ -80,7 +80,6 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
-		Csv:             swap.Csv,
 		RefundAddr:      swap.MakerRefundAddr,
 	})
 	if err != nil {
@@ -101,7 +100,7 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	err = onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.Csv)
+	err = onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -175,7 +174,7 @@ func getSwapInSenderStates() States {
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
 				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
-				Event_OnCancelReceived:    State_SwapInSender_ClaimSwapCsv,
+				Event_OnCancelReceived:    State_WaitCsv,
 				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 			},
 		},

@@ -76,8 +76,6 @@ type SwapData struct {
 	MakerRefundAddr    string
 	TakerRefundSigHash string
 
-	Csv uint32
-
 	FeeInvoice  string
 	FeePreimage string
 
@@ -133,8 +131,6 @@ type PrettyPrintSwapData struct {
 
 	ClaimTxId string `json:",omitempty"`
 
-	Csv uint32 `json:",omitempty"`
-
 	CancelMessage string `json:",omitempty"`
 }
 
@@ -154,7 +150,6 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 		ShortChannelId:  s.ChannelId,
 		OpeningTxId:     s.OpeningTxId,
 		ClaimTxId:       s.ClaimTxId,
-		Csv:             s.Csv,
 		CreatedAt:       timeStamp.String(),
 		CancelMessage:   s.LastErrString,
 	}

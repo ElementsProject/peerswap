@@ -12,7 +12,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	}
 
 	// Create the opening transaction
-	txHex, _, fee, csv, vout, err := onchain.CreateOpeningTransaction(&OpeningParams{
+	txHex, _, fee, _, vout, err := onchain.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
 		ClaimPaymentHash: swap.ClaimPaymentHash,
@@ -25,7 +25,6 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	swap.OpeningTxFee = fee
 	swap.OpeningTxVout = vout
 
-	swap.Csv = csv
 
 	return nil
 }
@@ -60,7 +59,6 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 	spendParams := &ClaimParams{
 		Preimage: swap.ClaimPreimage,
 		Signer:   key,
-		Csv:      swap.Csv,
 	}
 	txId, _, err := onchain.CreatePreimageSpendingTransaction(openingParams, spendParams, swap.OpeningTxId)
 	if err != nil {
@@ -86,7 +84,6 @@ func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error 
 	}
 	spendParams := &ClaimParams{
 		Signer: key,
-		Csv:    swap.Csv,
 	}
 	txId, _, err := onchain.CreateCsvSpendingTransaction(openingParams, spendParams, swap.OpeningTxHex, swap.OpeningTxVout)
 	if err != nil {

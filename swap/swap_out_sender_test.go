@@ -66,7 +66,6 @@ func Test_ValidSwap(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		Csv:             1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +176,6 @@ func Test_AbortCsvClaim(t *testing.T) {
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
 		TxId:            "txid",
-		Csv:             1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -392,7 +390,7 @@ func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
 	return nil
 }
 
-func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout,csv uint32) (err error) {
+func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
 	return nil
 }
 
@@ -401,6 +399,6 @@ func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {
 }
 
 
-func (d *dummyChain) ValidateTx(swapParams *OpeningParams, cltv uint32, openingTxId string) (bool, error) {
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams,  openingTxId string) (bool, error) {
 	return true, nil
 }

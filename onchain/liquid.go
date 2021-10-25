@@ -148,7 +148,7 @@ func (l *LiquidOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, c
 }
 
 func (l *LiquidOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, txHex, 0)
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -183,7 +183,7 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	redeemScript, err = ParamsToTxScript(swapParams, claimParams.Csv)
+	redeemScript, err = ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -206,7 +206,7 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount, feeAmount uint64, csv uint32, asset, redeemScript, outputScript []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
-		log.Printf("error creating first tx %s", openingTxHex)
+		log.Printf("error creating first tx %s, %v", openingTxHex, err)
 		return nil, [32]byte{}, err
 	}
 
@@ -259,8 +259,8 @@ func (l *LiquidOnChain) AddWaitForConfirmationTx(swapId, txId string) (err error
 	return nil
 }
 
-func (l *LiquidOnChain) AddWaitForCsvTx(swapId, txId string, vout, csv uint32) (err error) {
-	l.txWatcher.AddCsvTx(swapId,txId,vout, csv)
+func (l *LiquidOnChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
+	l.txWatcher.AddCsvTx(swapId,txId,vout, LiquidCsv)
 	return nil
 }
 
@@ -272,8 +272,8 @@ func (l *LiquidOnChain) AddCsvCallback(f func(swapId string) error) {
 	l.txWatcher.AddCsvPassedHandler(f)
 }
 
-func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, csv uint32, openingTxId string) (bool, error) {
-	redeemScript, err := ParamsToTxScript(swapParams, csv)
+func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, openingTxId string) (bool, error) {
+	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
 		return false, err
 	}
@@ -326,7 +326,10 @@ func (l *LiquidOnChain) findVout(outputs []*transaction.TxOutput, redeemScript [
 	if err != nil {
 		return 0, err
 	}
+
+	log.Printf("want addr %s want bytes %x", wantAddr, wantBytes)
 	for i, v := range outputs {
+		log.Printf("%x",v.Script)
 		if bytes.Compare(v.Script, wantBytes) == 0 {
 			return uint32(i), nil
 		}

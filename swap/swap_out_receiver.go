@@ -142,7 +142,6 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
-		Csv:             swap.Csv,
 		RefundAddr:      swap.MakerRefundAddr,
 	})
 	if err != nil {
@@ -183,7 +182,6 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	}
 	spendParams := &ClaimParams{
 		Signer: key,
-		Csv:    swap.Csv,
 	}
 	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash)
 	if err != nil {
