@@ -554,6 +554,7 @@ type ResendLastMessage struct {
 	SwapId string `json:"swap_id"`
 	cl     *ClightningClient
 }
+
 func (s *ResendLastMessage) Description() string {
 	return "resends last swap message"
 }

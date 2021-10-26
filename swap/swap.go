@@ -51,46 +51,46 @@ const (
 
 // SwapData holds all the data needed for a swap
 type SwapData struct {
-	Id              string
-	Asset           string
-	ProtocolVersion uint64
-	Type            SwapType
-	FSMState        StateType
-	Role            SwapRole
-	CreatedAt       int64
-	InitiatorNodeId string
-	PeerNodeId      string
-	Amount          uint64
-	ChannelId       string
+	Id              string    `json:"id"`
+	Asset           string    `json:"asset"`
+	ProtocolVersion uint64    `json:"protocol_version"`
+	Type            SwapType  `json:"type"`
+	FSMState        StateType `json:"fsm_state"`
+	Role            SwapRole  `json:"role"`
+	CreatedAt       int64     `json:"created_at"`
+	InitiatorNodeId string    `json:"initiator_node_id"`
+	PeerNodeId      string    `json:"peer_nod_id"`
+	Amount          uint64    `json:"amount"`
+	ChannelId       string    `json:"channel_id"`
 
 	PrivkeyBytes []byte
 
-	ClaimInvoice     string
-	ClaimPreimage    string
-	ClaimPaymentHash string
+	ClaimInvoice     string `json:"claim_invoice"`
+	ClaimPreimage    string `json:"claim_preimage"`
+	ClaimPaymentHash string `json:"claim_payment_hash"`
 
 	// Script
-	MakerPubkeyHash string
-	TakerPubkeyHash string
+	MakerPubkeyHash string `json:"maker_pubkey_hash"`
+	TakerPubkeyHash string `json:"taker_pubkey_hash"`
 
-	MakerRefundAddr    string
-	TakerRefundSigHash string
+	MakerRefundAddr    string `json:"maker_refund_addr"`
+	TakerRefundSigHash string `json:"taker_refund_sig_hash"`
 
-	FeeInvoice  string
-	FeePreimage string
+	FeeInvoice  string `json:"fee_invoice"`
+	FeePreimage string `json:"fee_preimage"`
 
-	OpeningTxId            string
-	OpeningTxUnpreparedHex string
-	OpeningTxVout          uint32
-	OpeningTxFee           uint64
-	OpeningTxHex           string
+	OpeningTxId            string `json:"opening_tx_id"`
+	OpeningTxUnpreparedHex string `json:"opening_tx_unprepped_hex"`
+	OpeningTxVout          uint32 `json:"opening_tx_vout"`
+	OpeningTxFee           uint64 `json:"opening_tx_fee"`
+	OpeningTxHex           string `json:"opening_tx-hex"`
 
-	ClaimTxId string
+	ClaimTxId string `json:"claim_tx_id"`
 
 	NextMessage     []byte
 	NextMessageType int
 
-	CancelMessage string
+	CancelMessage string `json:"cancel_message"`
 
 	LastErr       error  `json:"-"`
 	LastErrString string `json:"last_err,omitempty"`
@@ -117,21 +117,21 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 }
 
 type PrettyPrintSwapData struct {
-	Id              string
-	CreatedAt       string
-	Type            string
-	Role            string
-	State           string
-	InitiatorNodeId string
-	PeerNodeId      string
-	Amount          uint64
-	ShortChannelId  string
+	Id              string `json:"id"`
+	CreatedAt       string `json:"created_at"`
+	Type            string `json:"type"`
+	Role            string `json:"role"`
+	State           string `json:"state"`
+	InitiatorNodeId string `json:"initiator_node_id"`
+	PeerNodeId      string `json:"peer_node_id"`
+	Amount          uint64 `json:"amount"`
+	ShortChannelId  string `json:"short_channel_id"`
 
-	OpeningTxId string `json:",omitempty"`
+	OpeningTxId string `json:"opening_tx_id,omitempty"`
 
-	ClaimTxId string `json:",omitempty"`
+	ClaimTxId string `json:"claim_tx_id,omitempty"`
 
-	CancelMessage string `json:",omitempty"`
+	CancelMessage string `json:"cancel_message,omitempty"`
 }
 
 func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {

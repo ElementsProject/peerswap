@@ -162,7 +162,7 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 		if v.Csv > res.Confirmations {
 			continue
 		}
-		log.Printf("watchlist want to claim: csv %v confs %v vout %v txid %s", v.Csv,res.Confirmations, v.TxVout, v.TxId)
+		log.Printf("watchlist want to claim: csv %v confs %v vout %v txid %s", v.Csv, res.Confirmations, v.TxVout, v.TxId)
 		if s.csvPassedCallback == nil {
 			continue
 		}

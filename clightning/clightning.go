@@ -388,7 +388,6 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		rpcWallet = hex.EncodeToString(idBytes)
 	}
 
-
 	// get policy path
 	policyPath, err := c.plugin.GetOption(policyPathOption)
 	if err != nil {
