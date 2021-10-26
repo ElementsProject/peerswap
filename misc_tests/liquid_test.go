@@ -1,7 +1,7 @@
 //go:build docker
 // +build docker
 
-package tests
+package misc_tests
 
 import (
 	"crypto/rand"
