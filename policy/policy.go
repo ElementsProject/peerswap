@@ -56,6 +56,10 @@ func (p *Policy) String() string {
 	return str
 }
 
+func (p *Policy) Get() interface{} {
+	return p
+}
+
 // GetReserveOnchainMsat returns the amount of msats
 // that should be keept in the wallet when receiving
 // a peerswap request.

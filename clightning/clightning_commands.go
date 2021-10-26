@@ -602,6 +602,7 @@ type Stringer interface {
 type FileReloaderStringer interface {
 	FileReloader
 	Stringer
+	Get() interface{}
 }
 type ReloadPolicyFile struct {
 	cl   *ClightningClient
@@ -622,7 +623,7 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.cl.policy.String(), nil
+	return c.cl.policy.Get(), nil
 }
 
 // func (c ReloadPolicyFile) Description() string {
