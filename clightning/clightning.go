@@ -25,6 +25,7 @@ var methods = []peerswaprpcMethod{
 	&ListPeers{},
 	&SendToAddressMethod{},
 	&GetSwap{},
+	&ResendLastMessage{},
 }
 
 var devmethods = []peerswaprpcMethod{}
@@ -386,6 +387,7 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		_, _ = rand.Read(idBytes[:])
 		rpcWallet = hex.EncodeToString(idBytes)
 	}
+
 
 	// get policy path
 	policyPath, err := c.plugin.GetOption(policyPathOption)

@@ -551,6 +551,19 @@ func (s *SwapService) GetSwap(swapId string) (*SwapStateMachine, error) {
 	return s.swapServices.swapStore.GetData(swapId)
 }
 
+func (s *SwapService) ResendLastMessage(swapId string) error {
+	swap, err := s.GetActiveSwap(swapId)
+	if err != nil {
+		return err
+	}
+	action := &SendMessageAction{}
+	event := action.Execute(s.swapServices, swap.Data)
+	if event == Event_ActionFailed {
+		return swap.Data.LastErr
+	}
+	return nil
+}
+
 // AddActiveSwap adds a swap to the active swaps
 func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
 	// todo: why does this function take a swapId if we have a swap struct containing the swapId?
