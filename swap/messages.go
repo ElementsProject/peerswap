@@ -111,7 +111,7 @@ type TxOpenedMessage struct {
 	MakerPubkeyHash string
 	RefundAddr      string
 	Invoice         string
-	TxId string
+	TxId            string
 }
 
 func (t TxOpenedMessage) ApplyOnSwap(swap *SwapData) {

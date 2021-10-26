@@ -30,11 +30,11 @@ var methods = []peerswaprpcMethod{
 var devmethods = []peerswaprpcMethod{}
 
 const (
-	dbOption            = "peerswap-db-path"
-	liquidRpcHostOption = "peerswap-liquid-rpchost"
-	liquidRpcPortOption = "peerswap-liquid-rpcport"
-	liquidRpcUserOption     = "peerswap-liquid-rpcuser"
-	liquidRpcPasswordOption = "peerswap-liquid-rpcpassword"
+	dbOption                        = "peerswap-db-path"
+	liquidRpcHostOption             = "peerswap-liquid-rpchost"
+	liquidRpcPortOption             = "peerswap-liquid-rpcport"
+	liquidRpcUserOption             = "peerswap-liquid-rpcuser"
+	liquidRpcPasswordOption         = "peerswap-liquid-rpcpassword"
 	liquidRpcPasswordFilepathOption = "peerswap-liquid-rpcpasswordfile"
 
 	rpcWalletOption     = "peerswap-liquid-rpcwallet"
@@ -370,7 +370,7 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		return nil, err
 	}
 	rpcPassFile, err := c.plugin.GetOption(liquidRpcPasswordFilepathOption)
-	if rpcHost != "" && rpcPass == "" && rpcPassFile == ""{
+	if rpcHost != "" && rpcPass == "" && rpcPassFile == "" {
 		return nil, errors.New(fmt.Sprintf("%s or %s need to be set", liquidRpcPasswordOption, liquidRpcPasswordFilepathOption))
 	}
 	liquidNetwork, err := c.plugin.GetOption(liquidNetworkOption)
@@ -394,15 +394,15 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	}
 
 	return &peerswap.Config{
-		DbPath:              dbpath,
-		LiquidRpcHost:       rpcHost,
-		LiquidRpcPort:       uint(rpcPort),
-		LiquidRpcUser:       rpcUser,
-		LiquidRpcPassword:   rpcPass,
+		DbPath:                dbpath,
+		LiquidRpcHost:         rpcHost,
+		LiquidRpcPort:         uint(rpcPort),
+		LiquidRpcUser:         rpcUser,
+		LiquidRpcPassword:     rpcPass,
 		LiquidRpcPasswordFile: rpcPassFile,
-		LiquidNetworkString: liquidNetwork,
-		LiquidRpcWallet:     rpcWallet,
-		PolicyPath:          policyPath,
+		LiquidNetworkString:   liquidNetwork,
+		LiquidRpcWallet:       rpcWallet,
+		PolicyPath:            policyPath,
 	}, nil
 }
 
@@ -436,7 +436,7 @@ func (c *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcPasswordFilepathOption, "elementsd rpcpassword filepath","")
+	err = c.plugin.RegisterNewOption(liquidRpcPasswordFilepathOption, "elementsd rpcpassword filepath", "")
 	if err != nil {
 		return err
 	}

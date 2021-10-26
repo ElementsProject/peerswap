@@ -354,12 +354,9 @@ func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unprep
 	return "txhex", "", 0, 0, 0, nil
 }
 
-
-
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
 	d.csvPassedFunc = f
 }
-
 
 func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
 	return "takersighash", nil
@@ -372,7 +369,6 @@ func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningPar
 func (d *dummyChain) CreateRefundAddress() (string, error) {
 	return "addr", nil
 }
-
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
@@ -398,7 +394,6 @@ func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {
 	d.txConfirmedFunc = f
 }
 
-
-func (d *dummyChain) ValidateTx(swapParams *OpeningParams,  openingTxId string) (bool, error) {
+func (d *dummyChain) ValidateTx(swapParams *OpeningParams, openingTxId string) (bool, error) {
 	return true, nil
 }

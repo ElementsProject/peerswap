@@ -204,7 +204,7 @@ func validateConfig(cfg *peerswap.Config) error {
 		if cfg.LiquidNetworkString == "regtest" {
 			liquidNetwork = &network.Regtest
 		} else if cfg.LiquidNetworkString == "testnet" {
-			liquidNetwork = &peerswap.Testnet
+			liquidNetwork = &network.Testnet
 		} else {
 			liquidNetwork = &network.Liquid
 		}

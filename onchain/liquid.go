@@ -239,10 +239,10 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	}
 
 	spendingTx := &transaction.Transaction{
-		Version:  2,
-		Flag:     0,
-		Inputs:   []*transaction.TxInput{spendingInput},
-		Outputs:  txOutputs,
+		Version: 2,
+		Flag:    0,
+		Inputs:  []*transaction.TxInput{spendingInput},
+		Outputs: txOutputs,
 	}
 
 	sigHash = spendingTx.HashForWitnessV0(
@@ -260,7 +260,7 @@ func (l *LiquidOnChain) AddWaitForConfirmationTx(swapId, txId string) (err error
 }
 
 func (l *LiquidOnChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
-	l.txWatcher.AddCsvTx(swapId,txId,vout, LiquidCsv)
+	l.txWatcher.AddCsvTx(swapId, txId, vout, LiquidCsv)
 	return nil
 }
 
@@ -329,7 +329,7 @@ func (l *LiquidOnChain) findVout(outputs []*transaction.TxOutput, redeemScript [
 
 	log.Printf("want addr %s want bytes %x", wantAddr, wantBytes)
 	for i, v := range outputs {
-		log.Printf("%x",v.Script)
+		log.Printf("%x", v.Script)
 		if bytes.Compare(v.Script, wantBytes) == 0 {
 			return uint32(i), nil
 		}

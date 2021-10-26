@@ -1,13 +1,13 @@
 package onchain
 
 import (
-	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/swap"
+	"github.com/vulpemventures/go-elements/network"
 	"testing"
 )
 
 func Test_ScriptAddress(t *testing.T) {
-	liquidOnCain := NewLiquidOnChain(nil, nil, nil, &peerswap.Testnet)
+	liquidOnCain := NewLiquidOnChain(nil, nil, nil, &network.Testnet)
 	swapParams := &swap.OpeningParams{
 		TakerPubkeyHash:  "02752e1beeeeb6472959117a0aa5d172900680c033ddf86b1a8318311e2b10223f",
 		MakerPubkeyHash:  "02c30ff537639962f493d326a77f1c6cb591ee3d21ca8d89194bb69cb288f497e8",

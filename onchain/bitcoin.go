@@ -138,7 +138,6 @@ func (b *BitcoinOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPa
 		return "", "", err
 	}
 
-
 	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, BitcoinCsv)
 	if err != nil {
 		return "", "", err
@@ -301,7 +300,7 @@ func (b *BitcoinOnChain) AddWaitForConfirmationTx(swapId, txId string) (err erro
 }
 
 func (b *BitcoinOnChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
-	b.txWatcher.AddCsvTx(swapId,txId,vout, BitcoinCsv)
+	b.txWatcher.AddCsvTx(swapId, txId, vout, BitcoinCsv)
 	return nil
 }
 

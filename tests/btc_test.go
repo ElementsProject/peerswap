@@ -94,7 +94,6 @@ func Test_BitcoinSwapPreimage(t *testing.T) {
 		t.Fatal(err)
 	}
 	claimParams := &swap.ClaimParams{
-		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.AliceKey,
 	}
@@ -149,7 +148,6 @@ func Test_BitcoinSwapCsv(t *testing.T) {
 		t.Fatal(err)
 	}
 	claimParams := &swap.ClaimParams{
-		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.BobKey,
 	}
@@ -201,12 +199,10 @@ func Test_BitcoinSwapCooperative(t *testing.T) {
 	}
 
 	takerClaimParams := &swap.ClaimParams{
-		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.AliceKey,
 	}
 	makerClaimParams := &swap.ClaimParams{
-		Csv:      cltv,
 		Preimage: txParams.Preimage.String(),
 		Signer:   txParams.BobKey,
 	}

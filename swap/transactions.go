@@ -25,7 +25,6 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	swap.OpeningTxFee = fee
 	swap.OpeningTxVout = vout
 
-
 	return nil
 }
 
@@ -93,4 +92,3 @@ func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error 
 
 	return nil
 }
-
