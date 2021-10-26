@@ -64,22 +64,22 @@ type States map[StateType]State
 // SwapStateMachine represents the state machine.
 type SwapStateMachine struct {
 	// Id holds the unique Id for the store
-	Id string
+	Id string `json:"id"`
 
 	// Data holds the statemachine metadata
-	Data *SwapData
+	Data *SwapData `json:"data"`
 
 	// Type holds the SwapType
-	Type SwapType
+	Type SwapType `json:"type"`
 
 	// Role holds the local Role
-	Role SwapRole
+	Role SwapRole `json:"role"`
 
 	// Previous represents the previous state.
-	Previous StateType
+	Previous StateType `json:"previous"`
 
 	// Current represents the current state.
-	Current StateType
+	Current StateType `json:"current"`
 
 	// States holds the configuration of states and events handled by the state machine.
 	States States `json:"-"`
@@ -89,7 +89,6 @@ type SwapStateMachine struct {
 
 	// SwapServices stores services the statemachine may use
 	swapServices *SwapServices
-
 	// retries counts how many retries a event has already done
 	retries int
 

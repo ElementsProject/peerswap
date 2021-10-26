@@ -100,7 +100,7 @@ def not_in_log(node: TailableProc, regex):
 
 def has_current_state(node: LightningNode, state: str):
     st = node.rpc.call("peerswap-listswaps")
-    return st[0]["Current"] == state
+    return st[0]["current"] == state
 
 
 def get_plugin_options(walletname, rpcport, path_to_plugin):

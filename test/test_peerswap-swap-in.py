@@ -180,8 +180,8 @@ def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     wait_for(lambda: has_current_state(nodes[0], "State_SwapCanceled"))
     wait_for(lambda: has_current_state(nodes[1], "State_SwapCanceled"))
     res = [x.rpc.call("peerswap-listswaps") for x in nodes]
-    assert res[0][0]["Data"]["CancelMessage"] == CANCEL_MSG
-    assert res[1][0]["Data"]["CancelMessage"] == CANCEL_MSG
+    assert res[0][0]["data"]["cancel_message"] == CANCEL_MSG
+    assert res[1][0]["data"]["cancel_message"] == CANCEL_MSG
 
     # assert same balances as before
     balances_post_cancel = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
