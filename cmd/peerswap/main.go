@@ -272,11 +272,16 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	}
 	// todo look for overrides in peerswap config
 	var bitcoin *gbitcoin.Bitcoin
-	if bcliConfig.Options["bitcoin-rpcuser"] == "" {
+	rpcUser, ok := bcliConfig.Options["bitcoin-rpcuser"]
+	if !ok {
 
 		log.Printf("looking for bitcoin cookie")
 		// look for cookie file
-		bitcoinDir := bcliConfig.Options["bitcoin-datadir"]
+		bitcoinDir, ok := bcliConfig.Options["bitcoin-datadir"].(string)
+		if !ok {
+			log.Printf("no `bitcoin-datadir` config set")
+			return nil, nil
+		}
 
 		cookiePath := filepath.Join(bitcoinDir, getNetworkFolder(gi.Network), ".cookie")
 		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
@@ -303,15 +308,35 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	} else {
 
 		// assume auth authentication
-		bitcoin = gbitcoin.NewBitcoin(bcliConfig.Options["bitcoin-rpcuser"], bcliConfig.Options["bitcoin-rpcpassword"])
+		rpcPass, ok := bcliConfig.Options["bitcoin-rpcpassword"]
+		if !ok {
+			log.Printf("`bitcoin-rpcpassword` not set in lightning config")
+			return nil, nil
+		}
+		bitcoin = gbitcoin.NewBitcoin(rpcUser.(string), rpcPass.(string))
 		bitcoin.SetTimeout(10)
 
-		rpcPort, err := strconv.Atoi(bcliConfig.Options["bitcoin-rpcport"])
+		rpcPortStr, ok := bcliConfig.Options["bitcoin-rpcport"]
+		if !ok {
+			log.Printf("`bitcoin-rpcport` not set in lightning config")
+			return nil, nil
+		}
+
+		rpcPort, err := strconv.Atoi(rpcPortStr.(string))
 		if err != nil {
 			return nil, err
 		}
 
-		err = bitcoin.StartUp("http://"+bcliConfig.Options["bitcoin-rpcconnect"], "", uint(rpcPort))
+		rpcConn, ok := bcliConfig.Options["bitcoin-rpcconnect"]
+		var rpcConnStr string
+		/* We default to localhost */
+		if rpcConn == nil {
+			rpcConnStr = "localhost"
+		} else {
+			rpcConnStr = rpcConn.(string)
+		}
+
+		err = bitcoin.StartUp("http://"+rpcConnStr, "", uint(rpcPort))
 		if err != nil {
 			return nil, err
 		}
@@ -353,5 +378,5 @@ type ListConfigRes struct {
 type ImportantPlugin struct {
 	Path    string
 	Name    string
-	Options map[string]string
+	Options map[string]interface{}
 }
