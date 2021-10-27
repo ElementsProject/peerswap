@@ -36,8 +36,9 @@ def test_sendtoaddres(elementsd, node_factory):
     # send liquid to node 1
     addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
     elementsd.rpc.sendtoaddress(addrs[0], 0.1, "", "", False, False, 1, "UNSET")
+    # elementsd.rpc.generatetoaddress(10, addrs[0])
     elementsd.rpc.generatetoaddress(1, BURN_ADDR)
-    wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
+    # wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
 
     # check balances
     balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]

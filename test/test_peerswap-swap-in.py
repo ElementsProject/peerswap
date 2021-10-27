@@ -1,7 +1,5 @@
 import os
-import time
 import pytest
-import json
 from pyln.testing.fixtures import *
 from pyln.testing.utils import NodeFactory, wait_for
 from pyln.client import RpcError
@@ -63,18 +61,18 @@ def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
     # send liquid to node wallets
     addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
     for addr in addrs:
-        elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
+        elementsd.rpc.sendtoaddress(addr, 10, "", "", False, False, 1, "UNSET")
 
     elementsd.rpc.generatetoaddress(1, BURN_ADDR)
-    wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
-    wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
+    wait_for(lambda: has_liquid_balance(nodes[0], 1000000000))
+    wait_for(lambda: has_liquid_balance(nodes[1], 1000000000))
 
     balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
-    assert balances[0] == 10000000
-    assert balances[1] == 10000000
+    assert balances[0] == 1000000000
+    assert balances[1] == 1000000000
 
     # swap out 5000000 sat
-    swap_amt = 5 * 10 ** 6
+    swap_amt = 5 * 10 ** 5
     nodes[1].rpc.call(
         "peerswap-swap-in",
         {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},

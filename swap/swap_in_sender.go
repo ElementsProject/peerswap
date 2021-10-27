@@ -2,6 +2,7 @@ package swap
 
 import (
 	"encoding/hex"
+
 	"github.com/sputn1ck/peerswap/lightning"
 )
 
@@ -68,6 +69,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	txId, txHex, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return swap.HandleError(err)
