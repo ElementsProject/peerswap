@@ -3,9 +3,10 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/vulpemventures/go-elements/transaction"
-	"strings"
 )
 
 var (
@@ -31,6 +32,18 @@ type RpcClient interface {
 type RpcWallet struct {
 	walletName string
 	rpcClient  RpcClient
+}
+
+func NewRpcWallet(rpcClient RpcClient, walletName string) (*RpcWallet, error) {
+	rpcWallet := &RpcWallet{
+		walletName: walletName,
+		rpcClient:  rpcClient,
+	}
+	err := rpcWallet.setupWallet()
+	if err != nil {
+		return nil, err
+	}
+	return rpcWallet, nil
 }
 
 // FinalizeTransaction takes a rawtx, blinds it and signs it
@@ -68,25 +81,13 @@ func (r *RpcWallet) FinalizeFundedTransaction(rawTx string) (txId string, err er
 	return finalized, nil
 }
 
-func NewRpcWallet(rpcClient RpcClient, walletName string) (*RpcWallet, error) {
-	rpcWallet := &RpcWallet{
-		walletName: walletName,
-		rpcClient:  rpcClient,
-	}
-	err := rpcWallet.setupWallet()
-	if err != nil {
-		return nil, err
-	}
-	return rpcWallet, nil
-}
-
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
 func (r *RpcWallet) setupWallet() error {
 	loadedWallets, err := r.rpcClient.ListWallets()
 	if err != nil {
 		return err
 	}
-	walletLoaded := false
+	var walletLoaded bool
 	for _, v := range loadedWallets {
 		if v == r.walletName {
 			walletLoaded = true
@@ -94,9 +95,8 @@ func (r *RpcWallet) setupWallet() error {
 		}
 	}
 	if !walletLoaded {
-		//todo create wallet on specific error
 		_, err = r.rpcClient.LoadWallet(r.walletName)
-		if err != nil && strings.Contains(err.Error(), "not found") {
+		if err != nil && strings.Contains(err.Error(), "Wallet file verification failed") {
 			_, err = r.rpcClient.CreateWallet(r.walletName)
 			if err != nil {
 				return err

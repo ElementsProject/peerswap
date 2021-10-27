@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"log"
+
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/peerswap/lightning"
@@ -17,7 +19,6 @@ import (
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/transaction"
-	"log"
 )
 
 const (
