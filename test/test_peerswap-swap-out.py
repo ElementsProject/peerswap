@@ -1,5 +1,4 @@
 import os
-import time
 from pyln.testing.fixtures import *
 from pyln.testing.utils import NodeFactory, TailableProc, wait_for
 from pyln.client import RpcError
@@ -127,7 +126,7 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
     assert balances[1] - swap_amt - FEE == balances_after_claim[1]
 
 
-def test_swap_out_claim_cltv(elementsd: ElementsD, node_factory: NodeFactory):
+def test_swap_out_claim_csv(elementsd: ElementsD, node_factory: NodeFactory):
     FUNDAMOUNT = 10 ** 7
 
     options = [{"start": True}, {"start": False}]

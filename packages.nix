@@ -1,6 +1,6 @@
 let
-# Pinning explicitly to 21.05.
-rev = "7e9b0dff974c89e070da1ad85713ff3c20b0ca97";
+# Pinning to version 21.05 unstable to get elementsd 0.21.0.
+rev = "a90064443bc2aaed44d02aa170484d317cb130de";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
@@ -31,9 +31,9 @@ in with pkgs;
     execs = {
         clightning = nix-bitcoin-unstable-pkgs.clightning;
         bitcoin = bitcoin;
-        elements = nix-bitcoin-unstable-pkgs.elementsd;
+        elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
     };
-    testpkgs = [ go bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
-    devpkgs = [ bitcoin nix-bitcoin-unstable-pkgs.elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
+    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev nodePackages.mermaid-cli ];
 }

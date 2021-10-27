@@ -3,6 +3,7 @@ import os
 import random
 from os import path
 from string import ascii_lowercase
+import time
 from bitcoin.rpc import JSONRPCError
 from bitcoin.rpc import RawProxy as BitcoinProxy
 from ephemeral_port_reserve import reserve
@@ -202,17 +203,12 @@ class ElementsD(TailableProc):
         self.cmd_line = [
             "elementsd",
             "-datadir={}".format(elements_dir),
-            "-wallet={}".format(self.wallet),
         ]
 
         conf_file = os.path.join(elements_dir, "elements.conf")
         ELEMENTSD_CONF = {
             "chain": config["chain"],
             "listen": 1,
-        }
-
-        ELEMENTSD_REGTEST = {
-            "rpcport": self.rpcport,
             "rpcuser": "rpcuser",
             "rpcpassword": "rpcpass",
             "mainchainrpcport": bitcoind.rpcport,
@@ -222,16 +218,14 @@ class ElementsD(TailableProc):
             "fallbackfee": BITCOIND_CONFIG["fallbackfee"],
         }
 
-        write_config(
-            conf_file, ELEMENTSD_CONF, ELEMENTSD_REGTEST, section_name=config["chain"]
-        )
+        REGTEST_CONF = {
+            "rpcport": self.rpcport,
+        }
+
+        write_config(conf_file, ELEMENTSD_CONF, regtest_opts=REGTEST_CONF, section_name=config["chain"])
         self.conf_file = conf_file
-        # self.rpc = AuthServiceProxy("http://%s:%s@127.0.0.1:%s" % ('rpcuser', 'rpcpass', self.rpcport))
-        # self.rpc = SimpleBitcoinProxy(btc_conf_file=self.conf_file)
         self.rpc = SimpleBitcoinProxy(
-            service_url="http://rpcuser:rpcpass@127.0.0.1:{}/wallet/{}".format(
-                self.rpcport, self.wallet
-            ),
+            service_url="http://rpcuser:rpcpass@127.0.0.1:{}".format(self.rpcport),
             btc_conf_file=self.conf_file,
         )
         self.proxies = []
@@ -239,13 +233,14 @@ class ElementsD(TailableProc):
     def start(self):
         TailableProc.start(self)
         self.wait_for_log("Done loading", timeout=TIMEOUT)
-
         logging.info("ElementsD started")
-        # try:
-        #     # self.rpc.createwallet(self.wallet)
-        #     # self.rpc = SimpleBitcoinProxy(service_url="http://rpcuser:rpcpass@127.0.0.1:{}/wallet/{}".format(self.rpcport, self.wallet), btc_conf_file=self.conf_file)
-        # except JSONRPCError:
-        #     self.wallet = self.rpc.loadwallet()["name"]
+        try:
+            self.rpc.createwallet(self.wallet)
+            self.rpc = SimpleBitcoinProxy(service_url="http://rpcuser:rpcpass@127.0.0.1:{}/wallet/{}".format(self.rpcport, self.wallet), btc_conf_file=self.conf_file)
+        except JSONRPCError:
+            self.wallet = self.rpc.loadwallet()["name"]
+        # rescan blockchain to get the OP_TRUE outputs (initialfreecoins)
+        self.rpc.rescanblockchain()
 
     def stop(self):
         for p in self.proxies:
@@ -334,9 +329,6 @@ class ElementsD(TailableProc):
         self.wait_for_log(r"UpdateTip: new best=.* height={}".format(final_len))
         return hashes
 
-    # def getnewaddress(self):
-    #     return self.rpc.getnewaddress()
-
     def getnewaddress(self):
         """Need to get an address and then make it unconfidential"""
         addr = self.rpc.getnewaddress()
@@ -356,8 +348,6 @@ def elementsd(bitcoind, directory, teardown_checks):
 
     info = elementsd.rpc.getnetworkinfo()
 
-    # FIXME: include liquid-regtest in this check after elementsd has been
-    # updated
     if info["version"] < 160000:
         elementsd.rpc.stop()
         raise ValueError(
@@ -366,7 +356,6 @@ def elementsd(bitcoind, directory, teardown_checks):
         )
 
     info = elementsd.rpc.getblockchaininfo()
-    # Make sure we have some spendable funds
     if info["blocks"] < 101:
         elementsd.generate_block(101 - info["blocks"])
     elif elementsd.rpc.getwalletinfo()["balance"] < 1:
