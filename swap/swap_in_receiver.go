@@ -15,11 +15,23 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 	if swap.Asset == "l-btc" && !services.liquidEnabled {
 		swap.LastErr = errors.New("l-btc swaps are not supported")
 		swap.CancelMessage = "l-btc swaps are not supported"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountMsat:      swap.Amount * 1000,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountMsat:      swap.Amount * 1000,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 
@@ -28,6 +40,12 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
 		swap.CancelMessage = "peer not allowed to request swaps"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountMsat:      swap.Amount * 1000,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 

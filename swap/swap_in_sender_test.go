@@ -120,6 +120,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 }
 func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
+	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: "fee"}
 	policy := &dummyPolicy{}
@@ -127,6 +128,7 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 
 	swapServices := NewSwapServices(
 		store,
+		reqSwapsStore,
 		lc,
 		messenger,
 		policy,

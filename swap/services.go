@@ -63,18 +63,38 @@ type Signer interface {
 }
 
 type SwapServices struct {
-	swapStore      Store
-	lightning      LightningClient
-	messenger      Messenger
-	policy         Policy
-	bitcoinOnchain Onchain
-	bitcoinEnabled bool
-	liquidOnchain  Onchain
-	liquidEnabled  bool
+	swapStore           Store
+	requestedSwapsStore RequestedSwapsStore
+	lightning           LightningClient
+	messenger           Messenger
+	policy              Policy
+	bitcoinOnchain      Onchain
+	bitcoinEnabled      bool
+	liquidOnchain       Onchain
+	liquidEnabled       bool
 }
 
-func NewSwapServices(swapStore Store, lightning LightningClient, messenger Messenger, policy Policy, bitcoinEnabled bool, bitcoinOnchain Onchain, liquidEnabled bool, liquidOnchain Onchain) *SwapServices {
-	return &SwapServices{swapStore: swapStore, lightning: lightning, messenger: messenger, policy: policy, bitcoinOnchain: bitcoinOnchain, bitcoinEnabled: bitcoinEnabled, liquidEnabled: liquidEnabled, liquidOnchain: liquidOnchain}
+func NewSwapServices(
+	swapStore Store,
+	requestedSwapsStore RequestedSwapsStore,
+	lightning LightningClient,
+	messenger Messenger,
+	policy Policy,
+	bitcoinEnabled bool,
+	bitcoinOnchain Onchain,
+	liquidEnabled bool,
+	liquidOnchain Onchain) *SwapServices {
+	return &SwapServices{
+		swapStore:           swapStore,
+		requestedSwapsStore: requestedSwapsStore,
+		lightning:           lightning,
+		messenger:           messenger,
+		policy:              policy,
+		bitcoinOnchain:      bitcoinOnchain,
+		bitcoinEnabled:      bitcoinEnabled,
+		liquidEnabled:       liquidEnabled,
+		liquidOnchain:       liquidOnchain,
+	}
 }
 
 func (s *SwapServices) getOnchainAsset(asset string) (Onchain, error) {

@@ -150,7 +150,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	requestedSwapStore, err := swap.NewRequestedSwapsStore(swapDb)
+	if err != nil {
+		return err
+	}
+
 	swapService := swap.NewSwapService(swapStore,
+		requestedSwapStore,
 		config.LiquidEnabled,
 		liquidOnChainService,
 		bitcoinEnabled,
