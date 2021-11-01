@@ -86,7 +86,13 @@
   RefundFee: uint64 // Refund fee for coop close
 }
 ```
-
+### CoopClose message
+```go
+{
+    SwapId:             string
+    TakerRefundSigHash: string // Sighash of refund transaction, that was ubilt using MakerRefundAddr and RefundFee 
+}
+```
 ### Cancel message
 
 ```go
@@ -98,13 +104,6 @@
 
 ## Notes
 
-### Premiums
-
-The Premiums are an incentive for the peer in order to accept an eventual locking of funds.
-
-When swapping out the premium is added by bob on the claming invoice
-
-When swapping in the premium is added by alice on the opening transaction
 
 ### Opening Transaction
 
