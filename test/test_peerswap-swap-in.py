@@ -11,10 +11,12 @@ from util.utils import (
     add_policy_path_to_options,
     ElementsD,
     elementsd,
+    has_log,
     has_liquid_balance,
     with_liquid_generate,
     channel_balance_changed,
     liquid_balance_changed,
+    not_in_log,
     FEE,
     BURN_ADDR,
 )
@@ -86,7 +88,7 @@ def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
     )
     balances_tx_broadcasted = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
     assert balances_tx_broadcasted[0] == balances[0]
-    assert balances_tx_broadcasted[1] == balances[1] - FEE - swap_amt
+    assert balances_tx_broadcasted[1] <= balances[1] - swap_amt
 
     # wait for invoice being payed
     wait_for(
@@ -108,8 +110,193 @@ def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
         )
     )
     balances_after_claim = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
-    assert balances[0] + swap_amt - 501 == balances_after_claim[0]
-    assert balances[1] - swap_amt - FEE == balances_after_claim[1]
+    assert balances[0] + swap_amt >= balances_after_claim[0]
+    assert balances[1] - swap_amt  >= balances_after_claim[1]
+
+
+def test_swap_in_claim_cltv(elementsd: ElementsD, node_factory: NodeFactory):
+    FUNDAMOUNT = 10 ** 7
+
+    options = [{"start": False}, {"start": True}]
+
+    options[0].update(
+        get_plugin_options(
+            get_random_string(8),
+            elementsd.rpcport,
+            os.path.join(os.path.dirname(__file__), "../peerswap"),
+        )
+    )
+    options[1].update(
+        get_plugin_options(
+            get_random_string(8),
+            elementsd.rpcport,
+            os.path.join(os.path.dirname(__file__), "../peerswap"),
+        )
+    )
+
+    nodes = node_factory.get_nodes(2, opts=options)
+
+    # allowlist node 0 on node 1
+    policy = "allowlisted_peers={}".format(nodes[1].info["id"])
+    write_policy_file(nodes[0].daemon.lightning_dir, policy)
+    add_policy_path_to_options(nodes[0])
+    nodes[0].start()
+
+    # create channel between 0 and 1
+    node_factory.join_nodes(nodes, fundchannel=True, fundamount=FUNDAMOUNT)
+    ch = nodes[0].rpc.listfunds()["channels"][0]
+    chfunds = ch["channel_sat"]
+    scid = ch["short_channel_id"]
+    assert chfunds == FUNDAMOUNT
+
+    # send liquid to node wallets
+    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    for addr in addrs:
+        elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
+
+    elementsd.rpc.generatetoaddress(1, BURN_ADDR)
+    wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
+    wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
+
+    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    assert balances[0] == 10000000
+    assert balances[1] == 10000000
+
+    # swap out 5000000 sat
+    swap_amt = 5 * 10 ** 6
+    nodes[1].rpc.call(
+        "peerswap-swap-in",
+        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+    )
+
+    # wait for tx beeing broadcasted
+    try: 
+        nodes[1].daemon.wait_for_log("Event_ActionSucceeded on State_SwapInSender_SendTxBroadcastedMessage")
+    except Exception as e:
+        print("FAILED")
+        pytest.fail()
+
+    # check that mempool has one entry
+    assert len(elementsd.rpc.getrawmempool()) == 1
+
+    # as we want to test on csv claim, we shut down
+    # the second node so that the invoice never gets
+    # payed and the csv claim is performet eventually!
+    nodes[0].stop()
+
+    # assert 60 blocks difference until csv is claimed
+    block_diff = 60
+    blocks = elementsd.rpc.getblockcount()
+    elementsd.rpc.generatetoaddress(block_diff - 1, BURN_ADDR)
+    elementsd.wait_for_log("height={}".format(blocks + block_diff - 1))
+    assert not_in_log(nodes[1].daemon, "Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
+    elementsd.rpc.generatetoaddress(1, BURN_ADDR)
+    nodes[1].daemon.wait_for_log("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
+
+
+def test_swap_in_cooperative_close(elementsd: ElementsD, node_factory: NodeFactory):
+    FUNDAMOUNT = 10 ** 7
+
+    options = [{"start": False}, {"start": True}]
+
+    options[0].update(
+        get_plugin_options(
+            get_random_string(8),
+            elementsd.rpcport,
+            os.path.join(os.path.dirname(__file__), "../peerswap"),
+        )
+    )
+    options[1].update(
+        get_plugin_options(
+            get_random_string(8),
+            elementsd.rpcport,
+            os.path.join(os.path.dirname(__file__), "../peerswap"),
+        )
+    )
+
+    nodes = node_factory.get_nodes(2, opts=options)
+
+    # allowlist node 0 on node 1
+    policy = "allowlisted_peers={}".format(nodes[1].info["id"])
+    write_policy_file(nodes[0].daemon.lightning_dir, policy)
+    add_policy_path_to_options(nodes[0])
+    nodes[0].start()
+
+    # create channel between 0 and 1
+    node_factory.join_nodes(nodes, fundchannel=True, fundamount=FUNDAMOUNT)
+    ch = nodes[0].rpc.listfunds()["channels"][0]
+    chfunds = ch["channel_sat"]
+    scid = ch["short_channel_id"]
+    assert chfunds == FUNDAMOUNT
+
+    # send liquid to node wallets
+    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    for addr in addrs:
+        elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
+
+    elementsd.rpc.generatetoaddress(1, BURN_ADDR)
+    wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
+    wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
+
+    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    assert balances[0] == 10000000
+    assert balances[1] == 10000000
+
+    # swap out 5000000 sat
+    swap_amt = 5 * 10 ** 6
+    nodes[1].rpc.call(
+        "peerswap-swap-in",
+        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+    )
+
+    # wait for tx beeing broadcasted
+    try: 
+        nodes[1].daemon.wait_for_log("Event_ActionSucceeded on State_SwapInSender_SendTxBroadcastedMessage")
+    except Exception as e:
+        print("FAILED")
+        pytest.fail()
+
+    # check that mempool has one entry
+    assert len(elementsd.rpc.getrawmempool()) == 1
+
+    # remove local balance to simulate a failed payment and initiate a cooperative close
+    for i in range(2):
+        invoice_amt_msat = 3 * (10 ** 9)
+        r = nodes[1].rpc.call(
+            "invoice",
+            {"msatoshi": invoice_amt_msat, "label": "test_{}".format(i), "description": ""}
+        )
+
+        nodes[0].rpc.call(
+            "pay",
+            {"bolt11": r["bolt11"]}
+        )
+
+        wait_for(
+                lambda: channel_balance_changed(nodes[0], chfunds),
+        )
+        chfunds = nodes[0].rpc.call("listfunds")["channels"][0][
+        "channel_sat"
+        ]
+
+    assert chfunds == FUNDAMOUNT - 6 * 10 ** 6
+
+
+    elementsd.rpc.generatetoaddress(2, BURN_ADDR)
+
+    try:
+        nodes[0].daemon.wait_for_log("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose")
+    except Exception as e:
+        print("FAILED")
+        pytest.fail()
+
+    elementsd.rpc.generatetoaddress(10, BURN_ADDR)
+
+    try:
+        nodes[1].daemon.wait_for_log("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop")
+    except Exception as e:
+        print("FAILED")
+        pytest.fail()
 
 
 def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):

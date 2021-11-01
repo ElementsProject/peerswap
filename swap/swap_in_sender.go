@@ -77,12 +77,18 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
 
+	refundFee, err := onchain.GetRefundFee()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.RefundFee = refundFee
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		RefundAddr:      swap.MakerRefundAddr,
+		RefundFee:       swap.RefundFee,
 	})
 	if err != nil {
 		return swap.HandleError(err)

@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	BitcoinCsv    = 100
-	Target_Blocks = 6
+	BitcoinCsv   = 100
+	TargetBlocks = 6
 )
 
 type BitcoinOnChain struct {
@@ -100,7 +100,7 @@ func (b *BitcoinOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Open
 		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, 0)
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, 0, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -138,7 +138,7 @@ func (b *BitcoinOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPa
 		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, BitcoinCsv)
+	tx, sigHash, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, BitcoinCsv, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -166,7 +166,7 @@ func (b *BitcoinOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPa
 	return txId, txHex, nil
 }
 
-func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
+func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error) {
 	openingTxHex, err := b.getRawTxFromTxId(openingTxId, 0)
 	if err != nil {
 		return "", err
@@ -176,7 +176,7 @@ func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, 
 	if err != nil {
 		return "", err
 	}
-	_, sigHashBytes, _, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0)
+	_, sigHashBytes, _, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0, refundFee)
 	if err != nil {
 		return "", err
 	}
@@ -189,8 +189,8 @@ func (b *BitcoinOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, 
 
 }
 
-func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
-	tx, sigHashBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0)
+func (b *BitcoinOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+	tx, sigHashBytes, redeemScript, err := b.prepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err
 	}
@@ -232,7 +232,7 @@ func (b *BitcoinOnChain) CreateRefundAddress() (string, error) {
 	return newAddr, nil
 }
 
-func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, csv uint32) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
+func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, csv uint32, preparedFee uint64) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
 	openingMsgTx := wire.NewMsgTx(2)
 	txBytes, err := hex.DecodeString(openingTxHex)
 	if err != nil {
@@ -272,17 +272,15 @@ func (b *BitcoinOnChain) prepareSpendingTransaction(swapParams *swap.OpeningPara
 	spendingTxInput.Sequence = 0 | csv
 	spendingTx.AddTxIn(spendingTxInput)
 
-	feeRes, err := b.gbitcoin.EstimateFee(Target_Blocks, "ECONOMICAL")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 10
-	}
 	// assume largest witness
-	fee := satPerByte * float64(spendingTx.SerializeSizeStripped()+74)
+	fee := preparedFee
+	if preparedFee == 0 {
+		fee, err = b.getFee(spendingTx.SerializeSizeStripped() + 74)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
 	spendingTx.TxOut[0].Value = spendingTx.TxOut[0].Value - int64(fee)
 
 	sigHashes := txscript.NewTxSigHashes(spendingTx)
@@ -433,4 +431,23 @@ func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningPara
 		return false, 0, err
 	}
 	return true, vout, nil
+}
+
+func (b *BitcoinOnChain) getFee(txSize int) (uint64, error) {
+	feeRes, err := b.gbitcoin.EstimateFee(TargetBlocks, "ECONOMICAL")
+	if err != nil {
+		return 0, err
+	}
+	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
+	if len(feeRes.Errors) > 0 {
+		//todo sane default sat per byte
+		satPerByte = 10
+	}
+	// assume largest witness
+	fee := satPerByte * float64(txSize)
+	return uint64(fee), nil
+}
+func (b *BitcoinOnChain) GetRefundFee() (uint64, error) {
+	// todo correct size estimation
+	return b.getFee(150)
 }

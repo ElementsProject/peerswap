@@ -82,6 +82,8 @@
   PubkeyHash: string // Maker pubkey hash, for verifying the bitcoin script
   Payreq: string // Invoice that claims the transaction
   TxId: string // TxId of broadcasted commitment transaction
+  MakerRefundAddr: string // Onchain address for coop close
+  RefundFee: uint64 // Refund fee for coop close
 }
 ```
 
