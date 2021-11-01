@@ -28,7 +28,7 @@ BURN_ADDR = "ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep"
 
 
 def has_liquid_balance(node: LightningNode, amt: int):
-    balance = node.rpc.call("peerswap-liquid-getbalance")
+    balance = node.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"]
     return balance == amt
 
 
@@ -59,7 +59,7 @@ def channel_balance_changed(node: LightningNode, before: int):
 
 
 def liquid_balance_changed(node: LightningNode, before: int):
-    funds = node.rpc.call("peerswap-liquid-getbalance")
+    funds = node.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"]
     if funds != before:
         return True
     return False

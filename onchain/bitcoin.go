@@ -449,5 +449,5 @@ func (b *BitcoinOnChain) getFee(txSize int) (uint64, error) {
 }
 func (b *BitcoinOnChain) GetRefundFee() (uint64, error) {
 	// todo correct size estimation
-	return b.getFee(150)
+	return b.getFee(250)
 }

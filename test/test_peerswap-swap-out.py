@@ -63,14 +63,14 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
 #     addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
 #     for addr in addrs:
 #         elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
-    addr = nodes[1].rpc.call("peerswap-liquid-getaddress")
+    addr = nodes[1].rpc.call("peerswap-liquid-getaddress")["liquid_address"]
     elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
 
     elementsd.rpc.generatetoaddress(1, BURN_ADDR)
     # wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
     wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
 
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     # assert balances[0] == 10000000
     assert balances[1] == 10000000
 
@@ -78,7 +78,7 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
     swap_amt = 5 * 10 ** 6
     nodes[0].rpc.call(
         "peerswap-swap-out",
-        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+        {"amt_sat": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
     )
 
     # wait for fee beeing payed
@@ -101,7 +101,7 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
             elementsd, 1, lambda: liquid_balance_changed(nodes[1], balances[1])
         )
     )
-    balances_invoice_payed = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances_invoice_payed = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances_invoice_payed[0] == 0
     # FIXME correct fee
     assert balances_invoice_payed[1] <= balances[1] - swap_amt
@@ -126,7 +126,7 @@ def test_swap_out(elementsd: ElementsD, node_factory: NodeFactory):
             elementsd, 1, lambda: liquid_balance_changed(nodes[0], balances[0])
         )
     )
-    balances_after_claim = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances_after_claim = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     # FIXME correct fee
     assert balances[0] + swap_amt >= balances_after_claim[0]
     assert balances[1] - swap_amt >= balances_after_claim[1]
@@ -168,7 +168,7 @@ def test_swap_out_claim_csv(elementsd: ElementsD, node_factory: NodeFactory):
     assert chfunds == FUNDAMOUNT
 
     # send liquid to node wallets
-    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    addrs = [x.rpc.call("peerswap-liquid-getaddress")["liquid_address"] for x in nodes]
     for addr in addrs:
         elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
 
@@ -176,7 +176,7 @@ def test_swap_out_claim_csv(elementsd: ElementsD, node_factory: NodeFactory):
     wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
     wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
 
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == 10000000
     assert balances[1] == 10000000
 
@@ -184,7 +184,7 @@ def test_swap_out_claim_csv(elementsd: ElementsD, node_factory: NodeFactory):
     swap_amt = 5 * 10 ** 6
     nodes[0].rpc.call(
         "peerswap-swap-out",
-        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+        {"amt_sat": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
     )
 
     # wait for fee beeing payed
@@ -258,7 +258,7 @@ def test_swap_out_cooperative_close(elementsd: ElementsD, node_factory: NodeFact
     assert chfunds == FUNDAMOUNT
 
     # send liquid to node wallets
-    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    addrs = [x.rpc.call("peerswap-liquid-getaddress")["liquid_address"] for x in nodes]
     for addr in addrs:
         elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
 
@@ -270,7 +270,7 @@ def test_swap_out_cooperative_close(elementsd: ElementsD, node_factory: NodeFact
     swap_amt = 5 * 10 ** 6
     nodes[0].rpc.call(
         "peerswap-swap-out",
-        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+        {"amt_sat": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
     )
 
     # wait for fee beeing payed
@@ -362,7 +362,7 @@ def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     assert chfunds == FUNDAMOUNT
 
     # send liquid to node wallets
-    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    addrs = [x.rpc.call("peerswap-liquid-getaddress")["liquid_address"] for x in nodes]
     for addr in addrs:
         elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
 
@@ -370,7 +370,7 @@ def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
     wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
 
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == 10000000
     assert balances[1] == 10000000
 
@@ -382,7 +382,7 @@ def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     with pytest.raises(RpcError, match=CANCEL_MSG):
         nodes[0].rpc.call(
             "peerswap-swap-out",
-            {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+            {"amt_sat": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
         )
 
     # wait for nodes to receive events
@@ -397,7 +397,7 @@ def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):
     assert res[1][0]["data"]["cancel_message"] == CANCEL_MSG
 
     # assert same balances as before
-    balances_post_cancel = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances_post_cancel = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == balances_post_cancel[0]
     assert balances[1] == balances_post_cancel[1]
 
@@ -444,7 +444,7 @@ def test_accept_all_peers(elementsd: ElementsD, node_factory: NodeFactory):
     assert chfunds == FUNDAMOUNT
 
     # send liquid to node wallets
-    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    addrs = [x.rpc.call("peerswap-liquid-getaddress")["liquid_address"] for x in nodes]
     for addr in addrs:
         elementsd.rpc.sendtoaddress(addr, 0.1, "", "", False, False, 1, "UNSET")
 
@@ -452,7 +452,7 @@ def test_accept_all_peers(elementsd: ElementsD, node_factory: NodeFactory):
     wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
     wait_for(lambda: has_liquid_balance(nodes[1], 10000000))
 
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == 10000000
     assert balances[1] == 10000000
 
@@ -462,7 +462,7 @@ def test_accept_all_peers(elementsd: ElementsD, node_factory: NodeFactory):
     # assert NO error message as all peers are accepted
     nodes[0].rpc.call(
         "peerswap-swap-out",
-        {"amt": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
+        {"amt_sat": swap_amt, "short_channel_id": scid, "asset": "l-btc"},
     )
     
     # assert opening tx broadcasted and tx broadcasted

@@ -41,7 +41,11 @@ func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 	log.Printf("[Wallet] Getting address %s", res)
-	return fmt.Sprintf("%s", res), nil
+	return &GetAddressResponse{LiquidAddress: res}, nil
+}
+
+type GetAddressResponse struct {
+	LiquidAddress string `json:"liquid_address"`
 }
 
 // GetBalance returns the liquid balance
@@ -67,7 +71,13 @@ func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &GetBalanceResponse{
+		res,
+	}, nil
+}
+
+type GetBalanceResponse struct {
+	LiquidBalance uint64 `json:"liquid_balance_sat"`
 }
 
 // SendToAddressMethod sends
@@ -105,7 +115,11 @@ func (s *SendToAddressMethod) Call() (jrpc2.Result, error) {
 		log.Printf("error %v", err)
 		return nil, err
 	}
-	return res, nil
+	return &SendToAddressResponse{TxId: res}, nil
+}
+
+type SendToAddressResponse struct {
+	TxId string `json:"txid"`
 }
 
 func (s *SendToAddressMethod) Description() string {
@@ -118,7 +132,7 @@ func (s *SendToAddressMethod) LongDescription() string {
 
 // SwapOut starts a new swapout (paying an Invoice for onchain liquidity)
 type SwapOut struct {
-	SatAmt         uint64            `json:"amt"`
+	SatAmt         uint64            `json:"amt_sat"`
 	ShortChannelId string            `json:"short_channel_id"`
 	Asset          string            `json:"asset"`
 	cl             *ClightningClient `json:"-"`
@@ -226,7 +240,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
-	SatAmt         uint64 `json:"amt"`
+	SatAmt         uint64 `json:"amt_sat"`
 	ShortChannelId string `json:"short_channel_id"`
 	Asset          string `json:"asset"`
 
@@ -580,7 +594,7 @@ func (g *ResendLastMessage) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return "success", nil
+	return nil, nil
 }
 
 type GetSwap struct {
