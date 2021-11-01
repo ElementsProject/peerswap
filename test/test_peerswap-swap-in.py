@@ -86,7 +86,7 @@ def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
     )
     balances_tx_broadcasted = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
     assert balances_tx_broadcasted[0] == balances[0]
-    assert balances_tx_broadcasted[1] == balances[1] - FEE - swap_amt
+    assert balances_tx_broadcasted[1] <= balances[1] - swap_amt
 
     # wait for invoice being payed
     wait_for(
@@ -108,8 +108,8 @@ def test_swap_in(elementsd: ElementsD, node_factory: NodeFactory):
         )
     )
     balances_after_claim = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
-    assert balances[0] + swap_amt - 501 == balances_after_claim[0]
-    assert balances[1] - swap_amt - FEE == balances_after_claim[1]
+    assert balances[0] + swap_amt >= balances_after_claim[0]
+    assert balances[1] - swap_amt  >= balances_after_claim[1]
 
 
 def test_peer_not_allowlisted(elementsd: ElementsD, node_factory: NodeFactory):

@@ -84,6 +84,7 @@ type ClaimSwapTransactionWithPreimageAction struct{}
 func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	err := CreatePreimageSpendingTransaction(services, swap)
 	if err != nil {
+		log.Printf("error claiming tx with preimage %v", err)
 		return Event_OnRetry
 	}
 	return Event_ActionSucceeded

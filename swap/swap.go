@@ -75,6 +75,7 @@ type SwapData struct {
 
 	MakerRefundAddr    string `json:"maker_refund_addr"`
 	TakerRefundSigHash string `json:"taker_refund_sig_hash"`
+	RefundFee          uint64 `json:"refund_fee"`
 
 	FeeInvoice  string `json:"fee_invoice"`
 	FeePreimage string `json:"fee_preimage"`

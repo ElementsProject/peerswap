@@ -40,9 +40,10 @@ type Onchain interface {
 	AddConfirmationCallback(func(swapId string) error)
 	AddCsvCallback(func(swapId string) error)
 	ValidateTx(swapParams *OpeningParams, openingTxId string) (bool, error)
-	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error)
-	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error)
+	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error)
+	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
 	CreateRefundAddress() (string, error)
+	GetRefundFee() (uint64, error)
 }
 
 type OpeningParams struct {

@@ -78,7 +78,7 @@ func run() error {
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
-	var liquidRpcWallet *wallet.RpcWallet
+	var liquidRpcWallet *wallet.ElementsRpcWallet
 	var liquidCli *gelements.Elements
 	if config.LiquidEnabled {
 		log.Printf("Liquid swaps enabled")

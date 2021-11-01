@@ -350,6 +350,10 @@ type dummyChain struct {
 	csvPassedFunc   func(swapId string) error
 }
 
+func (d *dummyChain) GetRefundFee() (uint64, error) {
+	return 100, nil
+}
+
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
 	return "txhex", "", 0, 0, 0, nil
 }
@@ -358,11 +362,11 @@ func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
 	d.csvPassedFunc = f
 }
 
-func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string) (sigHash string, error error) {
+func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error) {
 	return "takersighash", nil
 }
 
-func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string) (txId, txHex string, error error) {
+func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
 }
 

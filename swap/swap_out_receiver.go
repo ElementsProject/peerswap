@@ -137,12 +137,19 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	swap.OpeningTxHex = finalizedTx
 	swap.OpeningTxId = txId
 
+	refundFee, err := onchain.GetRefundFee()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.RefundFee = refundFee
+
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxId:            swap.OpeningTxId,
 		RefundAddr:      swap.MakerRefundAddr,
+		RefundFee:       swap.RefundFee,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -183,7 +190,7 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	spendParams := &ClaimParams{
 		Signer: key,
 	}
-	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash)
+	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -222,7 +229,7 @@ func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData
 	}
 	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 	claimParams := &ClaimParams{Signer: key}
-	sigHash, err := onchain.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr)
+	sigHash, err := onchain.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
