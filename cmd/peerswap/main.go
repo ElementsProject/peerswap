@@ -111,7 +111,7 @@ func run() error {
 	// bitcoin
 	chain, err := getBitcoinChain(lightningPlugin.GetLightningRpc())
 	if err != nil {
-
+		return err
 	}
 	bitcoinCli, err := getBitcoinClient(lightningPlugin.GetLightningRpc())
 	if err != nil {
@@ -325,7 +325,7 @@ func getNetworkFolder(network string) string {
 	case "regtest":
 		return "regtest"
 	case "testnet":
-		return "testne3t"
+		return "testnet3"
 	case "signet":
 		return "signet"
 	default:

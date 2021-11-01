@@ -34,14 +34,14 @@ def test_sendtoaddres(elementsd, node_factory):
     nodes[1].daemon.wait_for_log("peerswap initialized")
 
     # send liquid to node 1
-    addrs = [x.rpc.call("peerswap-liquid-getaddress") for x in nodes]
+    addrs = [x.rpc.call("peerswap-liquid-getaddress")["liquid_address"] for x in nodes]
     elementsd.rpc.sendtoaddress(addrs[0], 0.1, "", "", False, False, 1, "UNSET")
     # elementsd.rpc.generatetoaddress(10, addrs[0])
     elementsd.rpc.generatetoaddress(1, BURN_ADDR)
     # wait_for(lambda: has_liquid_balance(nodes[0], 10000000))
 
     # check balances
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == 10000000
     assert balances[1] == 0
 
@@ -54,11 +54,11 @@ def test_sendtoaddres(elementsd, node_factory):
         lambda: with_liquid_generate(
             elementsd,
             1,
-            lambda: liquid_balance_changed(nodes[1], balances[1]),
+            lambda: liquid_balance_changed(nodes[1], balances[1] ),
         )
     )
 
     # check balances
-    balances = [x.rpc.call("peerswap-liquid-getbalance") for x in nodes]
+    balances = [x.rpc.call("peerswap-liquid-getbalance")["liquid_balance_sat"] for x in nodes]
     assert balances[0] == 10000000 - send_amt - 2491
     assert balances[1] == send_amt

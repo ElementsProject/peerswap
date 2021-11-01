@@ -11,7 +11,7 @@ import (
 const (
 	// ReserveOnchainMsat is the amount of msat that is
 	// kept as a reserve in the onchain wallet and
-	// can not be spent by incomming swap requests.
+	// can not be spent by incoming swap requests.
 	defaultReserveOnchainMsat uint64 = 0
 	defaultAcceptAllPeers            = false
 )
@@ -51,7 +51,7 @@ type Policy struct {
 func (p *Policy) String() string {
 	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\n", p.ReserveOnchainMsat, p.PeerAllowlist, p.AcceptAllPeers)
 	if p.AcceptAllPeers {
-		return fmt.Sprintf("%sCAUTION: Accept all incomming swap requests", str)
+		return fmt.Sprintf("%sCAUTION: Accept all incoming swap requests", str)
 	}
 	return str
 }

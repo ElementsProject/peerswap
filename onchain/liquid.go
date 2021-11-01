@@ -421,5 +421,5 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	// todo get tx size
-	return l.getFee(150)
+	return l.getFee(250)
 }
