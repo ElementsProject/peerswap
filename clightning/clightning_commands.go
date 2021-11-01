@@ -171,14 +171,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		if l.cl.Gelements == nil {
 			return nil, errors.New("peerswap was not started with liquid node config")
 		}
-		liquidBalance, err := l.cl.wallet.GetBalance()
-		if err != nil {
-			return nil, err
-		}
-		// todo fix liquid fee amount
-		if liquidBalance < 500 {
-			return nil, errors.New("you require more than 500 lbtc sats for transaction ")
-		}
+
 	} else if strings.Compare(l.Asset, "btc") == 0 {
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
