@@ -124,7 +124,7 @@ Example output:
 
 `peetswap-getswap [swapid]` - command that returns the swap with _swapid_
 
-`peerswap-list-swap-requests` - lists rejected swaps requested by peer nodes.
+`peerswap-listswaprequests` - lists rejected swaps requested by peer nodes.
 
 Example output:
 ```json
