@@ -123,3 +123,22 @@ Example output:
 `peerswap-listswaps [pretty bool (optional)]` - command that lists all swaps. If _pretty_ is set the output is in a human readable format
 
 `peetswap-getswap [swapid]` - command that returns the swap with _swapid_
+
+`peerswap-list-swap-requests` - lists rejected swaps requested by peer nodes.
+
+Example output:
+```json
+[
+   {
+      "node_id": "...",
+      "requests": {
+         "swap out": {
+            "l-btc": {
+               "total_amount_sat": 3600,
+               "n_requests": 3
+            }
+         }
+      }
+   }
+]
+```

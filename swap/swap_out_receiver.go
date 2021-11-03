@@ -43,7 +43,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		swap.CancelMessage = "l-btc swaps are not supported"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.Asset,
-			AmountMsat:      swap.Amount * 1000,
+			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
@@ -54,7 +54,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		swap.CancelMessage = "btc swaps are not supported"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.Asset,
-			AmountMsat:      swap.Amount * 1000,
+			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
@@ -69,7 +69,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		swap.CancelMessage = "peer not allowed to request swaps"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.Asset,
-			AmountMsat:      swap.Amount * 1000,
+			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})

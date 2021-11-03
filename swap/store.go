@@ -247,7 +247,7 @@ type RequestedSwapsStore interface {
 
 type RequestedSwap struct {
 	Asset           string   `json:"asset"`
-	AmountMsat      uint64   `json:"amount_msat"`
+	AmountSat       uint64   `json:"amount_sat"`
 	Type            SwapType `json:"swap_type"`
 	RejectionReason string   `json:"rejection_reason"`
 }
@@ -278,15 +278,14 @@ func (s *requestedSwapsStore) Add(id string, reqswap RequestedSwap) error {
 		k := b.Get([]byte(id))
 
 		var reqswaps []RequestedSwap
-		err := json.Unmarshal(k, &reqswaps)
-		if err != nil {
-			return err
-		}
-
-		if reqswaps == nil {
-			reqswaps = make([]RequestedSwap, 1)
-			reqswaps[0] = reqswap
+		if k == nil {
+			reqswaps = []RequestedSwap{reqswap}
 		} else {
+			err := json.Unmarshal(k, &reqswaps)
+			if err != nil {
+				return err
+			}
+
 			reqswaps = append(reqswaps, reqswap)
 		}
 

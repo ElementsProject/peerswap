@@ -12,8 +12,8 @@ type JsonEnty struct {
 }
 
 type JsonAssetRequest struct {
-	AmountMsat uint64 `json:"amount_msat"`
-	NRequests  uint64 `json:"n_requests"`
+	TotalAmountSat uint64 `json:"total_amount_sat"`
+	NRequests      uint64 `json:"n_requests"`
 }
 
 type RequestedSwapsPrinter struct {
@@ -45,18 +45,18 @@ func (p *RequestedSwapsPrinter) Get() ([]JsonEnty, error) {
 		return nil, fmt.Errorf("error reading requested swaps: %w", err)
 	}
 
-	var reqbuf []JsonEnty
+	reqbuf := []JsonEnty{}
 	for nodeId, reqswapz := range reqswaps {
 		e := JsonEnty{NodeId: nodeId, Requests: map[string]map[string]*JsonAssetRequest{}}
 		for _, reqswap := range reqswapz {
-			if _, ok := e.Requests[reqswap.Type.String()]; !ok {
-				e.Requests[reqswap.Type.String()] = map[string]*JsonAssetRequest{}
+			if _, ok := e.Requests[reqswap.Type.JsonFieldValue()]; !ok {
+				e.Requests[reqswap.Type.JsonFieldValue()] = map[string]*JsonAssetRequest{}
 			}
-			if _, ok := e.Requests[reqswap.Type.String()][reqswap.Asset]; !ok {
-				e.Requests[reqswap.Type.String()][reqswap.Asset] = &JsonAssetRequest{AmountMsat: reqswap.AmountMsat, NRequests: 1}
+			if _, ok := e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset]; !ok {
+				e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset] = &JsonAssetRequest{TotalAmountSat: reqswap.AmountSat, NRequests: 1}
 			} else {
-				e.Requests[reqswap.Type.String()][reqswap.Asset].AmountMsat = e.Requests[reqswap.Type.String()][reqswap.Asset].AmountMsat + reqswap.AmountMsat
-				e.Requests[reqswap.Type.String()][reqswap.Asset].NRequests = e.Requests[reqswap.Type.String()][reqswap.Asset].NRequests + 1
+				e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset].TotalAmountSat = e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset].TotalAmountSat + reqswap.AmountSat
+				e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset].NRequests = e.Requests[reqswap.Type.JsonFieldValue()][reqswap.Asset].NRequests + 1
 			}
 		}
 		reqbuf = append(reqbuf, e)

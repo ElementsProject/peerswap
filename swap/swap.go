@@ -20,6 +20,17 @@ func (s SwapType) String() string {
 	return ""
 }
 
+func (s SwapType) JsonFieldValue() string {
+	switch s {
+	case SWAPTYPE_OUT:
+		return "swap_out"
+	case SWAPTYPE_IN:
+		return "swap_in"
+	default:
+		return "unknown_swap_type"
+	}
+}
+
 type SwapRole int
 
 func (s SwapRole) String() string {

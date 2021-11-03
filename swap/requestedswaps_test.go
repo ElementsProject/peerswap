@@ -11,19 +11,19 @@ func TestPrint(t *testing.T) {
 			"node1": {
 				{
 					Asset:           "l-btc",
-					AmountMsat:      1000,
+					AmountSat:       10000,
 					Type:            SWAPTYPE_IN,
 					RejectionReason: "asset not allowed",
 				},
 				{
 					Asset:           "btc",
-					AmountMsat:      1000,
+					AmountSat:       10000,
 					Type:            SWAPTYPE_IN,
 					RejectionReason: "asset not allowed",
 				},
 				{
 					Asset:           "btc",
-					AmountMsat:      1000,
+					AmountSat:       10000,
 					Type:            SWAPTYPE_IN,
 					RejectionReason: "asset not allowed",
 				},
@@ -31,8 +31,14 @@ func TestPrint(t *testing.T) {
 			"node2": {
 				{
 					Asset:           "btc",
-					AmountMsat:      1000,
+					AmountSat:       10000,
 					Type:            SWAPTYPE_OUT,
+					RejectionReason: "asset not allowed",
+				},
+				{
+					Asset:           "btc",
+					AmountSat:       10000,
+					Type:            SWAPTYPE_IN,
 					RejectionReason: "asset not allowed",
 				},
 			},
@@ -47,13 +53,13 @@ func TestPrint(t *testing.T) {
 	{
 		"node_id": "node1",
 		"requests": {
-			"swap in": {
+			"swap_in": {
 				"btc": {
-					"amount_msat": 2000,
+					"total_amount_sat": 20000,
 					"n_requests": 2
 				},
 				"l-btc": {
-					"amount_msat": 1000,
+					"total_amount_sat": 10000,
 					"n_requests": 1
 				}
 			}
@@ -62,9 +68,15 @@ func TestPrint(t *testing.T) {
 	{
 		"node_id": "node2",
 		"requests": {
-			"swap out": {
+			"swap_in": {
 				"btc": {
-					"amount_msat": 1000,
+					"total_amount_sat": 10000,
+					"n_requests": 1
+				}
+			},
+			"swap_out": {
+				"btc": {
+					"total_amount_sat": 10000,
 					"n_requests": 1
 				}
 			}
