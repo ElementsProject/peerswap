@@ -251,13 +251,14 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 
 func getTestSetup(name string) *SwapService {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
+	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
 	messenger := &ConnectedMessenger{
 		thisPeerId: name,
 	}
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapService := NewSwapService(store, true, chain, true, chain, lc, messenger, policy)
+	swapService := NewSwapService(store, reqSwapsStore, true, chain, true, chain, lc, messenger, policy)
 	return swapService
 }
 

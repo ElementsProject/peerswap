@@ -38,10 +38,11 @@ type SwapService struct {
 	sync.RWMutex
 }
 
-func NewSwapService(swapStore Store, enableLiquid bool, liquidChainService Onchain, enableBitcoin bool, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
+func NewSwapService(swapStore Store, requestedSwapsStore RequestedSwapsStore, enableLiquid bool, liquidChainService Onchain, enableBitcoin bool, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
 
 	services := NewSwapServices(
 		swapStore,
+		requestedSwapsStore,
 		lightning,
 		messenger,
 		policy,

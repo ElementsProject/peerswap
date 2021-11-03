@@ -3,8 +3,9 @@ package swap
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/btcsuite/btcd/btcec"
 	"log"
+
+	"github.com/btcsuite/btcd/btcec"
 
 	"github.com/sputn1ck/peerswap/lightning"
 )
@@ -40,11 +41,23 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	if swap.Asset == "l-btc" && !services.liquidEnabled {
 		swap.LastErr = errors.New("l-btc swaps are not supported")
 		swap.CancelMessage = "l-btc swaps are not supported"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 
@@ -54,6 +67,12 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
 		swap.CancelMessage = "peer not allowed to request swaps"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
 		return Event_ActionFailed
 	}
 	//todo check balance/policy if we want to create the swap

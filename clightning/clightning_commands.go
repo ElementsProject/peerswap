@@ -683,6 +683,36 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 // 	default config, so fields that are not set are interpreted as default.`
 // }
 
+type GetRequestedSwaps struct {
+	cl   *ClightningClient
+	name string
+}
+
+func (c GetRequestedSwaps) Name() string {
+	return c.name
+}
+
+func (c GetRequestedSwaps) New() interface{} {
+	return c
+}
+
+func (c GetRequestedSwaps) Call() (jrpc2.Result, error) {
+	requestedSwaps, err := c.cl.requestedSwaps.Get()
+	if err != nil {
+		return nil, err
+	}
+	return requestedSwaps, nil
+}
+
+func (c GetRequestedSwaps) Description() string {
+	return "Returns unhandled swaps requested by peer nodes."
+}
+
+func (c GetRequestedSwaps) LongDescription() string {
+	return `This command can give you insight of swaps requested by peer nodes that could not have
+		been performed because either the peer is not in the allowlist or the asset is not set.`
+}
+
 type PeerSwapPeerChannel struct {
 	ChannelId     string  `json:"short_channel_id"`
 	LocalBalance  uint64  `json:"local_balance"`

@@ -150,7 +150,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	requestedSwapStore, err := swap.NewRequestedSwapsStore(swapDb)
+	if err != nil {
+		return err
+	}
 	swapService := swap.NewSwapService(swapStore,
+		requestedSwapStore,
 		config.LiquidEnabled,
 		liquidOnChainService,
 		bitcoinEnabled,
@@ -186,7 +191,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, liquidCli)
+	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, sp, pol, liquidCli)
 
 	log.Printf("peerswap initialized")
 	<-quitChan

@@ -53,9 +53,10 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
-	wallet wallet.Wallet
-	swaps  *swap.SwapService
-	policy FileReloaderStringer
+	wallet         wallet.Wallet
+	swaps          *swap.SwapService
+	requestedSwaps *swap.RequestedSwapsPrinter
+	policy         FileReloaderStringer
 
 	Gelements *gelements.Elements
 
@@ -63,6 +64,28 @@ type ClightningClient struct {
 	paymentSubscriptions []func(payment *glightning.Payment)
 	initChan             chan interface{}
 	nodeId               string
+}
+
+// NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
+func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
+	cl := &ClightningClient{}
+	cl.plugin = glightning.NewPlugin(cl.onInit)
+	err := cl.plugin.RegisterHooks(&glightning.Hooks{
+		CustomMsgReceived: cl.OnCustomMsg,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
+
+	cl.glightning = glightning.NewLightning()
+
+	b := big.NewInt(0)
+	b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
+	cl.plugin.AddNodeFeatures(b.Bytes())
+	cl.plugin.SetDynamic(true)
+	cl.initChan = make(chan interface{})
+	return cl, cl.initChan, nil
 }
 
 // CheckChannel checks if a channel is eligable for a swap
@@ -104,28 +127,6 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 		return preimage, err
 	}
 	return preimage, nil
-}
-
-// NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
-func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
-	cl := &ClightningClient{}
-	cl.plugin = glightning.NewPlugin(cl.onInit)
-	err := cl.plugin.RegisterHooks(&glightning.Hooks{
-		CustomMsgReceived: cl.OnCustomMsg,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
-
-	cl.glightning = glightning.NewLightning()
-
-	b := big.NewInt(0)
-	b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
-	cl.plugin.AddNodeFeatures(b.Bytes())
-	cl.plugin.SetDynamic(true)
-	cl.initChan = make(chan interface{})
-	return cl, cl.initChan, nil
 }
 
 func (c *ClightningClient) GetLightningRpc() *glightning.Lightning {
@@ -450,10 +451,11 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, policy FileReloaderStringer, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy FileReloaderStringer, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.policy = policy
+	c.requestedSwaps = requestedSwaps
 	c.Gelements = elements
 }
 
@@ -517,6 +519,21 @@ func (c *ClightningClient) RegisterMethods() error {
 		Category: "peerswap",
 	}
 	err = c.plugin.RegisterMethod(reloadPolicyFile)
+	if err != nil {
+		return err
+	}
+
+	listRequestedSwapsMethod := &GetRequestedSwaps{
+		cl:   c,
+		name: "peerswap-listswaprequests",
+	}
+	listRequestedSwaps := &glightning.RpcMethod{
+		Method:   listRequestedSwapsMethod,
+		Desc:     listRequestedSwapsMethod.Description(),
+		LongDesc: listRequestedSwapsMethod.LongDescription(),
+		Category: "peerswap",
+	}
+	err = c.plugin.RegisterMethod(listRequestedSwaps)
 	if err != nil {
 		return err
 	}

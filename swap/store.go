@@ -4,11 +4,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"go.etcd.io/bbolt"
 )
 
 var (
-	swapBuckets = []byte("swaps")
+	swapBuckets          = []byte("swaps")
+	requestedSwapsBucket = []byte("requested-swaps")
 
 	ErrDoesNotExist  = fmt.Errorf("does not exist")
 	ErrAlreadyExists = fmt.Errorf("swap already exist")
@@ -16,6 +18,23 @@ var (
 
 type bboltStore struct {
 	db *bbolt.DB
+}
+
+func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
+	tx, err := db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	_, err = tx.CreateBucketIfNotExists(swapBuckets)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &bboltStore{db: db}, nil
 }
 
 func (p *bboltStore) UpdateData(swap *SwapStateMachine) error {
@@ -40,23 +59,6 @@ func (p *bboltStore) GetData(id string) (*SwapStateMachine, error) {
 		return nil, err
 	}
 	return swap, nil
-}
-
-func NewBboltStore(db *bbolt.DB) (*bboltStore, error) {
-	tx, err := db.Begin(true)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	_, err = tx.CreateBucketIfNotExists(swapBuckets)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return &bboltStore{db: db}, nil
 }
 
 func (p *bboltStore) Create(swap *SwapStateMachine) error {
@@ -235,4 +237,96 @@ func (p *bboltStore) idExists(id string) (bool, error) {
 func h2b(str string) []byte {
 	buf, _ := hex.DecodeString(str)
 	return buf
+}
+
+type RequestedSwapsStore interface {
+	Add(id string, reqswap RequestedSwap) error
+	Get(id string) ([]RequestedSwap, error)
+	GetAll() (map[string][]RequestedSwap, error)
+}
+
+type RequestedSwap struct {
+	Asset           string   `json:"asset"`
+	AmountSat       uint64   `json:"amount_sat"`
+	Type            SwapType `json:"swap_type"`
+	RejectionReason string   `json:"rejection_reason"`
+}
+type requestedSwapsStore struct {
+	db *bbolt.DB
+}
+
+func NewRequestedSwapsStore(db *bbolt.DB) (*requestedSwapsStore, error) {
+	tx, err := db.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	_, err = tx.CreateBucketIfNotExists(requestedSwapsBucket)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &requestedSwapsStore{db: db}, nil
+}
+
+func (s *requestedSwapsStore) Add(id string, reqswap RequestedSwap) error {
+	return s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(requestedSwapsBucket)
+		k := b.Get([]byte(id))
+
+		var reqswaps []RequestedSwap
+		if k == nil {
+			reqswaps = []RequestedSwap{reqswap}
+		} else {
+			err := json.Unmarshal(k, &reqswaps)
+			if err != nil {
+				return err
+			}
+
+			reqswaps = append(reqswaps, reqswap)
+		}
+
+		buf, err := json.Marshal(reqswaps)
+		if err != nil {
+			return err
+		}
+
+		return b.Put([]byte(id), buf)
+	})
+}
+
+func (s *requestedSwapsStore) GetAll() (map[string][]RequestedSwap, error) {
+	reqswaps := map[string][]RequestedSwap{}
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(requestedSwapsBucket)
+		return b.ForEach(func(k, v []byte) error {
+			id := string(k)
+			var reqswap []RequestedSwap
+			json.Unmarshal(v, &reqswap)
+			reqswaps[id] = reqswap
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return reqswaps, nil
+}
+
+func (s *requestedSwapsStore) Get(id string) ([]RequestedSwap, error) {
+	var reqswaps []RequestedSwap
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(requestedSwapsBucket)
+		k := b.Get([]byte(id))
+		return json.Unmarshal(k, &reqswaps)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return reqswaps, nil
 }
