@@ -8,7 +8,6 @@ const (
 	State_ClaimedCsv      StateType = "State_ClaimedCsv"
 	State_ClaimedPreimage StateType = "State_ClaimedPreimage"
 	State_ClaimedCoop     StateType = "State_ClaimedCoop"
-	State_Done            StateType = "State_Done"
 )
 
 // Swap Out Sender States
