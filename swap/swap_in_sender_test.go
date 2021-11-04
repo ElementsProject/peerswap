@@ -3,6 +3,7 @@ package swap
 import (
 	"testing"
 
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +31,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
@@ -38,7 +39,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
-	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
@@ -69,7 +70,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
@@ -101,7 +102,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
@@ -109,7 +110,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
-	assert.Equal(t, MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {

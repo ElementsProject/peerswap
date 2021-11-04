@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/messages"
 )
 
 type Messenger interface {
@@ -14,7 +15,7 @@ type Messenger interface {
 }
 
 type PeerMessage interface {
-	MessageType() MessageType
+	MessageType() messages.MessageType
 }
 
 type Policy interface {

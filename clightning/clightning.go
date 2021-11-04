@@ -16,6 +16,7 @@ import (
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
 )
@@ -147,7 +148,7 @@ func (c *ClightningClient) Start() error {
 
 // SendMessage sends a hexmessage to a peer
 func (c *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
-	msg := swap.MessageTypeToHexString(swap.MessageType(messageType)) + hex.EncodeToString(message)
+	msg := messages.MessageTypeToHexString(messages.MessageType(messageType)) + hex.EncodeToString(message)
 	res, err := c.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
