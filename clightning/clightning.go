@@ -5,6 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/sputn1ck/glightning/gbitcoin"
+	"github.com/sputn1ck/peerswap/onchain"
 	"log"
 	"math/big"
 	"os"
@@ -64,10 +67,15 @@ type ClightningClient struct {
 
 	Gelements *gelements.Elements
 
+	gbitcoin       *gbitcoin.Bitcoin
+	bitcoinChain   *onchain.BitcoinOnChain
+	bitcoinNetwork *chaincfg.Params
+
 	msgHandlers          []func(peerId string, messageType string, payload string) error
 	paymentSubscriptions []func(payment *glightning.Payment)
 	initChan             chan interface{}
 	nodeId               string
+	hexToIdMap           map[string]string
 }
 
 // NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
@@ -90,6 +98,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	cl.plugin.AddNodeFeatures(b.Bytes())
 	cl.plugin.SetDynamic(true)
 	cl.initChan = make(chan interface{})
+	cl.hexToIdMap = make(map[string]string)
 	return cl, cl.initChan, nil
 }
 
@@ -132,6 +141,23 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 		return preimage, err
 	}
 	return preimage, nil
+}
+
+// SetupClients injects the required services
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet,
+	swaps *swap.SwapService,
+	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
+	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain) {
+	c.wallet = wallet
+	c.requestedSwaps = requestedSwaps
+	c.swaps = swaps
+	c.Gelements = elements
+	c.policy = policy
+	c.gbitcoin = bitcoin
+	c.bitcoinChain = bitcoinChain
+	if c.bitcoinChain != nil {
+		c.bitcoinNetwork = bitcoinChain.GetChain()
+	}
 }
 
 func (c *ClightningClient) GetLightningRpc() *glightning.Lightning {
@@ -491,16 +517,6 @@ func (c *ClightningClient) RegisterOptions() error {
 		return err
 	}
 	return nil
-}
-
-// SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy PolicyReloader, elements *gelements.Elements, pollService *poll.Service) {
-	c.wallet = wallet
-	c.swaps = swaps
-	c.policy = policy
-	c.requestedSwaps = requestedSwaps
-	c.Gelements = elements
-	c.pollService = pollService
 }
 
 // RegisterMethods registeres rpc methods to c-lightning

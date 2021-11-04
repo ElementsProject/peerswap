@@ -27,19 +27,19 @@ const (
 )
 
 type LiquidOnChain struct {
-	elements  *gelements.Elements
-	txWatcher *txwatcher.BlockchainRpcTxWatcher
-	wallet    wallet.Wallet
-	network   *network.Network
-	asset     []byte
+	elements     *gelements.Elements
+	txWatcher    *txwatcher.BlockchainRpcTxWatcher
+	liquidWallet wallet.Wallet
+	network      *network.Network
+	asset        []byte
 }
 
-func NewLiquidOnChain(elements *gelements.Elements, txWatcher *txwatcher.BlockchainRpcTxWatcher, wallet wallet.Wallet, network *network.Network) *LiquidOnChain {
+func NewLiquidOnChain(elements *gelements.Elements, txWatcher *txwatcher.BlockchainRpcTxWatcher, liquidWallet wallet.Wallet, network *network.Network) *LiquidOnChain {
 	lbtc := append(
 		[]byte{0x01},
 		elementsutil.ReverseBytes(h2b(network.AssetID))...,
 	)
-	return &LiquidOnChain{elements: elements, txWatcher: txWatcher, wallet: wallet, network: network, asset: lbtc}
+	return &LiquidOnChain{elements: elements, txWatcher: txWatcher, liquidWallet: liquidWallet, network: network, asset: lbtc}
 }
 
 func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
@@ -57,7 +57,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 	tx := transaction.NewTx(2)
 	tx.Outputs = append(tx.Outputs, output)
 
-	unpreparedTxHex, fee, err = l.wallet.CreateFundedTransaction(tx)
+	unpreparedTxHex, fee, err = l.liquidWallet.CreateFundedTransaction(tx)
 	if err != nil {
 		return "", "", 0, 0, 0, err
 	}
@@ -71,7 +71,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 }
 
 func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, err error) {
-	txHex, err = l.wallet.FinalizeFundedTransaction(unpreparedTxHex)
+	txHex, err = l.liquidWallet.FinalizeFundedTransaction(unpreparedTxHex)
 	if err != nil {
 		return "", "", err
 	}
@@ -88,7 +88,7 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 	if err != nil {
 		return "", "", err
 	}
-	newAddr, err := l.wallet.GetAddress()
+	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", err
 	}
@@ -118,7 +118,7 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 }
 
 func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-	newAddr, err := l.wallet.GetAddress()
+	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", err
 	}
@@ -173,7 +173,7 @@ func (l *LiquidOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.Op
 }
 
 func (l *LiquidOnChain) CreateRefundAddress() (string, error) {
-	addr, err := l.wallet.GetAddress()
+	addr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", err
 	}

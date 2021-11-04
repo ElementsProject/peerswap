@@ -84,7 +84,7 @@ func (s *SwapData) HandleError(err error) EventType {
 type SwapInWaitForConfirmationsAction struct{}
 
 func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	onchain, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}

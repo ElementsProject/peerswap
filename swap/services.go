@@ -32,15 +32,18 @@ type LightningClient interface {
 }
 
 type Onchain interface {
-	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error)
-	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
-	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
-	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	AddWaitForConfirmationTx(swapId, txId string) (err error)
 	AddWaitForCsvTx(swapId, txId string, vout uint32) (err error)
 	AddConfirmationCallback(func(swapId string) error)
 	AddCsvCallback(func(swapId string) error)
 	ValidateTx(swapParams *OpeningParams, openingTxId string) (bool, error)
+}
+
+type Wallet interface {
+	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error)
+	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
+	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
+	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error)
 	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
 	CreateRefundAddress() (string, error)
@@ -64,16 +67,19 @@ type Signer interface {
 }
 
 type SwapServices struct {
-	swapStore           Store
+	swapStore      Store
 	requestedSwapsStore RequestedSwapsStore
 	lightning           LightningClient
 	messenger           Messenger
 	policy              Policy
 	bitcoinOnchain      Onchain
+	bitcoinWallet       Wallet
 	bitcoinEnabled      bool
 	liquidOnchain       Onchain
+	liquidWallet        Wallet
 	liquidEnabled       bool
 }
+
 
 func NewSwapServices(
 	swapStore Store,
@@ -82,8 +88,10 @@ func NewSwapServices(
 	messenger Messenger,
 	policy Policy,
 	bitcoinEnabled bool,
+	bitcoinWallet Wallet,
 	bitcoinOnchain Onchain,
 	liquidEnabled bool,
+	liquidWallet Wallet,
 	liquidOnchain Onchain) *SwapServices {
 	return &SwapServices{
 		swapStore:           swapStore,
@@ -92,21 +100,23 @@ func NewSwapServices(
 		messenger:           messenger,
 		policy:              policy,
 		bitcoinOnchain:      bitcoinOnchain,
+		bitcoinWallet:       bitcoinWallet,
 		bitcoinEnabled:      bitcoinEnabled,
 		liquidEnabled:       liquidEnabled,
+		liquidWallet:        liquidWallet,
 		liquidOnchain:       liquidOnchain,
 	}
 }
 
-func (s *SwapServices) getOnchainAsset(asset string) (Onchain, error) {
+func (s *SwapServices) getOnchainAsset(asset string) (Onchain, Wallet, error) {
 	if asset == "" {
-		return nil, fmt.Errorf("missing asset")
+		return nil, nil, fmt.Errorf("missing asset")
 	}
 	if asset == "btc" {
-		return s.bitcoinOnchain, nil
+		return s.bitcoinOnchain, s.bitcoinWallet, nil
 	}
 	if asset == "l-btc" {
-		return s.liquidOnchain, nil
+		return s.liquidOnchain, s.liquidWallet, nil
 	}
-	return nil, WrongAssetError(asset)
+	return nil, nil, WrongAssetError(asset)
 }

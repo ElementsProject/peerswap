@@ -104,7 +104,7 @@ type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	onchain, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return Event_ActionFailed
 	}
@@ -125,7 +125,7 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	onchain, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}

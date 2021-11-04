@@ -134,7 +134,7 @@ func run() error {
 		log.Printf("Bitcoin swaps enabled")
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc(), chain)
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, chain)
 	} else {
 		log.Printf("Bitcoin swaps disabled")
 	}
@@ -164,15 +164,20 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	swapService := swap.NewSwapService(swapStore,
+
+	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
+		lightningPlugin,
+		lightningPlugin,
+		pol,
+		bitcoinEnabled,
+		lightningPlugin,
+		bitcoinOnChainService,
 		config.LiquidEnabled,
 		liquidOnChainService,
-		bitcoinEnabled,
-		bitcoinOnChainService,
-		lightningPlugin,
-		lightningPlugin,
-		pol)
+		liquidOnChainService,
+	)
+	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil {
 		go func() {
@@ -211,7 +216,7 @@ func run() error {
 	defer pollService.Stop()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, sp, pol, liquidCli, pollService)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService)
 
 	log.Printf("peerswap initialized")
 	<-quitChan

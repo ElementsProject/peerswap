@@ -144,11 +144,11 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 type BroadCastOpeningTxAction struct{}
 
 func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return Event_ActionFailed
 	}
-	txId, finalizedTx, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	txId, finalizedTx, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return Event_ActionFailed
 	}
@@ -156,7 +156,7 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	swap.OpeningTxHex = finalizedTx
 	swap.OpeningTxId = txId
 
-	refundFee, err := onchain.GetRefundFee()
+	refundFee, err := wallet.GetRefundFee()
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -195,7 +195,7 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 type ClaimSwapTransactionCoop struct{}
 
 func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -209,8 +209,7 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	spendParams := &ClaimParams{
 		Signer: key,
 	}
-
-	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
+	txId, _, err := wallet.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -243,14 +242,13 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerBuildSigHashAction struct{}
 
 func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 	claimParams := &ClaimParams{Signer: key}
-
-	sigHash, err := onchain.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr, swap.RefundFee)
+	sigHash, err := wallet.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}

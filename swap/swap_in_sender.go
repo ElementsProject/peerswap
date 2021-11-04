@@ -37,7 +37,7 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 type CreateAndBroadcastOpeningTransaction struct{}
 
 func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -69,15 +69,14 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
-	txId, txHex, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	txId, txHex, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
 
-	refundFee, err := onchain.GetRefundFee()
+	refundFee, err := wallet.GetRefundFee()
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -104,7 +103,7 @@ type AwaitCsvAction struct{}
 
 //todo this will never throw an error
 func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	onchain, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
