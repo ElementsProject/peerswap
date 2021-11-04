@@ -14,6 +14,7 @@ import (
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/swap"
 )
 
@@ -642,18 +643,9 @@ func (g *GetSwap) LongDescription() string {
 	return ""
 }
 
-type FileReloader interface {
+type PolicyReloader interface {
 	ReloadFile() error
-}
-
-type Stringer interface {
-	String() string
-}
-
-type FileReloaderStringer interface {
-	FileReloader
-	Stringer
-	Get() interface{}
+	Get() policy.Policy
 }
 type ReloadPolicyFile struct {
 	cl   *ClightningClient
@@ -677,15 +669,15 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	return c.cl.policy.Get(), nil
 }
 
-// func (c ReloadPolicyFile) Description() string {
-// 	return "Reload the policy file."
-// }
+func (c ReloadPolicyFile) Description() string {
+	return "Reload the policy file."
+}
 
-// func (c *ReloadPolicyFile) LongDescription() string {
-// 	return `If the policy file has changed, reload the policy
-// 	from the file specified in the config. Overrides the
-// 	default config, so fields that are not set are interpreted as default.`
-// }
+func (c *ReloadPolicyFile) LongDescription() string {
+	return `If the policy file has changed, reload the policy
+	from the file specified in the config. Overrides the
+	default config, so fields that are not set are interpreted as default.`
+}
 
 type GetRequestedSwaps struct {
 	cl   *ClightningClient

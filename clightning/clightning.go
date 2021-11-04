@@ -56,7 +56,7 @@ type ClightningClient struct {
 	wallet         wallet.Wallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
-	policy         FileReloaderStringer
+	policy         PolicyReloader
 
 	Gelements *gelements.Elements
 
@@ -451,7 +451,7 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy FileReloaderStringer, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy PolicyReloader, elements *gelements.Elements) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.policy = policy
