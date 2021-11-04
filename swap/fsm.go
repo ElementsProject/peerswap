@@ -218,7 +218,6 @@ func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
 	case State_ClaimedCsv:
 	case State_ClaimedPreimage:
-	case State_Done:
 		return true
 	}
 	return false

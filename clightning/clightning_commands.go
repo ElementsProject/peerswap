@@ -501,22 +501,26 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
 		var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
 		for _, s := range swaps {
-			if s.Role == swap.SWAPROLE_SENDER {
-				paidFees += s.Data.OpeningTxFee
-				if s.Type == swap.SWAPTYPE_OUT {
-					SenderSwapsOut++
-					SenderSatsOut += s.Data.Amount
+			// We only list successful swaps. They all end in an
+			// State_ClaimedPreimage state.
+			if s.Current == swap.State_ClaimedPreimage {
+				if s.Role == swap.SWAPROLE_SENDER {
+					paidFees += s.Data.OpeningTxFee
+					if s.Type == swap.SWAPTYPE_OUT {
+						SenderSwapsOut++
+						SenderSatsOut += s.Data.Amount
+					} else {
+						SenderSwapsIn++
+						SenderSatsIn += s.Data.Amount
+					}
 				} else {
-					SenderSwapsIn++
-					SenderSatsIn += s.Data.Amount
-				}
-			} else {
-				if s.Type == swap.SWAPTYPE_OUT {
-					ReceiverSwapsOut++
-					ReceiverSatsOut += s.Data.Amount
-				} else {
-					ReceiverSwapsIn++
-					ReceiverSatsIn += s.Data.Amount
+					if s.Type == swap.SWAPTYPE_OUT {
+						ReceiverSwapsOut++
+						ReceiverSatsOut += s.Data.Amount
+					} else {
+						ReceiverSwapsIn++
+						ReceiverSatsIn += s.Data.Amount
+					}
 				}
 			}
 		}
