@@ -13,7 +13,7 @@ type pollStore struct {
 	db *bbolt.DB
 }
 
-func NewPollStore(db *bbolt.DB) (*pollStore, error) {
+func NewStore(db *bbolt.DB) (*pollStore, error) {
 	tx, err := db.Begin(true)
 	if err != nil {
 		return nil, err

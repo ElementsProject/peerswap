@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
@@ -17,6 +18,7 @@ import (
 	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/messages"
+	"github.com/sputn1ck/peerswap/poll"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
 )
@@ -58,6 +60,7 @@ type ClightningClient struct {
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
+	pollService    *poll.Service
 
 	Gelements *gelements.Elements
 
@@ -78,6 +81,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 		return nil, nil, err
 	}
 	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
+	cl.plugin.SubscribeConnect(cl.OnConnect)
 
 	cl.glightning = glightning.NewLightning()
 
@@ -325,6 +329,21 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 	c.initChan <- true
 }
 
+// OnConnect is called after the connect event. The
+// handler sends out a poll to the peer it connected
+// to.
+func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
+	go func() {
+		for {
+			if c.pollService != nil {
+				c.pollService.RequestPoll(connectEvent.PeerId)
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
+}
+
 // GetConfig returns the peerswap config
 func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 
@@ -452,12 +471,13 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy PolicyReloader, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy PolicyReloader, elements *gelements.Elements, pollService *poll.Service) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.policy = policy
 	c.requestedSwaps = requestedSwaps
 	c.Gelements = elements
+	c.pollService = pollService
 }
 
 // RegisterMethods registeres rpc methods to c-lightning

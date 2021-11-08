@@ -58,7 +58,7 @@ type Service struct {
 	removeDuration time.Duration
 }
 
-func NewPollService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
+func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
 	clock := time.NewTicker(tickDuration)
 	ctx, done := context.WithCancel(context.Background())
 	s := &Service{
@@ -91,9 +91,7 @@ func (s *Service) Start() {
 				// remove unseen
 				s.store.RemoveUnseen(s.removeDuration)
 				// poll
-				for _, peer := range s.peers.GetPeers() {
-					go s.Poll(peer)
-				}
+				s.PollAllPeers()
 			case <-s.ctx.Done():
 				return
 			}
@@ -122,6 +120,12 @@ func (s *Service) Poll(peer string) {
 
 	if err := s.messenger.SendMessage(peer, msg, int(poll.MessageType())); err != nil {
 		log.Printf("poll_service: could not send poll msg: %v", err)
+	}
+}
+
+func (s *Service) PollAllPeers() {
+	for _, peer := range s.peers.GetPeers() {
+		go s.Poll(peer)
 	}
 }
 
@@ -192,4 +196,8 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload string) 
 	default:
 		return nil
 	}
+}
+
+func (s *Service) GetPolls() (map[string]PollInfo, error) {
+	return s.store.GetAll()
 }

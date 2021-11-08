@@ -56,7 +56,7 @@ func TestSendMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open db: %v", err)
 	}
-	store, err := NewPollStore(db)
+	store, err := NewStore(db)
 	if err != nil {
 		t.Fatalf("could not create store: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestSendMessage(t *testing.T) {
 		peers: []string{"peer1", "peer2"},
 	}
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewPollService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
 	for _, peer := range peerGetter.peers {
 		ps.Poll(peer)
 	}
@@ -94,7 +94,7 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open db: %v", err)
 	}
-	store, err := NewPollStore(db)
+	store, err := NewStore(db)
 	if err != nil {
 		t.Fatalf("could not create store: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 		peers: []string{"peer1", "peer2"},
 	}
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewPollService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
 
 	pmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_POLL)
 	rpmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_REQUEST_POLL)
@@ -155,7 +155,7 @@ func TestRemoveUnseen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open db: %v", err)
 	}
-	store, err := NewPollStore(db)
+	store, err := NewStore(db)
 	if err != nil {
 		t.Fatalf("could not create store: %v", err)
 	}

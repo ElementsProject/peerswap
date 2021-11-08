@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"strings"
 
@@ -20,12 +21,15 @@ import (
 	"github.com/sputn1ck/peerswap/clightning"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/policy"
+	"github.com/sputn1ck/peerswap/poll"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/txwatcher"
 	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 )
+
+var supportedAssets = []string{}
 
 func main() {
 	if err := run(); err != nil {
@@ -81,6 +85,7 @@ func run() error {
 	var liquidRpcWallet *wallet.ElementsRpcWallet
 	var liquidCli *gelements.Elements
 	if config.LiquidEnabled {
+		supportedAssets = append(supportedAssets, "l-btc")
 		log.Printf("Liquid swaps enabled")
 		// blockchaincli
 		liquidCli = gelements.NewElements(config.LiquidRpcUser, config.LiquidRpcPassword)
@@ -121,6 +126,7 @@ func run() error {
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
 	if bitcoinCli != nil {
+		supportedAssets = append(supportedAssets, "btc")
 		log.Printf("Bitcoin swaps enabled")
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
@@ -191,8 +197,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	pollStore, err := poll.NewStore(swapDb)
+	if err != nil {
+		return err
+	}
+	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lightningPlugin, pol, lightningPlugin, supportedAssets)
+	pollService.Start()
+	defer pollService.Stop()
+
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, sp, pol, liquidCli)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, sp, pol, liquidCli, pollService)
 
 	log.Printf("peerswap initialized")
 	<-quitChan
