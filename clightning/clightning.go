@@ -569,3 +569,17 @@ type peerswaprpcMethod interface {
 	Description() string
 	LongDescription() string
 }
+
+func (c *ClightningClient) GetPeers() []string {
+	peers, err := c.glightning.ListPeers()
+	if err != nil {
+		log.Printf("could not listpeers: %v", err)
+		return nil
+	}
+
+	var peerlist []string
+	for _, peer := range peers {
+		peerlist = append(peerlist, peer.Id)
+	}
+	return peerlist
+}
