@@ -3,6 +3,7 @@ package swap
 import (
 	"testing"
 
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -150,6 +151,6 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
 }

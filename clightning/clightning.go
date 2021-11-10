@@ -10,12 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
 	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/messages"
+	"github.com/sputn1ck/peerswap/poll"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
 )
@@ -56,7 +59,8 @@ type ClightningClient struct {
 	wallet         wallet.Wallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
-	policy         FileReloaderStringer
+	policy         PolicyReloader
+	pollService    *poll.Service
 
 	Gelements *gelements.Elements
 
@@ -77,6 +81,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 		return nil, nil, err
 	}
 	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
+	cl.plugin.SubscribeConnect(cl.OnConnect)
 
 	cl.glightning = glightning.NewLightning()
 
@@ -147,7 +152,7 @@ func (c *ClightningClient) Start() error {
 
 // SendMessage sends a hexmessage to a peer
 func (c *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
-	msg := swap.MessageTypeToHexString(swap.MessageType(messageType)) + hex.EncodeToString(message)
+	msg := messages.MessageTypeToHexString(messages.MessageType(messageType)) + hex.EncodeToString(message)
 	res, err := c.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
@@ -324,6 +329,21 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 	c.initChan <- true
 }
 
+// OnConnect is called after the connect event. The
+// handler sends out a poll to the peer it connected
+// to.
+func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
+	go func() {
+		for {
+			if c.pollService != nil {
+				c.pollService.RequestPoll(connectEvent.PeerId)
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
+}
+
 // GetConfig returns the peerswap config
 func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 
@@ -451,12 +471,13 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy FileReloaderStringer, elements *gelements.Elements) {
+func (c *ClightningClient) SetupClients(wallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, policy PolicyReloader, elements *gelements.Elements, pollService *poll.Service) {
 	c.wallet = wallet
 	c.swaps = swaps
 	c.policy = policy
 	c.requestedSwaps = requestedSwaps
 	c.Gelements = elements
+	c.pollService = pollService
 }
 
 // RegisterMethods registeres rpc methods to c-lightning
@@ -567,4 +588,18 @@ type peerswaprpcMethod interface {
 	Get(*ClightningClient) jrpc2.ServerMethod
 	Description() string
 	LongDescription() string
+}
+
+func (c *ClightningClient) GetPeers() []string {
+	peers, err := c.glightning.ListPeers()
+	if err != nil {
+		log.Printf("could not listpeers: %v", err)
+		return nil
+	}
+
+	var peerlist []string
+	for _, peer := range peers {
+		peerlist = append(peerlist, peer.Id)
+	}
+	return peerlist
 }

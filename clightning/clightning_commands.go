@@ -14,6 +14,7 @@ import (
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
+	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/swap"
 )
 
@@ -480,84 +481,83 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		fundingChannels[channel.ShortChannelId] = channel
 	}
 
+	// get polls
+	polls, err := l.cl.pollService.GetPolls()
+	if err != nil {
+		return nil, err
+	}
+
 	peerSwappers := []*PeerSwapPeer{}
 	for _, peer := range peers {
-		node, err := l.cl.glightning.GetNode(peer.Id)
-		if err != nil {
-			log.Printf("peerswap: %v", err)
-			continue
-		}
+		if p, ok := polls[peer.Id]; ok {
+			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
+			if err != nil {
+				return nil, err
+			}
 
-		if node.Features == nil || !checkFeatures(node.Features.Raw, featureBit) {
-			continue
-		}
-
-		swaps, err := l.cl.swaps.ListSwapsByPeer(node.Id)
-		if err != nil {
-			return nil, err
-		}
-
-		var paidFees uint64
-		var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
-		var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
-		for _, s := range swaps {
-			// We only list successful swaps. They all end in an
-			// State_ClaimedPreimage state.
-			if s.Current == swap.State_ClaimedPreimage {
-				if s.Role == swap.SWAPROLE_SENDER {
-					paidFees += s.Data.OpeningTxFee
-					if s.Type == swap.SWAPTYPE_OUT {
-						SenderSwapsOut++
-						SenderSatsOut += s.Data.Amount
+			var paidFees uint64
+			var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
+			var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
+			for _, s := range swaps {
+				// We only list successful swaps. They all end in an
+				// State_ClaimedPreimage state.
+				if s.Current == swap.State_ClaimedPreimage {
+					if s.Role == swap.SWAPROLE_SENDER {
+						paidFees += s.Data.OpeningTxFee
+						if s.Type == swap.SWAPTYPE_OUT {
+							SenderSwapsOut++
+							SenderSatsOut += s.Data.Amount
+						} else {
+							SenderSwapsIn++
+							SenderSatsIn += s.Data.Amount
+						}
 					} else {
-						SenderSwapsIn++
-						SenderSatsIn += s.Data.Amount
-					}
-				} else {
-					if s.Type == swap.SWAPTYPE_OUT {
-						ReceiverSwapsOut++
-						ReceiverSatsOut += s.Data.Amount
-					} else {
-						ReceiverSwapsIn++
-						ReceiverSatsIn += s.Data.Amount
+						if s.Type == swap.SWAPTYPE_OUT {
+							ReceiverSwapsOut++
+							ReceiverSatsOut += s.Data.Amount
+						} else {
+							ReceiverSwapsIn++
+							ReceiverSatsIn += s.Data.Amount
+						}
 					}
 				}
 			}
-		}
 
-		peerSwapPeer := &PeerSwapPeer{
-			NodeId: node.Id,
-			AsSender: &SwapStats{
-				SwapsOut: SenderSwapsOut,
-				SwapsIn:  SenderSwapsIn,
-				SatsOut:  SenderSatsOut,
-				SatsIn:   SenderSatsIn,
-			},
-			AsReceiver: &SwapStats{
-				SwapsOut: ReceiverSwapsOut,
-				SwapsIn:  ReceiverSwapsIn,
-				SatsOut:  ReceiverSatsOut,
-				SatsIn:   ReceiverSatsIn,
-			},
-			PaidFee: paidFees,
-		}
-
-		peerSwapPeerChannels := []*PeerSwapPeerChannel{}
-		for _, channel := range peer.Channels {
-			if c, ok := fundingChannels[channel.ShortChannelId]; ok {
-				peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
-					ChannelId:     c.ShortChannelId,
-					LocalBalance:  c.ChannelSatoshi,
-					RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
-					Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
-				})
+			peerSwapPeer := &PeerSwapPeer{
+				NodeId:          peer.Id,
+				SwapsAllowed:    p.PeerAllowed,
+				SupportedAssets: p.Assets,
+				AsSender: &SwapStats{
+					SwapsOut: SenderSwapsOut,
+					SwapsIn:  SenderSwapsIn,
+					SatsOut:  SenderSatsOut,
+					SatsIn:   SenderSatsIn,
+				},
+				AsReceiver: &SwapStats{
+					SwapsOut: ReceiverSwapsOut,
+					SwapsIn:  ReceiverSwapsIn,
+					SatsOut:  ReceiverSatsOut,
+					SatsIn:   ReceiverSatsIn,
+				},
+				PaidFee: paidFees,
 			}
+
+			peerSwapPeerChannels := []*PeerSwapPeerChannel{}
+			for _, channel := range peer.Channels {
+				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
+					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
+						ChannelId:     c.ShortChannelId,
+						LocalBalance:  c.ChannelSatoshi,
+						RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
+						Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
+					})
+				}
+			}
+
+			peerSwapPeer.Channels = peerSwapPeerChannels
+			peerSwappers = append(peerSwappers, peerSwapPeer)
 		}
-
-		peerSwapPeer.Channels = peerSwapPeerChannels
-		peerSwappers = append(peerSwappers, peerSwapPeer)
 	}
-
 	return peerSwappers, nil
 }
 
@@ -642,18 +642,9 @@ func (g *GetSwap) LongDescription() string {
 	return ""
 }
 
-type FileReloader interface {
+type PolicyReloader interface {
 	ReloadFile() error
-}
-
-type Stringer interface {
-	String() string
-}
-
-type FileReloaderStringer interface {
-	FileReloader
-	Stringer
-	Get() interface{}
+	Get() policy.Policy
 }
 type ReloadPolicyFile struct {
 	cl   *ClightningClient
@@ -674,18 +665,20 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Resend poll
+	c.cl.pollService.PollAllPeers()
 	return c.cl.policy.Get(), nil
 }
 
-// func (c ReloadPolicyFile) Description() string {
-// 	return "Reload the policy file."
-// }
+func (c ReloadPolicyFile) Description() string {
+	return "Reload the policy file."
+}
 
-// func (c *ReloadPolicyFile) LongDescription() string {
-// 	return `If the policy file has changed, reload the policy
-// 	from the file specified in the config. Overrides the
-// 	default config, so fields that are not set are interpreted as default.`
-// }
+func (c *ReloadPolicyFile) LongDescription() string {
+	return `If the policy file has changed, reload the policy
+	from the file specified in the config. Overrides the
+	default config, so fields that are not set are interpreted as default.`
+}
 
 type GetRequestedSwaps struct {
 	cl   *ClightningClient
@@ -732,11 +725,13 @@ type SwapStats struct {
 }
 
 type PeerSwapPeer struct {
-	NodeId     string                 `json:"nodeid"`
-	Channels   []*PeerSwapPeerChannel `json:"channels"`
-	AsSender   *SwapStats             `json:"sent,omitempty"`
-	AsReceiver *SwapStats             `json:"received,omitempty"`
-	PaidFee    uint64                 `json:"total_fee_paid"`
+	NodeId          string                 `json:"nodeid"`
+	SwapsAllowed    bool                   `json:"swaps_allowed"`
+	SupportedAssets []string               `json:"supported_assets"`
+	Channels        []*PeerSwapPeerChannel `json:"channels"`
+	AsSender        *SwapStats             `json:"sent,omitempty"`
+	AsReceiver      *SwapStats             `json:"received,omitempty"`
+	PaidFee         uint64                 `json:"total_fee_paid"`
 }
 
 // checkFeatures checks if a node runs the peerswap plugin

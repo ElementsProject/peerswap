@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/sputn1ck/glightning/glightning"
+	"github.com/sputn1ck/peerswap/messages"
 )
 
 const (
@@ -116,14 +117,14 @@ func (s *SwapService) RecoverSwaps() error {
 
 // OnMessageReceived handles incoming valid peermessages
 func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
-	msgType, err := HexStrToMsgType(msgTypeString)
+	msgType, err := messages.HexStringToMessageType(msgTypeString)
 	if err != nil {
 		return err
 	}
 	msgBytes := []byte(payload)
 	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
-	case MESSAGETYPE_SWAPOUTREQUEST:
+	case messages.MESSAGETYPE_SWAPOUTREQUEST:
 		var msg *SwapOutRequest
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -133,7 +134,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_FEERESPONSE:
+	case messages.MESSAGETYPE_FEERESPONSE:
 		var msg *FeeMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -143,7 +144,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_TXOPENEDRESPONSE:
+	case messages.MESSAGETYPE_TXOPENEDRESPONSE:
 		var msg *TxOpenedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -153,7 +154,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_CANCELED:
+	case messages.MESSAGETYPE_CANCELED:
 		var msg *CancelMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -163,7 +164,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_SWAPINREQUEST:
+	case messages.MESSAGETYPE_SWAPINREQUEST:
 		var msg *SwapInRequest
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -173,7 +174,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_SWAPINAGREEMENT:
+	case messages.MESSAGETYPE_SWAPINAGREEMENT:
 		var msg *SwapInAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -183,7 +184,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_COOPCLOSE:
+	case messages.MESSAGETYPE_COOPCLOSE:
 		var msg *CoopCloseMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -193,7 +194,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case MESSAGETYPE_CLAIMED:
+	case messages.MESSAGETYPE_CLAIMED:
 		var msg *ClaimedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {

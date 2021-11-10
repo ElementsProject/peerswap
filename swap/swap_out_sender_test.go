@@ -7,6 +7,7 @@ import (
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,7 +102,7 @@ func Test_Cancel2(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
 	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -131,13 +132,13 @@ func Test_Cancel1(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &FeeMessage{Invoice: FeeInvoice})
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg = <-msgChan
-	assert.Equal(t, MESSAGETYPE_CANCELED, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
 }
 func Test_AbortCsvClaim(t *testing.T) {
@@ -192,7 +193,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	// finish state, such that the channel is still
 	// locked for furhter peerswap requests.
 	assert.Equal(t, State_ClaimedCoop, swapFSM.Data.GetCurrentState())
-	assert.Equal(t, MESSAGETYPE_COOPCLOSE, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_COOPCLOSE, msg.MessageType())
 }
 
 type dummyStore struct {
@@ -233,10 +234,10 @@ func (d *dummyMessenger) SendMessage(peerId string, msg []byte, msgType int) err
 	return nil
 }
 
-type DummyMessageType MessageType
+type DummyMessageType messages.MessageType
 
-func (d DummyMessageType) MessageType() MessageType {
-	return MessageType(d)
+func (d DummyMessageType) MessageType() messages.MessageType {
+	return messages.MessageType(d)
 }
 
 type dummyLightningClient struct {

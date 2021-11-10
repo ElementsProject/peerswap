@@ -3,6 +3,7 @@ package swap
 import (
 	"testing"
 
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +31,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
 	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
@@ -75,7 +76,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
 	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnCancelReceived, nil)
@@ -109,7 +110,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		t.Fatal(err)
 	}
 	msg := <-msgChan
-	assert.Equal(t, MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_SWAPINAGREEMENT, msg.MessageType())
 	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{

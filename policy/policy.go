@@ -56,8 +56,12 @@ func (p *Policy) String() string {
 	return str
 }
 
-func (p *Policy) Get() interface{} {
-	return p
+func (p *Policy) Get() Policy {
+	return Policy{
+		ReserveOnchainMsat: 0,
+		PeerAllowlist:      []string{},
+		AcceptAllPeers:     false,
+	}
 }
 
 // GetReserveOnchainMsat returns the amount of msats
