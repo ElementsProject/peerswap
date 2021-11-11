@@ -111,6 +111,9 @@ func (s *SendToAddressMethod) Call() (jrpc2.Result, error) {
 	if s.Address == "" {
 		return nil, errors.New("address must be set")
 	}
+	if s.AmountSat == 0 {
+		return nil, errors.New("amount_sat must be set")
+	}
 	res, err := s.cl.wallet.SendToAddress(s.Address, s.AmountSat)
 	if err != nil {
 		log.Printf("error %v", err)
@@ -151,7 +154,7 @@ func (l *SwapOut) Name() string {
 
 func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if l.SatAmt <= 0 {
-		return nil, errors.New("Missing required amt parameter")
+		return nil, errors.New("Missing required amt_sat parameter")
 	}
 	if l.ShortChannelId == "" {
 		return nil, errors.New("Missing required short_channel_id parameter")
@@ -261,6 +264,9 @@ func (l *SwapIn) Name() string {
 func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if l.ShortChannelId == "" {
 		return nil, errors.New("Missing required short_channel_id parameter")
+	}
+	if l.SatAmt <= 0 {
+		return nil, errors.New("Missing required amt_sat parameter")
 	}
 
 	funds, err := l.cl.glightning.ListFunds()
@@ -592,7 +598,7 @@ func (g *ResendLastMessage) Get(client *ClightningClient) jrpc2.ServerMethod {
 
 func (g *ResendLastMessage) Call() (jrpc2.Result, error) {
 	if g.SwapId == "" {
-		return nil, errors.New("SwapId required")
+		return nil, errors.New("swap_id required")
 	}
 	err := g.cl.swaps.ResendLastMessage(g.SwapId)
 	if err != nil {
@@ -619,7 +625,7 @@ func (g *GetSwap) New() interface{} {
 
 func (g *GetSwap) Call() (jrpc2.Result, error) {
 	if g.SwapId == "" {
-		return nil, errors.New("SwapId required")
+		return nil, errors.New("swap_id required")
 	}
 	swap, err := g.cl.swaps.GetSwap(g.SwapId)
 	if err != nil {
