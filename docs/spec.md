@@ -28,6 +28,8 @@
 
 ## Messages
 
+All messages are currently hex encoded json strings
+
 ### Swap out request
 
 ```go
