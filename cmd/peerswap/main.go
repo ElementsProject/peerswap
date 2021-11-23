@@ -294,8 +294,7 @@ func getBitcoinClient(li *glightning.Lightning) (*gbitcoin.Bitcoin, error) {
 	// todo look for overrides in peerswap config
 	var bitcoin *gbitcoin.Bitcoin
 	rpcUser, ok := bcliConfig.Options["bitcoin-rpcuser"]
-	if !ok {
-
+	if rpcUser == nil || !ok {
 		log.Printf("looking for bitcoin cookie")
 		// look for cookie file
 		bitcoinDir, ok := bcliConfig.Options["bitcoin-datadir"].(string)
