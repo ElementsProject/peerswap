@@ -19,7 +19,7 @@ make release
 
 ### Policy
 
-To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
+To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/.lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
 
 ```bash
 # ~/lightning/policy.conf
@@ -36,16 +36,19 @@ start the c-lightning daemon with the following config flags
 ```bash
 lightningd --daemon \
         --plugin=$HOME/peerswap/peerswap \
-        --peerswap-liquid-rpchost=http://localhost \
-        --peerswap-liquid-rpcport=18884 \
-        --peerswap-liquid-rpcuser=admin1 \
-        --peerswap-liquid-rpcpassword=123 \
-        --peerswap-liquid-network=testnet \
-        --peerswap-liquid-rpcwallet=swap \
-        --peerswap-policy-path=$HOME/lightning/policy.conf
+        --peerswap-policy-path=$HOME/.lightning/policy.conf
 ```
 
-## Liquid Wallet
+## Liquid Usage
+
+If you want to run peerswap with liquid integration you need to att the following flags to lightningd (replace as needed)
+```bash
+--peerswap-liquid-rpchost=http://localhost \
+--peerswap-liquid-rpcport=18884 \
+--peerswap-liquid-rpcuser=admin1 \
+--peerswap-liquid-rpcpassword=123 \
+--peerswap-liquid-network=(liquid | testnet | regtest)
+```
 
 In order to swap you need a minimum balance of liquid bitcoin in order to pay for transaction fees.
 
@@ -142,3 +145,5 @@ Example output:
    }
 ]
 ```
+
+`peerswap-reload-policy` - updates the changes made to the policy file
