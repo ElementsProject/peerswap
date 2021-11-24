@@ -41,7 +41,7 @@ lightningd --daemon \
 
 ## Liquid Usage
 
-If you want to run peerswap with liquid integration you need to att the following flags to lightningd (replace as needed)
+If you want to run peerswap with liquid integration you need to add the following flags to lightningd (replace as needed)
 ```bash
 --peerswap-liquid-rpchost=http://localhost \
 --peerswap-liquid-rpcport=18884 \
