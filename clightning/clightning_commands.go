@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/poll"
 	"log"
 	"math/big"
 	"sort"
@@ -181,7 +182,12 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
-	log.Printf("asset: %s", l.Asset)
+
+	err = PeerHasPeerSwap(l.cl.pollService, l.cl.glightning, fundingChannels.Id)
+	if err != nil {
+		return nil, err
+	}
+
 	if strings.Compare(l.Asset, "l-btc") == 0 {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
@@ -289,7 +295,12 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if !fundingChannels.Connected {
 		return nil, errors.New("fundingChannels is not connected")
 	}
-	log.Printf("asset: %s", l.Asset)
+
+	err = PeerHasPeerSwap(l.cl.pollService, l.cl.glightning, fundingChannels.Id)
+	if err != nil {
+		return nil, err
+	}
+
 	if l.Asset == "l-btc" {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
@@ -470,6 +481,28 @@ func (l *ListPeers) New() interface{} {
 func (l *ListPeers) Name() string {
 	return "peerswap-listpeers"
 }
+func PeerHasPeerSwap(pollService *poll.Service,glightning *glightning.Lightning, peerid string) (error) {
+	// get polls
+	polls, err := pollService.GetPolls()
+	if err != nil {
+		return err
+	}
+	peers, err := glightning.ListPeers()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := polls[peerid];!ok {
+		return errors.New("peer does not run peerswap")
+	}
+
+	for _,peer := range peers {
+		if peer.Id == peerid && peer.Connected {
+			return nil
+		}
+	}
+	return errors.New("peer is not connected")
+}
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
 	peers, err := l.cl.glightning.ListPeers()
@@ -556,6 +589,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						LocalBalance:  c.ChannelSatoshi,
 						RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
 						Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
+						State: c.State,
 					})
 				}
 			}
@@ -566,6 +600,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	}
 	return peerSwappers, nil
 }
+
 
 type ResendLastMessage struct {
 	SwapId string `json:"swap_id"`
@@ -721,6 +756,7 @@ type PeerSwapPeerChannel struct {
 	LocalBalance  uint64  `json:"local_balance"`
 	RemoteBalance uint64  `json:"remote_balance"`
 	Balance       float64 `json:"balance"`
+	State	string `json:"state"`
 }
 
 type SwapStats struct {
