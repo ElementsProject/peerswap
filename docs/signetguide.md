@@ -46,13 +46,13 @@ Start the bitoin daemon in signet mode
 bitcoind --signet --daemon
 ```
 
-## Elementsd (Liquid testnet)
+## Liquid Testnet(optional)
 
 Download the following files to install elementsd.
 
 ```bash
-wget https://github.com/ElementsProject/elements/releases/download/elements-0.18.1.12/elements-0.18.1.12-x86_64-linux-gnu.tar.gz && \
-wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.18.1.12/SHA256SUMS.asc
+wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
+wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/SHA256SUMS.asc
 ```
 
 Verify the downloaded data
@@ -65,18 +65,18 @@ sha256sum -c ELEMENTS-SHA256SUMS.asc 2>&1 | grep OK
 
 If the shasums match this command will return
 
-`elements-0.18.1.12-x86_64-linux-gnu.tar.gz: OK`
+`elements-elements-0.21.0-x86_64-linux-gnu.tar.gz: OK`
 
 Extract the binaries
 
 ```bash
-tar -zvxf elements-0.18.1.12-x86_64-linux-gnu.tar.gz
+tar -zvxf elements-elements-0.21.0-x86_64-linux-gnu.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR elements-0.18.1.12/* /usr/
+sudo cp -vnR elements-elements-0.21.0/* /usr/
 ```
 
 Create config dir in home
@@ -89,30 +89,39 @@ Add testnet config file (avoid to override existing config files)
 
 ```bash
 cat <<EOF > ~/.elements/elements.conf
-chain=liquidtestnetv1
+chain=liquidtestnet
+# Liquid Testnet (liquidtestnet) settings:
+[liquidtestnet]
 
-server=1
-listen=0
-validatepegin=0
-anyonecanspendaremine=1
-peerbloomfilters=0
-enforcenodebloom=1
+# General settings:
+listen=1
 txindex=1
-
-# Liquid Testnet V1 (liquidtestnetv1) settings:
-[liquidtestnetv1]
+validatepegin=0
+anyonecanspendaremine=0
 initialfreecoins=2100000000000000
-con_dyna_deploy_start=999999999999
+con_dyna_deploy_start=0
 con_max_block_sig_size=150
-addnode=liquid-testnet.blockstream.com:18891
-signblockscript=51210209caad6d1e4fa3fddd4ee67f3e2aa9c280abfe3b30bfcd625874fe27e3e49e5e51ae
+checkblockindex=0 
+addnode=liquid-testnet.blockstream.com:18892
+addnode=liquidtestnet.com:18891
 fallbackfee=0.00000100
+daemon=1
+con_has_parent_chain=0
+parentgenesisblockhash=NULL
+pubkeyprefix=36
+scriptprefix=19
+blindedprefix=23
+bech32_hrp=tex
+blech32_hrp=tlq
+pchmessagestart=410edd62
+dynamic_epoch_length=1000
+signblockscript=51210217e403ddb181872c32a0cd468c710040b2f53d8cac69f18dad07985ee37e9a7151ae
+
 rpcport=18884
 rpcuser=admin1
 rpcpassword=123
-rpcallowip=0.0.0.0/0
-rpcbind=0.0.0.0
-addnode=49.12.106.176:18891
+rpcbind=127.0.0.1
+addnode=95.217.184.148:18444
 EOF
 ```
 
@@ -139,9 +148,9 @@ with the height of the last block on [liquid-testnet-explorer](https://liquidtes
 Download the necessary files.
 
 ```bash
-wget https://github.com/ElementsProject/lightning/releases/download/v0.10.1/clightning-v0.10.1-Ubuntu-18.04.tar.xz && \
-wget -O LIGHTNING-SHA256SUMS.asc https://github.com/ElementsProject/lightning/releases/download/v0.10.1/SHA256SUMS.asc && \
-wget https://github.com/ElementsProject/lightning/releases/download/v0.10.1/SHA256SUMS
+wget https://github.com/ElementsProject/lightning/releases/download/v0.10.2/clightning-v0.10.2-Ubuntu-20.04.tar.xz && \
+wget -O LIGHTNING-SHA256SUMS.asc https://github.com/ElementsProject/lightning/releases/download/v0.10.2/SHA256SUMS.asc && \
+wget https://github.com/ElementsProject/lightning/releases/download/v0.10.2/SHA256SUMS
 ```
 
 Verify the downloaded data
@@ -151,23 +160,24 @@ gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "30DE693AE0DE9E37B3E7EB6B
 gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "15EE8D6CAB0E7F0CF999BFCBD9200E6CD1ADB8F1" && \
 gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "B7C4BE81184FC203D52C35C51416D83DC4F0E86D" && \
 gpg --verify LIGHTNING-SHA256SUMS.asc SHA256SUMS && \
-sha256sum -c SHA256SUMS 2>&1 | grep clightning-v0.10.1-Ubuntu-18.04.tar.xz
+sha256sum -c SHA256SUMS 2>&1 | grep clightning-v0.10.2-Ubuntu-20.04.tar.xz
 ```
 
 If the shasums match this command will return
 
-`clightning-v0.10.1-Ubuntu-18.04.tar.xz: OK`
+`clightning-v0.10.2-Ubuntu-20.04.tar.xz: OK`
 
 Install dependencies
 
 ```bash
-sudo apt-get install -y autoconf automake build-essential git libtool libgmp-dev libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev gettext libpq5
+sudo apt update && \
+sudo apt install -y autoconf automake build-essential git libtool libgmp-dev libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev gettext libpq5
 ```
 
 Extract the binaries
 
 ```bash
-tar -vxf clightning-v0.10.1-Ubuntu-18.04.tar.xz
+tar -vxf clightning-v0.10.2-Ubuntu-20.04.tar.xz
 ```
 
 Copy the binaries to the system path
@@ -199,6 +209,12 @@ EOF
 ### Build
 
 Install golang from https://golang.org/doc/install
+```bash
+wget https://go.dev/dl/go1.17.3.linux-amd64.tar.gz && \
+sudo rm -rf /usr/local/go && \
+sudo tar -C /usr/local -xzf go1.17.3.linux-amd64.tar.gz && \
+export PATH=$PATH:/usr/local/go/bin
+```
 
 Clone into the peerswap repository and build the peerswap plugin
 
@@ -211,19 +227,41 @@ make release
 ### Policy
 
 To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
-
+For Signet testing we add accept_all_peers=1
 ```bash
-# ~/lightning/policy.conf
-allowlisted_peers=<trusted node1>
-allowlisted_peers=<trusted node2>
+cat <<EOF > ~/.lightning/policy.conf
+accept_all_peers=1
+EOF
 ```
 
-__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.
+## Cleanup
+
+Remove all unneccessary files and folders
+```bash
+rm go1.17.3.linux-amd64.tar.gz && \
+rm clightning-v0.10.2-Ubuntu-20.04.tar.xz && \
+rm -r usr/ && \
+rm LIGHTNING-SHA256SUMS.asc && \
+rm SHA256SUMS && \
+rm -r bitcoin-0.21.1/ && \
+rm -r elements-elements-0.21.0/ && \
+rm bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
+rm elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
+rm ELEMENTS-SHA256SUMS.asc && \
+rm laanwj-releases.asc && \
+rm SHA256SUMS.asc
+```
 
 ### Run
 
-start the c-lightning daemon with the following config flags
+start the c-lightning daemon with the following config flags for bitcoin only:
 
+```bash
+lightningd --daemon \
+        --plugin=$HOME/peerswap/peerswap \
+        --peerswap-policy-path=$HOME/.lightning/policy.conf
+```
+Or with liquid enabled
 ```bash
 lightningd --daemon \
         --plugin=$HOME/peerswap/peerswap \
@@ -233,7 +271,7 @@ lightningd --daemon \
         --peerswap-liquid-rpcpassword=123 \
         --peerswap-liquid-network=testnet \
         --peerswap-liquid-rpcwallet=swap \
-        --peerswap-policy-path=$HOME/lightning/policy.conf
+        --peerswap-policy-path=$HOME/.lightning/policy.conf
 ```
 
 Create a new signet address and receive some sats from https://signet.bc-2.jp/
@@ -245,13 +283,13 @@ lightning-cli newaddr
 Now connect to another node that has the peerswap plugin running, for example a development node run by @sputn1ck
 
 ```bash
-lightning-cli connect 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072@49.12.106.176:39735
+lightning-cli connect 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799@95.217.184.148:39375
 ```
 
 Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pubkey and amount to your needs)
 
 ```bash
-lightning-cli fundchannel 02a7d083fee7b4a47a93e9fddb1bc80500a3a9cf3976d21bcce393f79316e55072 [amt] 
+lightning-cli fundchannel 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799 [amt] 
 ```
 
 Get a new liquid address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
@@ -273,3 +311,4 @@ lightning-cli peerswap-swap-out [amt] [short_channel_id] l-btc
 ```
 
 Note: The asset could also be `btc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
+

@@ -316,6 +316,29 @@ func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.Deco
 	return res.PaymentPreimage, nil
 }
 
+func (c *ClightningClient) PeerRunsPeerSwap(peerid string) error {
+	// get polls
+	polls, err := c.pollService.GetPolls()
+	if err != nil {
+		return err
+	}
+	peers, err := c.glightning.ListPeers()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := polls[peerid]; !ok {
+		return errors.New("peer does not run peerswap")
+	}
+
+	for _, peer := range peers {
+		if peer.Id == peerid && peer.Connected {
+			return nil
+		}
+	}
+	return errors.New("peer is not connected")
+}
+
 // This is called after the plugin starts up successfully
 func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
 	log.Printf("successfully init'd! %s\n", config.RpcFile)

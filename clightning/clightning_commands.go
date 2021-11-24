@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/poll"
 	"log"
 	"math/big"
 	"sort"
@@ -183,7 +182,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = PeerHasPeerSwap(l.cl.pollService, l.cl.glightning, fundingChannels.Id)
+	err = l.cl.PeerRunsPeerSwap(fundingChannels.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +295,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = PeerHasPeerSwap(l.cl.pollService, l.cl.glightning, fundingChannels.Id)
+	err = l.cl.PeerRunsPeerSwap(fundingChannels.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -481,28 +480,6 @@ func (l *ListPeers) New() interface{} {
 func (l *ListPeers) Name() string {
 	return "peerswap-listpeers"
 }
-func PeerHasPeerSwap(pollService *poll.Service,glightning *glightning.Lightning, peerid string) (error) {
-	// get polls
-	polls, err := pollService.GetPolls()
-	if err != nil {
-		return err
-	}
-	peers, err := glightning.ListPeers()
-	if err != nil {
-		return err
-	}
-
-	if _, ok := polls[peerid];!ok {
-		return errors.New("peer does not run peerswap")
-	}
-
-	for _,peer := range peers {
-		if peer.Id == peerid && peer.Connected {
-			return nil
-		}
-	}
-	return errors.New("peer is not connected")
-}
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
 	peers, err := l.cl.glightning.ListPeers()
@@ -589,7 +566,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						LocalBalance:  c.ChannelSatoshi,
 						RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
 						Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
-						State: c.State,
+						State:         c.State,
 					})
 				}
 			}
@@ -600,7 +577,6 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	}
 	return peerSwappers, nil
 }
-
 
 type ResendLastMessage struct {
 	SwapId string `json:"swap_id"`
@@ -756,7 +732,7 @@ type PeerSwapPeerChannel struct {
 	LocalBalance  uint64  `json:"local_balance"`
 	RemoteBalance uint64  `json:"remote_balance"`
 	Balance       float64 `json:"balance"`
-	State	string `json:"state"`
+	State         string  `json:"state"`
 }
 
 type SwapStats struct {
