@@ -96,7 +96,7 @@ func (r *ElementsRpcWallet) setupWallet() error {
 	}
 	if !walletLoaded {
 		_, err = r.rpcClient.LoadWallet(r.walletName)
-		if err != nil && strings.Contains(err.Error(), "Wallet file verification failed") {
+		if err != nil && (strings.Contains(err.Error(), "Wallet file verification failed") || strings.Contains(err.Error(), "not found")) {
 			_, err = r.rpcClient.CreateWallet(r.walletName)
 			if err != nil {
 				return err
