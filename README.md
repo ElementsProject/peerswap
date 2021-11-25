@@ -23,18 +23,7 @@ Nodes:
 
 For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide.md)
 
-In order to use peerswap start `lightningd` with the following options, replacing as necessary
-```
-lightningd \ 
- --peerswap-liquid-rpchost=http://localhost \
- --peerswap-liquid-rpcport=7041 \
- --peerswap-liquid-rpcuser=admin1 \
- --peerswap-liquid-rpcpassword=123 \
- --peerswap-liquid-network=regtest \
- --peerswap-liquid-rpcwallet=swap1
-```
-
-Details on usage can be found [here](./docs/usage.md)
+Details on general usage can be found [here](./docs/usage.md)
 
 ### Development
 
