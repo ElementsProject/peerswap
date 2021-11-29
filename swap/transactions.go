@@ -12,7 +12,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	}
 
 	// Create the opening transaction
-	txHex, _, fee, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
+	txHex, fee, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
 		ClaimPaymentHash: swap.ClaimPaymentHash,
@@ -34,7 +34,7 @@ func SetRefundAddress(services *SwapServices, swap *SwapData) error {
 		return err
 	}
 
-	refundAddr, err := wallet.CreateRefundAddress()
+	refundAddr, err := wallet.NewAddress()
 	if err != nil {
 		return err
 	}

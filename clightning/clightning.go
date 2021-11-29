@@ -18,7 +18,6 @@ import (
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/poll"
@@ -29,7 +28,7 @@ import (
 var methods = []peerswaprpcMethod{
 	&ListNodes{},
 	&ListPeers{},
-	&SendToAddressMethod{},
+	&LiquidSendToAddress{},
 	&GetSwap{},
 	&ResendLastMessage{},
 }
@@ -59,7 +58,7 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	plugin     *glightning.Plugin
 
-	wallet         wallet.Wallet
+	liquidWallet   wallet.Wallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
@@ -72,7 +71,7 @@ type ClightningClient struct {
 	bitcoinNetwork *chaincfg.Params
 
 	msgHandlers          []func(peerId string, messageType string, payload string) error
-	paymentSubscriptions []func(payment *glightning.Payment)
+	paymentSubscriptions []func(paymentLabel string)
 	initChan             chan interface{}
 	nodeId               string
 	hexToIdMap           map[string]string
@@ -103,7 +102,7 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 }
 
 // CheckChannel checks if a channel is eligable for a swap
-func (c *ClightningClient) CheckChannel(channelId string, amount uint64) error {
+func (c *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
 	funds, err := c.glightning.ListFunds()
 	if err != nil {
 		return err
@@ -119,7 +118,7 @@ func (c *ClightningClient) CheckChannel(channelId string, amount uint64) error {
 		return errors.New("fundingChannels not found")
 	}
 
-	if fundingChannels.ChannelSatoshi < amount {
+	if fundingChannels.ChannelSatoshi < amountSat {
 		return errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
@@ -144,11 +143,11 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(wallet wallet.Wallet,
+func (c *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
 	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain) {
-	c.wallet = wallet
+	c.liquidWallet = liquidWallet
 	c.requestedSwaps = requestedSwaps
 	c.swaps = swaps
 	c.Gelements = elements
@@ -167,7 +166,7 @@ func (c *ClightningClient) GetLightningRpc() *glightning.Lightning {
 // OnPayment gets called by clightnings hooks
 func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
 	for _, v := range c.paymentSubscriptions {
-		v(payment)
+		v(payment.Label)
 	}
 }
 
@@ -212,7 +211,7 @@ func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType strin
 }
 
 // AddPaymentCallback adds a callback when a payment was paid
-func (c *ClightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
+func (c *ClightningClient) AddPaymentCallback(f func(paymentLabel string)) {
 	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
 }
 
@@ -226,16 +225,12 @@ func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label s
 }
 
 // DecodePayreq decodes a Bolt11 Invoice
-func (c *ClightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
+func (c *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
 	res, err := c.glightning.DecodeBolt11(payreq)
 	if err != nil {
-		return nil, err
+		return "", 0, err
 	}
-	return &lightning.Invoice{
-		Description: res.Description,
-		PHash:       res.PaymentHash,
-		Amount:      res.MilliSatoshis,
-	}, nil
+	return res.PaymentHash, res.MilliSatoshis, nil
 }
 
 // PayInvoice tries to pay a Bolt11 Invoice
@@ -394,7 +389,7 @@ func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 }
 
 // GetConfig returns the peerswap config
-func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
+func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 
 	dbpath, err := c.plugin.GetOption(dbOption)
 	if err != nil {
@@ -444,10 +439,6 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 	if rpcHost != "" && rpcPass == "" && rpcPassFile == "" {
 		return nil, errors.New(fmt.Sprintf("%s or %s need to be set", liquidRpcPasswordOption, liquidRpcPasswordFilepathOption))
 	}
-	liquidNetwork, err := c.plugin.GetOption(liquidNetworkOption)
-	if err != nil {
-		return nil, err
-	}
 	rpcWallet, err := c.plugin.GetOption(rpcWalletOption)
 	if err != nil {
 		return nil, err
@@ -464,14 +455,13 @@ func (c *ClightningClient) GetConfig() (*peerswap.Config, error) {
 		return nil, err
 	}
 
-	return &peerswap.Config{
+	return &PeerswapClightningConfig{
 		DbPath:                dbpath,
 		LiquidRpcHost:         rpcHost,
 		LiquidRpcPort:         uint(rpcPort),
 		LiquidRpcUser:         rpcUser,
 		LiquidRpcPassword:     rpcPass,
 		LiquidRpcPasswordFile: rpcPassFile,
-		LiquidNetworkString:   liquidNetwork,
 		LiquidRpcWallet:       rpcWallet,
 		PolicyPath:            policyPath,
 	}, nil
@@ -548,7 +538,7 @@ func (c *ClightningClient) RegisterMethods() error {
 		return err
 	}
 
-	getAddress := glightning.NewRpcMethod(&GetAddressMethod{
+	getAddress := glightning.NewRpcMethod(&LiquidGetAddress{
 		cl: c,
 	}, "get new liquid address")
 	getAddress.Category = "peerswap"
@@ -557,9 +547,9 @@ func (c *ClightningClient) RegisterMethods() error {
 		return err
 	}
 
-	getBalance := glightning.NewRpcMethod(&GetBalanceMethod{
+	getBalance := glightning.NewRpcMethod(&LiquidGetBalance{
 		cl: c,
-	}, "get liquid wallet balance")
+	}, "get liquid liquidWallet balance")
 	getBalance.Category = "peerswap"
 	err = c.plugin.RegisterMethod(getBalance)
 	if err != nil {

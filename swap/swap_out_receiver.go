@@ -49,6 +49,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		})
 		return Event_ActionFailed
 	}
+
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"

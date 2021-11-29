@@ -29,7 +29,7 @@ type FaucetMethod struct {
 }
 
 func (g *FaucetMethod) Description() string {
-	return "faucets liquid funds to local wallet"
+	return "faucets liquid funds to local liquidWallet"
 }
 
 func (g *FaucetMethod) LongDescription() string {
@@ -53,7 +53,7 @@ func (g *FaucetMethod) New() interface{} {
 }
 
 func (g *FaucetMethod) Call() (jrpc2.Result, error) {
-	addr, err := g.cl.wallet.GetAddress()
+	addr, err := g.cl.liquidWallet.GetAddress()
 	if err != nil {
 		return nil, err
 	}

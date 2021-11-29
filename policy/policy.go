@@ -158,7 +158,7 @@ func CreateFromFile(path string) (*Policy, error) {
 func create(r io.Reader) (*Policy, error) {
 	policy := DefaultPolicy()
 
-	err := flags.NewIniParser(flags.NewParser(policy, 0)).Parse(r)
+	err := flags.NewIniParser(flags.NewParser(policy, flags.IgnoreUnknown)).Parse(r)
 	if err != nil {
 		return nil, ErrCreatePolicy(err.Error())
 	}

@@ -18,7 +18,7 @@ func Test_ScriptAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr, err := liquidOnCain.createOpeningAddress(redeemScript)
+	addr, err := liquidOnCain.CreateOpeningAddress(redeemScript)
 	if err != nil {
 		t.Fatal(err)
 	}

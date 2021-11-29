@@ -11,6 +11,15 @@ nix-bitcoin-release = pkgs.fetchFromGitHub {
     sha256 = "03b1zpwbcz98vrcnfflnxdcg17mhip3p63asp3jqzzzk8v4f1rna";
 };
 
+peerswap-lnd-pkgs = pkgs.fetchFromGitHub {
+    owner = "sputn1ck";
+    repo = "lnd";
+    rev = "nix-build";
+    sha256 = "sha256:12fm0gg5jn8ajsnzdm9xgp0gm8rh6fnscgqhiqnj96p4lgyn9yxk";
+};
+
+lndpkg = pkgs.callPackage peerswap-lnd-pkgs {};
+
 nix-bitcoin-unstable-pkgs = import (import "${toString nix-bitcoin-release}/pkgs/nixpkgs-pinned.nix").nixpkgs-unstable {};
 
 # Override priority for bitcoin as /bin/bitcoin_test will 
@@ -39,6 +48,7 @@ in with pkgs;
         bitcoin = bitcoin;
         elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
+        lnd = lndpkg;
     };
     testpkgs = [ go bitcoin elementsd clightning-dev ];
     devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning clightning-dev docker-compose jq nodePackages.mermaid-cli ];

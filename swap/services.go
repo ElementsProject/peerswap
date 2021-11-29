@@ -2,11 +2,9 @@ package swap
 
 import (
 	"fmt"
+	"github.com/sputn1ck/peerswap/messages"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/messages"
 )
 
 type Messenger interface {
@@ -23,11 +21,11 @@ type Policy interface {
 	GetReserveOnchainMsat() uint64
 }
 type LightningClient interface {
-	DecodePayreq(payreq string) (*lightning.Invoice, error)
+	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
 	CheckChannel(channelId string, amount uint64) error
 	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
-	AddPaymentCallback(f func(*glightning.Payment))
+	AddPaymentCallback(f func(paymentLabel string))
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 
@@ -40,13 +38,13 @@ type Onchain interface {
 }
 
 type Wallet interface {
-	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error)
+	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error)
 	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
 	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error)
 	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
-	CreateRefundAddress() (string, error)
+	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
 }
 
@@ -67,7 +65,7 @@ type Signer interface {
 }
 
 type SwapServices struct {
-	swapStore      Store
+	swapStore           Store
 	requestedSwapsStore RequestedSwapsStore
 	lightning           LightningClient
 	messenger           Messenger
@@ -79,7 +77,6 @@ type SwapServices struct {
 	liquidWallet        Wallet
 	liquidEnabled       bool
 }
-
 
 func NewSwapServices(
 	swapStore Store,

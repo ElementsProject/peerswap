@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/btcsuite/btcd/btcec"
 	"log"
 
 	"github.com/btcsuite/btcd/txscript"
@@ -42,10 +43,10 @@ func NewLiquidOnChain(elements *gelements.Elements, txWatcher *txwatcher.Blockch
 	return &LiquidOnChain{elements: elements, txWatcher: txWatcher, liquidWallet: liquidWallet, network: network, asset: lbtc}
 }
 
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
-		return "", "", 0, 0, 0, err
+		return "", 0, 0, err
 	}
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
@@ -59,15 +60,15 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 
 	unpreparedTxHex, fee, err = l.liquidWallet.CreateFundedTransaction(tx)
 	if err != nil {
-		return "", "", 0, 0, 0, err
+		return "", 0, 0, err
 	}
 
-	vout, err = l.voutFromTxHex(unpreparedTxHex, redeemScript)
+	vout, err = l.VoutFromTxHex(unpreparedTxHex, redeemScript)
 	if err != nil {
-		return "", "", 0, 0, 0, err
+		return "", 0, 0, err
 	}
 
-	return unpreparedTxHex, "", fee, LiquidCsv, vout, nil
+	return unpreparedTxHex, fee, vout, nil
 }
 
 func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, err error) {
@@ -172,7 +173,7 @@ func (l *LiquidOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.Op
 	return txId, txHex, nil
 }
 
-func (l *LiquidOnChain) CreateRefundAddress() (string, error) {
+func (l *LiquidOnChain) NewAddress() (string, error) {
 	addr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", err
@@ -314,7 +315,7 @@ func (l *LiquidOnChain) ValidateTx(swapParams *swap.OpeningParams, openingTxId s
 	return true, nil
 }
 
-func (l *LiquidOnChain) voutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
+func (l *LiquidOnChain) VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
 	tx, err := transaction.NewTxFromHex(txHex)
 	if err != nil {
 		return 0, err
@@ -327,7 +328,7 @@ func (l *LiquidOnChain) voutFromTxHex(txHex string, redeemScript []byte) (uint32
 }
 
 func (l *LiquidOnChain) findVout(outputs []*transaction.TxOutput, redeemScript []byte) (uint32, error) {
-	wantAddr, err := l.createOpeningAddress(redeemScript)
+	wantAddr, err := l.CreateOpeningAddress(redeemScript)
 	if err != nil {
 		return 0, err
 	}
@@ -345,7 +346,7 @@ func (l *LiquidOnChain) findVout(outputs []*transaction.TxOutput, redeemScript [
 }
 
 // creatOpeningAddress returns the address for the opening tx
-func (l *LiquidOnChain) createOpeningAddress(redeemScript []byte) (string, error) {
+func (l *LiquidOnChain) CreateOpeningAddress(redeemScript []byte) (string, error) {
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
 	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
@@ -355,6 +356,23 @@ func (l *LiquidOnChain) createOpeningAddress(redeemScript []byte) (string, error
 		return "", err
 	}
 	addr, err := redeemPayment.WitnessScriptHash()
+	if err != nil {
+		return "", err
+	}
+	return addr, nil
+}
+
+// creatOpeningAddress returns the address for the opening tx
+func (l *LiquidOnChain) CreateBlindedOpeningAddress(redeemScript []byte, blindingPubkey *btcec.PublicKey) (string, error) {
+	scriptPubKey := []byte{0x00, 0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
+
+	redeemPayment, err := payment.FromScript(scriptPubKey, l.network, blindingPubkey)
+	if err != nil {
+		return "", err
+	}
+	addr, err := redeemPayment.ConfidentialWitnessScriptHash()
 	if err != nil {
 		return "", err
 	}

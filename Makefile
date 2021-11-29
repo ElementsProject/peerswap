@@ -1,6 +1,10 @@
 build:
 	go build -tags dev -o peerswap ./cmd/peerswap/main.go
 	chmod a+x peerswap
+	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	chmod a+x peerswapd
+	go build -o peerswap-cli ./cmd/peerswaplnd/peerswap-cli/main.go
+	chmod a+x peerswap-cli
 .PHONY: build
 
 test: build
@@ -17,6 +21,11 @@ test-with-integration: build
 release:
 	go build -o peerswap ./cmd/peerswap/main.go
 .PHONY: release
+
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+    	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    	./peerswaprpc/peerswaprpc.proto
 
 pytest: build
 	pytest ./test

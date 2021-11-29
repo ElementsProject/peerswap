@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/messages"
 	"log"
 	"strings"
 	"sync"
-
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap/messages"
 )
 
 const (
@@ -472,17 +470,17 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 
 // OnPayment handles incoming payments and if it corresponds to a claim or
 // fee invoice passes the dater to the corresponding function
-func (s *SwapService) OnPayment(payment *glightning.Payment) {
+func (s *SwapService) OnPayment(paymentLabel string) {
 	// check if feelabel
 	var swapId string
 	var err error
-	if strings.Contains(payment.Label, "claim_") && len(payment.Label) == (len("claim_")+64) {
-		log.Printf("[SwapService] New claim payment received %s", payment.Label)
-		swapId = payment.Label[6:]
+	if strings.Contains(paymentLabel, "claim_") && len(paymentLabel) == (len("claim_")+64) {
+		log.Printf("[SwapService] New claim payment received %s", paymentLabel)
+		swapId = paymentLabel[6:]
 		err = s.OnClaimInvoicePaid(swapId)
-	} else if strings.Contains(payment.Label, "fee_") && len(payment.Label) == (len("fee_")+64) {
-		log.Printf("[SwapService] New fee payment received %s", payment.Label)
-		swapId = payment.Label[4:]
+	} else if strings.Contains(paymentLabel, "fee_") && len(paymentLabel) == (len("fee_")+64) {
+		log.Printf("[SwapService] New fee payment received %s", paymentLabel)
+		swapId = paymentLabel[4:]
 		err = s.OnFeeInvoicePaid(swapId)
 	} else {
 		return

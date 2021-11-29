@@ -24,6 +24,8 @@ stop_nodes() {
           rm "/tmp/l$i-$network/lightningd-$network.pid"
           unset node_pid
         )
+      echo "$(lncli-1 stop)"
+      echo "$(lncli-2 stop)"
       unalias "l$i-cli"
       unalias "l$i-log"
     done
@@ -40,6 +42,7 @@ remove_nodes() {
   if [ -n "$LN_NODES" ]; then
     for i in $(seq $LN_NODES); do
       LN_DIR="/tmp/l$i-$network"
+      rm -rf "/tmp/lnd-regtest-$i"
       if [ -d $LN_DIR ]; then
         echo "removing node from $LN_DIR"
         rm -rf $LN_DIR
@@ -49,6 +52,67 @@ remove_nodes() {
   unset LN_DIR
 }
 
+start_nodes_lnd() {
+  LND='lnd'
+  if [ -z "$1" ]; then
+    node_count=2
+  else
+    node_count=$1
+  fi
+  LND_NODES=$node_count
+  for i in $(seq $node_count); do
+    rpcport=$((10101 + i * 100))
+    listenport=$((10102 + i * 100))
+    mkdir -p "/tmp/lnd-regtest-$i/data"
+    # Start the lightning nodes
+    lnd --datadir=/tmp/lnd-regtest-$i/data \
+    --bitcoin.active --bitcoin.regtest --bitcoin.node=bitcoind \
+    --bitcoind.rpchost=localhost:18443 --bitcoind.rpcuser=admin1 --bitcoind.rpcpass=123 \
+    --bitcoind.zmqpubrawblock=tcp://127.0.0.1:29000 --bitcoind.zmqpubrawtx=tcp://127.0.0.1:29001 \
+    --noseedbackup --tlskeypath=/tmp/lnd-regtest-$i/tls.key --tlscertpath=/tmp/lnd-regtest-$i/tls.cert \
+    --rpclisten=0.0.0.0:$rpcport --norest \
+    --logdir=/tmp/lnd-regtest-$i/logs \
+    --externalip=127.0.0.1:$listenport \
+    --listen=0.0.0.0:$listenport > /dev/null 2>&1 &
+    # shellcheck disable=SC2139 disable=SC2086
+    alias lncli-$i="$LNCLI --lnddir=/tmp/lnd-regtest-$i --network regtest --rpcserver=localhost:$rpcport"
+    alias lnd-$i-logs="tail -f /tmp/l$i-$network/log"
+  done
+}
+
+start_peerswap_lnd() {
+  if [ -z "$1" ]; then
+      node_count=2
+    else
+      node_count=$1
+  fi
+    for i in $(seq $node_count); do
+      lndrpcport=$((10101 + i * 100))
+      listenport=$((42069 + i * 100))
+      lndpath="/tmp/lnd-regtest-$i"
+      mkdir -p "/tmp/lnd-peerswap-$i/"
+      cat <<-EOF >"/tmp/lnd-peerswap-$i/config"
+network=regtest
+host=localhost:$listenport
+datadir=/tmp/lnd-peerswap-$i/
+lnd.host=localhost:$lndrpcport
+lnd.tlscertpath=$lndpath/tls.cert
+lnd.macaroonpath=$lndpath/data/chain/bitcoin/regtest/admin.macaroon
+bitcoind.rpchost=http://localhost
+bitcoind.rpcport=18443
+bitcoind.rpcuser=admin1
+bitcoind.rpcpass=123
+liquid.rpcuser=admin1
+liquid.rpcpass=123 
+liquid.rpchost=http://127.0.0.1
+liquid.rpcport=18884
+liquid.rpcwallet=swaplnd-$i
+EOF
+  
+    ./peerswapd "--configfile=/tmp/lnd-peerswap-$i/config" > /dev/null 2>&1 &
+
+    done
+}
 start_nodes() {
   LIGHTNINGD='lightningd'
   if [ -z "$1" ]; then
@@ -151,6 +215,7 @@ setup_alias() {
   LN_NODES=$node_count
 
   LCLI='lightning-cli'
+  LNCLI='lncli'
   for i in $(seq $node_count); do
     # shellcheck disable=SC2139 disable=SC2086
     alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
@@ -159,10 +224,15 @@ setup_alias() {
     alias l$i-follow="tail -f /tmp/l$i-$network/log"
     alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
   done
+  for i in $(seq 3); do
+    rpcport=$((10101 + i * 100))
+    alias lncli-$i="$LNCLI --lnddir=/tmp/lnd-regtest-$i --network regtest --rpcserver=localhost:$rpcport"
+    alias lnd-$i-logs="tail -f /tmp/lnd-regtest-$i/logs/bitcoin/regtest/lnd.log"
+  done
   # Give a hint.
   echo "Commands: "
   for i in $(seq $node_count); do
-    echo "	l$i-cli, l$i-log, l$i-follow, l$i-followf"
+    echo "	l$i-cli, l$i-log, l$i-follow, l$i-followf, lncli-$i, lnd-$i-logs"
   done
 
   alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18443'
@@ -172,13 +242,23 @@ setup_alias() {
 }
 
 connect_nodes() {
+  # connect clightning nodes
   L2_PORT=$(l2-cli getinfo | jq .binding[0].port)
 
   L2_PUBKEY=$(l2-cli getinfo | jq -r .id)
 
   L2_CONNECT="$L2_PUBKEY@127.0.0.1:$L2_PORT"
 
-  echo $(l1-cli connect $L2_CONNECT)
+  echo "$(l1-cli connect $L2_CONNECT)"
+  # connect lnd ndoes
+  LND_URI1=$(lncli-1 getinfo | jq -r .uris[0])
+  LND_URI2=$(lncli-2 getinfo | jq -r .uris[0])
+
+  echo "$(lncli-1 connect $LND_URI2)"
+  echo "$(l1-cli connect $LND_URI1)"
+  echo "$(l1-cli connect $LND_URI2)"
+  echo "$(l2-cli connect $LND_URI1)"
+  echo "$(l2-cli connect $LND_URI2)"
 }
 rebuild() {
   make build
@@ -187,6 +267,7 @@ rebuild() {
 restart() {
   stop_nodes "$1" regtest
   start_nodes "$nodes" regtest
+  start_nodes_lnd "$nodes"
 }
 
 l1-pay() {
@@ -205,8 +286,22 @@ l2-pay() {
 
 setup_channel() {
   connect_nodes
-  L2_PUBKEY=$(l2-cli getinfo | jq -r .id)
+  L2_PUBKEY=$(l2-cli getinfo | jq -r .'id')
   echo $(l1-cli fundchannel $L2_PUBKEY 10000000)
+  echo $(generate 12)
+}
+
+setup_channel_lnd() {
+  connect_nodes
+  L2_PUBKEY=$(lncli-2 getinfo | jq -r .'identity_pubkey')
+  echo $(lncli-1 openchannel $L2_PUBKEY 1000000)
+  echo $(generate 12)
+}
+
+setup_channel_lnd_cl() {
+  connect_nodes
+  L1_PUBKEY=$(l1-cli getinfo | jq -r .'id')
+  echo $(lncli-1 openchannel $L1_PUBKEY 1000000)
   echo $(generate 12)
 }
 
@@ -223,6 +318,20 @@ fund_node_2() {
   echo $(bt-cli generatetoaddress 1 $L1_ADDR)
   echo $(generate 100)
 }
+
+fund_node_lnd() {
+  L1_ADDR=$(lncli-1 newaddress p2wkh | jq -r .'address')
+  echo $(bt-cli generatetoaddress 1 $L1_ADDR)
+  echo $(generate 100)
+}
+
+fund_node_lnd_2() {
+  L1_ADDR=$(lncli-2 newaddress p2wkh | jq -r .'address')
+  echo $(bt-cli generatetoaddress 1 $L1_ADDR)
+  echo $(generate 100)
+}
+
+
 
 fund_nodes_l() {
   echo $(l1-cli dev-liquid-faucet)
@@ -262,3 +371,4 @@ start_dev_env() {
   start_docker_env
   rebuild
 }
+

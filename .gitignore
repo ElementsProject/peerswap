@@ -31,3 +31,6 @@ peerswap_pytest/__pycache__/
 # generated dev liquid nodes
 .ci/docker/liquid-config/**
 .ci/docker/liquid-config2/**
+
+peerswap-cli
+peerswapd

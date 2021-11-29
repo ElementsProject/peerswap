@@ -75,12 +75,12 @@ type PayFeeInvoiceAction struct{}
 func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
 	// policy := services.policy
-	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
+	_, msatAmt, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
 		log.Printf("error decoding %v", err)
 		return Event_ActionFailed
 	}
-	swap.OpeningTxFee = invoice.Amount / 1000
+	swap.OpeningTxFee = msatAmt / 1000
 	// todo check peerId
 	/*
 		if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
@@ -130,17 +130,17 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		return swap.HandleError(err)
 	}
 
-	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
+	phash, msatAmount, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
 	// todo this might fail, msats...
-	if invoice.Amount != swap.Amount*1000 {
-		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", invoice.Amount, swap.Amount))
+	if msatAmount != swap.Amount*1000 {
+		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", swap.ClaimInvoice, swap.Amount))
 	}
 
-	swap.ClaimPaymentHash = invoice.PHash
+	swap.ClaimPaymentHash = phash
 
 	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId)
 	if err != nil {

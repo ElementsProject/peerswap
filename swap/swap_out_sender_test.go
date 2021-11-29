@@ -242,7 +242,7 @@ func (d DummyMessageType) MessageType() messages.MessageType {
 
 type dummyLightningClient struct {
 	preimage        string
-	paymentCallback func(*glightning.Payment)
+	paymentCallback func(string)
 	failpayment     bool
 }
 
@@ -261,10 +261,10 @@ func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (
 }
 
 func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
-	d.paymentCallback(payment)
+	d.paymentCallback(payment.Label)
 }
 
-func (d *dummyLightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
+func (d *dummyLightningClient) AddPaymentCallback(f func(string)) {
 	d.paymentCallback = f
 }
 
@@ -276,15 +276,11 @@ func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, lab
 	return "", nil
 }
 
-func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
+func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, error) {
 	if payreq == "err" {
-		return nil, errors.New("error decoding")
+		return "", 0, errors.New("error decoding")
 	}
-	return &lightning.Invoice{
-		PHash:       "foo",
-		Amount:      100 * 1000,
-		Description: "gude",
-	}, nil
+	return "foo", 100 * 1000, nil
 }
 
 func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) error {
@@ -355,8 +351,8 @@ func (d *dummyChain) GetRefundFee() (uint64, error) {
 	return 100, nil
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
-	return "txhex", "", 0, 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+	return "txhex", 0, 0, nil
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
@@ -371,7 +367,7 @@ func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningPar
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) CreateRefundAddress() (string, error) {
+func (d *dummyChain) NewAddress() (string, error) {
 	return "addr", nil
 }
 
