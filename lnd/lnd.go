@@ -8,6 +8,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/onchain"
+	"github.com/sputn1ck/peerswap/poll"
 	"io/ioutil"
 	"log"
 
@@ -26,12 +27,13 @@ type Lnd struct {
 	walletClient walletrpc.WalletKitClient
 	routerClient routerrpc.RouterClient
 
+	PollService    *poll.Service
 	bitcoinOnChain *onchain.BitcoinOnChain
 
 	cc  *grpc.ClientConn
 	ctx context.Context
 
-	messageHandler  func(peerId string, msgType string, payload string) error
+	messageHandler  []func(peerId string, msgType string, payload []byte) error
 	paymentCallback func(paymentLabel string)
 	pubkey          string
 }
@@ -139,6 +141,7 @@ func (l *Lnd) SendMessage(peerId string, message []byte, messageType int) error 
 		return err
 	}
 
+	log.Printf("sending message %s %s %v", peerId, hex.EncodeToString(message), messageType)
 	_, err = l.lndClient.SendCustomMessage(l.ctx, &lnrpc.SendCustomMessageRequest{
 		Peer: peerBytes,
 		Type: uint32(messageType),
@@ -150,29 +153,34 @@ func (l *Lnd) SendMessage(peerId string, message []byte, messageType int) error 
 	return nil
 }
 
-func (l *Lnd) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
-	l.messageHandler = f
+func (l *Lnd) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
+	l.messageHandler = append(l.messageHandler, f)
 }
 
 func (l *Lnd) PrepareOpeningTransaction(address string, amount uint64) (txId string, txHex string, err error) {
 	return "", "", nil
 }
 
-func (l *Lnd) StartListening() chan error {
-	errChan := make(chan error)
+func (l *Lnd) StartListening() {
+
 	go func() {
 		err := l.listenMessages()
 		if err != nil {
-			errChan <- err
+			log.Printf("error listening on messages %v", err)
 		}
 	}()
 	go func() {
 		err := l.listenPayments()
 		if err != nil {
-			errChan <- err
+			log.Printf("error listening on payments %v", err)
 		}
 	}()
-	return errChan
+	go func() {
+		err := l.listenPeerEvents()
+		if err != nil {
+			log.Printf("error listening on peer events %v", err)
+		}
+	}()
 }
 
 func (l *Lnd) GetPeers() []string {
@@ -224,6 +232,7 @@ func (l *Lnd) listenMessages() error {
 			if err != nil {
 				return err
 			}
+
 			err = l.handleCustomMessage(msg)
 			if err != nil {
 				log.Printf("Error handling msg %v", err)
@@ -232,10 +241,38 @@ func (l *Lnd) listenMessages() error {
 	}
 }
 
+func (l *Lnd) listenPeerEvents() error {
+	client, err := l.lndClient.SubscribePeerEvents(l.ctx, &lnrpc.PeerEventSubscription{})
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case _ = <-l.ctx.Done():
+			return client.CloseSend()
+		default:
+			msg, err := client.Recv()
+			if err != nil {
+				return err
+			}
+			if msg.Type == lnrpc.PeerEvent_PEER_ONLINE {
+				if l.PollService != nil {
+					l.PollService.Poll(msg.PubKey)
+				}
+			}
+		}
+	}
+}
+
 func (l *Lnd) handleCustomMessage(msg *lnrpc.CustomMessage) error {
 	peerId := hex.EncodeToString(msg.Peer)
-	data := hex.EncodeToString(msg.Data)
-	return l.messageHandler(peerId, messages.MessageTypeToHexString(messages.MessageType(msg.Type)), data)
+	for _, v := range l.messageHandler {
+		err := v(peerId, messages.MessageTypeToHexString(messages.MessageType(msg.Type)), msg.Data)
+		if err != nil {
+			log.Printf("\n msghandler err: %v", err)
+		}
+	}
+	return nil
 }
 
 func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {

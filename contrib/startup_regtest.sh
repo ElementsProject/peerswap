@@ -372,3 +372,13 @@ start_dev_env() {
   rebuild
 }
 
+stop_peerswap_lnd() {
+  ./peerswap-cli "--rpcserver=localhost:42169" stop
+  ./peerswap-cli "--rpcserver=localhost:42269" stop
+}
+
+rebuild_peerswap_lnd() {
+  stop_peerswap_lnd
+  make build
+  start_peerswap_lnd
+}

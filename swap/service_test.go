@@ -266,7 +266,7 @@ func getTestSetup(name string) *SwapService {
 
 type ConnectedMessenger struct {
 	thisPeerId      string
-	OnMessage       func(peerId string, msgType string, msgBytes string) error
+	OnMessage       func(peerId string, msgType string, msgBytes []byte) error
 	other           *ConnectedMessenger
 	msgReceivedChan chan messages.MessageType
 }
@@ -275,7 +275,7 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 	go func() {
 		time.Sleep(time.Millisecond * 10)
 		msgString := messages.MessageTypeToHexString(messages.MessageType(msgType))
-		err := c.other.OnMessage(c.thisPeerId, msgString, string(msg))
+		err := c.other.OnMessage(c.thisPeerId, msgString, msg)
 		if err != nil {
 			log.Printf("error on message send %v", err)
 		}
@@ -287,6 +287,6 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 	return nil
 }
 
-func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes string) error) {
+func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
 	c.OnMessage = f
 }

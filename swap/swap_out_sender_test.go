@@ -224,7 +224,7 @@ type dummyMessenger struct {
 	msgChan chan PeerMessage
 }
 
-func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
+func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg []byte, msgType int) error {

@@ -9,7 +9,7 @@ import (
 
 type Messenger interface {
 	SendMessage(peerId string, message []byte, messageType int) error
-	AddMessageHandler(func(peerId string, msgType string, payload string) error)
+	AddMessageHandler(func(peerId string, msgType string, payload []byte) error)
 }
 
 type PeerMessage interface {

@@ -235,6 +235,9 @@ func run() error {
 	pollService.Start()
 	defer pollService.Stop()
 
+	lnd.PollService = pollService
+	lnd.StartListening()
+
 	// setup grpc server
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
 	peerswaprpcServer := peerswaprpc.NewPeerswapServer(liquidRpcWallet, swapService, sp, pollService, pol, liquidCli, lnrpc.NewLightningClient(lndConn), sigChan)

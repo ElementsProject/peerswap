@@ -70,7 +70,7 @@ type ClightningClient struct {
 	bitcoinChain   *onchain.BitcoinOnChain
 	bitcoinNetwork *chaincfg.Params
 
-	msgHandlers          []func(peerId string, messageType string, payload string) error
+	msgHandlers          []func(peerId string, messageType string, payload []byte) error
 	paymentSubscriptions []func(paymentLabel string)
 	initChan             chan interface{}
 	nodeId               string
@@ -146,13 +146,14 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 func (c *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
-	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain) {
+	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service) {
 	c.liquidWallet = liquidWallet
 	c.requestedSwaps = requestedSwaps
 	c.swaps = swaps
 	c.Gelements = elements
 	c.policy = policy
 	c.gbitcoin = bitcoin
+	c.pollService = pollService
 	c.bitcoinChain = bitcoinChain
 	if c.bitcoinChain != nil {
 		c.bitcoinNetwork = bitcoinChain.GetChain()
@@ -197,7 +198,7 @@ func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent)
 		log.Printf("[Messenger] error decoding payload %v", err)
 	}
 	for _, v := range c.msgHandlers {
-		err := v(event.PeerId, typeString, string(payloadDecoded))
+		err := v(event.PeerId, typeString, payloadDecoded)
 		if err != nil {
 			log.Printf("\n msghandler err: %v", err)
 		}
@@ -206,7 +207,7 @@ func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent)
 }
 
 // AddMessageHandler adds a listener for incoming peermessages
-func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
+func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
 	c.msgHandlers = append(c.msgHandlers, f)
 }
 

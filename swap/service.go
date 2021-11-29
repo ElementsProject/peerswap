@@ -101,7 +101,7 @@ func (s *SwapService) RecoverSwaps() error {
 }
 
 // OnMessageReceived handles incoming valid peermessages
-func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
+func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload []byte) error {
 	msgType, err := messages.HexStringToMessageType(msgTypeString)
 	if err != nil {
 		return err
