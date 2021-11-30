@@ -125,7 +125,7 @@ func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, 
 	if err != nil {
 		return "", "", err
 	}
-	return txHex, tx.TxHash().String(), nil
+	return tx.TxHash().String(), txHex, nil
 }
 
 func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (string, string, error) {
@@ -167,7 +167,6 @@ func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams
 	if err != nil {
 		return "", err
 	}
-
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(openingTxHex, swapParams)
 	if err != nil {
 		return "", err

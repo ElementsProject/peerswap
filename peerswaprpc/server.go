@@ -47,7 +47,6 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	if request.ChannelId == 0 {
 		return nil, errors.New("Missing required channel_id parameter")
 	}
-
 	var swapchan *lnrpc.Channel
 	chans, err := p.lnd.ListChannels(ctx, &lnrpc.ListChannelsRequest{ActiveOnly: true})
 	if err != nil {
@@ -63,7 +62,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	}
 
 	if uint64(swapchan.LocalBalance) < (request.SwapAmount + 5000) {
-		return nil, err
+		return nil, errors.New("not enough local balance on channel to perform swap out")
 	}
 
 	if !swapchan.Active {
@@ -85,7 +84,6 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
 	}
-
 	gi, err := p.lnd.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return nil, err
@@ -94,17 +92,14 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	peerId := swapchan.RemotePubkey
 
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
-
 	err = p.PeerRunsPeerSwap(ctx, peerId)
 	if err != nil {
 		return nil, err
 	}
-
 	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount)
 	if err != nil {
 		return nil, err
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
 	for {
@@ -122,7 +117,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 				if swapOut.Data.LastErr == nil {
 					return nil, errors.New("swap canceled")
 				}
-				return nil, swapOut.Data.LastErr
+				return nil, errors.New(swapOut.Data.LastErrString)
 
 			}
 			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
@@ -172,7 +167,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 	}
 
 	if uint64(swapchan.RemoteBalance) < (request.SwapAmount) {
-		return nil, err
+		return nil, errors.New("not enough remote balance on channel to perform swap in")
 	}
 
 	if !swapchan.Active {

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 start_docker_env() {
-  docker-compose -f .ci/docker/docker-compose.yml up -d
+  docker-compose -f .ci/docker/docker-compose.yml up -d --remove-orphans
 }
 
 stop_docker_env() {
@@ -107,6 +107,7 @@ liquid.rpcpass=123
 liquid.rpchost=http://127.0.0.1
 liquid.rpcport=18884
 liquid.rpcwallet=swaplnd-$i
+accept_all_peers=true
 EOF
   
     ./peerswapd "--configfile=/tmp/lnd-peerswap-$i/config" > /dev/null 2>&1 &

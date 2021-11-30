@@ -147,7 +147,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		return swap.HandleError(err)
 	}
 	if !ok {
-		return swap.HandleError(err)
+		return swap.HandleError(errors.New("tx is not valid"))
 	}
 	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 	if err != nil {

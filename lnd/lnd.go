@@ -54,27 +54,27 @@ func (l *Lnd) PayInvoice(payreq string) (preImage string, err error) {
 	return hex.EncodeToString(payres.PaymentPreimage), nil
 }
 
-func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) error {
+func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Channel, error) {
 	res, err := l.lndClient.ListChannels(l.ctx, &lnrpc.ListChannelsRequest{ActiveOnly: true})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var channel *lnrpc.Channel
 	for _, v := range res.Channels {
 		channelShortId := lnwire.NewShortChanIDFromInt(v.ChanId)
-		if lndShortChannelIdToCLShortChannelId(channelShortId) == shortChannelId {
+		if channelShortId.String() == shortChannelId {
 			channel = v
 			break
 		}
 	}
 	if channel == nil {
-		return errors.New("channel not found")
+		return nil, errors.New("channel not found")
 	}
 	if channel.LocalBalance < int64(amountSat) {
-		return errors.New("not enough outbound capacity to perform swapOut")
+		return nil, errors.New("not enough outbound capacity to perform swapOut")
 	}
 
-	return nil
+	return channel, nil
 }
 
 func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string) (string, error) {
@@ -82,11 +82,12 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string) 
 	if err != nil {
 		return "", err
 	}
-	preimageHash := preimage.Hash()
 	payreq, err := l.lndClient.AddInvoice(l.ctx, &lnrpc.Invoice{
-		ValueMsat: int64(msatAmount),
-		Memo:      label,
-		RPreimage: preimageHash[:],
+		ValueMsat:  int64(msatAmount),
+		Memo:       label,
+		RPreimage:  preimage[:],
+		Expiry:     5200,
+		CltvExpiry: 144,
 	})
 	if err != nil {
 		return "", err
@@ -98,12 +99,12 @@ func (l *Lnd) AddPaymentCallback(f func(paymentLabel string)) {
 	l.paymentCallback = f
 }
 
-func (l *Lnd) RebalancePayment(payreq string, channel string) (preimage string, err error) {
+func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
 		return "", err
 	}
-	err = l.CheckChannel(channel, uint64(decoded.NumSatoshis))
+	channel, err := l.CheckChannel(channelId, uint64(decoded.NumSatoshis))
 	if err != nil {
 		return "", err
 	}
@@ -112,11 +113,17 @@ func (l *Lnd) RebalancePayment(payreq string, channel string) (preimage string, 
 	if err != nil {
 		return "", err
 	}
+
 	route, err := l.routerClient.BuildRoute(l.ctx, &routerrpc.BuildRouteRequest{
-		AmtMsat:        decoded.NumMsat,
-		OutgoingChanId: 0,
+		AmtMsat:        decoded.NumSatoshis * 1000,
+		OutgoingChanId: channel.ChanId,
 		HopPubkeys:     [][]byte{pkBytes},
+		FinalCltvDelta: 144,
+		PaymentAddr:    decoded.PaymentAddr,
 	})
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("building route error: %v", err))
+	}
 	rHash, err := hex.DecodeString(decoded.PaymentHash)
 	if err != nil {
 		return "", err

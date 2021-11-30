@@ -359,7 +359,7 @@ func loadConfig() (*peerswaplnd.PeerSwapConfig, error) {
 	}
 
 	if _, err := os.Stat(cfg.ConfigFile); err == nil {
-		fileParser := flags.NewParser(cfg, flags.Default)
+		fileParser := flags.NewParser(cfg, flags.Default|flags.IgnoreUnknown)
 		err = flags.NewIniParser(fileParser).ParseFile(cfg.ConfigFile)
 		if err != nil {
 			return nil, err

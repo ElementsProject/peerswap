@@ -23,7 +23,6 @@ type Policy interface {
 type LightningClient interface {
 	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
-	CheckChannel(channelId string, amount uint64) error
 	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
 	AddPaymentCallback(f func(paymentLabel string))
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
@@ -53,6 +52,10 @@ type OpeningParams struct {
 	MakerPubkeyHash  string
 	ClaimPaymentHash string
 	Amount           uint64
+}
+
+func (o *OpeningParams) String() string {
+	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v", o.TakerPubkeyHash, o.MakerPubkeyHash, o.ClaimPaymentHash, o.Amount)
 }
 
 type ClaimParams struct {

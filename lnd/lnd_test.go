@@ -14,6 +14,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/sputn1ck/peerswap/onchain"
+	"github.com/sputn1ck/peerswap/swap"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -36,6 +37,79 @@ import (
 
 var ()
 
+func Test_LndSystems(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lndConn, err := getClientConnectenLocal(ctx, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lnrpcClient := lnrpc.NewLightningClient(lndConn)
+
+	_, err = lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bitcoin, err := getBitcoinClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	homeDir := fmt.Sprintf("lnd-regtest-%v", 1)
+
+	tlsCertPath := filepath.Join("/tmp", homeDir, "tls.cert")
+	macaroonPath := filepath.Join("/tmp", homeDir, "/data/chain/bitcoin/regtest/admin.macaroon")
+	address := fmt.Sprintf("localhost:%v", 10101+1*100)
+
+	btcOnchain := onchain.NewBitcoinOnChain(bitcoin, nil, &chaincfg.RegressionNetParams)
+
+	swapLnd, err := NewLnd(ctx, tlsCertPath, macaroonPath, address, btcOnchain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	txParams := NewTxParams(uint32(100), 10000)
+	txParams.SwapAmount = 10000
+	openingParams := &swap.OpeningParams{
+		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
+		Amount:           txParams.SwapAmount,
+	}
+	claimParams := &swap.ClaimParams{
+		Preimage: txParams.Preimage.String(),
+		Signer:   txParams.AliceKey,
+	}
+
+	unfinishedTxHex, _, _, err := swapLnd.CreateOpeningTransaction(openingParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	txId, _, err := swapLnd.BroadcastOpeningTx(unfinishedTxHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("opening txid: %s", txId)
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid, err := btcOnchain.ValidateTx(openingParams, txId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !valid {
+		t.Fatal("tx not valid")
+	}
+	spendingTxId, _, err := swapLnd.CreatePreimageSpendingTransaction(openingParams, claimParams, txId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("spending txid: %s", spendingTxId)
+
+}
 func Test_Lnd(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -250,26 +324,25 @@ func Test_FeeBump(t *testing.T) {
 	})
 	log.Printf("%v", bumpres)
 }
-
 func Test_BigPayment(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	lndConn1, err := getClientConnectenLocal(ctx, 1)
+	lndConn1, err := getClientConnectenLocal(ctx, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lndClient1 := lnrpc.NewLightningClient(lndConn1)
 
-	lndConn2, err := getClientConnectenLocal(ctx, 2)
+	lndConn2, err := getClientConnectenLocal(ctx, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lndClient2 := lnrpc.NewLightningClient(lndConn2)
 	routerClient2 := routerrpc.NewRouterClient(lndConn2)
 
-	amt := uint64(4300000)
+	amt := uint64(50000)
 	inv, err := lndClient1.AddInvoice(ctx, &lnrpc.Invoice{
-		Value:  4300000,
+		Value:  int64(amt),
 		Memo:   "big",
 		Expiry: 3600})
 	if err != nil {
@@ -295,7 +368,8 @@ func Test_BigPayment(t *testing.T) {
 		AmtMsat:        int64(amt * 1000),
 		OutgoingChanId: channels.Channels[0].ChanId,
 		HopPubkeys:     [][]byte{pkBytes},
-		FinalCltvDelta: 40,
+		FinalCltvDelta: 144,
+		PaymentAddr:    inv.PaymentAddr,
 	})
 
 	if err != nil {
@@ -441,7 +515,7 @@ type TxParams struct {
 	Csv         uint32
 }
 
-func NewTxParams(csv uint32, amount uint64) *TxParams {
+func NewTxParams(csv uint32, swapAmount uint64) *TxParams {
 	preimage, _ := lightning.GetPreimage()
 	pHash := preimage.Hash()
 	return &TxParams{
@@ -450,7 +524,7 @@ func NewTxParams(csv uint32, amount uint64) *TxParams {
 		Preimage:    preimage,
 		PaymentHash: pHash[:],
 		Csv:         csv,
-		SwapAmount:  amount,
+		SwapAmount:  swapAmount,
 	}
 }
 
