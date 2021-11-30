@@ -66,7 +66,7 @@ func Test_ValidSwap(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -347,6 +347,42 @@ type dummyChain struct {
 	csvPassedFunc   func(swapId string) error
 }
 
+func (d *dummyChain) GetOutputScript(params *OpeningParams) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (d *dummyChain) TxIdFromHex(txHex string) (string, error) {
+	return "txid", nil
+}
+
+func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
+	return "takersighash", nil
+}
+
+func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, wantscript []byte) {
+
+}
+
+func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) {
+
+}
+
+func (d *dummyChain) GetBlockHeight() (uint32, error) {
+	return 1, nil
+}
+
 func (d *dummyChain) GetRefundFee() (uint64, error) {
 	return 100, nil
 }
@@ -359,36 +395,12 @@ func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
 	d.csvPassedFunc = f
 }
 
-func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	return "takersighash", nil
-}
-
-func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
 func (d *dummyChain) NewAddress() (string, error) {
 	return "addr", nil
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
-	return nil
-}
-
-func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
-	return nil
 }
 
 func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {

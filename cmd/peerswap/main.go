@@ -105,14 +105,14 @@ func run() error {
 		}
 
 		// txwatcher
-		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), 2)
+		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
 
 		// LiquidChain
 		liquidChain, err := getLiquidChain(liquidCli)
 		if err != nil {
 			return err
 		}
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 	} else {
 		log.Printf("Liquid swaps disabled")
 	}
@@ -133,8 +133,8 @@ func run() error {
 		supportedAssets = append(supportedAssets, "btc")
 		log.Printf("Bitcoin swaps enabled")
 		bitcoinEnabled = true
-		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, chain)
+		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(lightningPlugin, chain)
 	} else {
 		log.Printf("Bitcoin swaps disabled")
 	}
@@ -173,9 +173,11 @@ func run() error {
 		bitcoinEnabled,
 		lightningPlugin,
 		bitcoinOnChainService,
+		bitcoinTxWatcher,
 		config.LiquidEnabled,
 		liquidOnChainService,
 		liquidOnChainService,
+		liquidTxWatcher,
 	)
 	swapService := swap.NewSwapService(swapServices)
 

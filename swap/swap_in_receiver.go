@@ -34,6 +34,16 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 		})
 		return Event_ActionFailed
 	}
+	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
+		swap.CancelMessage = "incompatible peerswap version"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return Event_ActionFailed
+	}
 
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
 	*swap = *newSwap
@@ -80,21 +90,6 @@ func (s *SwapData) HandleError(err error) EventType {
 	return Event_ActionFailed
 }
 
-// SwapInWaitForConfirmationsAction adds the swap opening tx to the txwatcher
-type SwapInWaitForConfirmationsAction struct{}
-
-func (s *SwapInWaitForConfirmationsAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, _, err := services.getOnchainAsset(swap.Asset)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	return NoOp
-}
-
 // ClaimSwapTransactionWithPreimageAction spends the opening transaction to the nodes liquid wallet
 type ClaimSwapTransactionWithPreimageAction struct{}
 
@@ -106,6 +101,21 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 		return Event_OnRetry
 	}
 	return Event_ActionSucceeded
+}
+
+type SetStartingBlockHeightAction struct{}
+
+func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, _, _, err := services.getOnchainAsset(swap.Asset)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	blockheight, err := onchain.GetBlockHeight()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.StartingBlockHeight = blockheight
+	return NoOp
 }
 
 type CancelAction struct{}
@@ -159,10 +169,11 @@ func getSwapInReceiverStates() States {
 			},
 		},
 		State_SwapInReceiver_AwaitTxBroadcastedMessage: {
-			Action: &NoOpAction{},
+			Action: &SetStartingBlockHeightAction{},
 			Events: Events{
 				Event_OnTxOpenedMessage: State_SwapInReceiver_AwaitTxConfirmation,
 				Event_OnCancelReceived:  State_SwapCanceled,
+				Event_ActionFailed:      State_SendCancel,
 			},
 		},
 		State_SwapInReceiver_AwaitTxConfirmation: {

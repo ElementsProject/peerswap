@@ -29,20 +29,16 @@ type PeerSwapConfig struct {
 	ConfigFile string `long:"configfile" description:"path to configfile"`
 	DataDir    string `long:"datadir" description:"peerswap datadir"`
 
-	Network       string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet"`
-	LndConfig     *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
-	BitcoinConfig *OnchainConfig `group:"Bitcoind Rpc Config" namespace:"bitcoind"`
-	LiquidConfig  *OnchainConfig `group:"Liquid Rpc Config" namespace:"liquid"`
+	Network      string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet"`
+	LndConfig    *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
+	LiquidConfig *OnchainConfig `group:"Liquid Rpc Config" namespace:"liquid"`
 
 	LiquidEnabled  bool
-	BitcoinEnabled bool
+	BitcoinEnabled bool `long:"bitcoinswaps" description:"enable bitcoin peerswaps"`
 }
 
 func (p *PeerSwapConfig) String() string {
 	var bitcoindString, liquidString string
-	if p.BitcoinConfig != nil {
-		bitcoindString = fmt.Sprintf("bitcoind: rpcuser: %s, rpchost: %s, rpcport %v", p.BitcoinConfig.RpcUser, p.BitcoinConfig.RpcHost, p.BitcoinConfig.RpcPort)
-	}
 	if p.LiquidConfig != nil {
 		liquidString = fmt.Sprintf("liquid: rpcuser: %s, rpchost: %s, rpcport %v, rpcwallet: %s", p.LiquidConfig.RpcUser, p.LiquidConfig.RpcHost, p.LiquidConfig.RpcPort, p.LiquidConfig.RpcWallet)
 	}
@@ -51,13 +47,6 @@ func (p *PeerSwapConfig) String() string {
 }
 
 func (p *PeerSwapConfig) Validate() error {
-	if p.BitcoinConfig != nil {
-		err := p.BitcoinConfig.Validate()
-		if err != nil {
-			return err
-		}
-		p.BitcoinEnabled = true
-	}
 	if p.LiquidConfig.RpcHost != "" {
 		err := p.LiquidConfig.Validate()
 		if err != nil {
@@ -132,8 +121,8 @@ func DefaultConfig() *PeerSwapConfig {
 			TlsCertPath:  DefaultTlsCertPath,
 			MacaroonPath: DefaultMacaroonPath,
 		},
-		BitcoinConfig: nil,
-		LiquidConfig:  defaultLiquidConfig(),
+		BitcoinEnabled: true,
+		LiquidConfig:   defaultLiquidConfig(),
 	}
 }
 

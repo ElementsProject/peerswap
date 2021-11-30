@@ -7,6 +7,8 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/glightning/gelements"
@@ -89,9 +91,8 @@ func run() error {
 
 	var supportedAssets = []string{}
 
-	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
-
+	var lndTxWatcher *lnd2.LndTxWatcher
 	// setup bitcoin stuff
 	if cfg.BitcoinEnabled {
 		// bitcoin
@@ -99,14 +100,12 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		bitcoinCli, err := getBitcoinClient(cfg.BitcoinConfig)
-		if err != nil {
-			return err
-		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, chain)
+		lndFeeEstimator := lnd2.NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
+
+		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, chain)
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(lndFeeEstimator, chain)
 
 		log.Printf("Bitcoin swaps enabled")
 	} else {
@@ -141,14 +140,14 @@ func run() error {
 		}
 
 		// txwatcher
-		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), 2)
+		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
 
 		// LiquidChain
 		liquidChain, err := getLiquidChain(liquidCli)
 		if err != nil {
 			return err
 		}
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 	} else {
 		log.Printf("Liquid swaps disabled")
 	}
@@ -161,6 +160,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	// db
 	swapDb, err := bbolt.Open(filepath.Join(cfg.DataDir, "swaps"), 0700, nil)
 	if err != nil {
@@ -192,25 +192,17 @@ func run() error {
 		cfg.BitcoinEnabled,
 		lnd,
 		bitcoinOnChainService,
+		lndTxWatcher,
 		cfg.LiquidEnabled,
 		liquidOnChainService,
 		liquidOnChainService,
+		liquidTxWatcher,
 	)
 	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil {
 		go func() {
 			err := liquidTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Printf("%v", err)
-				os.Exit(1)
-			}
-		}()
-	}
-
-	if bitcoinTxWatcher != nil {
-		go func() {
-			err := bitcoinTxWatcher.StartWatchingTxs()
 			if err != nil {
 				log.Printf("%v", err)
 				os.Exit(1)

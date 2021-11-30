@@ -28,21 +28,27 @@ type LightningClient interface {
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 
-type Onchain interface {
-	AddWaitForConfirmationTx(swapId, txId string) (err error)
-	AddWaitForCsvTx(swapId, txId string, vout uint32) (err error)
+type TxWatcher interface {
+	AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, scriptpubkey []byte)
+	AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte)
 	AddConfirmationCallback(func(swapId string) error)
 	AddCsvCallback(func(swapId string) error)
-	ValidateTx(swapParams *OpeningParams, openingTxId string) (bool, error)
+	GetBlockHeight() (uint32, error)
+}
+
+type Validator interface {
+	TxIdFromHex(txHex string) (string, error)
+	ValidateTx(swapParams *OpeningParams, txHex string) (bool, error)
 }
 
 type Wallet interface {
 	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error)
 	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
-	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error)
-	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error)
-	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error)
-	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
+	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error)
+	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error)
+	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error)
+	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
+	GetOutputScript(params *OpeningParams) ([]byte, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
 }
@@ -59,8 +65,9 @@ func (o *OpeningParams) String() string {
 }
 
 type ClaimParams struct {
-	Preimage string
-	Signer   Signer
+	Preimage     string
+	Signer       Signer
+	OpeningTxHex string
 }
 
 type Signer interface {
@@ -73,10 +80,12 @@ type SwapServices struct {
 	lightning           LightningClient
 	messenger           Messenger
 	policy              Policy
-	bitcoinOnchain      Onchain
+	bitcoinTxWatcher    TxWatcher
+	bitcoinValidator    Validator
 	bitcoinWallet       Wallet
 	bitcoinEnabled      bool
-	liquidOnchain       Onchain
+	liquidTxWatcher     TxWatcher
+	liquidValidator     Validator
 	liquidWallet        Wallet
 	liquidEnabled       bool
 }
@@ -89,34 +98,38 @@ func NewSwapServices(
 	policy Policy,
 	bitcoinEnabled bool,
 	bitcoinWallet Wallet,
-	bitcoinOnchain Onchain,
+	bitcoinValidator Validator,
+	bitcoinTxWatcher TxWatcher,
 	liquidEnabled bool,
 	liquidWallet Wallet,
-	liquidOnchain Onchain) *SwapServices {
+	liquidValidator Validator,
+	liquidTxWatcher TxWatcher) *SwapServices {
 	return &SwapServices{
 		swapStore:           swapStore,
 		requestedSwapsStore: requestedSwapsStore,
 		lightning:           lightning,
 		messenger:           messenger,
 		policy:              policy,
-		bitcoinOnchain:      bitcoinOnchain,
+		bitcoinTxWatcher:    bitcoinTxWatcher,
 		bitcoinWallet:       bitcoinWallet,
+		bitcoinValidator:    bitcoinValidator,
 		bitcoinEnabled:      bitcoinEnabled,
 		liquidEnabled:       liquidEnabled,
 		liquidWallet:        liquidWallet,
-		liquidOnchain:       liquidOnchain,
+		liquidValidator:     liquidValidator,
+		liquidTxWatcher:     liquidTxWatcher,
 	}
 }
 
-func (s *SwapServices) getOnchainAsset(asset string) (Onchain, Wallet, error) {
+func (s *SwapServices) getOnchainAsset(asset string) (TxWatcher, Wallet, Validator, error) {
 	if asset == "" {
-		return nil, nil, fmt.Errorf("missing asset")
+		return nil, nil, nil, fmt.Errorf("missing asset")
 	}
 	if asset == "btc" {
-		return s.bitcoinOnchain, s.bitcoinWallet, nil
+		return s.bitcoinTxWatcher, s.bitcoinWallet, s.bitcoinValidator, nil
 	}
 	if asset == "l-btc" {
-		return s.liquidOnchain, s.liquidWallet, nil
+		return s.liquidTxWatcher, s.liquidWallet, s.liquidValidator, nil
 	}
-	return nil, nil, WrongAssetError(asset)
+	return nil, nil, nil, WrongAssetError(asset)
 }

@@ -10,34 +10,45 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/swap"
-	"io/ioutil"
-	"log"
-	"path/filepath"
-	"strconv"
-	"testing"
-
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/psbt"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/onchain"
+	"github.com/sputn1ck/peerswap/swap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+	"io/ioutil"
+	"log"
+	"path/filepath"
+	"strconv"
+	"testing"
+	"time"
 )
 
 var ()
 
-func Test_LndSystems(t *testing.T) {
+type Testthing struct {
+	confirmedChan chan string
+}
+
+func (t *Testthing) callback(swapId string) error {
+	log.Printf("callback caleld")
+	t.confirmedChan <- swapId
+	return nil
+}
+
+func Test_LndSystemsPreimage(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -48,7 +59,7 @@ func Test_LndSystems(t *testing.T) {
 
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
 
-	_, err = lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	gi, err := lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +75,19 @@ func Test_LndSystems(t *testing.T) {
 	macaroonPath := filepath.Join("/tmp", homeDir, "/data/chain/bitcoin/regtest/admin.macaroon")
 	address := fmt.Sprintf("localhost:%v", 10101+1*100)
 
-	btcOnchain := onchain.NewBitcoinOnChain(bitcoin, nil, &chaincfg.RegressionNetParams)
+	lndFeeEstimator := NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
+	btcOnchain := onchain.NewBitcoinOnChain(lndFeeEstimator, &chaincfg.RegressionNetParams)
 
 	swapLnd, err := NewLnd(ctx, tlsCertPath, macaroonPath, address, btcOnchain)
 	if err != nil {
 		t.Fatal(err)
 	}
+	lndTxWatcher := NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, &chaincfg.RegressionNetParams)
+	confirmedChan := make(chan string)
+	testthing := &Testthing{confirmedChan: confirmedChan}
+
+	lndTxWatcher.AddConfirmationCallback(testthing.callback)
+
 	txParams := NewTxParams(uint32(100), 10000)
 	txParams.SwapAmount = 10000
 	openingParams := &swap.OpeningParams{
@@ -78,38 +96,168 @@ func Test_LndSystems(t *testing.T) {
 		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 		Amount:           txParams.SwapAmount,
 	}
-	claimParams := &swap.ClaimParams{
-		Preimage: txParams.Preimage.String(),
-		Signer:   txParams.AliceKey,
-	}
 
 	unfinishedTxHex, _, _, err := swapLnd.CreateOpeningTransaction(openingParams)
 	if err != nil {
 		t.Fatal(err)
 	}
-	txId, _, err := swapLnd.BroadcastOpeningTx(unfinishedTxHex)
+	txId, openingTxHex, err := swapLnd.BroadcastOpeningTx(unfinishedTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimParams := &swap.ClaimParams{
+		Preimage:     txParams.Preimage.String(),
+		Signer:       txParams.AliceKey,
+		OpeningTxHex: openingTxHex,
+	}
+
+	wantScript, err := btcOnchain.GetOutputScript(openingParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("scriptpubkey %s", hex.EncodeToString(wantScript))
+
+	lndTxWatcher.AddWaitForConfirmationTx("gude", txId, gi.BlockHeight-1, wantScript)
 	log.Printf("opening txid: %s", txId)
 	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid, err := btcOnchain.ValidateTx(openingParams, txId)
+
+loop:
+	for {
+		select {
+		case <-confirmedChan:
+			break loop
+		default:
+
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+
+	valid, err := btcOnchain.ValidateTx(openingParams, openingTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !valid {
 		t.Fatal("tx not valid")
 	}
-	spendingTxId, _, err := swapLnd.CreatePreimageSpendingTransaction(openingParams, claimParams, txId)
+	spendingTxId, _, err := swapLnd.CreatePreimageSpendingTransaction(openingParams, claimParams)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Printf("spending txid: %s", spendingTxId)
 
 }
+func Test_LndSystemsCsv(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lndConn, err := getClientConnectenLocal(ctx, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lnrpcClient := lnrpc.NewLightningClient(lndConn)
+
+	gi, err := lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bitcoin, err := getBitcoinClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	homeDir := fmt.Sprintf("lnd-regtest-%v", 1)
+
+	tlsCertPath := filepath.Join("/tmp", homeDir, "tls.cert")
+	macaroonPath := filepath.Join("/tmp", homeDir, "/data/chain/bitcoin/regtest/admin.macaroon")
+	address := fmt.Sprintf("localhost:%v", 10101+1*100)
+
+	lndFeeEstimator := NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
+	btcOnchain := onchain.NewBitcoinOnChain(lndFeeEstimator, &chaincfg.RegressionNetParams)
+
+	swapLnd, err := NewLnd(ctx, tlsCertPath, macaroonPath, address, btcOnchain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lndTxWatcher := NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, &chaincfg.RegressionNetParams)
+	confirmedChan := make(chan string)
+	testthing := &Testthing{confirmedChan: confirmedChan}
+
+	lndTxWatcher.AddCsvCallback(testthing.callback)
+
+	txParams := NewTxParams(uint32(100), 10000)
+	txParams.SwapAmount = 10000
+	openingParams := &swap.OpeningParams{
+		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
+		Amount:           txParams.SwapAmount,
+	}
+
+	unfinishedTxHex, _, _, err := swapLnd.CreateOpeningTransaction(openingParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	txId, openingTxHex, err := swapLnd.BroadcastOpeningTx(unfinishedTxHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimParams := &swap.ClaimParams{
+		Preimage:     txParams.Preimage.String(),
+		Signer:       txParams.BobKey,
+		OpeningTxHex: openingTxHex,
+	}
+
+	wantScript, err := btcOnchain.GetOutputScript(openingParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("scriptpubkey %s", hex.EncodeToString(wantScript))
+	_, err = bitcoin.GenerateToAddress("2NDsRVXmnw3LFZ12rTorcKrBiAvX54LkTn1", 11)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lndTxWatcher.AddWaitForCsvTx("gude", txId, 0, gi.BlockHeight-1, wantScript)
+	log.Printf("opening txid: %s", txId)
+
+loop:
+	for {
+		select {
+		case <-confirmedChan:
+			break loop
+		default:
+
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+
+	valid, err := btcOnchain.ValidateTx(openingParams, openingTxHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !valid {
+		t.Fatal("tx not valid")
+	}
+	spendingTxId, _, err := swapLnd.CreateCsvSpendingTransaction(openingParams, claimParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Printf("spending txid: %s", spendingTxId)
+
+}
+
 func Test_Lnd(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

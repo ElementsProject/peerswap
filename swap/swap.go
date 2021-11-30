@@ -96,6 +96,7 @@ type SwapData struct {
 	OpeningTxVout          uint32 `json:"opening_tx_vout"`
 	OpeningTxFee           uint64 `json:"opening_tx_fee"`
 	OpeningTxHex           string `json:"opening_tx-hex"`
+	StartingBlockHeight    uint32 `json:"opening_block_height"`
 
 	ClaimTxId string `json:"claim_tx_id"`
 

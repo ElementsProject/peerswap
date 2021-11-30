@@ -2,6 +2,7 @@ package lnd
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/wire"
@@ -80,13 +81,8 @@ func (l *Lnd) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, er
 	return openingTx.TxHash().String(), unpreparedTxHex, nil
 }
 
-func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId string) (string, string, error) {
-	openingTxHex, err := l.bitcoinOnChain.GetRawTxFromTxId(openingTxId, 0)
-	if err != nil {
-		return "", "", err
-	}
-
-	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(openingTxHex, swapParams)
+func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", "", err
 	}
@@ -96,7 +92,7 @@ func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, 
 		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, 0, 0)
+	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, 0, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -128,13 +124,16 @@ func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, 
 	return tx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxHex string, vout uint32) (string, string, error) {
+func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
 	newAddr, err := l.NewAddress()
 	if err != nil {
 		return "", "", err
 	}
-
-	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, openingTxHex, vout, onchain.BitcoinCsv, 0)
+	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	if err != nil {
+		return "", "", err
+	}
+	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, onchain.BitcoinCsv, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -162,16 +161,12 @@ func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claim
 	return tx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	openingTxHex, err := l.bitcoinOnChain.GetRawTxFromTxId(openingTxId, 0)
+func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
+	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", err
 	}
-	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(openingTxHex, swapParams)
-	if err != nil {
-		return "", err
-	}
-	_, sigHashBytes, _, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0, refundFee)
+	_, sigHashBytes, _, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
 	if err != nil {
 		return "", err
 	}
@@ -182,8 +177,8 @@ func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams
 	return hex.EncodeToString(sigBytes.Serialize()), nil
 }
 
-func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (string, string, error) {
-	tx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, openingTxHex, vout, 0, refundFee)
+func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (string, string, error) {
+	tx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err
 	}
@@ -216,6 +211,10 @@ func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParam
 	return tx.TxHash().String(), txHex, nil
 }
 
+func (l *Lnd) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
+	return l.bitcoinOnChain.GetOutputScript(params)
+}
+
 func (l *Lnd) NewAddress() (string, error) {
 	res, err := l.lndClient.NewAddress(l.ctx, &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH})
 	if err != nil {
@@ -226,4 +225,23 @@ func (l *Lnd) NewAddress() (string, error) {
 
 func (l *Lnd) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
+}
+
+type LndFeeEstimator struct {
+	ctx       context.Context
+	walletkit walletrpc.WalletKitClient
+	lndrpc    lnrpc.LightningClient
+}
+
+func NewLndFeeEstimator(ctx context.Context, walletkit walletrpc.WalletKitClient) *LndFeeEstimator {
+	return &LndFeeEstimator{ctx: ctx, walletkit: walletkit}
+}
+
+func (l *LndFeeEstimator) GetFeePerKw(targetBlocks uint32) (float64, error) {
+	res, err := l.walletkit.EstimateFee(l.ctx, &walletrpc.EstimateFeeRequest{ConfTarget: int32(targetBlocks)})
+	if err != nil {
+		return 0, err
+	}
+
+	return float64(res.SatPerKw / 4000), nil
 }

@@ -4,90 +4,95 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/psbt"
-	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/txwatcher"
 )
 
 const (
-	BitcoinCsv            = 100
-	Bitcoin_Target_Blocks = 6
+	BitcoinCsv             = 1008
+	BitcoinMinConfs        = 3
+	BitcoinFeeTargetBlocks = 6
 )
 
 type BitcoinOnChain struct {
-	gbitcoin  *gbitcoin.Bitcoin
-	txWatcher *txwatcher.BlockchainRpcTxWatcher
-
-	chain *chaincfg.Params
+	chain     *chaincfg.Params
+	estimator FeeEstimator
 }
 
-func NewBitcoinOnChain(gbitcoin *gbitcoin.Bitcoin, txWatcher *txwatcher.BlockchainRpcTxWatcher, chain *chaincfg.Params) *BitcoinOnChain {
-	return &BitcoinOnChain{gbitcoin: gbitcoin, txWatcher: txWatcher, chain: chain}
+type FeeEstimator interface {
+	GetFeePerKw(targetBlocks uint32) (float64, error)
+}
+
+func NewBitcoinOnChain(estimator FeeEstimator, chain *chaincfg.Params) *BitcoinOnChain {
+	return &BitcoinOnChain{chain: chain, estimator: estimator}
 }
 
 func (b *BitcoinOnChain) GetChain() *chaincfg.Params {
 	return b.chain
 }
-func (b *BitcoinOnChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
-	b.txWatcher.AddConfirmationsTx(swapId, txId)
-	return nil
-}
 
-func (b *BitcoinOnChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
-	b.txWatcher.AddCsvTx(swapId, txId, vout, BitcoinCsv)
-	return nil
-}
+func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, openingTxHex string) (bool, error) {
+	msgTx := wire.NewMsgTx(2)
 
-func (b *BitcoinOnChain) AddConfirmationCallback(f func(swapId string) error) {
-	b.txWatcher.AddTxConfirmedHandler(f)
-}
-
-func (b *BitcoinOnChain) AddCsvCallback(f func(swapId string) error) {
-	b.txWatcher.AddCsvPassedHandler(f)
-}
-
-func (b *BitcoinOnChain) ValidateTx(swapParams *swap.OpeningParams, openingTxId string) (bool, error) {
-	txHex, err := b.GetRawTxFromTxId(openingTxId, 0)
+	txBytes, err := hex.DecodeString(openingTxHex)
 	if err != nil {
 		return false, err
 	}
-	ok, _, err := b.GetVoutAndVerify(txHex, swapParams)
+	err = msgTx.Deserialize(bytes.NewReader(txBytes))
 	if err != nil {
 		return false, err
 	}
-	return ok, nil
+
+	var scriptOut *wire.TxOut
+
+	for _, out := range msgTx.TxOut {
+		if out.Value == int64(swapParams.Amount) {
+			scriptOut = out
+			break
+		}
+	}
+	if scriptOut == nil {
+		return false, nil
+	}
+
+	redeemScript, err := ParamsToTxScript(swapParams, BitcoinCsv)
+	if err != nil {
+		return false, err
+	}
+	witnessProgram := sha256.Sum256(redeemScript)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], b.chain)
+	if err != nil {
+		return false, err
+	}
+	wantScript, err := txscript.NewScriptBuilder().AddData([]byte{0x00}).AddData(addr.ScriptAddress()).Script()
+	if err != nil {
+		return false, err
+	}
+
+	if bytes.Compare(wantScript, scriptOut.PkScript) != 0 {
+		return false, err
+	}
+	return true, nil
 }
 
-// GetRawTxFromTxId returns the txhex from the txid. This only works when the tx is not spent
-func (b *BitcoinOnChain) GetRawTxFromTxId(txId string, vout uint32) (string, error) {
-	txOut, err := b.gbitcoin.GetTxOut(txId, vout)
-	if err != nil {
-		return "", err
-	}
-	if txOut == nil {
-		return "", errors.New("txout not set")
-	}
-	blockheight, err := b.gbitcoin.GetBlockHeight()
+func (b *BitcoinOnChain) TxIdFromHex(txHex string) (string, error) {
+	msgTx := wire.NewMsgTx(2)
+
+	txBytes, err := hex.DecodeString(txHex)
 	if err != nil {
 		return "", err
 	}
 
-	blockhash, err := b.gbitcoin.GetBlockHash(uint32(blockheight) - txOut.Confirmations + 1)
+	err = msgTx.Deserialize(bytes.NewReader(txBytes))
 	if err != nil {
 		return "", err
 	}
 
-	rawTxHex, err := b.gbitcoin.GetRawtransactionWithBlockHash(txId, blockhash)
-	if err != nil {
-		return "", err
-	}
-	return rawTxHex, nil
+	return msgTx.TxHash().String(), nil
 }
 
 func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningParams) (bool, uint32, error) {
@@ -115,16 +120,7 @@ func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningPara
 		return false, 0, err
 	}
 
-	redeemScript, err := ParamsToTxScript(params, BitcoinCsv)
-	if err != nil {
-		return false, 0, err
-	}
-	witnessProgram := sha256.Sum256(redeemScript)
-	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], b.chain)
-	if err != nil {
-		return false, 0, err
-	}
-	wantScript, err := txscript.NewScriptBuilder().AddData([]byte{0x00}).AddData(addr.ScriptAddress()).Script()
+	wantScript, err := b.GetOutputScript(params)
 	if err != nil {
 		return false, 0, err
 	}
@@ -132,11 +128,30 @@ func (b *BitcoinOnChain) GetVoutAndVerify(txHex string, params *swap.OpeningPara
 	if bytes.Compare(wantScript, scriptOut.PkScript) != 0 {
 		return false, 0, err
 	}
+
 	return true, vout, nil
 }
-func (b *BitcoinOnChain) PrepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr, openingTxHex string, vout uint32, csv uint32, preparedFee uint64) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
+
+func (b *BitcoinOnChain) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
+	redeemScript, err := ParamsToTxScript(params, BitcoinCsv)
+	if err != nil {
+		return nil, err
+	}
+	witnessProgram := sha256.Sum256(redeemScript)
+	addr, err := btcutil.NewAddressWitnessScriptHash(witnessProgram[:], b.chain)
+	if err != nil {
+		return nil, err
+	}
+	wantScript, err := txscript.NewScriptBuilder().AddData([]byte{0x00}).AddData(addr.ScriptAddress()).Script()
+	if err != nil {
+		return nil, err
+	}
+	return wantScript, nil
+}
+
+func (b *BitcoinOnChain) PrepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr string, vout uint32, csv uint32, preparedFee uint64) (tx *wire.MsgTx, sigHash, redeemScript []byte, err error) {
 	openingMsgTx := wire.NewMsgTx(2)
-	txBytes, err := hex.DecodeString(openingTxHex)
+	txBytes, err := hex.DecodeString(claimParams.OpeningTxHex)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -235,14 +250,9 @@ func (b *BitcoinOnChain) GetFeeSatsFromTx(psbtString, txHex string) (uint64, err
 }
 
 func (b *BitcoinOnChain) GetFee(txSize int) (uint64, error) {
-	feeRes, err := b.gbitcoin.EstimateFee(Bitcoin_Target_Blocks, "ECONOMICAL")
+	satPerByte, err := b.estimator.GetFeePerKw(BitcoinFeeTargetBlocks)
 	if err != nil {
 		return 0, err
-	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 10
 	}
 	// assume largest witness
 	fee := satPerByte * float64(txSize)

@@ -59,7 +59,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.liquidOnchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.liquidOnchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,12 +228,12 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			},
 		},
 		swapServices: &SwapServices{
-			swapStore:      nil,
-			lightning:      nil,
-			messenger:      nil,
-			policy:         nil,
-			bitcoinOnchain: nil,
-			liquidOnchain:  nil,
+			swapStore:        nil,
+			lightning:        nil,
+			messenger:        nil,
+			policy:           nil,
+			bitcoinTxWatcher: nil,
+			liquidTxWatcher:  nil,
 		},
 		retries:  0,
 		failures: 0,
@@ -259,7 +259,7 @@ func getTestSetup(name string) *SwapService {
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, policy, true, chain, chain, true, chain, chain)
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, policy, true, chain, chain, chain, true, chain, chain, chain)
 	swapService := NewSwapService(swapServices)
 	return swapService
 }

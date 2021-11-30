@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	PEERSWAP_PROTOCOL_VERSION = 1
+	PEERSWAP_PROTOCOL_VERSION = 2
 )
 
 var (
@@ -51,12 +51,12 @@ func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
 	if s.LiquidEnabled {
-		s.swapServices.liquidOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.liquidOnchain.AddCsvCallback(s.OnCsvPassed)
+		s.swapServices.liquidTxWatcher.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.liquidTxWatcher.AddCsvCallback(s.OnCsvPassed)
 	}
 	if s.BitcoinEnabled {
-		s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.bitcoinOnchain.AddCsvCallback(s.OnCsvPassed)
+		s.swapServices.bitcoinTxWatcher.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.bitcoinTxWatcher.AddCsvCallback(s.OnCsvPassed)
 	}
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)

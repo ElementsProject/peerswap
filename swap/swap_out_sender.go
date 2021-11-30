@@ -104,17 +104,31 @@ type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, _, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, validator, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return Event_ActionFailed
 	}
 
 	// todo check policy
 
-	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	openingTxId, err := validator.TxIdFromHex(swap.OpeningTxHex)
 	if err != nil {
 		return Event_ActionFailed
 	}
+	swap.OpeningTxId = openingTxId
+
+	phash, _, err := services.lightning.DecodePayreq(swap.ClaimInvoice)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.ClaimPaymentHash = phash
+
+	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	txWatcher.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -125,7 +139,7 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	onchain, _, err := services.getOnchainAsset(swap.Asset)
+	_, _, validator, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -142,7 +156,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 
 	swap.ClaimPaymentHash = phash
 
-	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId)
+	ok, err := validator.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxHex)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -224,10 +238,11 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SwapOutSender_AwaitTxBroadcastedMessage: {
-			Action: &NoOpAction{},
+			Action: &SetStartingBlockHeightAction{},
 			Events: Events{
 				Event_OnCancelReceived:  State_SwapCanceled,
 				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
+				Event_ActionSucceeded:   State_SendCancel,
 			},
 		},
 		State_SendCancel: {
