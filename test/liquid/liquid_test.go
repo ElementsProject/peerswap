@@ -141,17 +141,18 @@ func (suite *LiquidTestSuite) SetupSuite() {
 
 	// Sync peer polling
 	t.Log("Wait for poll syncing")
-	for i := 0; i < 2; i++ {
-		// Reload policy to trigger sync
-		var result interface{}
-		err = lightningds[(i+1)%2].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
-		if err != nil {
-			t.Fatalf("ListPeers %v", err)
-		}
+	var result interface{}
+	err = lightningds[0].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
+	if err != nil {
+		t.Fatalf("ListPeers %v", err)
 	}
-	for i := 0; i < 2; i++ {
-		lightningds[i].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[(i+1)%2].Info.Id), testframework.TIMEOUT)
+	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[0].Info.Id), testframework.TIMEOUT)
+
+	err = lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
+	if err != nil {
+		t.Fatalf("ListPeers %v", err)
 	}
+	lightningds[0].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[1].Info.Id), testframework.TIMEOUT)
 
 	suite.bitcoind = bitcoind
 	suite.lightningds = lightningds

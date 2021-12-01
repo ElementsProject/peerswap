@@ -124,6 +124,7 @@ func (s *Service) Poll(peer string) {
 }
 
 func (s *Service) PollAllPeers() {
+	log.Println("poll peers")
 	for _, peer := range s.peers.GetPeers() {
 		go s.Poll(peer)
 	}
