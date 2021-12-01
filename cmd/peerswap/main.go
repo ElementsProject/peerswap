@@ -89,6 +89,7 @@ func run() error {
 		log.Printf("Liquid swaps enabled")
 		// blockchaincli
 		liquidCli = gelements.NewElements(config.LiquidRpcUser, config.LiquidRpcPassword)
+		liquidCli.SetTimeout(120)
 		err = liquidCli.StartUp(config.LiquidRpcHost, config.LiquidRpcPort)
 		if err != nil {
 			return err
@@ -107,8 +108,11 @@ func run() error {
 		// txwatcher
 		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), 2)
 
-		// LiquidChain
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, config.LiquidNetwork)
+		liquidChain, err := getLiquidChain(liquidCli)
+		if err != nil {
+			return err
+		}
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, liquidChain)
 	} else {
 		log.Printf("Liquid swaps disabled")
 	}
@@ -399,4 +403,21 @@ type ImportantPlugin struct {
 	Path    string
 	Name    string
 	Options map[string]interface{}
+}
+
+func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
+	bi, err := li.GetChainInfo()
+	if err != nil {
+		return nil, err
+	}
+	switch bi.Chain {
+	case "liquidv1":
+		return &network.Liquid, nil
+	case "liquidregtest":
+		return &network.Regtest, nil
+	case "liquidtestnet":
+		return &network.Testnet, nil
+	default:
+		return &network.Testnet, nil
+	}
 }
