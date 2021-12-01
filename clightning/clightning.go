@@ -107,6 +107,7 @@ func (c *ClightningClient) CheckChannel(channelId string, amountSat uint64) erro
 	if err != nil {
 		return err
 	}
+
 	var fundingChannels *glightning.FundingChannel
 	for _, v := range funds.Channels {
 		if v.ShortChannelId == channelId {
@@ -250,6 +251,7 @@ func (c *ClightningClient) RebalancePayment(payreq string, channel string) (prei
 	if err != nil {
 		return "", err
 	}
+
 	err = c.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
 	if err != nil {
 		return "", err
@@ -280,6 +282,7 @@ func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *gli
 	var preimage string
 
 	splits := Bolt11.MilliSatoshis / paymentSplitterMsat
+
 	log.Printf("millisats: %v splitter: %v, splits: %v", Bolt11.MilliSatoshis, paymentSplitterMsat, splits)
 	var i uint64
 	for i = 1; i < splits+1; i++ {
@@ -332,9 +335,6 @@ func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.Deco
 	if err != nil {
 		return "", err
 	}
-
-	log.Printf("message %s", res.Message)
-
 	return res.PaymentPreimage, nil
 }
 

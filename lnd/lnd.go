@@ -5,21 +5,20 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/sputn1ck/peerswap/messages"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/poll"
-	"io/ioutil"
-	"log"
-
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/sputn1ck/peerswap/messages"
+	"github.com/sputn1ck/peerswap/onchain"
+	"github.com/sputn1ck/peerswap/poll"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+	"io/ioutil"
+	"log"
 )
 
 type Lnd struct {
@@ -59,10 +58,11 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 	if err != nil {
 		return nil, err
 	}
+
 	var channel *lnrpc.Channel
 	for _, v := range res.Channels {
 		channelShortId := lnwire.NewShortChanIDFromInt(v.ChanId)
-		if channelShortId.String() == shortChannelId {
+		if channelShortId.String() == shortChannelId || lndShortChannelIdToCLShortChannelId(channelShortId) == shortChannelId {
 			channel = v
 			break
 		}

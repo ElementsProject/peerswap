@@ -22,6 +22,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/gbitcoin"
+	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/swap"
@@ -30,6 +31,7 @@ import (
 	"gopkg.in/macaroon.v2"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -46,6 +48,95 @@ func (t *Testthing) callback(swapId string) error {
 	log.Printf("callback caleld")
 	t.confirmedChan <- swapId
 	return nil
+}
+
+func Test_LndClightningPayments(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	lndConn, err := getClientConnectenLocal(ctx, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lnrpcClient := lnrpc.NewLightningClient(lndConn)
+	gi, err := lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clnClient := glightning.NewLightning()
+	err = clnClient.StartUp("lightning-rpc", "/tmp/l1-regtest/regtest")
+	if err != nil {
+		log.Printf("cant strtup")
+		t.Fatal(err)
+	}
+	msatAmount := uint64(40000000)
+	payreq, err := lnrpcClient.AddInvoice(ctx, &lnrpc.Invoice{
+		ValueMsat:  int64(msatAmount),
+		Memo:       "gude",
+		Expiry:     5200,
+		CltvExpiry: 144,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	funds, err := clnClient.ListFunds()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var shortChanId string
+	for _, v := range funds.Channels {
+		if v.Id == gi.IdentityPubkey {
+			shortChanId = v.ShortChannelId
+		}
+	}
+	if shortChanId == "" {
+		t.Fatal("channel not found")
+	}
+	bolt11, err := clnClient.DecodeBolt11(payreq.PaymentRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	satString := fmt.Sprintf("%smsat", strconv.FormatUint(msatAmount, 10))
+	label := randomString()
+	partId := uint64(0)
+	_, err = clnClient.SendPay(
+		[]glightning.RouteHop{
+			{
+				Id:             bolt11.Payee,
+				ShortChannelId: shortChanId,
+				MilliSatoshi:   msatAmount,
+				AmountMsat:     satString,
+				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
+				Direction:      0,
+			},
+		},
+		bolt11.PaymentHash,
+		label,
+		&bolt11.MilliSatoshis,
+		payreq.PaymentRequest,
+		bolt11.PaymentSecret,
+		partId,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := clnClient.WaitSendPay(bolt11.PaymentHash, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preimage := res.PaymentPreimage
+	log.Printf("%s", preimage)
+
+}
+
+// randomString returns a random 32 byte random string
+func randomString() string {
+	idBytes := make([]byte, 32)
+	_, _ = rand.Read(idBytes[:])
+	return hex.EncodeToString(idBytes)
 }
 
 func Test_LndSystemsPreimage(t *testing.T) {

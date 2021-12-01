@@ -57,6 +57,7 @@ func (s *BlockchainRpcTxWatcher) GetBlockHeight() (uint32, error) {
 func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32, csv uint32) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
 		ctx:            ctx,
+		csv:            csv,
 		blockchain:     blockchain,
 		txWatchList:    make(map[string]string),
 		csvtxWatchList: make(map[string]*SwapTxInfo),

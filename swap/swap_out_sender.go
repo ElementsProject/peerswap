@@ -1,10 +1,12 @@
 package swap
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"time"
 )
 
 type SwapCreationContext struct {
@@ -163,11 +165,29 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
 	}
-	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
-	if err != nil {
-		return swap.HandleError(err)
+	ctx, done := context.WithTimeout(context.Background(), time.Minute*5)
+	defer done()
+	var preimageString string
+paymentLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			break paymentLoop
+		default:
+			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
+			if err != nil {
+				log.Printf("RETRYING: error trying to pay invoice: %v", err)
+			}
+			if preimageString != "" {
+				swap.ClaimPreimage = preimageString
+				break paymentLoop
+			}
+			time.Sleep(time.Second * 10)
+		}
 	}
-	swap.ClaimPreimage = preimageString
+	if preimageString == "" {
+		return swap.HandleError(errors.New(fmt.Sprintf("Could not pay invoice, lastErr %v", err)))
+	}
 	return Event_ActionSucceeded
 }
 
