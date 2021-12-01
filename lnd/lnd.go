@@ -77,7 +77,7 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 	return channel, nil
 }
 
-func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string) (string, error) {
+func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string, expiry uint64) (string, error) {
 	preimage, err := lightning.MakePreimageFromStr(preimageString)
 	if err != nil {
 		return "", err
@@ -86,7 +86,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string) 
 		ValueMsat:  int64(msatAmount),
 		Memo:       label,
 		RPreimage:  preimage[:],
-		Expiry:     5200,
+		Expiry:     int64(expiry),
 		CltvExpiry: 144,
 	})
 	if err != nil {

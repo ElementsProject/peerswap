@@ -23,7 +23,7 @@ type Policy interface {
 type LightningClient interface {
 	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
-	GetPayreq(msatAmount uint64, preimage string, label string) (string, error)
+	GetPayreq(msatAmount uint64, preimage string, label string, expirySeconds uint64) (string, error)
 	AddPaymentCallback(f func(paymentLabel string))
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }

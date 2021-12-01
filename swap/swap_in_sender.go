@@ -52,7 +52,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 	pHash := preimage.Hash()
-	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
+	expiry := uint64(3600)
+	if swap.Asset == "btc" {
+		expiry = 3600 * 24
+	}
+	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
 	if err != nil {
 		return swap.HandleError(err)
 	}

@@ -269,7 +269,7 @@ func (d *dummyLightningClient) AddPaymentCallback(f func(string)) {
 }
 
 //todo implement
-func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string) (string, error) {
+func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string, expiry uint64) (string, error) {
 	if d.preimage == "err" {
 		return "", errors.New("err")
 	}

@@ -165,7 +165,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
 	}
-	ctx, done := context.WithTimeout(context.Background(), time.Minute*5)
+	ctx, done := context.WithTimeout(context.Background(), time.Minute*2)
 	defer done()
 	var preimageString string
 paymentLoop:

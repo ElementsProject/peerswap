@@ -218,8 +218,8 @@ func (c *ClightningClient) AddPaymentCallback(f func(paymentLabel string)) {
 }
 
 // GetPayreq returns a Bolt11 Invoice
-func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string) (string, error) {
-	res, err := c.glightning.CreateInvoice(amountMsat, label, "liquid swap", 3600, []string{}, preImage, false)
+func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string, expiry uint64) (string, error) {
+	res, err := c.glightning.CreateInvoice(amountMsat, label, "liquid swap", uint32(expiry), []string{}, preImage, false)
 	if err != nil {
 		return "", err
 	}
