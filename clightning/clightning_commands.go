@@ -18,6 +18,12 @@ import (
 	"github.com/sputn1ck/peerswap/swap"
 )
 
+type SwapCanceledError string
+
+func (e SwapCanceledError) Error() string {
+	return fmt.Sprintf("swap canceled, reason: %s", string(e))
+}
+
 // GetAddressMethod returns a new liquid address
 type GetAddressMethod struct {
 	cl *ClightningClient `json:"-"`
@@ -231,10 +237,10 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 			}
 			if swapOut.Current == swap.State_SwapCanceled {
 				if swapOut.Data.CancelMessage != "" {
-					return nil, errors.New(fmt.Sprintf("Swap canceled, cancel message: %s", swapOut.Data.CancelMessage))
+					return nil, SwapCanceledError(swapOut.Data.CancelMessage)
 				}
 				if swapOut.Data.LastErr == nil {
-					return nil, errors.New("swap canceled")
+					return nil, SwapCanceledError("unknown")
 				}
 				return nil, swapOut.Data.LastErr
 
@@ -351,10 +357,10 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 			}
 			if swapIn.Current == swap.State_SwapCanceled {
 				if swapIn.Data.CancelMessage != "" {
-					return nil, errors.New(fmt.Sprintf("Swap canceled, cancel message: %s", swapIn.Data.CancelMessage))
+					return nil, SwapCanceledError(swapIn.Data.CancelMessage)
 				}
 				if swapIn.Data.LastErr == nil {
-					return nil, errors.New("swap canceled")
+					return nil, SwapCanceledError("unknown")
 				}
 				return nil, swapIn.Data.LastErr
 
@@ -669,7 +675,7 @@ type ReloadPolicyFile struct {
 }
 
 func (c ReloadPolicyFile) Name() string {
-	return c.name
+	return "peerswap-reload-policy"
 }
 
 func (c ReloadPolicyFile) New() interface{} {

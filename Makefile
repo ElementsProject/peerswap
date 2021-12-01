@@ -4,12 +4,15 @@ build:
 .PHONY: build
 
 test: build
-	go test -race -count=1 -v ./...
+	go test -race -count=1 -timeout=240s -v ./...
 .PHONY: test
 
 test-all: build
 	go test -count=1 --tags docker ./...
 .PHONY: test-all
+
+test-with-integration: build
+	RUN_INTEGRATION_TESTS=1 go test -timeout=60m ./...
 
 release:
 	go build -o peerswap ./cmd/peerswap/main.go

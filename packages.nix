@@ -21,11 +21,6 @@ bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
     };
 }));
 
-# Override python with packages from ./python-packages
-packageOverrides = pkgs.callPackage ./python-packages.nix { };
-python = pkgs.python36.override { inherit packageOverrides; };
-pythonWithPackages-dev = python.withPackages(ps: [ ps.pytest ps.pyln-client ps.pyln-testing ps.black ]);
-pythonWithPackages-test = python.withPackages(ps: [ ps.pytest ps.pyln-client ps.pyln-testing ]);
 in with pkgs;
 {
     execs = {
@@ -34,6 +29,6 @@ in with pkgs;
         elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
     };
-    testpkgs = [ go bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning pythonWithPackages-test ];
-    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq pythonWithPackages-dev nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning ];
+    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq nodePackages.mermaid-cli ];
 }

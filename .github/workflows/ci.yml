@@ -27,4 +27,4 @@ jobs:
         run: make test
 
       - name: Run integration tests
-        run: make pytest
+        run: make test-with-integration
