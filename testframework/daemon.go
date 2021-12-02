@@ -37,6 +37,15 @@ func (d *DaemonProcess) AppendCmdLine(options []string) {
 	}
 }
 
+func (d *DaemonProcess) WithCmd(cmd string) {
+	if len(d.CmdLine) > 0 {
+		cmdLine := []string{cmd}
+		d.CmdLine = append(cmdLine, d.CmdLine[1:]...)
+		return
+	}
+	d.CmdLine = []string{cmd}
+}
+
 func (d *DaemonProcess) Run() {
 	cmd := exec.Command(d.CmdLine[0], d.CmdLine[1:]...)
 	d.Cmd = cmd

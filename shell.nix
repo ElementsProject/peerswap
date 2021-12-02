@@ -17,6 +17,7 @@ stdenv.mkDerivation rec {
     alias bitcoin-cli='${execs.bitcoin}/bin/bitcoin-cli'
     alias elementsd='${execs.elements}/bin/elementsd'
     alias elements-cli='${execs.elements}/bin/elements-cli'
+    alias lightningd-dev='${execs.clightning-dev}/bin/lightningd-dev'
 
     . ./contrib/startup_regtest.sh
     setup_alias

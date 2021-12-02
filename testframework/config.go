@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const TIMEOUT = 120 * time.Second
+const TIMEOUT = 30 * time.Second
 
 func writeConfig(filename string, config map[string]string, regtestConfig map[string]string, sectionName string) {
 	b := []byte{}
