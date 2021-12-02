@@ -1,14 +1,21 @@
 package testframework
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"strconv"
 
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/ybbus/jsonrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"gopkg.in/macaroon.v2"
 )
 
 type RpcProxy struct {
@@ -117,4 +124,54 @@ func NewCLightningProxy(socketFileName, dataDir string) (*CLightningProxy, error
 
 func (p *CLightningProxy) StartProxy() error {
 	return p.Rpc.StartUp(p.socketFileName, p.dataDir)
+}
+
+type LndRpcClient struct {
+	Rpc  lnrpc.LightningClient
+	conn *grpc.ClientConn
+}
+
+func NewLndRpcClient(host, certPath, macaroonPath string, options ...grpc.DialOption) (*LndRpcClient, error) {
+	creds, err := credentials.NewClientTLSFromFile(certPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("NewClientTLSFromFile() %w", err)
+	}
+
+	macBytes, err := ioutil.ReadFile(macaroonPath)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile() %w", err)
+	}
+
+	mac := &macaroon.Macaroon{}
+	if err := mac.UnmarshalBinary(macBytes); err != nil {
+		return nil, fmt.Errorf("UnmarshalBinary() %w", err)
+	}
+
+	cred, err := macaroons.NewMacaroonCredential(mac)
+	if err != nil {
+		return nil, fmt.Errorf("NewMacaroonCredential() %w", err)
+	}
+
+	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(cred),
+		grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		grpc.WithBlock(),
+	}
+	opts = append(opts, options...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, host, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("NewMacaroonCredential() %w", err)
+	}
+
+	lncli := lnrpc.NewLightningClient(conn)
+	return &LndRpcClient{
+		Rpc:  lncli,
+		conn: conn,
+	}, nil
 }

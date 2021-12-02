@@ -4,6 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -26,15 +36,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io"
-	"io/ioutil"
-	"log"
-	"net"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"syscall"
-	"time"
 )
 
 func main() {
@@ -341,6 +342,7 @@ func getLndClientConnection(ctx context.Context, cfg *peerswaplnd.PeerSwapConfig
 	}
 	return conn, nil
 }
+
 func loadConfig() (*peerswaplnd.PeerSwapConfig, error) {
 	cfg := peerswaplnd.DefaultConfig()
 	parser := flags.NewParser(cfg, flags.Default)
