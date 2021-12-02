@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sputn1ck/glightning/gelements"
@@ -251,7 +252,9 @@ func (c *ClightningClient) RebalancePayment(payreq string, channel string) (prei
 	if err != nil {
 		return "", err
 	}
-
+	if !strings.Contains(channel, "x") {
+		channel = strings.Replace(channel, ":", "x", -1)
+	}
 	err = c.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
 	if err != nil {
 		return "", err

@@ -128,7 +128,7 @@ func (suite *LiquidTestSuite) SetupSuite() {
 	// Give liquid funds to nodes to have something to swap.
 	for _, lightningd := range lightningds {
 		var result clightning.GetAddressResponse
-		lightningd.Rpc.Request(&clightning.GetAddressMethod{}, &result)
+		lightningd.Rpc.Request(&clightning.LiquidGetAddress{}, &result)
 
 		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 1., "", "", false, false, 1, "UNSET")
 		suite.Require().NoError(err)
@@ -176,7 +176,7 @@ func (suite *LiquidTestSuite) BeforeTest(_, _ string) {
 		btcWalletBalances = append(btcWalletBalances, b)
 
 		var response clightning.GetBalanceResponse
-		err = lightningd.Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+		err = lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 		suite.Require().NoError(err)
 		liquidWalletBalances = append(liquidWalletBalances, response.LiquidBalance)
 
@@ -336,12 +336,12 @@ func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
 	// - [1] before - commitment_fee - swapamt
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
@@ -446,7 +446,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 3*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -496,12 +496,12 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	// - [1] before - commitment_fee - claim_fee
 	var response clightning.GetBalanceResponse
 	expected := float64(beforeWalletBalances[0])
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
@@ -657,12 +657,12 @@ func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
 	// - [1] before - commitment_fee - swapAmt
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
@@ -820,7 +820,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check swap is done.
-	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
+	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", 3*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Balance change
@@ -839,12 +839,12 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	// - [1] before - commitment_fee - claim_fee
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0])
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 

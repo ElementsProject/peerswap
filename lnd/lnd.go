@@ -62,7 +62,7 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 	var channel *lnrpc.Channel
 	for _, v := range res.Channels {
 		channelShortId := lnwire.NewShortChanIDFromInt(v.ChanId)
-		if channelShortId.String() == shortChannelId || lndShortChannelIdToCLShortChannelId(channelShortId) == shortChannelId {
+		if channelShortId.String() == shortChannelId || LndShortChannelIdToCLShortChannelId(channelShortId) == shortChannelId {
 			channel = v
 			break
 		}
@@ -339,6 +339,6 @@ func getClientConnection(ctx context.Context, tlsCertPath, macaroonPath, address
 
 }
 
-func lndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {
+func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {
 	return fmt.Sprintf("%dx%dx%d", lndCI.BlockHeight, lndCI.TxIndex, lndCI.TxPosition)
 }

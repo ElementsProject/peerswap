@@ -51,7 +51,7 @@ func (d *DaemonProcess) Run() {
 	d.Cmd = cmd
 	d.logger.Printf("starting command %s", cmd.String())
 
-	w := io.MultiWriter(d.Log, &logWriter{l: d.logger})
+	w := io.MultiWriter(d.Log, &logWriter{l: d.logger, filter: "peerswap"})
 	cmd.Stdout = w
 
 	errReader, err := cmd.StderrPipe()
@@ -144,12 +144,17 @@ func (w *lockedWriter) String() string {
 
 type logWriter struct {
 	l *log.Logger
+
+	filter string
 }
 
 func (w *logWriter) Write(b []byte) (n int, err error) {
 	scanner := bufio.NewScanner(bytes.NewReader(b))
 	for scanner.Scan() {
-		w.l.Println(scanner.Text())
+		text := scanner.Text()
+		if strings.Contains(text, w.filter) {
+			w.l.Println(text)
+		}
 	}
 	return len(b), nil
 }

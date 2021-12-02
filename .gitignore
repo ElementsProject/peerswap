@@ -32,5 +32,7 @@ peerswap_pytest/__pycache__/
 .ci/docker/liquid-config/**
 .ci/docker/liquid-config2/**
 
-peerswap-cli
+
 peerswapd
+
+pscli

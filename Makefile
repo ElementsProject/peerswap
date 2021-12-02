@@ -3,8 +3,8 @@ build:
 	chmod a+x peerswap
 	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
 	chmod a+x peerswapd
-	go build -o peerswap-cli ./cmd/peerswaplnd/peerswap-cli/main.go
-	chmod a+x peerswap-cli
+	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
+	chmod a+x pscli
 .PHONY: build
 
 test: build

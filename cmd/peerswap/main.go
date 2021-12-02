@@ -419,19 +419,3 @@ type ImportantPlugin struct {
 	Options map[string]interface{}
 }
 
-func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
-	bi, err := li.GetChainInfo()
-	if err != nil {
-		return nil, err
-	}
-	switch bi.Chain {
-	case "liquidv1":
-		return &network.Liquid, nil
-	case "liquidregtest":
-		return &network.Regtest, nil
-	case "liquidtestnet":
-		return &network.Testnet, nil
-	default:
-		return &network.Testnet, nil
-	}
-}
