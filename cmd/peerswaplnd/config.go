@@ -12,14 +12,14 @@ import (
 )
 
 var (
-	DefaultPeerswapHost = "localhost:42069"
-	DefaultLndHost      = "localhost:10009"
-	DefaultTlsCertPath  = filepath.Join(defaultLndDir, "tls.cert")
-	DefaultMacaroonPath = filepath.Join(defaultLndDir, "data", "chain", "bitcoin", DefaultNetwork, "admin.macaroon")
-	DefaultNetwork      = "signet"
-	DefaultConfigFile   = filepath.Join(DefaultDatadir, "peerswap.conf")
-	DefaultDatadir      = btcutil.AppDataDir("peerswap", false)
-	DefaultLiquidwallet = "swap"
+	DefaultPeerswapHost   = "localhost:42069"
+	DefaultLndHost        = "localhost:10009"
+	DefaultTlsCertPath    = filepath.Join(defaultLndDir, "tls.cert")
+	DefaultMacaroonPath   = filepath.Join(defaultLndDir, "data", "chain", "bitcoin", DefaultNetwork, "admin.macaroon")
+	DefaultNetwork        = "signet"
+	DefaultConfigFile     = filepath.Join(DefaultDatadir, "peerswap.conf")
+	DefaultDatadir        = btcutil.AppDataDir("peerswap", false)
+	DefaultLiquidwallet   = "swap"
 	DefaultBitcoinEnabled = true
 
 	defaultLndDir = btcutil.AppDataDir("lnd", false)

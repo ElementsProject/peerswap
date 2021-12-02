@@ -529,7 +529,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	}
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -788,6 +788,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCsv() {
 func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	var err error
 
+	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds
@@ -894,7 +895,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	}
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx

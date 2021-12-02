@@ -418,4 +418,3 @@ type ImportantPlugin struct {
 	Name    string
 	Options map[string]interface{}
 }
-

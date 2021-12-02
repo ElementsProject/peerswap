@@ -363,6 +363,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimCsv() {
 func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	var err error
 
+	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds
@@ -446,7 +447,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 3*testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 12*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -684,6 +685,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCsv() {
 func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	var err error
 
+	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds
@@ -787,7 +789,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 12*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -820,7 +822,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check swap is done.
-	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", 3*testframework.TIMEOUT))
+	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Balance change
