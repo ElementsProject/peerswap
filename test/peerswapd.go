@@ -3,12 +3,13 @@ package test
 import (
 	"context"
 	"fmt"
-	"github.com/sputn1ck/peerswap/peerswaprpc"
-	"github.com/sputn1ck/peerswap/testframework"
-	"google.golang.org/grpc"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/sputn1ck/peerswap/peerswaprpc"
+	"github.com/sputn1ck/peerswap/testframework"
+	"google.golang.org/grpc"
 )
 
 type PeerSwapd struct {

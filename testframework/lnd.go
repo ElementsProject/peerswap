@@ -31,17 +31,17 @@ type LndNode struct {
 }
 
 func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) {
-	listen, err := getFreePort()
+	listen, err := GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)
 	}
 
-	rpcListen, err := getFreePort()
+	rpcListen, err := GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)
 	}
 
-	rngDirExtension, err := generateRandomString(5)
+	rngDirExtension, err := GenerateRandomString(5)
 	if err != nil {
 		return nil, fmt.Errorf("generateRandomString(5) %w", err)
 	}
@@ -64,7 +64,7 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 	regtestConfig["bitcoind.zmqpubrawtx"] = bitcoin.ZmqPubRawTx
 
 	configFile := filepath.Join(dataDir, "lnd.conf")
-	writeConfig(configFile, regtestConfig, nil, "")
+	WriteConfig(configFile, regtestConfig, nil, "")
 
 	cmdLine := []string{
 		"lnd",
