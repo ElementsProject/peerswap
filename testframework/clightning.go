@@ -25,14 +25,14 @@ type CLightningNode struct {
 }
 
 func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightningNode, error) {
-	rpcPort, err := getFreePort()
+	rpcPort, err := GetFreePort()
 	if err != nil {
-		return nil, fmt.Errorf("getFreePort() %w", err)
+		return nil, fmt.Errorf("GetFreePort() %w", err)
 	}
 
-	rngDirExtension, err := generateRandomString(5)
+	rngDirExtension, err := GenerateRandomString(5)
 	if err != nil {
-		return nil, fmt.Errorf("generateRandomString(5) %w", err)
+		return nil, fmt.Errorf("GenerateRandomString(5) %w", err)
 	}
 
 	dataDir := filepath.Join(testDir, fmt.Sprintf("clightning-%s", rngDirExtension))
@@ -43,9 +43,9 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		return nil, fmt.Errorf("os.MkdirAll() %w", err)
 	}
 
-	bitcoinConf, err := readConfig(bitcoin.configFile)
+	bitcoinConf, err := ReadConfig(bitcoin.configFile)
 	if err != nil {
-		return nil, fmt.Errorf("readConfig() %w", err)
+		return nil, fmt.Errorf("ReadConfig() %w", err)
 	}
 
 	var bitcoinRpcPass string

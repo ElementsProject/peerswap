@@ -94,7 +94,7 @@ func waitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta f
 	return actual, err
 }
 
-func getFreePort() (port int, err error) {
+func GetFreePort() (port int, err error) {
 	var a *net.TCPAddr
 	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
 		var l *net.TCPListener
@@ -106,7 +106,7 @@ func getFreePort() (port int, err error) {
 	return
 }
 
-func generateRandomString(n int) (string, error) {
+func GenerateRandomString(n int) (string, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 	ret := make([]byte, n)
 	for i := 0; i < n; i++ {

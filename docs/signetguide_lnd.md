@@ -255,7 +255,6 @@ Bitcoin-swaps only config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
-network=regtest
 lnd.tlscertpath=/home/kon/.lnd/tls.cert
 lnd.macaroonpath=/home/kon/.lnd/data/chain/bitcoin/signet/admin.macaroon
 network=signet
@@ -267,7 +266,6 @@ Liquid-swaps Config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
-network=regtest
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
 network=signet

@@ -64,6 +64,7 @@ start_nodes_lnd() {
     rpcport=$((10101 + i * 100))
     listenport=$((10102 + i * 100))
     mkdir -p "/tmp/lnd-regtest-$i/data"
+    touch "/tmp/lnd-regtest-$i/data/lnd.conf"
     # Start the lightning nodes
     lnd --datadir=/tmp/lnd-regtest-$i/data \
     --bitcoin.active --bitcoin.regtest --bitcoin.node=bitcoind \
@@ -73,7 +74,8 @@ start_nodes_lnd() {
     --rpclisten=0.0.0.0:$rpcport --norest \
     --logdir=/tmp/lnd-regtest-$i/logs \
     --externalip=127.0.0.1:$listenport \
-    --listen=0.0.0.0:$listenport > /dev/null 2>&1 &
+    --listen=0.0.0.0:$listenport \
+    --configfile=/tmp/lnd-regtest-$1/lnd.conf > /dev/null 2>&1 &
     # shellcheck disable=SC2139 disable=SC2086
     alias lncli-$i="$LNCLI --lnddir=/tmp/lnd-regtest-$i --network regtest --rpcserver=localhost:$rpcport"
     alias lnd-$i-logs="tail -f /tmp/l$i-$network/log"

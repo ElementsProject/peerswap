@@ -23,7 +23,7 @@ type RpcProxy struct {
 
 func NewRpcProxy(configFile string) (*RpcProxy, error) {
 
-	conf, err := readConfig(configFile)
+	conf, err := ReadConfig(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("ReadConfig() %w", err)
 	}

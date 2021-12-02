@@ -88,7 +88,6 @@ func run() error {
 	}
 	defer lndConn.Close()
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
-
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
@@ -251,7 +250,7 @@ func run() error {
 		}
 	}()
 	defer grpcSrv.GracefulStop()
-
+	fmt.Printf("Listening on %v", cfg.Host)
 	<-shutdown
 	return nil
 }

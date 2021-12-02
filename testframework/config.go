@@ -10,7 +10,7 @@ import (
 
 const TIMEOUT = 240 * time.Second
 
-func writeConfig(filename string, config map[string]string, regtestConfig map[string]string, sectionName string) {
+func WriteConfig(filename string, config map[string]string, regtestConfig map[string]string, sectionName string) {
 	b := []byte{}
 	for k, v := range config {
 		b = append(b, []byte(fmt.Sprintf("%s=%s\n", k, v))...)
@@ -24,7 +24,7 @@ func writeConfig(filename string, config map[string]string, regtestConfig map[st
 	os.WriteFile(filename, b, os.ModePerm)
 }
 
-func readConfig(filename string) (map[string]string, error) {
+func ReadConfig(filename string) (map[string]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err

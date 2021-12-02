@@ -43,12 +43,12 @@ type BitcoinNode struct {
 }
 
 func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
-	rpcPort, err := getFreePort()
+	rpcPort, err := GetFreePort()
 	if err != nil {
 		return nil, err
 	}
 
-	rngDirExtension, err := generateRandomString(5)
+	rngDirExtension, err := GenerateRandomString(5)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 
 	regtestConfig := map[string]string{"rpcport": strconv.Itoa(rpcPort)}
 	configFile := filepath.Join(dataDir, "bitcoin.conf")
-	writeConfig(configFile, BITCOIND_CONFIG, regtestConfig, "regtest")
+	WriteConfig(configFile, BITCOIND_CONFIG, regtestConfig, "regtest")
 
 	proxy, err := NewRpcProxy(configFile)
 	if err != nil {
@@ -193,17 +193,17 @@ type LiquidNode struct {
 }
 
 func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, error) {
-	rpcPort, err := getFreePort()
+	rpcPort, err := GetFreePort()
 	if err != nil {
 		return nil, err
 	}
 
-	port, err := getFreePort()
+	port, err := GetFreePort()
 	if err != nil {
 		return nil, err
 	}
 
-	rngDirExtension, err := generateRandomString(5)
+	rngDirExtension, err := GenerateRandomString(5)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, e
 
 	regtestConfig := map[string]string{"rpcport": strconv.Itoa(rpcPort), "port": strconv.Itoa(port)}
 	configFile := filepath.Join(dataDir, "elements.conf")
-	writeConfig(configFile, config, regtestConfig, config["chain"])
+	WriteConfig(configFile, config, regtestConfig, config["chain"])
 
 	proxy, err := NewRpcProxy(configFile)
 	if err != nil {
