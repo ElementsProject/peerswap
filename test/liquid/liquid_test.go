@@ -83,8 +83,13 @@ func (suite *LiquidTestSuite) SetupSuite() {
 		walletName := fmt.Sprintf("swap%d", i)
 		liquidWalletNames = append(liquidWalletNames, walletName)
 
+		// Use lightningd with dev flags enabled
+		lightningd.WithCmd("lightningd-dev")
+
 		// Add plugin to cmd line options
 		lightningd.AppendCmdLine([]string{
+			"--dev-bitcoind-poll=1",
+			"--dev-fast-gossip",
 			fmt.Sprint("--plugin=", pathToPlugin),
 			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
 			"--peerswap-liquid-rpchost=http://127.0.0.1",
