@@ -5,9 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/sputn1ck/glightning/gbitcoin"
-	"github.com/sputn1ck/peerswap/onchain"
 	"log"
 	"math/big"
 	"os"
@@ -15,6 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/sputn1ck/glightning/gbitcoin"
+	"github.com/sputn1ck/peerswap/onchain"
 
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
