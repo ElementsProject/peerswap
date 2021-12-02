@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -193,24 +195,6 @@ func GetBtcWalletBalanceSat(node *CLightningNode) (uint64, error) {
 	return sum, nil
 }
 
-func SyncedBlockheight(node *CLightningNode) (bool, error) {
-	r, err := node.bitcoin.Rpc.Call("getblockcount")
-	if err != nil {
-		return false, fmt.Errorf("bitcoin.rpc.Call(\"getblockcount\") %w", err)
-	}
-
-	chainHeight, err := r.GetFloat()
-	if err != nil {
-		return false, fmt.Errorf("GetFloat() %w", err)
-	}
-
-	nodeInfo, err := node.Rpc.GetInfo()
-	if err != nil {
-		return false, fmt.Errorf("GetInfo() %w", err)
-	}
-	return nodeInfo.Blockheight >= uint(chainHeight), nil
-}
-
 func BalanceChannel5050(node, peer *CLightningNode, scid string) error {
 	funds, err := node.Rpc.ListFunds()
 	if err != nil {
@@ -261,4 +245,20 @@ func BalanceChannel5050(node, peer *CLightningNode, scid string) error {
 		}
 	}
 	return fmt.Errorf("channel not found %s", scid)
+}
+
+func SplitLnAddr(addr string) (string, string, int, error) {
+	parts := strings.Split(addr, "@")
+	if len(parts) != 2 {
+		return "", "", 0, fmt.Errorf("can not split addr `@` %s", addr)
+	}
+	p := strings.Split(parts[1], ":")
+	if len(p) != 2 {
+		return "", "", 0, fmt.Errorf("can not split addr `:` %s", addr)
+	}
+	port, err := strconv.Atoi(p[1])
+	if err != nil {
+		return "", "", 0, fmt.Errorf("Atoi() %w", err)
+	}
+	return parts[0], parts[1], port, nil
 }

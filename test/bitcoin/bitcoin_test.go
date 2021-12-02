@@ -227,7 +227,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -290,7 +290,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -377,7 +377,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	// Generate one less block than required.
 	bitcoind.GenerateBlocks(confirmationsForCsv - 1)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
 		require.NoError(t, err)
 		return isSynced
 	}, testframework.TIMEOUT)
@@ -390,7 +390,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	// Generate one more block to trigger claim by csv.
 	bitcoind.GenerateBlocks(1)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
 		require.NoError(t, err)
 		return isSynced
 	}, testframework.TIMEOUT)
@@ -412,7 +412,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	// Generate to claim
 	bitcoind.GenerateBlocks(3)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
 		require.NoError(t, err)
 		return isSynced
 	}, testframework.TIMEOUT)
@@ -522,7 +522,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -563,7 +563,7 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -688,7 +688,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -742,7 +742,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -888,7 +888,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
@@ -928,7 +928,7 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
+			ok, err := lightningd.IsBlockHeightSynced()
 			require.NoError(t, err)
 			return ok
 		}, testframework.TIMEOUT)
