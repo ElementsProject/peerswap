@@ -18,6 +18,11 @@ test-all: build
 test-with-integration: build
 	RUN_INTEGRATION_TESTS=1 go test -timeout=60m ./...
 
+lnd-release:
+	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
+.PHONY: lnd-release
+
 release:
 	go build -o peerswap ./cmd/peerswap/main.go
 .PHONY: release

@@ -20,6 +20,7 @@ var (
 	DefaultConfigFile   = filepath.Join(DefaultDatadir, "peerswap.conf")
 	DefaultDatadir      = btcutil.AppDataDir("peerswap", false)
 	DefaultLiquidwallet = "swap"
+	DefaultBitcoinEnabled = true
 
 	defaultLndDir = btcutil.AppDataDir("lnd", false)
 )
@@ -29,7 +30,7 @@ type PeerSwapConfig struct {
 	ConfigFile string `long:"configfile" description:"path to configfile"`
 	DataDir    string `long:"datadir" description:"peerswap datadir"`
 
-	Network      string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"simnet"`
+	Network      string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"signet"`
 	LndConfig    *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
 	LiquidConfig *OnchainConfig `group:"Liquid Rpc Config" namespace:"liquid"`
 
@@ -121,7 +122,7 @@ func DefaultConfig() *PeerSwapConfig {
 			TlsCertPath:  DefaultTlsCertPath,
 			MacaroonPath: DefaultMacaroonPath,
 		},
-		BitcoinEnabled: true,
+		BitcoinEnabled: DefaultBitcoinEnabled,
 		LiquidConfig:   defaultLiquidConfig(),
 	}
 }
