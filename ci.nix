@@ -1,5 +1,5 @@
 let
     peerswap-pkgs = import ./packages.nix;
-in [
-    peerswap-pkgs.testpkgs
+in with peerswap-pkgs; [
+    testpkgs
 ]

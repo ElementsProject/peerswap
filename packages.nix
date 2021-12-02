@@ -21,14 +21,25 @@ bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
     };
 }));
 
+# Build a clightning version with developer features enabled.
+# Clightning is way more responsive with dev features.
+clightning-dev = (pkgs.clightning.overrideDerivation (attrs: {
+    configurePhase = "./configure --prefix=$out --enable-developer --disable-valgrind\n";
+    pname = "clightning-dev";
+    postInstall = ''
+        mv $out/bin/lightningd $out/bin/lightningd-dev
+    '';
+}));
+
 in with pkgs;
 {
     execs = {
         clightning = nix-bitcoin-unstable-pkgs.clightning;
+        clightning-dev = clightning-dev;
         bitcoin = bitcoin;
         elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
     };
-    testpkgs = [ go bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning ];
-    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning docker-compose jq nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin elementsd clightning-dev ];
+    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning clightning-dev docker-compose jq nodePackages.mermaid-cli ];
 }
