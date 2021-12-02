@@ -358,11 +358,11 @@ func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]
 func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 	go func() {
 		for {
+			time.Sleep(10 * time.Second)
 			if c.pollService != nil {
 				c.pollService.RequestPoll(connectEvent.PeerId)
 				return
 			}
-			time.Sleep(500 * time.Millisecond)
 		}
 	}()
 }

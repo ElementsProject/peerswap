@@ -371,7 +371,6 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 
 		}
 	}
-
 }
 
 // ListSwaps list all active and finished swaps
