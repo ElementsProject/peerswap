@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/url"
 	"strconv"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/ybbus/jsonrpc"
@@ -93,7 +93,6 @@ func NewRpcProxy(configFile string) (*RpcProxy, error) {
 }
 
 func (p *RpcProxy) Call(method string, parameters ...interface{}) (*jsonrpc.RPCResponse, error) {
-	log.Println(p.Rpc, method)
 	return p.Rpc.Call(method, parameters...)
 }
 
@@ -127,8 +126,9 @@ func (p *CLightningProxy) StartProxy() error {
 }
 
 type LndRpcClient struct {
-	Rpc  lnrpc.LightningClient
-	conn *grpc.ClientConn
+	Rpc   lnrpc.LightningClient
+	RpcV2 routerrpc.RouterClient
+	conn  *grpc.ClientConn
 }
 
 func NewLndRpcClient(host, certPath, macaroonPath string, options ...grpc.DialOption) (*LndRpcClient, error) {
@@ -169,9 +169,11 @@ func NewLndRpcClient(host, certPath, macaroonPath string, options ...grpc.DialOp
 		return nil, fmt.Errorf("NewMacaroonCredential() %w", err)
 	}
 
-	lncli := lnrpc.NewLightningClient(conn)
+	lnRpc := lnrpc.NewLightningClient(conn)
+	routerRpc := routerrpc.NewRouterClient(conn)
 	return &LndRpcClient{
-		Rpc:  lncli,
-		conn: conn,
+		Rpc:   lnRpc,
+		RpcV2: routerRpc,
+		conn:  conn,
 	}, nil
 }

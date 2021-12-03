@@ -260,5 +260,5 @@ func SplitLnAddr(addr string) (string, string, int, error) {
 	if err != nil {
 		return "", "", 0, fmt.Errorf("Atoi() %w", err)
 	}
-	return parts[0], parts[1], port, nil
+	return parts[0], p[0], port, nil
 }

@@ -76,7 +76,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		fmt.Sprintf("--addr=127.0.0.1:%d", port),
 		fmt.Sprintf("--allow-deprecated-apis=%s", "true"),
 		fmt.Sprintf("--network=%s", "regtest"),
-		fmt.Sprintf("--ignore-fee-limits=%s", "false"),
+		fmt.Sprintf("--ignore-fee-limits=%s", "true"),
 		fmt.Sprintf("--bitcoin-rpcuser=%s", bitcoinRpcUser),
 		fmt.Sprintf("--bitcoin-rpcpassword=%s", bitcoinRpcPass),
 		fmt.Sprintf("--bitcoin-rpcport=%s", bitcoinRpcPort),
@@ -86,7 +86,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 	// socketPath := filepath.Join(networkDir, "lightning-rpc")
 	proxy, err := NewCLightningProxy("lightning-rpc", networkDir)
 	if err != nil {
-		return nil, fmt.Errorf("NewCLightningProxy(configFile) %w", err)
+		return nil, fmt.Errorf("NewCLightningProxy() %w", err)
 	}
 
 	// Create seed file
@@ -327,6 +327,9 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 			if err != nil {
 				return false, fmt.Errorf("GetScid() %w", err)
 			}
+			if scid == "" {
+				return false, nil
+			}
 
 			localActive, err := n.IsChannelActive(scid)
 			if err != nil {
@@ -380,6 +383,7 @@ func (n *CLightningNode) IsChannelActive(scid string) (bool, error) {
 			return ch.State == "CHANNELD_NORMAL", nil
 		}
 	}
+
 	return false, nil
 }
 
