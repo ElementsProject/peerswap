@@ -56,10 +56,8 @@ func NewPeerSwapd(testDir string, lndConfig *LndConfig, extraConfig map[string]s
 		"host":             fmt.Sprintf("localhost:%v", rpcPort),
 	}
 
-	if extraConfig != nil {
-		for k, v := range extraConfig {
-			peerswapConfig[k] = v
-		}
+	for k, v := range extraConfig {
+		peerswapConfig[k] = v
 	}
 
 	configFile := filepath.Join(dataDir, "peerswap.conf")

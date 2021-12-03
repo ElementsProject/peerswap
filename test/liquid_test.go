@@ -1,4 +1,4 @@
-package liquidtest
+package test
 
 import (
 	"fmt"
@@ -11,16 +11,15 @@ import (
 	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/test"
 	"github.com/sputn1ck/peerswap/testframework"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type LiquidTestSuite struct {
+type ClnClnSwapsOnLiquidTestSuite struct {
 	suite.Suite
-	assertions *test.AssertionCounter
+	assertions *AssertionCounter
 
 	bitcoind    *testframework.BitcoinNode
 	liquidd     *testframework.LiquidNode
@@ -34,10 +33,19 @@ type LiquidTestSuite struct {
 	liquidWalletNames []string
 }
 
-func (suite *LiquidTestSuite) SetupSuite() {
+func TestLiquidSwaps(t *testing.T) {
+	// Long running tests only run in integration test mode.
+	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
+	if testEnabled == "" {
+		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
+	}
+	suite.Run(t, new(ClnClnSwapsOnLiquidTestSuite))
+}
+
+func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.assertions = &test.AssertionCounter{}
+	suite.assertions = &AssertionCounter{}
 
 	// Settings
 	// Inital channel capacity
@@ -45,11 +53,8 @@ func (suite *LiquidTestSuite) SetupSuite() {
 
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "..", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "peerswap")
 	testDir := t.TempDir()
-
-	// Misc setup
-	// assertions := &AssertionCounter{}
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -166,7 +171,7 @@ func (suite *LiquidTestSuite) SetupSuite() {
 	suite.scid = scid
 }
 
-func (suite *LiquidTestSuite) BeforeTest(_, _ string) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) BeforeTest(_, _ string) {
 	var channelBalances []uint64
 	var btcWalletBalances []uint64
 	var liquidWalletBalances []uint64
@@ -191,33 +196,24 @@ func (suite *LiquidTestSuite) BeforeTest(_, _ string) {
 	suite.liquidWalletBalances = liquidWalletBalances
 }
 
-func (suite *LiquidTestSuite) AfterTest(_, testname string) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) AfterTest(_, testname string) {
 	if suite.assertions.HasAssertion() {
 		suite.T().Logf("Has assertions on test: %s", testname)
 		suite.T().FailNow()
 	}
 }
 
-func (suite *LiquidTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
 	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
-}
-
-func TestLiquidSwaps(t *testing.T) {
-	// Long running tests only run in integration test mode.
-	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
-	if testEnabled == "" {
-		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
-	}
-	suite.Run(t, new(LiquidTestSuite))
 }
 
 //
 // Swap in tests
 // =================
 
-// TestSwapInClaimPreimage execute a swap-in with the claim by preimage
+// TestSwapIn_ClaimPreimage execute a swap-in with the claim by preimage
 // spending branch.
-func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -346,21 +342,21 @@ func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
 
-// TestSwapInClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LiquidTestSuite) TestSwapInClaimCsv() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCsv() {
 	suite.T().SkipNow()
 	// todo: implement test
 }
 
-// TestSwapInClaimCoop execute a swap-in where one node cancels and the
+// TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
 // coop spending branch is used.
-func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
 	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
@@ -517,9 +513,9 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 // Swap out tests
 // ==================
 
-// TestSwapOutClaimPreimage execute a swap-out with the claim by
+// TestSwapOut_ClaimPreimage execute a swap-out with the claim by
 // preimage spending branch.
-func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -668,21 +664,21 @@ func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
 
-// TestSwapOutClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LiquidTestSuite) TestSwapOutClaimCsv() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCsv() {
 	suite.T().SkipNow()
 	// Todo: add test!
 }
 
-// TestSwapOutClaimCoop execute a swap-in where one node cancels and the
+// TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	var err error
 
 	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")

@@ -6,7 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
+
+	"github.com/sputn1ck/peerswap/isdev"
 )
 
 type SwapCreationContext struct {
@@ -165,7 +169,24 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
 	}
-	ctx, done := context.WithTimeout(context.Background(), time.Minute*2)
+
+	var retryTime time.Duration = 120 * time.Second
+	if isdev.FastTests() {
+		// Retry time should be in [s].
+		prtStr := os.Getenv("PAYMENT_RETRY_TIME")
+		if prtStr != "" {
+			prtInt, err := strconv.Atoi(prtStr)
+			if err != nil {
+				log.Printf("could not read from PAYMENT_RETRY_TIME")
+			} else if prtInt < 1 {
+				log.Printf("PAYMENT_RETRY_TIME must be be positive int representing seconds")
+			} else {
+				retryTime = time.Duration(prtInt) * time.Second
+			}
+		}
+	}
+
+	ctx, done := context.WithTimeout(context.Background(), retryTime)
 	defer done()
 	var preimageString string
 paymentLoop:
@@ -176,17 +197,18 @@ paymentLoop:
 		default:
 			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
 			if err != nil {
-				log.Printf("RETRYING: error trying to pay invoice: %v", err)
+				log.Printf("error trying to pay invoice: %v", err)
 			}
 			if preimageString != "" {
 				swap.ClaimPreimage = preimageString
 				break paymentLoop
 			}
 			time.Sleep(time.Second * 10)
+			log.Printf("RETRY paying invoice")
 		}
 	}
 	if preimageString == "" {
-		return swap.HandleError(errors.New(fmt.Sprintf("Could not pay invoice, lastErr %v", err)))
+		return swap.HandleError(fmt.Errorf("could not pay invoice, lastErr %w", err))
 	}
 	return Event_ActionSucceeded
 }

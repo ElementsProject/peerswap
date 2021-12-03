@@ -1,4 +1,4 @@
-package bitcointest
+package test
 
 import (
 	"crypto/rand"
@@ -11,16 +11,15 @@ import (
 	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/test"
 	"github.com/sputn1ck/peerswap/testframework"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type BitcoinTestSuite struct {
+type ClnClnSwapsOnBitcoinSuite struct {
 	suite.Suite
-	assertions *test.AssertionCounter
+	assertions *AssertionCounter
 
 	bitcoind    *testframework.BitcoinNode
 	lightningds []*testframework.CLightningNode
@@ -30,10 +29,19 @@ type BitcoinTestSuite struct {
 	walletBalances  []uint64
 }
 
-func (suite *BitcoinTestSuite) SetupSuite() {
+func TestClnClnSwapsOnBitcoin(t *testing.T) {
+	// Long running tests only run in integration test mode.
+	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
+	if testEnabled == "" {
+		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
+	}
+	suite.Run(t, new(ClnClnSwapsOnBitcoinSuite))
+}
+
+func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.assertions = &test.AssertionCounter{}
+	suite.assertions = &AssertionCounter{}
 
 	// Settings
 	// Inital channel capacity
@@ -41,11 +49,8 @@ func (suite *BitcoinTestSuite) SetupSuite() {
 
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "..", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "peerswap")
 	testDir := t.TempDir()
-
-	// Misc setup
-	// assertions := &AssertionCounter{}
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -128,7 +133,7 @@ func (suite *BitcoinTestSuite) SetupSuite() {
 	suite.scid = scid
 }
 
-func (suite *BitcoinTestSuite) BeforeTest(_, _ string) {
+func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
 	t := suite.T()
 
 	var channelBalances []uint64
@@ -148,32 +153,23 @@ func (suite *BitcoinTestSuite) BeforeTest(_, _ string) {
 	suite.walletBalances = walletBalances
 }
 
-func (suite *BitcoinTestSuite) AfterTest(_, _ string) {
+func (suite *ClnClnSwapsOnBitcoinSuite) AfterTest(_, _ string) {
 	if suite.assertions.HasAssertion() {
 		suite.FailNow("Has assertions")
 	}
 }
 
-func (suite *BitcoinTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
+func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
 	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
-}
-
-func TestBitcoinSwaps(t *testing.T) {
-	// Long running tests only run in integration test mode.
-	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
-	if testEnabled == "" {
-		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
-	}
-	suite.Run(t, new(BitcoinTestSuite))
 }
 
 //
 // Swap in tests
 // =================
 
-// TestSwapInClaimPreimage execute a swap-in with the claim by preimage
+// TestSwapIn_ClaimPreimage execute a swap-in with the claim by preimage
 // spending branch.
-func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -315,14 +311,14 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
 }
 
-// TestSwapInClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	suite.T().SkipNow()
 	var err error
 
@@ -437,9 +433,9 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	t.FailNow()
 }
 
-// TestSwapInClaimCoop execute a swap-in where one node cancels and the
+// TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
 	t := suite.T()
@@ -605,9 +601,9 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 // Swap out tests
 // ==================
 
-// TestSwapOutClaimPreimage execute a swap-out with the claim by
+// TestSwapOut_ClaimPreimage execute a swap-out with the claim by
 // preimage spending branch.
-func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -771,21 +767,21 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
 }
 
-// TestSwapOutClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *BitcoinTestSuite) TestSwapOutClaimCsv() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCsv() {
 	suite.T().SkipNow()
 	// Todo: add test!
 }
 
-// TestSwapOutClaimCoop execute a swap-in where one node cancels and the
+// TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 	var err error
 
 	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
