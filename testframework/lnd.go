@@ -22,6 +22,7 @@ var LND_CONFIG = map[string]string{
 	"norest":                      "true",
 	"debuglevel":                  "debug",
 	"max-commit-fee-rate-anchors": "1",
+	"trickledelay":                "1800",
 }
 
 type LndNode struct {

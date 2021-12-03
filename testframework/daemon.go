@@ -106,7 +106,7 @@ func (d *DaemonProcess) WaitForLog(regex string, timeout time.Duration) error {
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("timeout reached while waiting for %s in logs", regex)
+			return fmt.Errorf("timeout reached while waiting for `%s` in logs", regex)
 		default:
 			ok, err := d.HasLog(regex)
 			if err != nil {
