@@ -5,9 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
-
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
@@ -20,6 +17,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+	"io/ioutil"
+	"log"
+	"time"
 )
 
 type Lnd struct {
@@ -112,39 +112,34 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 		return "", err
 	}
 
-	pkBytes, err := hex.DecodeString(decoded.Destination)
-	if err != nil {
-		return "", err
-	}
-
-	route, err := l.routerClient.BuildRoute(l.ctx, &routerrpc.BuildRouteRequest{
-		AmtMsat:        decoded.NumSatoshis * 1000,
-		OutgoingChanId: channel.ChanId,
-		HopPubkeys:     [][]byte{pkBytes},
-		FinalCltvDelta: 144,
-		PaymentAddr:    decoded.PaymentAddr,
+	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
+		PaymentRequest:  payreq,
+		TimeoutSeconds:  30,
+		OutgoingChanIds: []uint64{channel.ChanId},
+		MaxParts:        30,
 	})
-	if err != nil {
-		return "", fmt.Errorf("building route error: %w", err)
+	for {
+		select {
+		case <-l.ctx.Done():
+			return "", errors.New("context done")
+		default:
+			res, err := paymentStream.Recv()
+			if err != nil {
+				return "", err
+			}
+			switch res.Status {
+			case lnrpc.Payment_SUCCEEDED:
+				return res.PaymentPreimage, nil
+			case lnrpc.Payment_IN_FLIGHT:
+				log.Printf("payment in flight")
+			case lnrpc.Payment_FAILED:
+				return "", fmt.Errorf("payment failure %s", res.FailureReason)
+			default:
+				continue
+			}
+			time.Sleep(time.Millisecond * 10)
+		}
 	}
-
-	rHash, err := hex.DecodeString(decoded.PaymentHash)
-	if err != nil {
-		return "", err
-	}
-
-	payRes, err := l.routerClient.SendToRouteV2(l.ctx, &routerrpc.SendToRouteRequest{
-		PaymentHash: rHash,
-		Route:       route.Route,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	if payRes.Failure != nil {
-		return "", fmt.Errorf("payment failure %s", payRes.Failure.Code)
-	}
-	return hex.EncodeToString(payRes.Preimage), nil
 }
 
 func (l *Lnd) SendMessage(peerId string, message []byte, messageType int) error {
