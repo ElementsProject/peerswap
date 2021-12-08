@@ -250,6 +250,7 @@ func run() error {
 			log.Fatal(err)
 		}
 	}()
+	log.Println("serving")
 	defer grpcSrv.GracefulStop()
 	fmt.Printf("Listening on %v", cfg.Host)
 	<-shutdown

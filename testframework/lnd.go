@@ -174,7 +174,6 @@ func (n *LndNode) GetChannelBalanceSat(scid string) (sats uint64, err error) {
 
 	for _, ch := range r.Channels {
 		if ScidFromLndChanId(ch.ChanId) == scid {
-			log.Printf("\n\nCHANNELOUTPUT NODE %s\n%s\n\n", n.Info.IdentityPubkey, ch)
 			return uint64(ch.LocalBalance), nil
 		}
 	}
@@ -413,7 +412,6 @@ func (n *LndNode) HasPendingHtlcOnChannel(scid string) (bool, error) {
 
 	for _, ch := range r.Channels {
 		if ScidFromLndChanId(ch.ChanId) == scid {
-			log.Println("HELLLOOO", ch.PendingHtlcs, (ch.PendingHtlcs != nil && len(ch.PendingHtlcs) > 0))
 			return (ch.PendingHtlcs != nil && len(ch.PendingHtlcs) > 0), nil
 		}
 	}

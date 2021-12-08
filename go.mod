@@ -20,7 +20,3 @@ require (
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/macaroon.v2 v2.1.0
 )
-
-//replace github.com/sputn1ck/glightning => ../glightning
-
-// replace github.com/vulpemventures/go-elements => ../go-elements

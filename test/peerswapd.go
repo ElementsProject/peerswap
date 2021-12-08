@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/sputn1ck/peerswap/peerswaprpc"
 	"github.com/sputn1ck/peerswap/testframework"
@@ -28,7 +27,7 @@ type LndConfig struct {
 	MacaroonPath string
 }
 
-func NewPeerSwapd(testDir string, lndConfig *LndConfig, extraConfig map[string]string, id int) (*PeerSwapd, error) {
+func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndConfig, extraConfig map[string]string, id int) (*PeerSwapd, error) {
 	rpcPort, err := testframework.GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)
@@ -64,11 +63,8 @@ func NewPeerSwapd(testDir string, lndConfig *LndConfig, extraConfig map[string]s
 
 	testframework.WriteConfig(configFile, peerswapConfig, nil, "")
 
-	// Get PeerSwapd plugin path and test dir
-	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "peerswapd")
 	cmdLine := []string{
-		pathToPlugin,
+		pathToPeerswapPlugin,
 		fmt.Sprintf("--configfile=%s", configFile),
 	}
 
@@ -79,12 +75,19 @@ func NewPeerSwapd(testDir string, lndConfig *LndConfig, extraConfig map[string]s
 	}, nil
 }
 
-func (p *PeerSwapd) Run() error {
+func (p *PeerSwapd) Run(waitForReady bool) error {
 	p.DaemonProcess.Run()
 
 	err := p.WaitForLog("Listening on", testframework.TIMEOUT)
 	if err != nil {
 		return err
+	}
+
+	if waitForReady {
+		err = p.WaitForLog("serving", testframework.TIMEOUT)
+		if err != nil {
+			return fmt.Errorf("waitForReady %w", err)
+		}
 	}
 
 	psClient, clientConn, err := getPeerswapClient(p.RpcPort)

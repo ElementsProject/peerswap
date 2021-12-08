@@ -1,19 +1,21 @@
+OUTDIR=./out
+
 build:
-	go build -tags dev -o peerswap ./cmd/peerswap/main.go
-	chmod a+x peerswap
-	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
-	chmod a+x peerswapd
-	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
-	chmod a+x pscli
+	go build -tags dev -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
+	chmod a+x $(OUTDIR)/peerswap
+	go build -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	chmod a+x $(OUTDIR)/peerswapd
+	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
+	chmod a+x $(OUTDIR)/pscli
 .PHONY: build
 
 build-fast-test:
-	go build -tags dev -tags fast_test -o peerswap ./cmd/peerswap/main.go
-	chmod a+x peerswap
-	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
-	chmod a+x peerswapd
-	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
-	chmod a+x pscli
+	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
+	chmod a+x $(OUTDIR)/peerswap
+	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	chmod a+x $(OUTDIR)/peerswapd
+	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
+	chmod a+x $(OUTDIR)/pscli
 .PHONY: build-fast-test
 
 test: build
@@ -25,26 +27,22 @@ test-all: build
 .PHONY: test-all
 
 test-with-integration: build-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=1 go test -timeout=60m ./...
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 go test -timeout=60m ./...
 .PHONY: test-with-integration
 
 lnd-release:
-	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
-	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
+	go build -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
 .PHONY: lnd-release
 
 release:
-	go build -o peerswap ./cmd/peerswap/main.go
+	go build -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
 .PHONY: release
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
     	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
     	./peerswaprpc/peerswaprpc.proto
-
-pytest: build
-	pytest ./test
-.PHONY: pytest
 
 parse-states-md:
 	go run ./contrib/stateparser.go --dir=./docs/mmd
@@ -91,4 +89,3 @@ clean-docs:
 	rm -f docs/img/swap-in-sequence.png
 	rm -f docs/img/swap-out-sequence.png
 .PHONY: clean-docs
-	

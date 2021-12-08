@@ -53,10 +53,10 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap")
 	testDir := t.TempDir()
 
-	// Setup nodes (1 bitcoind, 2 lightningd)
+	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
 	if err != nil {
 		t.Fatalf("could not create bitcoind %v", err)
@@ -322,7 +322,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	// Confirm claim tx.
 	liquidd.GenerateBlocks(2)
 
-	// Wail for claim tx confirmation.
+	// Wait for claim tx confirmation.
 	err = lightningds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT)
 	require.NoError(t, err)
 
@@ -359,7 +359,6 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCsv() {
 func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
-	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds

@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
 	"github.com/sputn1ck/peerswap/peerswaprpc"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
-	"log"
-	"os"
 )
 
 func main() {

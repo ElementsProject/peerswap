@@ -5,6 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
@@ -17,8 +20,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	"log"
 )
 
 type Lnd struct {
@@ -82,6 +83,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string, 
 	if err != nil {
 		return "", err
 	}
+
 	payreq, err := l.lndClient.AddInvoice(l.ctx, &lnrpc.Invoice{
 		ValueMsat:  int64(msatAmount),
 		Memo:       label,
@@ -104,6 +106,7 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 	if err != nil {
 		return "", err
 	}
+
 	channel, err := l.CheckChannel(channelId, uint64(decoded.NumSatoshis))
 	if err != nil {
 		return "", err
@@ -122,12 +125,14 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 		PaymentAddr:    decoded.PaymentAddr,
 	})
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("building route error: %v", err))
+		return "", fmt.Errorf("building route error: %w", err)
 	}
+
 	rHash, err := hex.DecodeString(decoded.PaymentHash)
 	if err != nil {
 		return "", err
 	}
+
 	payRes, err := l.routerClient.SendToRouteV2(l.ctx, &routerrpc.SendToRouteRequest{
 		PaymentHash: rHash,
 		Route:       route.Route,
@@ -135,11 +140,11 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 	if err != nil {
 		return "", err
 	}
+
 	if payRes.Failure != nil {
-		return "", errors.New(fmt.Sprintf("payment failure %s", payRes.Failure.Code))
+		return "", fmt.Errorf("payment failure %s", payRes.Failure.Code)
 	}
 	return hex.EncodeToString(payRes.Preimage), nil
-
 }
 
 func (l *Lnd) SendMessage(peerId string, message []byte, messageType int) error {
@@ -211,7 +216,7 @@ func (l *Lnd) listenPayments() error {
 	}
 	for {
 		select {
-		case _ = <-l.ctx.Done():
+		case <-l.ctx.Done():
 			return client.CloseSend()
 		default:
 			msg, err := client.Recv()
@@ -232,7 +237,7 @@ func (l *Lnd) listenMessages() error {
 	}
 	for {
 		select {
-		case _ = <-l.ctx.Done():
+		case <-l.ctx.Done():
 			return client.CloseSend()
 		default:
 			msg, err := client.Recv()
@@ -255,7 +260,7 @@ func (l *Lnd) listenPeerEvents() error {
 	}
 	for {
 		select {
-		case _ = <-l.ctx.Done():
+		case <-l.ctx.Done():
 			return client.CloseSend()
 		default:
 			msg, err := client.Recv()
@@ -313,18 +318,26 @@ func getClientConnection(ctx context.Context, tlsCertPath, macaroonPath, address
 	if err != nil {
 		return nil, err
 	}
+
 	macBytes, err := ioutil.ReadFile(macaroonPath)
 	if err != nil {
 		return nil, err
 	}
+
 	mac := &macaroon.Macaroon{}
 	if err := mac.UnmarshalBinary(macBytes); err != nil {
 		return nil, err
 	}
+
 	cred, err := macaroons.NewMacaroonCredential(mac)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := mac.UnmarshalBinary(macBytes); err != nil {
 		return nil, err
 	}
+
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBlock(),
