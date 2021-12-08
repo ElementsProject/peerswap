@@ -14,26 +14,27 @@ import (
 )
 
 var LND_CONFIG = map[string]string{
-	"bitcoin.active":              "true",
-	"bitcoin.regtest":             "true",
-	"bitcoin.node":                "bitcoind",
-	"bitcoin.defaultchanconfs":    "1",
-	"noseedbackup":                "true",
-	"norest":                      "true",
-	"debuglevel":                  "debug",
-	"max-commit-fee-rate-anchors": "1",
-	"trickledelay":                "1800",
+	"bitcoin.active":           "true",
+	"bitcoin.regtest":          "true",
+	"bitcoin.node":             "bitcoind",
+	"bitcoin.defaultchanconfs": "1",
+	"noseedbackup":             "true",
+	"norest":                   "true",
+	"debuglevel":               "debug",
+	"trickledelay":             "1800",
 }
 
 type LndNode struct {
 	*DaemonProcess
 	*LndRpcClient
 
-	DataDir    string
-	ConfigFile string
-	RpcPort    int
-	ListenPort int
-	Info       *lnrpc.GetInfoResponse
+	DataDir      string
+	ConfigFile   string
+	RpcPort      int
+	ListenPort   int
+	TlsPath      string
+	MacaroonPath string
+	Info         *lnrpc.GetInfoResponse
 
 	bitcoin *BitcoinNode
 }
@@ -81,6 +82,9 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 		fmt.Sprintf("--configfile=%s", configFile),
 	}
 
+	tlsPath := filepath.Join(dataDir, "..", "tls.cert")
+	macaroonPath := filepath.Join(dataDir, "chain", "bitcoin", "regtest", "admin.macaroon")
+
 	return &LndNode{
 		DaemonProcess: NewDaemonProcess(cmdLine, fmt.Sprintf("lnd-%d", id)),
 		LndRpcClient:  nil,
@@ -88,6 +92,8 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 		ConfigFile:    configFile,
 		RpcPort:       rpcListen,
 		ListenPort:    listen,
+		TlsPath:       tlsPath,
+		MacaroonPath:  macaroonPath,
 		bitcoin:       bitcoin,
 	}, nil
 }
@@ -98,12 +104,12 @@ func (n *LndNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 	if waitForReady {
 		err := n.WaitForLog("LightningWallet opened", TIMEOUT)
 		if err != nil {
-			return fmt.Errorf("CLightningNode.Run() %w", err)
+			return fmt.Errorf("LndNode.Run() %w", err)
 		}
 
-		err = n.WaitForLog(fmt.Sprintf("RPC server listening on 127.0.0.1:%d", n.RpcPort), TIMEOUT)
+		err = n.WaitForLog("Starting sub RPC server: RouterRPC", TIMEOUT)
 		if err != nil {
-			return fmt.Errorf("CLightningNode.Run() %w", err)
+			return fmt.Errorf("LndNode.Run() %w", err)
 		}
 	}
 
@@ -160,6 +166,22 @@ func (n *LndNode) GetBtcBalanceSat() (uint64, error) {
 	return uint64(r.TotalBalance), nil
 }
 
+func (n *LndNode) GetChannelBalanceSat(scid string) (sats uint64, err error) {
+	r, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("rpc.ListChannels() %w", err)
+	}
+
+	for _, ch := range r.Channels {
+		if ScidFromLndChanId(ch.ChanId) == scid {
+			log.Printf("\n\nCHANNELOUTPUT NODE %s\n%s\n\n", n.Info.IdentityPubkey, ch)
+			return uint64(ch.LocalBalance), nil
+		}
+	}
+
+	return 0, fmt.Errorf("no channel found with scid %s", scid)
+}
+
 func (n *LndNode) GetScid(peer LightningNode) (scid string, err error) {
 	res, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
 	if err != nil {
@@ -168,7 +190,7 @@ func (n *LndNode) GetScid(peer LightningNode) (scid string, err error) {
 
 	for _, ch := range res.Channels {
 		if ch.RemotePubkey == peer.Id() {
-			return scidFromLndChanId(ch.ChanId), nil
+			return ScidFromLndChanId(ch.ChanId), nil
 		}
 	}
 
@@ -355,9 +377,13 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 	}
 
 	for _, ch := range r.Channels {
-		chScid := scidFromLndChanId(ch.ChanId)
+		chScid := ScidFromLndChanId(ch.ChanId)
 		if chScid == scid {
-			return ch.Active, nil
+			chinfo, err := n.Rpc.GetChanInfo(context.Background(), &lnrpc.ChanInfoRequest{ChanId: ch.ChanId})
+			if err != nil {
+				return false, nil
+			}
+			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
 		}
 	}
 
@@ -379,7 +405,58 @@ func (n *LndNode) IsConnected(remote LightningNode) (bool, error) {
 	return false, nil
 }
 
-func scidFromLndChanId(id uint64) string {
+func (n *LndNode) HasPendingHtlcOnChannel(scid string) (bool, error) {
+	r, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return false, fmt.Errorf("rpc.ListChannels() %w", err)
+	}
+
+	for _, ch := range r.Channels {
+		if ScidFromLndChanId(ch.ChanId) == scid {
+			log.Println("HELLLOOO", ch.PendingHtlcs, (ch.PendingHtlcs != nil && len(ch.PendingHtlcs) > 0))
+			return (ch.PendingHtlcs != nil && len(ch.PendingHtlcs) > 0), nil
+		}
+	}
+
+	return false, fmt.Errorf("channel %s not found", scid)
+}
+
+func (n *LndNode) ChanIdFromScid(scid string) (uint64, error) {
+	r, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("rpc.ListChannels() %w", err)
+	}
+
+	for _, ch := range r.Channels {
+		if ScidFromLndChanId(ch.ChanId) == scid {
+			return ch.ChanId, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no channel found with scid %s", scid)
+
+}
+
+func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)
 }
+
+// func clnScidToLndScid(scid string) (string, error) {
+// 	parts := strings.Split(scid, "x")
+// 	// is not cln scid representation
+// 	if len(parts) == 1 {
+// 		// check if already is lnd scid representation.
+// 		parts = strings.Split(scid, ":")
+// 		if len(parts) == 3 {
+// 			return scid, nil
+// 		}
+// 		return "", fmt.Errorf("can not identify scid format of %s", scid)
+// 	}
+// 	// is cln representation.
+// 	if len(parts) == 3 {
+// 		return fmt.Sprintf("%s:%s:%s", parts[0], parts[1], parts[2]), nil
+// 	}
+// 	// is neither
+// 	return "", fmt.Errorf("can not identify scid format of %s", scid)
+// }

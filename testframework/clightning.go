@@ -193,6 +193,21 @@ func (n *CLightningNode) GetBtcBalanceSat() (sats uint64, err error) {
 	return sum, nil
 }
 
+func (n *CLightningNode) GetChannelBalanceSat(scid string) (sats uint64, err error) {
+	funds, err := n.Rpc.ListFunds()
+	if err != nil {
+		return 0, fmt.Errorf("rpc.ListFunds() %w", err)
+	}
+
+	for _, ch := range funds.Channels {
+		if ch.ShortChannelId == scid {
+			return ch.ChannelSatoshi, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no channel found with scid %s", scid)
+}
+
 func (n *CLightningNode) GetScid(remote LightningNode) (string, error) {
 	peers, err := n.Rpc.ListPeers()
 	if err != nil {

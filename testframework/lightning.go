@@ -7,6 +7,9 @@ type LightningNode interface {
 	// GetBtcBalanceSat returns the total amount of sats on the nodes
 	// wallet.
 	GetBtcBalanceSat() (sats uint64, err error)
+	// GetChannelBalanceSat returns the confirmed balance of a channel.
+	// scid is given clightning style i.e `100x0x1`.
+	GetChannelBalanceSat(scid string) (sats uint64, err error)
 	// GetScid returns the short channel id with a peer in clightning style
 	// i.e. `100x0x1`.
 	GetScid(peer LightningNode) (scid string, err error)

@@ -61,8 +61,8 @@ func WaitForWithErr(f WaitFuncWithErr, timeout time.Duration) error {
 	}
 }
 
-func AssertWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) bool {
-	actual, err := waitForChannelBalance(t, node, expected, delta, timeout)
+func AssertWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) bool {
+	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
 		t.Logf("expected: %d, got: %d", uint64(expected), uint64(actual))
 		t.Fail()
@@ -71,29 +71,26 @@ func AssertWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, d
 	return true
 }
 
-func RequireWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) {
-	actual, err := waitForChannelBalance(t, node, expected, delta, timeout)
+func RequireWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) {
+	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
 		t.Fatalf("expected: %d, got: %d", uint64(expected), uint64(actual))
 	}
 }
 
-func waitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) (float64, error) {
-	node.logger.Printf("waiting for balance %f", expected)
-	var actual float64
-	err := WaitFor(func() bool {
-		funds, err := node.Rpc.ListFunds()
+func waitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) (float64, error) {
+	var err error
+	var actual uint64
+	err = WaitFor(func() bool {
+		actual, err = node.GetChannelBalanceSat(scid)
 		if err != nil {
 			t.Fatalf("got err %v", err)
 		}
-		if len(funds.Channels) != 1 {
-			t.Fatalf("channels got not len 1")
-		}
-		actual = float64(funds.Channels[0].ChannelSatoshi)
+
 		dt := float64(expected) - float64(actual)
 		return !(dt > delta) && !(dt < -delta)
 	}, timeout)
-	return actual, err
+	return float64(actual), err
 }
 
 func GetFreePort() (port int, err error) {
@@ -179,20 +176,6 @@ func SwitchWallet(node *LiquidNode, walletName string) error {
 
 	node.RpcProxy.UpdateServiceUrl(fmt.Sprintf("http://127.0.0.1:%d/wallet/%s", node.RpcPort, walletName))
 	return nil
-}
-
-func GetBtcWalletBalanceSat(node *CLightningNode) (uint64, error) {
-	r, err := node.Rpc.ListFunds()
-	if err != nil {
-		return 0, fmt.Errorf("ListFunds() %w", err)
-	}
-
-	var sum uint64
-	for _, output := range r.Outputs {
-		// Value seems to be already in sat.
-		sum += output.Value
-	}
-	return sum, nil
 }
 
 func BalanceChannel5050(node, peer *CLightningNode, scid string) error {
