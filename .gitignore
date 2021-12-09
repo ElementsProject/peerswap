@@ -29,3 +29,6 @@ dist/
 
 # build output
 out/
+peerswapd
+peerswap
+pscli

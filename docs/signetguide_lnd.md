@@ -4,7 +4,7 @@ This guide walks through the steps necessary to run the peerswap plugin on bitco
 
 ## Install dependencies
 
-Peerswap requires _clightning_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+Peerswap requires _lnd_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
 
 ## Bitcoind (signet)
 
@@ -236,8 +236,13 @@ Clone into the peerswap repository and build the peerswap plugin
 ```bash
 git clone git@github.com:sputn1ck/peerswap.git && \
 cd peerswap && \
-git pull origin lnd_standalone && \
 make lnd-release
+```
+
+Move the peerswap binaries to the systempath
+```bash
+sudo cp -vnR peerswapd /usr/bin/ && \
+sudo cp -vnR pscli /usr/bin/
 ```
 
 ### Config file
@@ -255,8 +260,8 @@ Bitcoin-swaps only config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
-lnd.tlscertpath=/home/kon/.lnd/tls.cert
-lnd.macaroonpath=/home/kon/.lnd/data/chain/bitcoin/signet/admin.macaroon
+lnd.tlscertpath=/home/<username>/.lnd/tls.cert
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
 network=signet
 accept_all_peers=true
 EOF
@@ -304,7 +309,7 @@ rm SHA256SUMS.asc
 start the peerswap daemon in background:
 
 ```bash
-./peerswapd </dev/null &>/dev/null &
+peerswapd </dev/null &>/dev/null &
 ```
 
 Create a new signet address and receive some sats from https://signet.bc-2.jp/
@@ -313,10 +318,16 @@ Create a new signet address and receive some sats from https://signet.bc-2.jp/
 lncli -n=signet newaddress p2wkh
 ```
 
-Now connect to another node that has the peerswap plugin running, for example a development node run by @sputn1ck
+Now connect to another node that has the peerswap plugin running, for example these development nodes run by @sputn1ck
 
+cln node
 ```bash
 lncli -n=signet connect 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799@95.217.184.148:39375
+```
+
+lnd node
+```bash
+lncli -n=signet connect 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4@49.12.106.176:39735
 ```
 
 Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pubkey and amount to your needs)
@@ -335,7 +346,7 @@ lncli -n=signet listchannels | grep  "chan_id"
 and try a swap-out
 
 ```bash
-./pscli swapout --sat_amt=[sat amount] --channel_id=[chan_id from above] --asset=btc
+pscli swapout --sat_amt=[sat amount] --channel_id=[chan_id from above] --asset=btc
 ```
 
 Note: The asset could also be `l-btc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
@@ -343,7 +354,7 @@ Note: The asset could also be `l-btc`. This will perform the swap on the bitcoin
 Get a new liquid address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
 
 ```bash
-./pscli liquid-getaddress
+pscli liquid-getaddress
 ```
 
 

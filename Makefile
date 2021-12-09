@@ -25,13 +25,13 @@ test-integration: build-with-fast-test
 .PHONY: test-integration
 
 lnd-release:
-	go build -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
-	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
+	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
+	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
 .PHONY: lnd-release
 
-release:
-	go build -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
-.PHONY: release
+cln-release:
+	go build -o peerswap ./cmd/peerswap/main.go
+.PHONY: cln-release
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \

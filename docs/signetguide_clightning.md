@@ -221,7 +221,7 @@ Clone into the peerswap repository and build the peerswap plugin
 ```bash
 git clone git@github.com:sputn1ck/peerswap.git && \
 cd peerswap && \
-make release
+make cln-release
 ```
 
 ### Policy
@@ -280,10 +280,16 @@ Create a new signet address and receive some sats from https://signet.bc-2.jp/
 lightning-cli newaddr
 ```
 
-Now connect to another node that has the peerswap plugin running, for example a development node run by @sputn1ck
+Now connect to another node that has the peerswap plugin running, for example these development nodes run by @sputn1ck
 
+cln node
 ```bash
-lightning-cli connect 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799@95.217.184.148:39375
+lightning-cli -n=signet connect 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799@95.217.184.148:39375
+```
+
+lnd node
+```bash
+lightning-cli connect 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4@49.12.106.176:39735
 ```
 
 Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pubkey and amount to your needs)
