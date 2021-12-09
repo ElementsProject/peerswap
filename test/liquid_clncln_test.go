@@ -1,4 +1,4 @@
-package liquidtest
+package test
 
 import (
 	"fmt"
@@ -11,16 +11,15 @@ import (
 	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/test"
 	"github.com/sputn1ck/peerswap/testframework"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type LiquidTestSuite struct {
+type ClnClnSwapsOnLiquidTestSuite struct {
 	suite.Suite
-	assertions *test.AssertionCounter
+	assertions *AssertionCounter
 
 	bitcoind    *testframework.BitcoinNode
 	liquidd     *testframework.LiquidNode
@@ -28,16 +27,26 @@ type LiquidTestSuite struct {
 	scid        string
 
 	channelBalances      []uint64
-	btcWalletBalances    []uint64
 	liquidWalletBalances []uint64
 
 	liquidWalletNames []string
 }
 
-func (suite *LiquidTestSuite) SetupSuite() {
+// TestClnClnSwapsOnLiquid runs all integration tests concerning
+// liquid backend and cln-cln operation.
+func TestClnClnSwapsOnLiquid(t *testing.T) {
+	// Long running tests only run in integration test mode.
+	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
+	if testEnabled == "" {
+		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
+	}
+	suite.Run(t, new(ClnClnSwapsOnLiquidTestSuite))
+}
+
+func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.assertions = &test.AssertionCounter{}
+	suite.assertions = &AssertionCounter{}
 
 	// Settings
 	// Inital channel capacity
@@ -45,13 +54,10 @@ func (suite *LiquidTestSuite) SetupSuite() {
 
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "..", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap")
 	testDir := t.TempDir()
 
-	// Misc setup
-	// assertions := &AssertionCounter{}
-
-	// Setup nodes (1 bitcoind, 2 lightningd)
+	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
 	if err != nil {
 		t.Fatalf("could not create bitcoind %v", err)
@@ -128,7 +134,7 @@ func (suite *LiquidTestSuite) SetupSuite() {
 	// Give liquid funds to nodes to have something to swap.
 	for _, lightningd := range lightningds {
 		var result clightning.GetAddressResponse
-		lightningd.Rpc.Request(&clightning.GetAddressMethod{}, &result)
+		lightningd.Rpc.Request(&clightning.LiquidGetAddress{}, &result)
 
 		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 1., "", "", false, false, 1, "UNSET")
 		suite.Require().NoError(err)
@@ -166,17 +172,12 @@ func (suite *LiquidTestSuite) SetupSuite() {
 	suite.scid = scid
 }
 
-func (suite *LiquidTestSuite) BeforeTest(_, _ string) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) BeforeTest(_, _ string) {
 	var channelBalances []uint64
-	var btcWalletBalances []uint64
 	var liquidWalletBalances []uint64
 	for _, lightningd := range suite.lightningds {
-		b, err := testframework.GetBtcWalletBalanceSat(lightningd)
-		suite.Require().NoError(err)
-		btcWalletBalances = append(btcWalletBalances, b)
-
 		var response clightning.GetBalanceResponse
-		err = lightningd.Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+		err := lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 		suite.Require().NoError(err)
 		liquidWalletBalances = append(liquidWalletBalances, response.LiquidBalance)
 
@@ -187,37 +188,27 @@ func (suite *LiquidTestSuite) BeforeTest(_, _ string) {
 	}
 
 	suite.channelBalances = channelBalances
-	suite.btcWalletBalances = btcWalletBalances
 	suite.liquidWalletBalances = liquidWalletBalances
 }
 
-func (suite *LiquidTestSuite) AfterTest(_, testname string) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) AfterTest(_, testname string) {
 	if suite.assertions.HasAssertion() {
 		suite.T().Logf("Has assertions on test: %s", testname)
 		suite.T().FailNow()
 	}
 }
 
-func (suite *LiquidTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
+func (suite *ClnClnSwapsOnLiquidTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
 	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
-}
-
-func TestLiquidSwaps(t *testing.T) {
-	// Long running tests only run in integration test mode.
-	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
-	if testEnabled == "" {
-		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
-	}
-	suite.Run(t, new(LiquidTestSuite))
 }
 
 //
 // Swap in tests
 // =================
 
-// TestSwapInClaimPreimage execute a swap-in with the claim by preimage
+// TestSwapIn_ClaimPreimage execute a swap-in with the claim by preimage
 // spending branch.
-func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -281,14 +272,14 @@ func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
 	// Check if swap invoice was payed.
 	// Expect: [0] before - swapamt ------ before + swapamt [1]
 	expected := float64(beforeChannelBalances[0] - swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
 		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
@@ -326,7 +317,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
 	// Confirm claim tx.
 	liquidd.GenerateBlocks(2)
 
-	// Wail for claim tx confirmation.
+	// Wait for claim tx confirmation.
 	err = lightningds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT)
 	require.NoError(t, err)
 
@@ -336,31 +327,31 @@ func (suite *LiquidTestSuite) TestSwapInClaimPreimage() {
 	// - [1] before - commitment_fee - swapamt
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
 
-// TestSwapInClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LiquidTestSuite) TestSwapInClaimCsv() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCsv() {
 	suite.T().SkipNow()
 	// todo: implement test
 }
 
-// TestSwapInClaimCoop execute a swap-in where one node cancels and the
+// TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
 // coop spending branch is used.
-func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
 	t := suite.T()
@@ -446,7 +437,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 12*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -483,7 +474,7 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop", testframework.TIMEOUT))
 
 	// Check no invoice was paid.
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], float64(setupFunds), 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, float64(setupFunds), 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
@@ -496,12 +487,12 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 	// - [1] before - commitment_fee - claim_fee
 	var response clightning.GetBalanceResponse
 	expected := float64(beforeWalletBalances[0])
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
@@ -516,9 +507,9 @@ func (suite *LiquidTestSuite) TestSwapInClaimCoop() {
 // Swap out tests
 // ==================
 
-// TestSwapOutClaimPreimage execute a swap-out with the claim by
+// TestSwapOut_ClaimPreimage execute a swap-out with the claim by
 // preimage spending branch.
-func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 	var err error
 
 	t := suite.T()
@@ -575,14 +566,14 @@ func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
 	// commitment tx was broadcasted).
 	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
 	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
 		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
@@ -626,14 +617,14 @@ func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
 	// Check if swap Invoice had correct amts.
 	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
 	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
 		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
@@ -657,33 +648,34 @@ func (suite *LiquidTestSuite) TestSwapOutClaimPreimage() {
 	// - [1] before - commitment_fee - swapAmt
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 }
 
-// TestSwapOutClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LiquidTestSuite) TestSwapOutClaimCsv() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCsv() {
 	suite.T().SkipNow()
 	// Todo: add test!
 }
 
-// TestSwapOutClaimCoop execute a swap-in where one node cancels and the
+// TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
+func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	var err error
 
+	os.Setenv("PEERSWAP_PAYMENT_TRY_TIME_SECONDS", "30")
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds
@@ -696,7 +688,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 2
 
-	// Do swap-in.
+	// Do swap-out.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
@@ -735,14 +727,14 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	// commitment tx was broadcasted).
 	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
 	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
 		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1.)
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
@@ -787,7 +779,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT))
+	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 12*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -820,7 +812,7 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	liquidd.GenerateBlocks(2)
 
 	// Check swap is done.
-	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
+	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Balance change
@@ -839,12 +831,12 @@ func (suite *LiquidTestSuite) TestSwapOutClaimCoop() {
 	// - [1] before - commitment_fee - claim_fee
 	var response clightning.GetBalanceResponse
 	expected = float64(beforeWalletBalances[0])
-	err = lightningds[0].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	err = lightningds[1].Rpc.Request(&clightning.GetBalanceMethod{}, &response)
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 

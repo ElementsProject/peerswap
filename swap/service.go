@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/messages"
 	"log"
 	"strings"
 	"sync"
-
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap/messages"
 )
 
 const (
-	PEERSWAP_PROTOCOL_VERSION = 1
+	PEERSWAP_PROTOCOL_VERSION = 2
 )
 
 var (
@@ -39,25 +37,12 @@ type SwapService struct {
 	sync.RWMutex
 }
 
-func NewSwapService(swapStore Store, requestedSwapsStore RequestedSwapsStore, enableLiquid bool, liquidChainService Onchain, enableBitcoin bool, bitcoinChainService Onchain, lightning LightningClient, messenger Messenger, policy Policy) *SwapService {
-
-	services := NewSwapServices(
-		swapStore,
-		requestedSwapsStore,
-		lightning,
-		messenger,
-		policy,
-		enableBitcoin,
-		bitcoinChainService,
-		enableLiquid,
-		liquidChainService,
-	)
-
+func NewSwapService(services *SwapServices) *SwapService {
 	return &SwapService{
 		swapServices:   services,
 		activeSwaps:    map[string]*SwapStateMachine{},
-		LiquidEnabled:  enableLiquid,
-		BitcoinEnabled: enableBitcoin,
+		LiquidEnabled:  services.liquidEnabled,
+		BitcoinEnabled: services.bitcoinEnabled,
 	}
 }
 
@@ -66,12 +51,12 @@ func (s *SwapService) Start() error {
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
 	if s.LiquidEnabled {
-		s.swapServices.liquidOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.liquidOnchain.AddCsvCallback(s.OnCsvPassed)
+		s.swapServices.liquidTxWatcher.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.liquidTxWatcher.AddCsvCallback(s.OnCsvPassed)
 	}
 	if s.BitcoinEnabled {
-		s.swapServices.bitcoinOnchain.AddConfirmationCallback(s.OnTxConfirmed)
-		s.swapServices.bitcoinOnchain.AddCsvCallback(s.OnCsvPassed)
+		s.swapServices.bitcoinTxWatcher.AddConfirmationCallback(s.OnTxConfirmed)
+		s.swapServices.bitcoinTxWatcher.AddCsvCallback(s.OnCsvPassed)
 	}
 
 	s.swapServices.lightning.AddPaymentCallback(s.OnPayment)
@@ -116,7 +101,7 @@ func (s *SwapService) RecoverSwaps() error {
 }
 
 // OnMessageReceived handles incoming valid peermessages
-func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload string) error {
+func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload []byte) error {
 	msgType, err := messages.HexStringToMessageType(msgTypeString)
 	if err != nil {
 		return err
@@ -485,17 +470,17 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 
 // OnPayment handles incoming payments and if it corresponds to a claim or
 // fee invoice passes the dater to the corresponding function
-func (s *SwapService) OnPayment(payment *glightning.Payment) {
+func (s *SwapService) OnPayment(paymentLabel string) {
 	// check if feelabel
 	var swapId string
 	var err error
-	if strings.Contains(payment.Label, "claim_") && len(payment.Label) == (len("claim_")+64) {
-		log.Printf("[SwapService] New claim payment received %s", payment.Label)
-		swapId = payment.Label[6:]
+	if strings.Contains(paymentLabel, "claim_") && len(paymentLabel) == (len("claim_")+64) {
+		log.Printf("[SwapService] New claim payment received %s", paymentLabel)
+		swapId = paymentLabel[6:]
 		err = s.OnClaimInvoicePaid(swapId)
-	} else if strings.Contains(payment.Label, "fee_") && len(payment.Label) == (len("fee_")+64) {
-		log.Printf("[SwapService] New fee payment received %s", payment.Label)
-		swapId = payment.Label[4:]
+	} else if strings.Contains(paymentLabel, "fee_") && len(paymentLabel) == (len("fee_")+64) {
+		log.Printf("[SwapService] New fee payment received %s", paymentLabel)
+		swapId = paymentLabel[4:]
 		err = s.OnFeeInvoicePaid(swapId)
 	} else {
 		return

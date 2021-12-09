@@ -27,7 +27,7 @@ func NewDaemonProcess(cmdline []string, prefix string) *DaemonProcess {
 	return &DaemonProcess{
 		CmdLine: cmdline,
 		Log:     &lockedWriter{w: new(strings.Builder)},
-		logger:  log.New(os.Stdout, fmt.Sprintf("%s: ", prefix), 0),
+		logger:  log.New(os.Stdout, fmt.Sprintf("%s: ", prefix), log.LstdFlags),
 	}
 }
 
@@ -51,7 +51,7 @@ func (d *DaemonProcess) Run() {
 	d.Cmd = cmd
 	d.logger.Printf("starting command %s", cmd.String())
 
-	w := io.MultiWriter(d.Log, &logWriter{l: d.logger})
+	w := io.MultiWriter(d.Log, &logWriter{l: d.logger, filter: os.Getenv("LIGHTNING_TESTFRAMEWORK_FILTER")})
 	cmd.Stdout = w
 
 	errReader, err := cmd.StderrPipe()
@@ -106,7 +106,7 @@ func (d *DaemonProcess) WaitForLog(regex string, timeout time.Duration) error {
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("timeout reached while waiting for %s in logs", regex)
+			return fmt.Errorf("timeout reached while waiting for `%s` in logs", regex)
 		default:
 			ok, err := d.HasLog(regex)
 			if err != nil {
@@ -143,13 +143,17 @@ func (w *lockedWriter) String() string {
 }
 
 type logWriter struct {
-	l *log.Logger
+	l      *log.Logger
+	filter string
 }
 
 func (w *logWriter) Write(b []byte) (n int, err error) {
 	scanner := bufio.NewScanner(bytes.NewReader(b))
 	for scanner.Scan() {
-		w.l.Println(scanner.Text())
+		text := scanner.Text()
+		if w.filter == "" || strings.Contains(text, w.filter) {
+			w.l.Println(text)
+		}
 	}
 	return len(b), nil
 }

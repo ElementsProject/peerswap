@@ -38,14 +38,26 @@ type BlockchainRpcTxWatcher struct {
 	txWatchList    map[string]string
 	csvtxWatchList map[string]*SwapTxInfo
 	newBlockChan   chan uint64
-	requiredConfs  uint32
-	ctx            context.Context
+
+	requiredConfs uint32
+	csv           uint32
+
+	ctx context.Context
 	sync.Mutex
 }
 
-func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32) *BlockchainRpcTxWatcher {
+func (s *BlockchainRpcTxWatcher) GetBlockHeight() (uint32, error) {
+	blockheight, err := s.blockchain.GetBlockHeight()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(blockheight), nil
+}
+
+func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32, csv uint32) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
 		ctx:            ctx,
+		csv:            csv,
 		blockchain:     blockchain,
 		txWatchList:    make(map[string]string),
 		csvtxWatchList: make(map[string]*SwapTxInfo),
@@ -177,19 +189,19 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	s.TxClaimed(toRemove)
 	return nil
 }
-func (l *BlockchainRpcTxWatcher) AddConfirmationsTx(swapId, txId string) {
+func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, scriptpubkey []byte) {
 	l.Lock()
 	defer l.Unlock()
 	l.txWatchList[swapId] = txId
 }
 
-func (l *BlockchainRpcTxWatcher) AddCsvTx(swapId, txId string, vout uint32, csv uint32) {
+func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvtxWatchList[swapId] = &SwapTxInfo{
 		TxId:   txId,
 		TxVout: vout,
-		Csv:    csv,
+		Csv:    l.csv,
 	}
 }
 
@@ -202,13 +214,13 @@ func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
 	}
 }
 
-func (l *BlockchainRpcTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
+func (l *BlockchainRpcTxWatcher) AddConfirmationCallback(f func(swapId string) error) {
 	l.Lock()
 	defer l.Unlock()
 	l.txCallback = f
 }
 
-func (l *BlockchainRpcTxWatcher) AddCsvPassedHandler(f func(swapId string) error) {
+func (l *BlockchainRpcTxWatcher) AddCsvCallback(f func(swapId string) error) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvPassedCallback = f

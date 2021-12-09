@@ -66,7 +66,7 @@ func Test_ValidSwap(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &TxOpenedMessage{
 		MakerPubkeyHash: "maker",
 		Invoice:         "claiminv",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ type dummyMessenger struct {
 	msgChan chan PeerMessage
 }
 
-func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload string) error) {
+func (d *dummyMessenger) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
 }
 
 func (d *dummyMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
@@ -242,7 +242,7 @@ func (d DummyMessageType) MessageType() messages.MessageType {
 
 type dummyLightningClient struct {
 	preimage        string
-	paymentCallback func(*glightning.Payment)
+	paymentCallback func(string)
 	failpayment     bool
 }
 
@@ -261,30 +261,26 @@ func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (
 }
 
 func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
-	d.paymentCallback(payment)
+	d.paymentCallback(payment.Label)
 }
 
-func (d *dummyLightningClient) AddPaymentCallback(f func(*glightning.Payment)) {
+func (d *dummyLightningClient) AddPaymentCallback(f func(string)) {
 	d.paymentCallback = f
 }
 
 //todo implement
-func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string) (string, error) {
+func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string, expiry uint64) (string, error) {
 	if d.preimage == "err" {
 		return "", errors.New("err")
 	}
 	return "", nil
 }
 
-func (d *dummyLightningClient) DecodePayreq(payreq string) (*lightning.Invoice, error) {
+func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, error) {
 	if payreq == "err" {
-		return nil, errors.New("error decoding")
+		return "", 0, errors.New("error decoding")
 	}
-	return &lightning.Invoice{
-		PHash:       "foo",
-		Amount:      100 * 1000,
-		Description: "gude",
-	}, nil
+	return "foo", 100 * 1000, nil
 }
 
 func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) error {
@@ -351,48 +347,60 @@ type dummyChain struct {
 	csvPassedFunc   func(swapId string) error
 }
 
+func (d *dummyChain) GetOutputScript(params *OpeningParams) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (d *dummyChain) TxIdFromHex(txHex string) (string, error) {
+	return "txid", nil
+}
+
+func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
+	return "takersighash", nil
+}
+
+func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+	return "txid", "txhex", nil
+}
+
+func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, wantscript []byte) {
+
+}
+
+func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) {
+
+}
+
+func (d *dummyChain) GetBlockHeight() (uint32, error) {
+	return 1, nil
+}
+
 func (d *dummyChain) GetRefundFee() (uint64, error) {
 	return 100, nil
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, txId string, fee uint64, csv uint32, vout uint32, err error) {
-	return "txhex", "", 0, 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+	return "txhex", 0, 0, nil
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
 	d.csvPassedFunc = f
 }
 
-func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	return "takersighash", nil
-}
-
-func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress, openingTxHex string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) CreateRefundAddress() (string, error) {
+func (d *dummyChain) NewAddress() (string, error) {
 	return "addr", nil
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxId string) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, openingTxHex string, vout uint32) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
-}
-
-func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string) (err error) {
-	return nil
-}
-
-func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32) (err error) {
-	return nil
 }
 
 func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {

@@ -18,11 +18,6 @@ liquid-swap-plugin
 db
 dist/
 
-peerswap
-mermaid-parser
-
-peerswap_pytest/__pycache__/
-
 .ci/docker/config/**
 
 # the vscode workspace config dir
@@ -31,3 +26,6 @@ peerswap_pytest/__pycache__/
 # generated dev liquid nodes
 .ci/docker/liquid-config/**
 .ci/docker/liquid-config2/**
+
+# build output
+out/

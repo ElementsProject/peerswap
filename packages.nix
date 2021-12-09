@@ -7,9 +7,10 @@ pkgs = import nixpkgs {};
 nix-bitcoin-release = pkgs.fetchFromGitHub {
     owner = "fort-nix";
     repo = "nix-bitcoin";
-    rev = "v0.0.49";
-    sha256 = "03b1zpwbcz98vrcnfflnxdcg17mhip3p63asp3jqzzzk8v4f1rna";
+    rev = "v0.0.59";
+    sha256 = "sha256:1ms35sig935qw9i79i4g63p32h0qx27wvpr4rimi3wqrj92kfnjf";
 };
+
 
 nix-bitcoin-unstable-pkgs = import (import "${toString nix-bitcoin-release}/pkgs/nixpkgs-pinned.nix").nixpkgs-unstable {};
 
@@ -39,7 +40,8 @@ in with pkgs;
         bitcoin = bitcoin;
         elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
+        lnd = nix-bitcoin-unstable-pkgs.lnd;
     };
-    testpkgs = [ go bitcoin elementsd clightning-dev ];
-    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning clightning-dev docker-compose jq nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin elementsd clightning-dev nix-bitcoin-unstable-pkgs.lnd];
+    devpkgs = [ bitcoin elementsd nix-bitcoin-unstable-pkgs.clightning clightning-dev nix-bitcoin-unstable-pkgs.lnd docker-compose jq nodePackages.mermaid-cli ];
 }

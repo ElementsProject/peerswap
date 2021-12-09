@@ -1,10 +1,16 @@
 package swap
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/sputn1ck/peerswap/isdev"
 )
 
 type SwapCreationContext struct {
@@ -75,12 +81,12 @@ type PayFeeInvoiceAction struct{}
 func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
 	// policy := services.policy
-	invoice, err := ll.DecodePayreq(swap.FeeInvoice)
+	_, msatAmt, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
 		log.Printf("error decoding %v", err)
 		return Event_ActionFailed
 	}
-	swap.OpeningTxFee = invoice.Amount / 1000
+	swap.OpeningTxFee = msatAmt / 1000
 	// todo check peerId
 	/*
 		if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
@@ -104,17 +110,31 @@ type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, validator, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return Event_ActionFailed
 	}
 
 	// todo check policy
 
-	err = onchain.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId)
+	openingTxId, err := validator.TxIdFromHex(swap.OpeningTxHex)
 	if err != nil {
 		return Event_ActionFailed
 	}
+	swap.OpeningTxId = openingTxId
+
+	phash, _, err := services.lightning.DecodePayreq(swap.ClaimInvoice)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.ClaimPaymentHash = phash
+
+	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	txWatcher.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -125,35 +145,71 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, _, validator, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	invoice, err := lc.DecodePayreq(swap.ClaimInvoice)
+	phash, msatAmount, err := lc.DecodePayreq(swap.ClaimInvoice)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
 	// todo this might fail, msats...
-	if invoice.Amount != swap.Amount*1000 {
-		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", invoice.Amount, swap.Amount))
+	if msatAmount != swap.Amount*1000 {
+		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", swap.ClaimInvoice, swap.Amount))
 	}
 
-	swap.ClaimPaymentHash = invoice.PHash
+	swap.ClaimPaymentHash = phash
 
-	ok, err := onchain.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxId)
+	ok, err := validator.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxHex)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	if !ok {
-		return swap.HandleError(err)
+		return swap.HandleError(errors.New("tx is not valid"))
 	}
-	preimageString, err := lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
-	if err != nil {
-		return swap.HandleError(err)
+
+	var retryTime time.Duration = 120 * time.Second
+	if isdev.FastTests() {
+		// Retry time should be in [s].
+		prtStr := os.Getenv("PAYMENT_RETRY_TIME")
+		if prtStr != "" {
+			prtInt, err := strconv.Atoi(prtStr)
+			if err != nil {
+				log.Printf("could not read from PAYMENT_RETRY_TIME")
+			} else if prtInt < 1 {
+				log.Printf("PAYMENT_RETRY_TIME must be be positive int representing seconds")
+			} else {
+				retryTime = time.Duration(prtInt) * time.Second
+			}
+		}
 	}
-	swap.ClaimPreimage = preimageString
+
+	ctx, done := context.WithTimeout(context.Background(), retryTime)
+	defer done()
+	var preimageString string
+paymentLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			break paymentLoop
+		default:
+			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
+			if err != nil {
+				log.Printf("error trying to pay invoice: %v", err)
+			}
+			if preimageString != "" {
+				swap.ClaimPreimage = preimageString
+				break paymentLoop
+			}
+			time.Sleep(time.Second * 10)
+			log.Printf("RETRY paying invoice")
+		}
+	}
+	if preimageString == "" {
+		return swap.HandleError(fmt.Errorf("could not pay invoice, lastErr %w", err))
+	}
 	return Event_ActionSucceeded
 }
 
@@ -224,10 +280,11 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SwapOutSender_AwaitTxBroadcastedMessage: {
-			Action: &NoOpAction{},
+			Action: &SetStartingBlockHeightAction{},
 			Events: Events{
 				Event_OnCancelReceived:  State_SwapCanceled,
 				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
+				Event_ActionSucceeded:   State_SendCancel,
 			},
 		},
 		State_SendCancel: {

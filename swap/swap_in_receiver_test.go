@@ -21,11 +21,12 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	swap := newSwapInReceiverFSM(swapId, swapServices)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:    swapAmount,
-		peer:      peer,
-		channelId: chanId,
-		swapId:    swapId,
-		asset:     "btc",
+		amount:          swapAmount,
+		peer:            peer,
+		channelId:       chanId,
+		swapId:          swapId,
+		asset:           "btc",
+		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +39,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -66,11 +67,12 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	swap := newSwapInReceiverFSM(swapId, swapServices)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:    swapAmount,
-		peer:      peer,
-		channelId: chanId,
-		swapId:    swapId,
-		asset:     "btc",
+		amount:          swapAmount,
+		peer:            peer,
+		channelId:       chanId,
+		swapId:          swapId,
+		asset:           "btc",
+		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -100,11 +102,12 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	swap := newSwapInReceiverFSM(swapId, swapServices)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:    swapAmount,
-		peer:      peer,
-		channelId: chanId,
-		swapId:    swapId,
-		asset:     "btc",
+		amount:          swapAmount,
+		peer:            peer,
+		channelId:       chanId,
+		swapId:          swapId,
+		asset:           "btc",
+		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +120,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		SwapId:          swap.Id,
 		MakerPubkeyHash: makerPubkeyHash,
 		Invoice:         "invoice",
-		TxId:            "txid",
+		TxHex:           "txhex",
 	})
 	if err != nil {
 		t.Fatal(err)

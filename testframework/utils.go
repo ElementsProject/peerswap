@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -59,8 +61,8 @@ func WaitForWithErr(f WaitFuncWithErr, timeout time.Duration) error {
 	}
 }
 
-func AssertWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) bool {
-	actual, err := waitForChannelBalance(t, node, expected, delta, timeout)
+func AssertWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) bool {
+	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
 		t.Logf("expected: %d, got: %d", uint64(expected), uint64(actual))
 		t.Fail()
@@ -69,32 +71,29 @@ func AssertWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, d
 	return true
 }
 
-func RequireWaitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) {
-	actual, err := waitForChannelBalance(t, node, expected, delta, timeout)
+func RequireWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) {
+	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
 		t.Fatalf("expected: %d, got: %d", uint64(expected), uint64(actual))
 	}
 }
 
-func waitForChannelBalance(t *testing.T, node *CLightningNode, expected, delta float64, timeout time.Duration) (float64, error) {
-	node.logger.Printf("waiting for balance %f", expected)
-	var actual float64
-	err := WaitFor(func() bool {
-		funds, err := node.Rpc.ListFunds()
+func waitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) (float64, error) {
+	var err error
+	var actual uint64
+	err = WaitFor(func() bool {
+		actual, err = node.GetChannelBalanceSat(scid)
 		if err != nil {
 			t.Fatalf("got err %v", err)
 		}
-		if len(funds.Channels) != 1 {
-			t.Fatalf("channels got not len 1")
-		}
-		actual = float64(funds.Channels[0].ChannelSatoshi)
+
 		dt := float64(expected) - float64(actual)
 		return !(dt > delta) && !(dt < -delta)
 	}, timeout)
-	return actual, err
+	return float64(actual), err
 }
 
-func getFreePort() (port int, err error) {
+func GetFreePort() (port int, err error) {
 	var a *net.TCPAddr
 	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
 		var l *net.TCPListener
@@ -106,7 +105,7 @@ func getFreePort() (port int, err error) {
 	return
 }
 
-func generateRandomString(n int) (string, error) {
+func GenerateRandomString(n int) (string, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 	ret := make([]byte, n)
 	for i := 0; i < n; i++ {
@@ -179,38 +178,6 @@ func SwitchWallet(node *LiquidNode, walletName string) error {
 	return nil
 }
 
-func GetBtcWalletBalanceSat(node *CLightningNode) (uint64, error) {
-	r, err := node.Rpc.ListFunds()
-	if err != nil {
-		return 0, fmt.Errorf("ListFunds() %w", err)
-	}
-
-	var sum uint64
-	for _, output := range r.Outputs {
-		// Value seems to be already in sat.
-		sum += output.Value
-	}
-	return sum, nil
-}
-
-func SyncedBlockheight(node *CLightningNode) (bool, error) {
-	r, err := node.bitcoin.Rpc.Call("getblockcount")
-	if err != nil {
-		return false, fmt.Errorf("bitcoin.rpc.Call(\"getblockcount\") %w", err)
-	}
-
-	chainHeight, err := r.GetFloat()
-	if err != nil {
-		return false, fmt.Errorf("GetFloat() %w", err)
-	}
-
-	nodeInfo, err := node.Rpc.GetInfo()
-	if err != nil {
-		return false, fmt.Errorf("GetInfo() %w", err)
-	}
-	return nodeInfo.Blockheight >= uint(chainHeight), nil
-}
-
 func BalanceChannel5050(node, peer *CLightningNode, scid string) error {
 	funds, err := node.Rpc.ListFunds()
 	if err != nil {
@@ -261,4 +228,20 @@ func BalanceChannel5050(node, peer *CLightningNode, scid string) error {
 		}
 	}
 	return fmt.Errorf("channel not found %s", scid)
+}
+
+func SplitLnAddr(addr string) (string, string, int, error) {
+	parts := strings.Split(addr, "@")
+	if len(parts) != 2 {
+		return "", "", 0, fmt.Errorf("can not split addr `@` %s", addr)
+	}
+	p := strings.Split(parts[1], ":")
+	if len(p) != 2 {
+		return "", "", 0, fmt.Errorf("can not split addr `:` %s", addr)
+	}
+	port, err := strconv.Atoi(p[1])
+	if err != nil {
+		return "", "", 0, fmt.Errorf("Atoi() %w", err)
+	}
+	return parts[0], p[0], port, nil
 }

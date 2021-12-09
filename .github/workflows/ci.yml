@@ -26,5 +26,5 @@ jobs:
       - name: Run go tests
         run: make test
 
-      - name: Run integration tests
-        run: make test-with-integration
+      - name: Run tests with integration
+        run: make test-integration

@@ -2,6 +2,7 @@ package swap
 
 import (
 	"encoding/hex"
+	"log"
 
 	"github.com/sputn1ck/peerswap/lightning"
 )
@@ -37,7 +38,7 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 type CreateAndBroadcastOpeningTransaction struct{}
 
 func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -51,7 +52,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 	pHash := preimage.Hash()
-	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
+	expiry := uint64(3600)
+	if swap.Asset == "btc" {
+		expiry = 3600 * 24
+	}
+	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -69,15 +74,20 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
-	txId, txHex, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	txId, txHex, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	startingHeight, err := txWatcher.GetBlockHeight()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.StartingBlockHeight = startingHeight
+
 	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
 
-	refundFee, err := onchain.GetRefundFee()
+	refundFee, err := wallet.GetRefundFee()
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -86,7 +96,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
-		TxId:            swap.OpeningTxId,
+		TxHex:           swap.OpeningTxHex,
 		RefundAddr:      swap.MakerRefundAddr,
 		RefundFee:       swap.RefundFee,
 	})
@@ -104,14 +114,17 @@ type AwaitCsvAction struct{}
 
 //todo this will never throw an error
 func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	onchain, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	err = onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout)
+
+	log.Printf("opening params: %s", swap.GetOpeningParams())
+	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 

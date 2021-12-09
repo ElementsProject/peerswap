@@ -74,13 +74,13 @@ type TxOpenedMessage struct {
 	RefundAddr      string
 	RefundFee       uint64
 	Invoice         string
-	TxId            string
+	TxHex           string
 }
 
 func (t TxOpenedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.MakerPubkeyHash = t.MakerPubkeyHash
 	swap.ClaimInvoice = t.Invoice
-	swap.OpeningTxId = t.TxId
+	swap.OpeningTxHex = t.TxHex
 	swap.MakerRefundAddr = t.RefundAddr
 	swap.RefundFee = t.RefundFee
 }

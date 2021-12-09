@@ -59,7 +59,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.liquidOnchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.liquidOnchain.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,12 +228,12 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			},
 		},
 		swapServices: &SwapServices{
-			swapStore:      nil,
-			lightning:      nil,
-			messenger:      nil,
-			policy:         nil,
-			bitcoinOnchain: nil,
-			liquidOnchain:  nil,
+			swapStore:        nil,
+			lightning:        nil,
+			messenger:        nil,
+			policy:           nil,
+			bitcoinTxWatcher: nil,
+			liquidTxWatcher:  nil,
 		},
 		retries:  0,
 		failures: 0,
@@ -259,13 +259,14 @@ func getTestSetup(name string) *SwapService {
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapService := NewSwapService(store, reqSwapsStore, true, chain, true, chain, lc, messenger, policy)
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, policy, true, chain, chain, chain, true, chain, chain, chain)
+	swapService := NewSwapService(swapServices)
 	return swapService
 }
 
 type ConnectedMessenger struct {
 	thisPeerId      string
-	OnMessage       func(peerId string, msgType string, msgBytes string) error
+	OnMessage       func(peerId string, msgType string, msgBytes []byte) error
 	other           *ConnectedMessenger
 	msgReceivedChan chan messages.MessageType
 }
@@ -274,7 +275,7 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 	go func() {
 		time.Sleep(time.Millisecond * 10)
 		msgString := messages.MessageTypeToHexString(messages.MessageType(msgType))
-		err := c.other.OnMessage(c.thisPeerId, msgString, string(msg))
+		err := c.other.OnMessage(c.thisPeerId, msgString, msg)
 		if err != nil {
 			log.Printf("error on message send %v", err)
 		}
@@ -286,6 +287,6 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 	return nil
 }
 
-func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes string) error) {
+func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
 	c.OnMessage = f
 }

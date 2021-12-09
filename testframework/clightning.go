@@ -18,21 +18,21 @@ type CLightningNode struct {
 
 	DataDir    string
 	ConfigFile string
-	RpcPort    int
+	Port       int
 	Info       *glightning.NodeInfo
 
 	bitcoin *BitcoinNode
 }
 
 func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightningNode, error) {
-	rpcPort, err := getFreePort()
+	port, err := GetFreePort()
 	if err != nil {
-		return nil, fmt.Errorf("getFreePort() %w", err)
+		return nil, fmt.Errorf("GetFreePort() %w", err)
 	}
 
-	rngDirExtension, err := generateRandomString(5)
+	rngDirExtension, err := GenerateRandomString(5)
 	if err != nil {
-		return nil, fmt.Errorf("generateRandomString(5) %w", err)
+		return nil, fmt.Errorf("GenerateRandomString(5) %w", err)
 	}
 
 	dataDir := filepath.Join(testDir, fmt.Sprintf("clightning-%s", rngDirExtension))
@@ -43,9 +43,9 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		return nil, fmt.Errorf("os.MkdirAll() %w", err)
 	}
 
-	bitcoinConf, err := readConfig(bitcoin.configFile)
+	bitcoinConf, err := ReadConfig(bitcoin.configFile)
 	if err != nil {
-		return nil, fmt.Errorf("readConfig() %w", err)
+		return nil, fmt.Errorf("ReadConfig() %w", err)
 	}
 
 	var bitcoinRpcPass string
@@ -73,10 +73,10 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		"lightningd",
 		fmt.Sprintf("--lightning-dir=%s", dataDir),
 		fmt.Sprintf("--log-level=%s", "debug"),
-		fmt.Sprintf("--addr=127.0.0.1:%d", rpcPort),
+		fmt.Sprintf("--addr=127.0.0.1:%d", port),
 		fmt.Sprintf("--allow-deprecated-apis=%s", "true"),
 		fmt.Sprintf("--network=%s", "regtest"),
-		fmt.Sprintf("--ignore-fee-limits=%s", "false"),
+		fmt.Sprintf("--ignore-fee-limits=%s", "true"),
 		fmt.Sprintf("--bitcoin-rpcuser=%s", bitcoinRpcUser),
 		fmt.Sprintf("--bitcoin-rpcpassword=%s", bitcoinRpcPass),
 		fmt.Sprintf("--bitcoin-rpcport=%s", bitcoinRpcPort),
@@ -86,7 +86,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 	// socketPath := filepath.Join(networkDir, "lightning-rpc")
 	proxy, err := NewCLightningProxy("lightning-rpc", networkDir)
 	if err != nil {
-		return nil, fmt.Errorf("NewCLightningProxy(configFile) %w", err)
+		return nil, fmt.Errorf("NewCLightningProxy() %w", err)
 	}
 
 	// Create seed file
@@ -107,7 +107,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		DaemonProcess:   NewDaemonProcess(cmdLine, fmt.Sprintf("clightning-%d", id)),
 		CLightningProxy: proxy,
 		DataDir:         dataDir,
-		RpcPort:         rpcPort,
+		Port:            port,
 		bitcoin:         bitcoin,
 	}, nil
 }
@@ -153,7 +153,7 @@ func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 				return false
 			}
 
-			isHeightSync, err := SyncedBlockheight(n)
+			isHeightSync, err := n.IsBlockHeightSynced()
 			if err != nil {
 				log.Printf("rpc.GetInfo() %v", err)
 				return false
@@ -169,6 +169,88 @@ func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 func (n *CLightningNode) Shutdown() error {
 	n.Rpc.Stop()
 	return os.Remove(filepath.Join(n.dataDir, "lightning-rpc"))
+}
+
+func (n *CLightningNode) Id() string {
+	return n.Info.Id
+}
+
+func (n *CLightningNode) Address() string {
+	return fmt.Sprintf("%s@127.0.0.1:%d", n.Info.Id, n.Port)
+}
+
+func (n *CLightningNode) GetBtcBalanceSat() (sats uint64, err error) {
+	r, err := n.Rpc.ListFunds()
+	if err != nil {
+		return 0, fmt.Errorf("ListFunds() %w", err)
+	}
+
+	var sum uint64
+	for _, output := range r.Outputs {
+		// Value seems to be already in sat.
+		sum += output.Value
+	}
+	return sum, nil
+}
+
+func (n *CLightningNode) GetChannelBalanceSat(scid string) (sats uint64, err error) {
+	funds, err := n.Rpc.ListFunds()
+	if err != nil {
+		return 0, fmt.Errorf("rpc.ListFunds() %w", err)
+	}
+
+	for _, ch := range funds.Channels {
+		if ch.ShortChannelId == scid {
+			return ch.ChannelSatoshi, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no channel found with scid %s", scid)
+}
+
+func (n *CLightningNode) GetScid(remote LightningNode) (string, error) {
+	peers, err := n.Rpc.ListPeers()
+	if err != nil {
+		return "", fmt.Errorf("ListPeers() %w", err)
+	}
+
+	for _, peer := range peers {
+		if peer.Id == remote.Id() {
+			if peer.Channels != nil {
+				return peer.Channels[0].ShortChannelId, nil
+			}
+			return "", fmt.Errorf("no channel to peer")
+		}
+	}
+	return "", fmt.Errorf("peer not found")
+}
+
+func (n *CLightningNode) Connect(peer LightningNode, waitForConnection bool) error {
+	id, host, port, err := SplitLnAddr(peer.Address())
+	if err != nil {
+		return fmt.Errorf("SplitLnAddr() %w", err)
+	}
+
+	_, err = n.Rpc.Connect(id, host, uint(port))
+	if err != nil {
+		return fmt.Errorf("Connect() %w", err)
+	}
+
+	if waitForConnection {
+		return WaitForWithErr(func() (bool, error) {
+			localIsConnected, err := n.IsConnected(peer)
+			if err != nil {
+				return false, fmt.Errorf("IsConnected() %w", err)
+			}
+			peerIsConnected, err := peer.IsConnected(n)
+			if err != nil {
+				return false, fmt.Errorf("IsConnected() %w", err)
+			}
+			return localIsConnected && peerIsConnected, nil
+		}, TIMEOUT)
+	}
+
+	return nil
 }
 
 func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error) {
@@ -201,25 +283,7 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 	return addr, nil
 }
 
-func (n *CLightningNode) IsConnected(remote *CLightningNode) (bool, error) {
-	peers, err := n.Rpc.ListPeers()
-	if err != nil {
-		return false, fmt.Errorf("rpc.ListPeers() %w", err)
-	}
-
-	for _, peer := range peers {
-		if remote.Info.Id == peer.Id {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (n *CLightningNode) Connect(remote *CLightningNode) (string, error) {
-	return n.Rpc.Connect(remote.Info.Id, "127.0.0.1", uint(remote.RpcPort))
-}
-
-func (n *CLightningNode) OpenChannel(remote *CLightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
+func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
 	_, err := n.FundWallet(10*capacity, true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
@@ -231,21 +295,13 @@ func (n *CLightningNode) OpenChannel(remote *CLightningNode, capacity uint64, co
 	}
 
 	if !isConnected && connect {
-		_, err = n.Connect(remote)
+		err = n.Connect(remote, true)
 		if err != nil {
 			return "", fmt.Errorf("Connect() %w", err)
 		}
 	}
 
-	WaitForWithErr(func() (bool, error) {
-		isConnected, err := n.IsConnected(remote)
-		if err != nil {
-			return false, fmt.Errorf("IsConnected() %w", err)
-		}
-		return isConnected, nil
-	}, TIMEOUT)
-
-	fr, err := n.Rpc.FundChannel(remote.Info.Id, &glightning.Sat{Value: capacity})
+	fr, err := n.Rpc.FundChannel(remote.Id(), &glightning.Sat{Value: capacity})
 	if err != nil {
 		return "", fmt.Errorf("FundChannel() %w", err)
 	}
@@ -281,8 +337,24 @@ func (n *CLightningNode) OpenChannel(remote *CLightningNode, capacity uint64, co
 	}
 
 	if waitForActiveChannel {
-		err = WaitFor(func() bool {
-			return n.IsChannelActive(remote) && remote.IsChannelActive(n)
+		err = WaitForWithErr(func() (bool, error) {
+			scid, err := n.GetScid(remote)
+			if err != nil {
+				return false, fmt.Errorf("GetScid() %w", err)
+			}
+			if scid == "" {
+				return false, nil
+			}
+
+			localActive, err := n.IsChannelActive(scid)
+			if err != nil {
+				return false, fmt.Errorf("IsChannelActive() %w", err)
+			}
+			remoteActive, err := remote.IsChannelActive(scid)
+			if err != nil {
+				return false, fmt.Errorf("IsChannelActive() %w", err)
+			}
+			return remoteActive && localActive, nil
 		}, TIMEOUT)
 		if err != nil {
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
@@ -297,44 +369,51 @@ func (n *CLightningNode) OpenChannel(remote *CLightningNode, capacity uint64, co
 	return scid, nil
 }
 
-func (n *CLightningNode) ChannelState(remote *CLightningNode) (string, error) {
-	peers, err := n.Rpc.ListPeers()
+func (n *CLightningNode) IsBlockHeightSynced() (bool, error) {
+	r, err := n.bitcoin.Rpc.Call("getblockcount")
 	if err != nil {
-		return "", nil
+		return false, fmt.Errorf("bitcoin.rpc.Call(\"getblockcount\") %w", err)
 	}
-	for _, peer := range peers {
-		if peer.Id == remote.Info.Id {
-			if len(peer.Channels) == 1 {
-				return peer.Channels[0].State, nil
-			}
-		}
+
+	chainHeight, err := r.GetFloat()
+	if err != nil {
+		return false, fmt.Errorf("GetFloat() %w", err)
 	}
-	return "", fmt.Errorf("channel not found")
+
+	nodeInfo, err := n.Rpc.GetInfo()
+	if err != nil {
+		return false, fmt.Errorf("GetInfo() %w", err)
+	}
+	return nodeInfo.Blockheight >= uint(chainHeight), nil
 }
 
-func (n *CLightningNode) IsChannelActive(remote *CLightningNode) bool {
-	state, err := n.ChannelState(remote)
+func (n *CLightningNode) IsChannelActive(scid string) (bool, error) {
+	funds, err := n.Rpc.ListFunds()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("ListChannels() %w", err)
 	}
-	return state == "CHANNELD_NORMAL"
+
+	for _, ch := range funds.Channels {
+		if ch.ShortChannelId == scid {
+			return ch.State == "CHANNELD_NORMAL", nil
+		}
+	}
+
+	return false, nil
 }
 
-func (n *CLightningNode) GetScid(remote *CLightningNode) (string, error) {
+func (n *CLightningNode) IsConnected(remote LightningNode) (bool, error) {
 	peers, err := n.Rpc.ListPeers()
 	if err != nil {
-		return "", fmt.Errorf("ListPeers() %w", err)
+		return false, fmt.Errorf("rpc.ListPeers() %w", err)
 	}
 
 	for _, peer := range peers {
-		if peer.Id == remote.Info.Id {
-			if peer.Channels != nil {
-				return peer.Channels[0].ShortChannelId, nil
-			}
-			return "", fmt.Errorf("no channel to peer")
+		if remote.Id() == peer.Id {
+			return peer.Connected, nil
 		}
 	}
-	return "", fmt.Errorf("peer not found")
+	return false, nil
 }
 
 func (n *CLightningNode) GetDataDir() string {

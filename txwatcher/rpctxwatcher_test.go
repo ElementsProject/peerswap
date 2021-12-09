@@ -15,15 +15,15 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	db := &DummyBlockchain{}
 	txWatcherChan := make(chan string)
 
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 100)
 
 	err := txWatcher.StartWatchingTxs()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	txWatcher.AddConfirmationsTx(swapId, txId)
-	txWatcher.AddTxConfirmedHandler(func(swapId string) error {
+	txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, nil)
+	txWatcher.AddConfirmationCallback(func(swapId string) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
@@ -50,15 +50,15 @@ func Test_RpcTxWatcherCsv(t *testing.T) {
 
 	txWatcherChan := make(chan string)
 
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 100)
 
 	err := txWatcher.StartWatchingTxs()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	txWatcher.AddCsvTx(swapId, txid, vout, csv)
-	txWatcher.AddCsvPassedHandler(func(swapId string) error {
+	txWatcher.AddWaitForCsvTx(swapId, txid, vout, csv, nil)
+	txWatcher.AddCsvCallback(func(swapId string) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})

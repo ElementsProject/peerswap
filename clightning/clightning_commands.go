@@ -24,26 +24,26 @@ func (e SwapCanceledError) Error() string {
 	return fmt.Sprintf("swap canceled, reason: %s", string(e))
 }
 
-// GetAddressMethod returns a new liquid address
-type GetAddressMethod struct {
+// LiquidGetAddress returns a new liquid address
+type LiquidGetAddress struct {
 	cl *ClightningClient `json:"-"`
 }
 
-func (g *GetAddressMethod) New() interface{} {
-	return &GetAddressMethod{
+func (g *LiquidGetAddress) New() interface{} {
+	return &LiquidGetAddress{
 		cl: g.cl,
 	}
 }
 
-func (g *GetAddressMethod) Name() string {
+func (g *LiquidGetAddress) Name() string {
 	return "peerswap-liquid-getaddress"
 }
 
-func (g *GetAddressMethod) Call() (jrpc2.Result, error) {
+func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 	if g.cl == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
-	res, err := g.cl.wallet.GetAddress()
+	res, err := g.cl.liquidWallet.GetAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -56,25 +56,25 @@ type GetAddressResponse struct {
 }
 
 // GetBalance returns the liquid balance
-type GetBalanceMethod struct {
+type LiquidGetBalance struct {
 	cl *ClightningClient
 }
 
-func (g *GetBalanceMethod) Name() string {
+func (g *LiquidGetBalance) Name() string {
 	return "peerswap-liquid-getbalance"
 }
 
-func (g *GetBalanceMethod) New() interface{} {
-	return &GetBalanceMethod{
+func (g *LiquidGetBalance) New() interface{} {
+	return &LiquidGetBalance{
 		cl: g.cl,
 	}
 }
 
-func (g *GetBalanceMethod) Call() (jrpc2.Result, error) {
+func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 	if g.cl == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
-	res, err := g.cl.wallet.GetBalance()
+	res, err := g.cl.liquidWallet.GetBalance()
 	if err != nil {
 		return nil, err
 	}
@@ -87,30 +87,30 @@ type GetBalanceResponse struct {
 	LiquidBalance uint64 `json:"liquid_balance_sat"`
 }
 
-// SendToAddressMethod sends
-type SendToAddressMethod struct {
+// LiquidSendToAddress sends
+type LiquidSendToAddress struct {
 	Address   string `json:"address"`
 	AmountSat uint64 `json:"amount_sat"`
 	cl        *ClightningClient
 }
 
-func (s *SendToAddressMethod) Name() string {
+func (s *LiquidSendToAddress) Name() string {
 	return "peerswap-liquid-sendtoaddress"
 }
 
-func (s *SendToAddressMethod) New() interface{} {
-	return &SendToAddressMethod{
+func (s *LiquidSendToAddress) New() interface{} {
+	return &LiquidSendToAddress{
 		cl: s.cl,
 	}
 }
 
-func (s *SendToAddressMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &SendToAddressMethod{
+func (s *LiquidSendToAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &LiquidSendToAddress{
 		cl: client,
 	}
 }
 
-func (s *SendToAddressMethod) Call() (jrpc2.Result, error) {
+func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
 	if s.cl == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
@@ -120,7 +120,7 @@ func (s *SendToAddressMethod) Call() (jrpc2.Result, error) {
 	if s.AmountSat == 0 {
 		return nil, errors.New("amount_sat must be set")
 	}
-	res, err := s.cl.wallet.SendToAddress(s.Address, s.AmountSat)
+	res, err := s.cl.liquidWallet.SendToAddress(s.Address, s.AmountSat)
 	if err != nil {
 		log.Printf("error %v", err)
 		return nil, err
@@ -132,11 +132,11 @@ type SendToAddressResponse struct {
 	TxId string `json:"txid"`
 }
 
-func (s *SendToAddressMethod) Description() string {
+func (s *LiquidSendToAddress) Description() string {
 	return "sends lbtc to an address"
 }
 
-func (s *SendToAddressMethod) LongDescription() string {
+func (s *LiquidSendToAddress) LongDescription() string {
 	return "'"
 }
 
@@ -181,7 +181,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels not found")
 	}
 
-	if fundingChannels.ChannelSatoshi < l.SatAmt {
+	if fundingChannels.ChannelSatoshi < (l.SatAmt + 5000) {
 		return nil, errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
@@ -204,17 +204,6 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	} else if strings.Compare(l.Asset, "btc") == 0 {
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
-		}
-		funds, err := l.cl.glightning.ListFunds()
-		if err != nil {
-			return nil, err
-		}
-		sats := uint64(0)
-		for _, v := range funds.Outputs {
-			sats += v.Value
-		}
-		if sats < 5000 {
-			return nil, errors.New("you require more some onchain-btc for fees")
 		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
@@ -313,12 +302,12 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		if l.cl.Gelements == nil {
 			return nil, errors.New("peerswap was not started with liquid node config")
 		}
-		liquidBalance, err := l.cl.wallet.GetBalance()
+		liquidBalance, err := l.cl.liquidWallet.GetBalance()
 		if err != nil {
 			return nil, err
 		}
 		if liquidBalance < l.SatAmt {
-			return nil, errors.New("Not enough balance on liquid wallet")
+			return nil, errors.New("Not enough balance on liquid liquidWallet")
 		}
 	} else if l.Asset == "btc" {
 		if !l.cl.swaps.BitcoinEnabled {
@@ -332,9 +321,9 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		for _, v := range funds.Outputs {
 			sats += v.Value
 		}
-		// todo need some onchain balance for fees
-		if sats < l.SatAmt {
-			return nil, errors.New("Not enough balance on c-lightning onchain wallet")
+
+		if sats < l.SatAmt+2000 {
+			return nil, errors.New("Not enough balance on c-lightning onchain liquidWallet")
 		}
 	} else {
 		return nil, errors.New("invalid asset (btc or l-btc)")
@@ -440,6 +429,11 @@ func (l *ListNodes) Name() string {
 }
 
 func (l *ListNodes) Call() (jrpc2.Result, error) {
+	getInfo, err := l.cl.glightning.GetInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	nodes, err := l.cl.glightning.ListNodes()
 	if err != nil {
 		return nil, err
@@ -447,7 +441,7 @@ func (l *ListNodes) Call() (jrpc2.Result, error) {
 
 	peerSwapNodes := []*glightning.Node{}
 	for _, node := range nodes {
-		if node.Features != nil && checkFeatures(node.Features.Raw, featureBit) {
+		if node.Features != nil && checkFeatures(node.Features.Raw, featureBit) && node.Id != getInfo.Id {
 			peerSwapNodes = append(peerSwapNodes, node)
 		}
 	}

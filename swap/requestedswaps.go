@@ -39,6 +39,9 @@ func (p *RequestedSwapsPrinter) Write(w io.Writer) {
 	w.Write(b)
 }
 
+func (p *RequestedSwapsPrinter) GetRaw() (map[string][]RequestedSwap, error) {
+	return p.store.GetAll()
+}
 func (p *RequestedSwapsPrinter) Get() ([]JsonEnty, error) {
 	reqswaps, err := p.store.GetAll()
 	if err != nil {

@@ -27,7 +27,7 @@ func (m *MessengerMock) SendMessage(peerId string, message []byte, messageType i
 	return nil
 }
 
-func (m *MessengerMock) AddMessageHandler(func(peerId string, msgType string, payload string) error) {
+func (m *MessengerMock) AddMessageHandler(func(peerId string, msgType string, payload []byte) error) {
 }
 
 type PeerGetterMock struct {
@@ -119,7 +119,7 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not marshal poll msg: %v", err)
 	}
-	ps.MessageHandler("peer", pmt, string(pmp))
+	ps.MessageHandler("peer", pmt, pmp)
 
 	polls, err := store.GetAll()
 	if err != nil {
@@ -137,7 +137,7 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not marshal poll msg: %v", err)
 	}
-	ps.MessageHandler("request-peer", rpmt, string(rpmp))
+	ps.MessageHandler("request-peer", rpmt, rpmp)
 
 	polls, err = store.GetAll()
 	if err != nil {

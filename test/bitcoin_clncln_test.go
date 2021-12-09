@@ -1,4 +1,4 @@
-package bitcointest
+package test
 
 import (
 	"crypto/rand"
@@ -11,16 +11,13 @@ import (
 	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/test"
 	"github.com/sputn1ck/peerswap/testframework"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type BitcoinTestSuite struct {
+type ClnClnSwapsOnBitcoinSuite struct {
 	suite.Suite
-	assertions *test.AssertionCounter
+	assertions *AssertionCounter
 
 	bitcoind    *testframework.BitcoinNode
 	lightningds []*testframework.CLightningNode
@@ -30,10 +27,21 @@ type BitcoinTestSuite struct {
 	walletBalances  []uint64
 }
 
-func (suite *BitcoinTestSuite) SetupSuite() {
+// TestClnClnSwapsOnBitcoin runs all integration tests concerning
+// bitcoin backend and cln-cln operation.
+func TestClnClnSwapsOnBitcoin(t *testing.T) {
+	// Long running tests only run in integration test mode.
+	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
+	if testEnabled == "" {
+		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
+	}
+	suite.Run(t, new(ClnClnSwapsOnBitcoinSuite))
+}
+
+func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 	t := suite.T()
 
-	suite.assertions = &test.AssertionCounter{}
+	suite.assertions = &AssertionCounter{}
 
 	// Settings
 	// Inital channel capacity
@@ -41,11 +49,8 @@ func (suite *BitcoinTestSuite) SetupSuite() {
 
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "..", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap")
 	testDir := t.TempDir()
-
-	// Misc setup
-	// assertions := &AssertionCounter{}
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -107,7 +112,7 @@ func (suite *BitcoinTestSuite) SetupSuite() {
 
 	// Give btc to node [1] in order to initiate swap-in.
 	_, err = lightningds[1].FundWallet(10*fundAmt, true)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	// Sync peer polling
 	t.Log("Wait for poll syncing")
@@ -128,19 +133,17 @@ func (suite *BitcoinTestSuite) SetupSuite() {
 	suite.scid = scid
 }
 
-func (suite *BitcoinTestSuite) BeforeTest(_, _ string) {
-	t := suite.T()
-
+func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
 	var channelBalances []uint64
 	var walletBalances []uint64
 	for _, lightningd := range suite.lightningds {
-		b, err := testframework.GetBtcWalletBalanceSat(lightningd)
-		require.NoError(t, err)
+		b, err := lightningd.GetBtcBalanceSat()
+		suite.Require().NoError(err)
 		walletBalances = append(walletBalances, b)
 
 		f, err := lightningd.Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, f.Channels, 1)
+		suite.Require().NoError(err)
+		suite.Require().Len(f.Channels, 1)
 		channelBalances = append(channelBalances, f.Channels[0].ChannelSatoshi)
 	}
 
@@ -148,36 +151,19 @@ func (suite *BitcoinTestSuite) BeforeTest(_, _ string) {
 	suite.walletBalances = walletBalances
 }
 
-func (suite *BitcoinTestSuite) AfterTest(_, _ string) {
-	if suite.assertions.HasAssertion() {
-		suite.FailNow("Has assertions")
-	}
-}
-
-func (suite *BitcoinTestSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
+func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
 	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
-}
-
-func TestBitcoinSwaps(t *testing.T) {
-	// Long running tests only run in integration test mode.
-	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
-	if testEnabled == "" {
-		t.Skip("set RUN_INTEGRATION_TESTS to run this test")
-	}
-	suite.Run(t, new(BitcoinTestSuite))
 }
 
 //
 // Swap in tests
 // =================
 
-// TestSwapInClaimPreimage execute a swap-in with the claim by preimage
+// TestSwapIn_ClaimPreimage execute a swap-in with the claim by preimage
 // spending branch.
-func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 	var err error
 
-	t := suite.T()
-	assertions := suite.assertions
 	lightningds := suite.lightningds
 	bitcoind := suite.bitcoind
 	scid := suite.scid
@@ -202,17 +188,17 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	// Wait for opening tx being broadcasted.
 	// Get commitmentFee.
 	var commitmentFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -227,8 +213,8 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
@@ -239,23 +225,23 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 
 	// Wait for invoice being paid.
 	err = lightningds[1].DaemonProcess.WaitForLog("Event_OnClaimInvoicePaid on State_SwapInSender_AwaitClaimPayment", testframework.TIMEOUT)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	// Check if swap invoice was payed.
 	// Expect: [0] before - swapamt ------ before + swapamt [1]
 	expected := float64(beforeChannelBalances[0] - swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 
 	//
@@ -265,17 +251,17 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	// Wait for claim tx being broadcasted. We need 3 confirmations.
 	// Get claim fee.
 	var claimFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -290,44 +276,42 @@ func (suite *BitcoinTestSuite) TestSwapInClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Wail for claim tx confirmation.
 	err = lightningds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	// Check Wallet balance.
 	// Expect:
 	// - [0] before - claim_fee + swapamt
 	// - [1] before - commitment_fee - swapamt
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	balance, err := testframework.GetBtcWalletBalanceSat(lightningds[0])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	balance, err = testframework.GetBtcWalletBalanceSat(lightningds[1])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 }
 
-// TestSwapInClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	suite.T().SkipNow()
 	var err error
 
-	t := suite.T()
-	assertions := suite.assertions
 	lightningds := suite.lightningds
 	bitcoind := suite.bitcoind
 	scid := suite.scid
@@ -358,10 +342,10 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	testframework.WaitFor(func() bool {
 		var mempool []string
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool")
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		return len(mempool) == 1
 	}, testframework.TIMEOUT)
@@ -377,73 +361,69 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCsv() {
 	// Generate one less block than required.
 	bitcoind.GenerateBlocks(confirmationsForCsv - 1)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
-		require.NoError(t, err)
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
 		return isSynced
 	}, testframework.TIMEOUT)
 
 	// Check that csv is not claimed yet.
 	triedToClaim, err := lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
-	require.NoError(t, err)
-	require.False(t, triedToClaim)
+	suite.Require().NoError(err)
+	suite.Require().False(triedToClaim)
 
 	// Generate one more block to trigger claim by csv.
 	bitcoind.GenerateBlocks(1)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
-		require.NoError(t, err)
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
 		return isSynced
 	}, testframework.TIMEOUT)
 
 	// Check that csv gets claimed.
 	triedToClaim, err = lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
-	require.NoError(t, err)
-	require.True(t, triedToClaim)
+	suite.Require().NoError(err)
+	suite.Require().True(triedToClaim)
 
 	// Check claim tx is broadcasted.
 	var mempool []string
 	jsonR, err := bitcoind.Rpc.Call("getrawmempool")
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	err = jsonR.GetObject(&mempool)
-	require.NoError(t, err)
-	require.Len(t, mempool, 1)
+	suite.Require().NoError(err)
+	suite.Require().Len(mempool, 1)
 
 	// Generate to claim
 	bitcoind.GenerateBlocks(3)
 	testframework.WaitFor(func() bool {
-		isSynced, err := testframework.SyncedBlockheight(lightningds[1])
-		require.NoError(t, err)
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
 		return isSynced
 	}, testframework.TIMEOUT)
 
 	// Start node again
 	err = lightningds[0].Run(true, true)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	// Check if channel balance is correct.
-	assertions.Count(testframework.AssertWaitForChannelBalance(t, lightningds[0], float64(expectedLightningSat[0]), 5000., testframework.TIMEOUT))
-	assertions.Count(testframework.AssertWaitForChannelBalance(t, lightningds[1], float64(expectedLightningSat[1]), 5000., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(expectedLightningSat[0]), 5000., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(expectedLightningSat[1]), 5000., testframework.TIMEOUT))
 
 	// Check Wallet balance.
-	balance, err := testframework.GetBtcWalletBalanceSat(lightningds[0])
-	require.NoError(t, err)
-	assertions.Count(assert.EqualValuesf(t, expectedOnchainSat[0], balance, "expected %d, got %d", expectedOnchainSat[0], balance))
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().EqualValuesf(expectedOnchainSat[0], balance, "expected %d, got %d", expectedOnchainSat[0], balance)
 
-	balance, err = testframework.GetBtcWalletBalanceSat(lightningds[1])
-	require.NoError(t, err)
-	assertions.Count(assert.EqualValuesf(t, expectedOnchainSat[1], balance, "expected %d, got %d", expectedOnchainSat[1], balance))
-
-	t.FailNow()
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().EqualValuesf(expectedOnchainSat[1], balance, "expected %d, got %d", expectedOnchainSat[1], balance)
 }
 
-// TestSwapInClaimCoop execute a swap-in where one node cancels and the
+// TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
-	t := suite.T()
-	assertions := suite.assertions
 	lightningds := suite.lightningds
 	bitcoind := suite.bitcoind
 	scid := suite.scid
@@ -468,17 +448,17 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	// Wait for opening tx being broadcasted.
 	// Get commitmentFee.
 	var commitmentFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -499,18 +479,18 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 		// We have to split the invoices so that they succeed.
 		amt := ((beforeChannelBalances[0] - swapAmt) / 2) + 1
 		inv, err := lightningds[1].Rpc.Invoice(amt*1000, fmt.Sprintf("test-move-balance-%d", i), "move-balance")
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		_, err = lightningds[0].Rpc.PayBolt(inv.Bolt11)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 	}
 
 	// Check if channel balance [0] is less than the swapAmt.
 	var setupFunds uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
 		setupFunds = funds.Channels[0].ChannelSatoshi
 		return setupFunds < swapAmt
 	}, testframework.TIMEOUT))
@@ -522,14 +502,14 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT))
+	suite.Require().NoError(lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -538,17 +518,17 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	// Wait for coop claim tx being broadcasted.
 	// Get claim fee.
 	var claimFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -563,21 +543,21 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Check swap is done.
-	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop", testframework.TIMEOUT))
+	suite.Require().NoError(lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop", testframework.TIMEOUT))
 
 	// Check no invoice was paid.
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], float64(setupFunds), 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(setupFunds), 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, float64(setupFunds), funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(float64(setupFunds), funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 
 	// Check Wallet balance.
@@ -585,33 +565,31 @@ func (suite *BitcoinTestSuite) TestSwapInClaimCoop() {
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
 	expected := float64(beforeWalletBalances[0])
-	balance, err := testframework.GetBtcWalletBalanceSat(lightningds[0])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	balance, err = testframework.GetBtcWalletBalanceSat(lightningds[1])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	//
 	// Step 5: Reset channel
 	//
 
-	require.NoError(t, testframework.BalanceChannel5050(lightningds[0], lightningds[1], scid))
+	suite.Require().NoError(testframework.BalanceChannel5050(lightningds[0], lightningds[1], scid))
 }
 
 //
 // Swap out tests
 // ==================
 
-// TestSwapOutClaimPreimage execute a swap-out with the claim by
+// TestSwapOut_ClaimPreimage execute a swap-out with the claim by
 // preimage spending branch.
-func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	var err error
 
-	t := suite.T()
-	assertions := suite.assertions
 	lightningds := suite.lightningds
 	bitcoind := suite.bitcoind
 	scid := suite.scid
@@ -636,17 +614,17 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	// Wait for commitment tx being broadcasted.
 	// Get commitmentFee.
 	var commitmentFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -661,23 +639,18 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	// commitment tx was broadcasted).
 	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
 	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
-		t.Log("COMMITMENT FEEEEEEEEE", commitmentFee)
-		pays, _ := lightningds[0].Rpc.ListPays()
-		for _, pay := range pays {
-			t.Log("PAYYYYYYYYYYY", pay)
-		}
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 
 	//
@@ -688,29 +661,29 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Wait for invoice being paid.
 	err = lightningds[1].DaemonProcess.WaitForLog("Event_OnClaimInvoicePaid on State_SwapOutReceiver_AwaitClaimInvoicePayment", testframework.TIMEOUT)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	// Wait for claim tx being broadcasted.
 	var claimFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -724,36 +697,36 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	// Check if swap Invoice had correct amts.
 	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
 	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
 
 	// Confirm claim tx.
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Wail for claim tx confirmation.
 	err = lightningds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapOutSender_ClaimSwap", testframework.TIMEOUT)
-	require.NoError(t, err)
+	suite.Require().NoError(err)
 
 	//
-	//	STEP 4: Onchain balance change
+	//	STEP 3: Onchain balance change
 	//
 
 	// Check Wallet balance.
@@ -761,35 +734,33 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimPreimage() {
 	// - [0] before - claim_fee + swapAmt
 	// - [1] before - commitment_fee - swapAmt
 	expected = float64(beforeWalletBalances[0] - claimFee + swapAmt)
-	balance, err := testframework.GetBtcWalletBalanceSat(lightningds[0])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - swapAmt)
-	balance, err = testframework.GetBtcWalletBalanceSat(lightningds[1])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 }
 
-// TestSwapOutClaimCsv execute a swap-in where the peer does not pay the
+// TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
 //
 // Todo: Is skipped for now because we can not run it in the suite as it
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *BitcoinTestSuite) TestSwapOutClaimCsv() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCsv() {
 	suite.T().SkipNow()
 	// Todo: add test!
 }
 
-// TestSwapOutClaimCoop execute a swap-in where one node cancels and the
+// TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
+func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 	var err error
 
-	t := suite.T()
-	assertions := suite.assertions
 	lightningds := suite.lightningds
 	bitcoind := suite.bitcoind
 	scid := suite.scid
@@ -814,17 +785,17 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	// Wait for commitment tx being broadcasted.
 	// Get commitmentFee.
 	var commitmentFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -839,18 +810,18 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	// commitment tx was broadcasted).
 	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
 	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1.)
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1.)
 	}
 	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], expected, 1., testframework.TIMEOUT) {
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1.)
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
+		suite.Require().InDelta(expected, funds.Channels[0].ChannelSatoshi, 1.)
 	}
 
 	// Move local balance from node [0] to [1] so that
@@ -860,22 +831,22 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	for i := 0; i < 2; i++ {
 		var labelBytes = make([]byte, 5)
 		_, err = rand.Read(labelBytes)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 		// We have to split the invoices so that they succeed.
 		inv, err := lightningds[1].Rpc.Invoice(moveAmtMSat, string(labelBytes), "move-balance")
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		_, err = lightningds[0].Rpc.PayBolt(inv.Bolt11)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 	}
 
 	// Check if channel balance [0] is less than the swapAmt.
 	// Get channel state for later reference.
 	var setupFunds uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
+		suite.Require().NoError(err)
+		suite.Require().Len(funds.Channels, 1)
 		setupFunds = funds.Channels[0].ChannelSatoshi
 		return setupFunds < swapAmt
 	}, testframework.TIMEOUT))
@@ -887,14 +858,14 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Check that coop close was sent.
-	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT))
+	suite.Require().NoError(lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 10*testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -902,17 +873,17 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 
 	// Wait for coop claim tx being broadcasted.
 	var claimFee uint64
-	require.NoError(t, testframework.WaitFor(func() bool {
+	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
 		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {
@@ -927,14 +898,14 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	bitcoind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
-			ok, err := testframework.SyncedBlockheight(lightningd)
-			require.NoError(t, err)
+			ok, err := lightningd.IsBlockHeightSynced()
+			suite.Require().NoError(err)
 			return ok
 		}, testframework.TIMEOUT)
 	}
 
 	// Check swap is done.
-	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
+	suite.Require().NoError(lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
 
 	//
 	//	STEP 4: Balance change
@@ -943,27 +914,27 @@ func (suite *BitcoinTestSuite) TestSwapOutClaimCoop() {
 	// Check that channel balance did not change.
 	// Expect: setup funds from above
 	funds, err := lightningds[0].Rpc.ListFunds()
-	require.NoError(t, err)
-	require.Len(t, funds.Channels, 1)
-	require.InDelta(t, setupFunds, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
+	suite.Require().NoError(err)
+	suite.Require().Len(funds.Channels, 1)
+	suite.Require().InDelta(setupFunds, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 
 	// Check Wallet balance.
 	// Expect:
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
 	expected = float64(beforeWalletBalances[0])
-	balance, err := testframework.GetBtcWalletBalanceSat(lightningds[0])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	expected = float64(beforeWalletBalances[1] - commitmentFee - claimFee)
-	balance, err = testframework.GetBtcWalletBalanceSat(lightningds[1])
-	require.NoError(t, err)
-	assertions.Count(assert.InDelta(t, expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance))
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().InDelta(expected, float64(balance), 1., "expected %d, got %d", uint64(expected), balance)
 
 	//
 	// Step 5: Reset channel
 	//
 
-	require.NoError(t, testframework.BalanceChannel5050(lightningds[0], lightningds[1], scid))
+	suite.Require().NoError(testframework.BalanceChannel5050(lightningds[0], lightningds[1], scid))
 }

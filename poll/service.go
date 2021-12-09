@@ -17,7 +17,7 @@ type MessageSender interface {
 }
 
 type MessageReceiver interface {
-	AddMessageHandler(func(peerId string, msgType string, payload string) error)
+	AddMessageHandler(func(peerId string, msgType string, payload []byte) error)
 }
 
 type Messenger interface {
@@ -82,7 +82,6 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 func (s *Service) Start() {
 	// Request fresh polls from all peers on startup
 	s.RequestAllPeerPolls()
-
 	// Start poll loop
 	go func() {
 		for {
@@ -161,7 +160,7 @@ func (s *Service) RequestAllPeerPolls() {
 // MessageHandler checks for the incomming messages
 // type and takes the incomming payload to update the
 // store.
-func (s *Service) MessageHandler(peerId string, msgType string, payload string) error {
+func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) error {
 	messageType, err := messages.HexStringToMessageType(msgType)
 	if err != nil {
 		return err
@@ -170,10 +169,11 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload string) 
 	switch messageType {
 	case messages.MESSAGETYPE_POLL:
 		var msg PollMessage
-		err = json.Unmarshal([]byte(payload), &msg)
+		err = json.Unmarshal(payload, &msg)
 		if err != nil {
 			return err
 		}
+		log.Printf("got poll message %s", string(payload))
 		s.store.Update(peerId, PollInfo{
 			Assets:      msg.Assets,
 			PeerAllowed: msg.PeerAllowed,
@@ -186,6 +186,7 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload string) 
 		if err != nil {
 			return err
 		}
+		log.Printf("got poll request %s", string(payload))
 		s.store.Update(peerId, PollInfo{
 			Assets:      msg.Assets,
 			PeerAllowed: msg.PeerAllowed,

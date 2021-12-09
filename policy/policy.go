@@ -58,9 +58,9 @@ func (p *Policy) String() string {
 
 func (p *Policy) Get() Policy {
 	return Policy{
-		ReserveOnchainMsat: 0,
-		PeerAllowlist:      []string{},
-		AcceptAllPeers:     false,
+		ReserveOnchainMsat: p.ReserveOnchainMsat,
+		PeerAllowlist:      p.PeerAllowlist,
+		AcceptAllPeers:     p.AcceptAllPeers,
 	}
 }
 
@@ -157,8 +157,7 @@ func CreateFromFile(path string) (*Policy, error) {
 // Create returns a policy based on a DefaultPolicy.
 func create(r io.Reader) (*Policy, error) {
 	policy := DefaultPolicy()
-
-	err := flags.NewIniParser(flags.NewParser(policy, 0)).Parse(r)
+	err := flags.NewIniParser(flags.NewParser(policy, flags.Default|flags.IgnoreUnknown)).Parse(r)
 	if err != nil {
 		return nil, ErrCreatePolicy(err.Error())
 	}

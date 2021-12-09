@@ -49,9 +49,21 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		})
 		return Event_ActionFailed
 	}
+
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Asset,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return Event_ActionFailed
+	}
+
+	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
+		swap.CancelMessage = "incompatible peerswap version"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.Asset,
 			AmountSat:       swap.Amount,
@@ -87,7 +99,11 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	}
 	pHash := preimage.Hash()
 	log.Printf("maker preimage: %s ", preimage.String())
-	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id)
+	expiry := uint64(3600)
+	if swap.Asset == "btc" {
+		expiry = 3600 * 24
+	}
+	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
 	if err != nil {
 		return Event_ActionFailed
 	}
@@ -121,7 +137,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	if err != nil {
 		return Event_ActionFailed
 	}
-	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id)
+	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id, 600)
 	if err != nil {
 		return Event_ActionFailed
 	}
@@ -144,11 +160,11 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 type BroadCastOpeningTxAction struct{}
 
 func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return Event_ActionFailed
 	}
-	txId, finalizedTx, err := onchain.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
+	txId, finalizedTx, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
 		return Event_ActionFailed
 	}
@@ -156,7 +172,13 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	swap.OpeningTxHex = finalizedTx
 	swap.OpeningTxId = txId
 
-	refundFee, err := onchain.GetRefundFee()
+	startingHeight, err := txWatcher.GetBlockHeight()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	swap.StartingBlockHeight = startingHeight
+
+	refundFee, err := wallet.GetRefundFee()
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -166,7 +188,7 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
-		TxId:            swap.OpeningTxId,
+		TxHex:           finalizedTx,
 		RefundAddr:      swap.MakerRefundAddr,
 		RefundFee:       swap.RefundFee,
 	})
@@ -195,7 +217,7 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 type ClaimSwapTransactionCoop struct{}
 
 func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -207,10 +229,10 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 		Amount:           swap.Amount,
 	}
 	spendParams := &ClaimParams{
-		Signer: key,
+		Signer:       key,
+		OpeningTxHex: swap.OpeningTxHex,
 	}
-
-	txId, _, err := onchain.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxHex, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
+	txId, _, err := wallet.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -243,14 +265,16 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerBuildSigHashAction struct{}
 
 func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
-	claimParams := &ClaimParams{Signer: key}
-
-	sigHash, err := onchain.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.OpeningTxId, swap.MakerRefundAddr, swap.RefundFee)
+	claimParams := &ClaimParams{
+		Signer:       key,
+		OpeningTxHex: swap.OpeningTxHex,
+	}
+	sigHash, err := wallet.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.MakerRefundAddr, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}

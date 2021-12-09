@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vulpemventures/go-elements/network"
 	"io/ioutil"
 	"log"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap"
 	"github.com/sputn1ck/peerswap/clightning"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/policy"
@@ -25,7 +25,6 @@ import (
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/txwatcher"
 	"github.com/sputn1ck/peerswap/wallet"
-	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 )
 
@@ -76,7 +75,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Config: Db:%s, Rpc: %s %s, network: %s", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser, config.LiquidNetworkString)
+	log.Printf("PeerswapClightningConfig: Db:%s, Rpc: %s %s,", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser)
 	// setup services
 
 	// liquid
@@ -106,13 +105,14 @@ func run() error {
 		}
 
 		// txwatcher
-		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), 2)
+		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
 
+		// LiquidChain
 		liquidChain, err := getLiquidChain(liquidCli)
 		if err != nil {
 			return err
 		}
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidTxWatcher, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 	} else {
 		log.Printf("Liquid swaps disabled")
 	}
@@ -133,8 +133,8 @@ func run() error {
 		supportedAssets = append(supportedAssets, "btc")
 		log.Printf("Bitcoin swaps enabled")
 		bitcoinEnabled = true
-		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), 3)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(bitcoinCli, bitcoinTxWatcher, lightningPlugin.GetLightningRpc(), chain)
+		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(lightningPlugin, chain)
 	} else {
 		log.Printf("Bitcoin swaps disabled")
 	}
@@ -164,15 +164,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	swapService := swap.NewSwapService(swapStore,
+
+	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
+		lightningPlugin,
+		lightningPlugin,
+		pol,
+		bitcoinEnabled,
+		lightningPlugin,
+		bitcoinOnChainService,
+		bitcoinTxWatcher,
 		config.LiquidEnabled,
 		liquidOnChainService,
-		bitcoinEnabled,
-		bitcoinOnChainService,
-		lightningPlugin,
-		lightningPlugin,
-		pol)
+		liquidOnChainService,
+		liquidTxWatcher,
+	)
+	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil {
 		go func() {
@@ -183,6 +190,7 @@ func run() error {
 			}
 		}()
 	}
+
 	if bitcoinTxWatcher != nil {
 		go func() {
 			err := bitcoinTxWatcher.StartWatchingTxs()
@@ -211,30 +219,20 @@ func run() error {
 	defer pollService.Stop()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, sp, pol, liquidCli, pollService)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
 
 	log.Printf("peerswap initialized")
 	<-quitChan
 	return nil
 }
 
-func validateConfig(cfg *peerswap.Config) error {
+func validateConfig(cfg *clightning.PeerswapClightningConfig) error {
 	if cfg.LiquidRpcUser == "" {
 		cfg.LiquidEnabled = false
 	} else {
 		cfg.LiquidEnabled = true
 	}
 	if cfg.LiquidEnabled {
-		var liquidNetwork *network.Network
-		if cfg.LiquidNetworkString == "regtest" {
-			liquidNetwork = &network.Regtest
-		} else if cfg.LiquidNetworkString == "testnet" {
-			liquidNetwork = &network.Testnet
-		} else {
-			liquidNetwork = &network.Liquid
-		}
-		cfg.LiquidNetwork = liquidNetwork
-
 		if cfg.LiquidRpcPasswordFile != "" {
 			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
 			if err != nil {
@@ -250,6 +248,22 @@ func validateConfig(cfg *peerswap.Config) error {
 	return nil
 }
 
+func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
+	bi, err := li.GetChainInfo()
+	if err != nil {
+		return nil, err
+	}
+	switch bi.Chain {
+	case "liquidv1":
+		return &network.Liquid, nil
+	case "liquidregtest":
+		return &network.Regtest, nil
+	case "liquidtestnet":
+		return &network.Testnet, nil
+	default:
+		return &network.Testnet, nil
+	}
+}
 func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	gi, err := li.GetInfo()
 	if err != nil {
@@ -403,21 +417,4 @@ type ImportantPlugin struct {
 	Path    string
 	Name    string
 	Options map[string]interface{}
-}
-
-func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
-	bi, err := li.GetChainInfo()
-	if err != nil {
-		return nil, err
-	}
-	switch bi.Chain {
-	case "liquidv1":
-		return &network.Liquid, nil
-	case "liquidregtest":
-		return &network.Regtest, nil
-	case "liquidtestnet":
-		return &network.Testnet, nil
-	default:
-		return &network.Testnet, nil
-	}
 }

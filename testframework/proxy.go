@@ -1,14 +1,21 @@
 package testframework
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/url"
 	"strconv"
 
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
+	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/ybbus/jsonrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"gopkg.in/macaroon.v2"
 )
 
 type RpcProxy struct {
@@ -23,7 +30,7 @@ type RpcProxy struct {
 
 func NewRpcProxy(configFile string) (*RpcProxy, error) {
 
-	conf, err := readConfig(configFile)
+	conf, err := ReadConfig(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("ReadConfig() %w", err)
 	}
@@ -86,7 +93,6 @@ func NewRpcProxy(configFile string) (*RpcProxy, error) {
 }
 
 func (p *RpcProxy) Call(method string, parameters ...interface{}) (*jsonrpc.RPCResponse, error) {
-	log.Println(p.Rpc, method)
 	return p.Rpc.Call(method, parameters...)
 }
 
@@ -117,4 +123,57 @@ func NewCLightningProxy(socketFileName, dataDir string) (*CLightningProxy, error
 
 func (p *CLightningProxy) StartProxy() error {
 	return p.Rpc.StartUp(p.socketFileName, p.dataDir)
+}
+
+type LndRpcClient struct {
+	Rpc   lnrpc.LightningClient
+	RpcV2 routerrpc.RouterClient
+	conn  *grpc.ClientConn
+}
+
+func NewLndRpcClient(host, certPath, macaroonPath string, options ...grpc.DialOption) (*LndRpcClient, error) {
+	creds, err := credentials.NewClientTLSFromFile(certPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("NewClientTLSFromFile() %w", err)
+	}
+
+	macBytes, err := ioutil.ReadFile(macaroonPath)
+	if err != nil {
+		return nil, fmt.Errorf("ReadFile() %w", err)
+	}
+
+	mac := &macaroon.Macaroon{}
+	if err := mac.UnmarshalBinary(macBytes); err != nil {
+		return nil, fmt.Errorf("UnmarshalBinary() %w", err)
+	}
+
+	cred, err := macaroons.NewMacaroonCredential(mac)
+	if err != nil {
+		return nil, fmt.Errorf("NewMacaroonCredential() %w", err)
+	}
+
+	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(cred),
+		grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		grpc.WithBlock(),
+	}
+	opts = append(opts, options...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, host, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("NewMacaroonCredential() %w", err)
+	}
+
+	lnRpc := lnrpc.NewLightningClient(conn)
+	routerRpc := routerrpc.NewRouterClient(conn)
+	return &LndRpcClient{
+		Rpc:   lnRpc,
+		RpcV2: routerRpc,
+		conn:  conn,
+	}, nil
 }
