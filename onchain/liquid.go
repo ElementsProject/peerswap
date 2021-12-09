@@ -394,6 +394,9 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 		return 0, err
 	}
 	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
+	if satPerByte < 1 {
+		satPerByte = 1
+	}
 	if len(feeRes.Errors) > 0 {
 		//todo sane default sat per byte
 		satPerByte = 1
