@@ -143,47 +143,28 @@ with the height of the last block on [liquid-testnet-explorer](https://liquidtes
 
 ## C-lightning
 
-<!-- We need to build c-lightning ourselves to be able to use the required _sendcustommsg_ command -->
+<!-- We need to build c-lightning ourselves to be able to be interoperable with lnd on signet -->
 
-Download the necessary files.
+get dependencies
 
 ```bash
-wget https://github.com/ElementsProject/lightning/releases/download/v0.10.2/clightning-v0.10.2-Ubuntu-20.04.tar.xz && \
-wget -O LIGHTNING-SHA256SUMS.asc https://github.com/ElementsProject/lightning/releases/download/v0.10.2/SHA256SUMS.asc && \
-wget https://github.com/ElementsProject/lightning/releases/download/v0.10.2/SHA256SUMS
+sudo apt-get update && \
+sudo apt-get install -y \
+autoconf automake build-essential git libtool libgmp-dev \
+libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev jq \
+gettext
 ```
 
-Verify the downloaded data
+clone and install clightning
 
 ```bash
-gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "30DE693AE0DE9E37B3E7EB6BBFF0F67810C1EED1" && \
-gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "15EE8D6CAB0E7F0CF999BFCBD9200E6CD1ADB8F1" && \
-gpg --keyserver hkps://keyserver.ubuntu.com --recv-key "B7C4BE81184FC203D52C35C51416D83DC4F0E86D" && \
-gpg --verify LIGHTNING-SHA256SUMS.asc SHA256SUMS && \
-sha256sum -c SHA256SUMS 2>&1 | grep clightning-v0.10.2-Ubuntu-20.04.tar.xz
+git clone https://github.com/ElementsProject/lightning.git && \
+cd lightning && \
+./configure
 ```
-
-If the shasums match this command will return
-
-`clightning-v0.10.2-Ubuntu-20.04.tar.xz: OK`
-
-Install dependencies
-
-```bash
-sudo apt update && \
-sudo apt install -y autoconf automake build-essential git libtool libgmp-dev libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev gettext libpq5
 ```
-
-Extract the binaries
-
-```bash
-tar -vxf clightning-v0.10.2-Ubuntu-20.04.tar.xz
-```
-
-Copy the binaries to the system path
-
-```bash
-sudo cp -vnR usr/* /usr/
+sudo make && \
+sudo make install
 ```
 
 Create config dir in home

@@ -17,13 +17,21 @@ Assets:
 
 Nodes:
 - [x] c-lightning
-- [ ] lnd requires [lightningnetwork/lnd#5346](https://github.com/lightningnetwork/lnd/pull/5346)
+- [X] lnd
 
 ### Usage
 
-For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide.md)
+
+#### clightning
+For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_clightning.md)
 
 Details on general usage can be found [here](./docs/usage.md)
+
+
+#### lnd
+For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
+
+Details on general usage to follow...
 
 ### Development
 
