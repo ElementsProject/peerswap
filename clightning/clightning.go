@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -38,17 +37,6 @@ var methods = []peerswaprpcMethod{
 var devmethods = []peerswaprpcMethod{}
 
 const (
-	dbOption                        = "peerswap-db-path"
-	liquidRpcHostOption             = "peerswap-liquid-rpchost"
-	liquidRpcPortOption             = "peerswap-liquid-rpcport"
-	liquidRpcUserOption             = "peerswap-liquid-rpcuser"
-	liquidRpcPasswordOption         = "peerswap-liquid-rpcpassword"
-	liquidRpcPasswordFilepathOption = "peerswap-liquid-rpcpasswordfile"
-
-	rpcWalletOption     = "peerswap-liquid-rpcwallet"
-	liquidNetworkOption = "peerswap-liquid-network"
-	policyPathOption    = "peerswap-policy-path"
-
 	featureBit = 69
 
 	paymentSplitterMsat = 1000000000
@@ -391,127 +379,6 @@ func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 			}
 		}
 	}()
-}
-
-// GetConfig returns the peerswap config
-func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
-
-	dbpath, err := c.plugin.GetOption(dbOption)
-	if err != nil {
-		return nil, err
-	}
-	if dbpath == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		dbpath = filepath.Join(wd, "swaps")
-	}
-	err = os.MkdirAll(dbpath, 0700)
-	if err != nil && err != os.ErrExist {
-		return nil, err
-	}
-	rpcHost, err := c.plugin.GetOption(liquidRpcHostOption)
-	if err != nil {
-		return nil, err
-	}
-	rpcPortString, err := c.plugin.GetOption(liquidRpcPortOption)
-	if err != nil {
-		return nil, err
-	}
-	if rpcHost != "" && rpcPortString == "" {
-		return nil, errors.New(fmt.Sprintf("%s need to be set", liquidRpcPortOption))
-	}
-	var rpcPort int
-	if rpcPortString != "" {
-		rpcPort, err = strconv.Atoi(rpcPortString)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("%s is not an int", liquidRpcPortOption))
-		}
-	}
-	rpcUser, err := c.plugin.GetOption(liquidRpcUserOption)
-	if err != nil {
-		return nil, err
-	}
-	if rpcHost != "" && rpcUser == "" {
-		return nil, errors.New(fmt.Sprintf("%s need to be set", liquidRpcUserOption))
-	}
-	rpcPass, err := c.plugin.GetOption(liquidRpcPasswordOption)
-	if err != nil {
-		return nil, err
-	}
-	rpcPassFile, err := c.plugin.GetOption(liquidRpcPasswordFilepathOption)
-	if rpcHost != "" && rpcPass == "" && rpcPassFile == "" {
-		return nil, errors.New(fmt.Sprintf("%s or %s need to be set", liquidRpcPasswordOption, liquidRpcPasswordFilepathOption))
-	}
-	rpcWallet, err := c.plugin.GetOption(rpcWalletOption)
-	if err != nil {
-		return nil, err
-	}
-	if rpcWallet == "dev_test" {
-		idBytes := make([]byte, 8)
-		_, _ = rand.Read(idBytes[:])
-		rpcWallet = hex.EncodeToString(idBytes)
-	}
-
-	// get policy path
-	policyPath, err := c.plugin.GetOption(policyPathOption)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PeerswapClightningConfig{
-		DbPath:                dbpath,
-		LiquidRpcHost:         rpcHost,
-		LiquidRpcPort:         uint(rpcPort),
-		LiquidRpcUser:         rpcUser,
-		LiquidRpcPassword:     rpcPass,
-		LiquidRpcPasswordFile: rpcPassFile,
-		LiquidRpcWallet:       rpcWallet,
-		PolicyPath:            policyPath,
-	}, nil
-}
-
-// RegisterOptions adds options to clightning
-func (c *ClightningClient) RegisterOptions() error {
-	err := c.plugin.RegisterNewOption(dbOption, "path to boltdb", "")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidRpcUserOption, "elementsd rpcuser", "")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidRpcPasswordOption, "elementsd rpcpassword", "")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidNetworkOption, "liquid-network", "regtest")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
-	if err != nil {
-		return err
-	}
-	err = c.plugin.RegisterNewOption(liquidRpcPasswordFilepathOption, "elementsd rpcpassword filepath", "")
-	if err != nil {
-		return err
-	}
-	// register policy options
-	err = c.plugin.RegisterNewOption(policyPathOption, "Path to the policy file. If empty the default policy is used", "")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // RegisterMethods registeres rpc methods to c-lightning
