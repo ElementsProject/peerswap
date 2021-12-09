@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/vulpemventures/go-elements/network"
 	"io/ioutil"
 	"log"
@@ -29,6 +30,10 @@ import (
 )
 
 var supportedAssets = []string{}
+
+const (
+	minClnVersion = float64(10.2)
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -77,7 +82,14 @@ func run() error {
 	}
 	log.Printf("PeerswapClightningConfig: Db:%s, Rpc: %s %s,", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser)
 	// setup services
-
+	nodeInfo, err := lightningPlugin.GetLightningRpc().GetInfo()
+	if err != nil {
+		return err
+	}
+	err = checkClnVersion(nodeInfo.Version)
+	if err != nil {
+		return err
+	}
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
@@ -451,4 +463,18 @@ type ImportantPlugin struct {
 	Path    string
 	Name    string
 	Options map[string]interface{}
+}
+
+func checkClnVersion(fullVersionString string) error {
+	//splitString := strings.Split(fullVersionString,"-")
+	// remove first two chars
+	versionString := fullVersionString[3:]
+	versionFloat, err := strconv.ParseFloat(versionString, 64)
+	if err != nil {
+		return err
+	}
+	if versionFloat < minClnVersion {
+		return errors.New(fmt.Sprintf("clightning version unsupported, requires %v", minClnVersion))
+	}
+	return nil
 }
