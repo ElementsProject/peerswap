@@ -9,26 +9,20 @@ build:
 	chmod a+x $(OUTDIR)/pscli
 .PHONY: build
 
-build-fast-test:
+build-with-fast-test:
 	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
 	chmod a+x $(OUTDIR)/peerswap
 	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
 	chmod a+x $(OUTDIR)/peerswapd
-	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
-	chmod a+x $(OUTDIR)/pscli
-.PHONY: build-fast-test
+.PHONY: build-with-fast-test
 
-test: build
-	go test -race -count=1 -timeout=240s -v ./...
+test: build-with-fast-test
+	PAYMENT_RETRY_TIME=20 go test -tags dev -tags fast_test -timeout=10m -v ./...
 .PHONY: test
 
-test-all: build
-	go test -count=1 --tags docker ./...
-.PHONY: test-all
-
-test-with-integration: build-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 go test -timeout=60m ./...
-.PHONY: test-with-integration
+test-integration: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 go test -tags dev -tags fast_test -timeout=60m ./test
+.PHONY: test-integration
 
 lnd-release:
 	go build -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go

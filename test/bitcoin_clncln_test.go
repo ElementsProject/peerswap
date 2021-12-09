@@ -27,6 +27,8 @@ type ClnClnSwapsOnBitcoinSuite struct {
 	walletBalances  []uint64
 }
 
+// TestClnClnSwapsOnBitcoin runs all integration tests concerning
+// bitcoin backend and cln-cln operation.
 func TestClnClnSwapsOnBitcoin(t *testing.T) {
 	// Long running tests only run in integration test mode.
 	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")

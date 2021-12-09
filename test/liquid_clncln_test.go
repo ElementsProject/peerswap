@@ -27,13 +27,14 @@ type ClnClnSwapsOnLiquidTestSuite struct {
 	scid        string
 
 	channelBalances      []uint64
-	btcWalletBalances    []uint64
 	liquidWalletBalances []uint64
 
 	liquidWalletNames []string
 }
 
-func TestLiquidSwaps(t *testing.T) {
+// TestClnClnSwapsOnLiquid runs all integration tests concerning
+// liquid backend and cln-cln operation.
+func TestClnClnSwapsOnLiquid(t *testing.T) {
 	// Long running tests only run in integration test mode.
 	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
 	if testEnabled == "" {
@@ -173,15 +174,10 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 
 func (suite *ClnClnSwapsOnLiquidTestSuite) BeforeTest(_, _ string) {
 	var channelBalances []uint64
-	var btcWalletBalances []uint64
 	var liquidWalletBalances []uint64
 	for _, lightningd := range suite.lightningds {
-		b, err := lightningd.GetBtcBalanceSat()
-		suite.Require().NoError(err)
-		btcWalletBalances = append(btcWalletBalances, b)
-
 		var response clightning.GetBalanceResponse
-		err = lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &response)
+		err := lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 		suite.Require().NoError(err)
 		liquidWalletBalances = append(liquidWalletBalances, response.LiquidBalance)
 
@@ -192,7 +188,6 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) BeforeTest(_, _ string) {
 	}
 
 	suite.channelBalances = channelBalances
-	suite.btcWalletBalances = btcWalletBalances
 	suite.liquidWalletBalances = liquidWalletBalances
 }
 
@@ -693,7 +688,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 2
 
-	// Do swap-in.
+	// Do swap-out.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
