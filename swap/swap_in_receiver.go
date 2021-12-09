@@ -21,7 +21,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
@@ -32,7 +32,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
 		swap.CancelMessage = "incompatible peerswap version"
@@ -42,7 +42,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
@@ -56,7 +56,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -85,7 +85,12 @@ func MarshalPeerswapMessage(msg PeerMessage) ([]byte, int, error) {
 
 func (s *SwapData) HandleError(err error) EventType {
 	s.LastErr = err
-	s.LastErrString = err.Error()
+	if err != nil {
+		s.LastErrString = err.Error()
+	}
+	if s.CancelMessage == "" {
+		s.CancelMessage = s.LastErrString
+	}
 	log.Printf("swap error: %v", err)
 	return Event_ActionFailed
 }
