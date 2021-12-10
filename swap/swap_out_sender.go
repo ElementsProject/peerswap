@@ -84,7 +84,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	_, msatAmt, err := ll.DecodePayreq(swap.FeeInvoice)
 	if err != nil {
 		log.Printf("error decoding %v", err)
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.OpeningTxFee = msatAmt / 1000
 	// todo check peerId
@@ -97,9 +97,8 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	*/
 	preimage, err := ll.PayInvoice(swap.FeeInvoice)
 	if err != nil {
-
 		log.Printf("error paying out %v", err)
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.FeePreimage = preimage
 	return Event_ActionSucceeded
@@ -112,14 +111,13 @@ type AwaitTxConfirmationAction struct{}
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	txWatcher, wallet, validator, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	// todo check policy
-
 	openingTxId, err := validator.TxIdFromHex(swap.OpeningTxHex)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.OpeningTxId = openingTxId
 

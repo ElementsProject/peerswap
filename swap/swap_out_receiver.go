@@ -47,7 +47,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
 	if swap.Asset == "btc" && !services.bitcoinEnabled {
@@ -59,7 +59,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
 	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
@@ -70,7 +70,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
 	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
@@ -85,7 +85,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
-		return Event_ActionFailed
+		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 	//todo check balance/policy if we want to create the swap
 	pubkey := swap.GetPrivkey().PubKey()
@@ -95,7 +95,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	pHash := preimage.Hash()
 	log.Printf("maker preimage: %s ", preimage.String())
@@ -105,7 +105,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	}
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	swap.ClaimInvoice = payreq
@@ -120,7 +120,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		swap.LastErr = err
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	/*
@@ -135,11 +135,11 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id, 600)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	swap.FeeInvoice = feeInvoice
 
@@ -162,11 +162,11 @@ type BroadCastOpeningTxAction struct{}
 func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	txWatcher, wallet, _, err := services.getOnchainAsset(swap.Asset)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	txId, finalizedTx, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 
 	swap.OpeningTxHex = finalizedTx
@@ -256,7 +256,7 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 
 	err = messenger.SendMessage(swap.PeerNodeId, msgBytes, msgType)
 	if err != nil {
-		return Event_ActionFailed
+		return swap.HandleError(err)
 	}
 	return Event_ActionSucceeded
 }
