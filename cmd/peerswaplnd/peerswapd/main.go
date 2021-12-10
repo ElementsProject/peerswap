@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,6 +38,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+)
+
+const (
+	minLndVersion = float64(14.1)
 )
 
 func main() {
@@ -89,6 +95,16 @@ func run() error {
 	}
 	defer lndConn.Close()
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
+
+	getInfo, err := lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return err
+	}
+	err = checkLndVersion(getInfo.Version)
+	if err != nil {
+		return err
+	}
+
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
@@ -392,5 +408,19 @@ func makeDirectories(fullDir string) error {
 		return err
 	}
 
+	return nil
+}
+
+func checkLndVersion(fullVersionString string) error {
+	splitString := strings.Split(fullVersionString, "-")
+	// remove first two chars
+	versionString := splitString[0][2:]
+	versionFloat, err := strconv.ParseFloat(versionString, 64)
+	if err != nil {
+		return err
+	}
+	if versionFloat < minLndVersion {
+		return errors.New(fmt.Sprintf("Lnd version unsupported, requires %v", minLndVersion))
+	}
 	return nil
 }
