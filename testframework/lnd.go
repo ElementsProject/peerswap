@@ -319,6 +319,8 @@ func (n *LndNode) OpenChannel(peer LightningNode, capacity uint64, connect, conf
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
 		}
 
+		var localActive bool
+		var remoteActive bool
 		err = WaitForWithErr(func() (bool, error) {
 			scid, err := n.GetScid(peer)
 			if err != nil {
@@ -328,13 +330,17 @@ func (n *LndNode) OpenChannel(peer LightningNode, capacity uint64, connect, conf
 				return false, nil
 			}
 
-			localActive, err := n.IsChannelActive(scid)
-			if err != nil {
-				return false, fmt.Errorf("IsChannelActive() %w", err)
+			if !localActive {
+				localActive, err = n.IsChannelActive(scid)
+				if err != nil {
+					return false, fmt.Errorf("IsChannelActive() %w", err)
+				}
 			}
-			remoteActive, err := peer.IsChannelActive(scid)
-			if err != nil {
-				return false, fmt.Errorf("IsChannelActive() %w", err)
+			if !remoteActive {
+				remoteActive, err = peer.IsChannelActive(scid)
+				if err != nil {
+					return false, fmt.Errorf("IsChannelActive() %w", err)
+				}
 			}
 			return remoteActive && localActive, nil
 		}, TIMEOUT)
