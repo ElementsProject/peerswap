@@ -11,7 +11,6 @@ nix-bitcoin-release = pkgs.fetchFromGitHub {
     sha256 = "sha256:1ms35sig935qw9i79i4g63p32h0qx27wvpr4rimi3wqrj92kfnjf";
 };
 
-
 nix-bitcoin-unstable-pkgs = import (import "${toString nix-bitcoin-release}/pkgs/nixpkgs-pinned.nix").nixpkgs-unstable {};
 
 # Override priority for bitcoin as /bin/bitcoin_test will 
@@ -24,7 +23,7 @@ bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
 
 # Build a clightning version with developer features enabled.
 # Clightning is way more responsive with dev features.
-clightning-dev = (pkgs.clightning.overrideDerivation (attrs: {
+clightning-dev = (nix-bitcoin-unstable-pkgs.clightning.overrideDerivation (attrs: {
     configurePhase = "./configure --prefix=$out --enable-developer --disable-valgrind\n";
     pname = "clightning-dev";
     postInstall = ''
