@@ -468,7 +468,7 @@ type ImportantPlugin struct {
 func checkClnVersion(fullVersionString string) error {
 	//splitString := strings.Split(fullVersionString,"-")
 	// remove first two chars
-	versionString := fullVersionString[3:]
+	versionString := fullVersionString[3:7]
 	versionFloat, err := strconv.ParseFloat(versionString, 64)
 	if err != nil {
 		return err
