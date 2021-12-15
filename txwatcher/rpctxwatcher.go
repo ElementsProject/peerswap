@@ -130,6 +130,7 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher(currentBlock uint64) error {
 }
 
 // HandleConfirmedTx looks for transactions that are confirmed
+// fixme: why does this function return an error if no error ever is returned?
 func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 	var toRemove []string
 	s.Lock()

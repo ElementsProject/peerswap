@@ -12,18 +12,18 @@ B->>A: swap out agreement response
 deactivate B
 A-->>B: pay fee invoice
 activate B
-Note over B: create openening tx
+Note over B: create commitment tx
 B->>A: tx opened message
 deactivate B
 alt claim with preimage
-Note over A: await opening tx has N confirmations
+Note over A: await commitment tx has N confirmations
 A-->>B: pay claim invoice
-Note over A: broadcast claim tx (preimage, pubkey alice)
-else claim cooperatively
+Note over A: broadcast claim tx
+else refund cooperatively
 Note over A: paying invoice fails
 A-->>B: send coop close message
-Note over B: broadcast claim tx(pk alice and bob)
-else claim after csv passes
-Note over B: broadcast claim tx (pubkey bob)
+Note over B: broadcast claim tx
+else refund after csv passes
+Note over B: broadcast claim tx
 end
 ```
