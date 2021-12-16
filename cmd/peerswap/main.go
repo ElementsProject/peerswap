@@ -217,10 +217,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	err = swapService.RecoverSwaps()
-	if err != nil {
-		return err
-	}
 
 	pollStore, err := poll.NewStore(swapDb)
 	if err != nil {
@@ -232,6 +228,10 @@ func run() error {
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
 	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
+	err = swapService.RecoverSwaps()
+	if err != nil {
+		return err
+	}
 
 	log.Printf("peerswap initialized")
 	<-quitChan
