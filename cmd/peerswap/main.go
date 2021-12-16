@@ -86,7 +86,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	err = checkClnVersion(nodeInfo.Version)
+	err = checkClnVersion(nodeInfo.Network, nodeInfo.Version)
 	if err != nil {
 		return err
 	}
@@ -465,9 +465,11 @@ type ImportantPlugin struct {
 	Options map[string]interface{}
 }
 
-func checkClnVersion(fullVersionString string) error {
-	//splitString := strings.Split(fullVersionString,"-")
-	// remove first two chars
+func checkClnVersion(network string, fullVersionString string) error {
+	// skip version check if running signet as it needs a custom build
+	if network == "signet" {
+		return nil
+	}
 	versionString := fullVersionString[3:7]
 	versionFloat, err := strconv.ParseFloat(versionString, 64)
 	if err != nil {

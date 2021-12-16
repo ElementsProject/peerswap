@@ -322,7 +322,7 @@ Now connect to another node that has the peerswap plugin running, for example th
 
 cln node
 ```bash
-lncli -n=signet connect 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799@95.217.184.148:39375
+lncli -n=signet connect 036ba9411c5bc0f07eaefa427d54973d8e06239c30caaef40775b3ac5c512cacf1@95.217.184.148:39375
 ```
 
 lnd node
