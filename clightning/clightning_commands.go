@@ -221,7 +221,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		case <-ctx.Done():
 			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 		default:
-			if swapOut.Current == swap.State_SwapOutSender_AwaitFeeResponse || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
+			if swapOut.Current == swap.State_SwapOutSender_AwaitAgreement || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
 				continue
 			}
 			if swapOut.Current == swap.State_SwapCanceled {

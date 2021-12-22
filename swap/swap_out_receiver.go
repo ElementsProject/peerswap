@@ -143,9 +143,10 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	}
 	swap.FeeInvoice = feeInvoice
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&FeeMessage{
-		SwapId:  swap.Id,
-		Invoice: swap.FeeInvoice,
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutAgreementMessage{
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swap.Id,
+		Invoice:         swap.FeeInvoice,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -184,7 +185,7 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	}
 	swap.RefundFee = refundFee
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
@@ -253,6 +254,9 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 		SwapId: swap.Id,
 		Error:  swap.CancelMessage,
 	})
+	if err != nil {
+		return swap.HandleError(err)
+	}
 
 	err = messenger.SendMessage(swap.PeerNodeId, msgBytes, msgType)
 	if err != nil {

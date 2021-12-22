@@ -45,7 +45,7 @@ func Test_GoodCase(t *testing.T) {
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, messages.MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
@@ -56,7 +56,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
-	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
+	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
 	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
@@ -110,7 +110,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	assert.NoError(t, err)
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, messages.MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 
 	assert.Equal(t, State_SwapCanceled, aliceSwap.Current)
 
@@ -152,7 +152,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
-	assert.Equal(t, messages.MESSAGETYPE_FEERESPONSE, aliceReceivedMsg)
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
@@ -163,7 +163,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
-	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, aliceReceivedMsg)
+	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true

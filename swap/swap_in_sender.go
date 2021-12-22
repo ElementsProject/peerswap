@@ -19,7 +19,7 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	swap.Role = SWAPROLE_SENDER
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequest{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequestMessage{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
@@ -92,7 +92,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 	swap.RefundFee = refundFee
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&TxOpenedMessage{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,

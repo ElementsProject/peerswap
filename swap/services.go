@@ -2,6 +2,7 @@ package swap
 
 import (
 	"fmt"
+
 	"github.com/sputn1ck/peerswap/messages"
 
 	"github.com/btcsuite/btcd/btcec"

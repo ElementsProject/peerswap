@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/sputn1ck/glightning/gelements"
@@ -11,10 +16,6 @@ import (
 	"github.com/sputn1ck/peerswap/poll"
 	"github.com/sputn1ck/peerswap/swap"
 	"github.com/sputn1ck/peerswap/wallet"
-	"os"
-	"sort"
-	"strings"
-	"time"
 )
 
 type PeerswapServer struct {
@@ -107,7 +108,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		case <-ctx.Done():
 			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 		default:
-			if swapOut.Current == swap.State_SwapOutSender_AwaitFeeResponse || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
+			if swapOut.Current == swap.State_SwapOutSender_AwaitAgreement || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
 				continue
 			}
 			if swapOut.Current == swap.State_SwapCanceled {

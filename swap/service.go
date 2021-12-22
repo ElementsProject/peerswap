@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/messages"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/sputn1ck/peerswap/messages"
 )
 
 const (
@@ -110,7 +111,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	case messages.MESSAGETYPE_SWAPOUTREQUEST:
-		var msg *SwapOutRequest
+		var msg *SwapOutRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -119,8 +120,8 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case messages.MESSAGETYPE_FEERESPONSE:
-		var msg *FeeMessage
+	case messages.MESSAGETYPE_SWAPOUTAGREEMENT:
+		var msg *SwapOutAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -129,8 +130,8 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case messages.MESSAGETYPE_TXOPENEDRESPONSE:
-		var msg *TxOpenedMessage
+	case messages.MESSAGETYPE_OPENINGTXBROADCASTED:
+		var msg *OpeningTxBroadcastedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -150,7 +151,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINREQUEST:
-		var msg *SwapInRequest
+		var msg *SwapInRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -176,20 +177,6 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 		err = s.OnCoopCloseReceived(msg.SwapId, msg)
-		if err != nil {
-			return err
-		}
-	case messages.MESSAGETYPE_CLAIMED:
-		var msg *ClaimedMessage
-		err := json.Unmarshal(msgBytes, &msg)
-		if err != nil {
-			return err
-		}
-		if msg.ClaimType == CLAIMTYPE_CSV {
-			err = s.OnCsvClaimMessageReceived(msg)
-		} else if msg.ClaimType == CLAIMTYPE_PREIMAGE {
-			err = s.OnPreimageClaimMessageReceived(msg)
-		}
 		if err != nil {
 			return err
 		}
@@ -356,7 +343,7 @@ func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementMessage) error {
 }
 
 // OnFeeInvoiceReceived sends the FeeInvoiceReceived event to the corresponding swap state machine
-func (s *SwapService) OnFeeInvoiceReceived(message *FeeMessage) error {
+func (s *SwapService) OnFeeInvoiceReceived(message *SwapOutAgreementMessage) error {
 	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
@@ -403,40 +390,8 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 	return nil
 }
 
-// OnPreimageClaimMessageReceived sends the ClaimedPreimage event to the corresponding swap state machine
-func (s *SwapService) OnPreimageClaimMessageReceived(message *ClaimedMessage) error {
-	swap, err := s.GetActiveSwap(message.SwapId)
-	if err != nil {
-		return err
-	}
-	done, err := swap.SendEvent(Event_OnClaimedPreimage, message)
-	if err != nil {
-		return err
-	}
-	if done {
-		s.RemoveActiveSwap(swap.Id)
-	}
-	return nil
-}
-
-// OnCsvClaimMessageReceived sends the ClaimedCsv event to the corresponding swap state machine
-func (s *SwapService) OnCsvClaimMessageReceived(message *ClaimedMessage) error {
-	swap, err := s.GetActiveSwap(message.SwapId)
-	if err != nil {
-		return err
-	}
-	done, err := swap.SendEvent(Event_OnClaimedCsv, message)
-	if err != nil {
-		return err
-	}
-	if done {
-		s.RemoveActiveSwap(swap.Id)
-	}
-	return nil
-}
-
 // OnTxOpenedMessage sends the TxOpenedMessage event to the corresponding swap state machine
-func (s *SwapService) OnTxOpenedMessage(message *TxOpenedMessage) error {
+func (s *SwapService) OnTxOpenedMessage(message *OpeningTxBroadcastedMessage) error {
 	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err

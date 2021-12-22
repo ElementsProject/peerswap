@@ -64,6 +64,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInAgreementMessage{
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.Id,
 		TakerPubkeyHash: swap.TakerPubkeyHash,
 	})
