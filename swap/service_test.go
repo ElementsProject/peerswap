@@ -2,12 +2,14 @@ package swap
 
 import (
 	"log"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GoodCase(t *testing.T) {
@@ -250,6 +252,100 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	}
 }
 
+func TestMessageFromUnexpectedPeer(t *testing.T) {
+	channelId := "chanId"
+	amount := uint64(100)
+	peer := "bob"
+	initiator := "alice"
+
+	aliceSwapService := getTestSetup("alice")
+	bobSwapService := getTestSetup("bob")
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
+
+	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan messages.MessageType)
+	bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan = make(chan messages.MessageType)
+
+	aliceMsgChan := aliceSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
+	bobMsgChan := bobSwapService.swapServices.messenger.(*ConnectedMessenger).msgReceivedChan
+
+	err := aliceSwapService.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bobSwapService.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount)
+	if err != nil {
+		t.Fatalf(" error swapping oput %v: ", err)
+	}
+	bobReceivedMsg := <-bobMsgChan
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
+	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+
+	aliceReceivedMsg := <-aliceMsgChan
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
+
+	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
+	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
+
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
+		Label: "fee_" + bobSwap.Id,
+	})
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
+
+	aliceReceivedMsg = <-aliceMsgChan
+	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
+
+	// Setup done.
+	// Sending messages from unexpected peer.
+	charlieMessenger := &ConnectedMessenger{
+		thisPeerId:      "charlie",
+		other:           aliceSwapService.swapServices.messenger.(*ConnectedMessenger),
+		msgReceivedChan: make(chan messages.MessageType),
+	}
+
+	type test struct {
+		name        string
+		message     PeerMessage
+		assertError bool
+	}
+
+	tests := []test{
+		{name: "swap in agreement message", message: &SwapInAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
+		{name: "swap out agreement message", message: &SwapOutAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
+		{name: "opening tx broadcasted message", message: &OpeningTxBroadcastedMessage{SwapId: aliceSwap.Id}, assertError: true},
+		{name: "coop close message", message: &CoopCloseMessage{SwapId: aliceSwap.Id}, assertError: true},
+		{name: "cancel message", message: &CancelMessage{SwapId: aliceSwap.Id}, assertError: true},
+		{name: "swap in request message", message: &SwapInRequestMessage{SwapId: "charlie_swap"}, assertError: false},
+		{name: "swap out request message", message: &SwapOutRequestMessage{SwapId: "charlie_swap"}, assertError: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset error for clean test.
+			aliceMessenger := aliceSwap.swapServices.messenger.(*ConnectedMessenger)
+			aliceMessenger.lastErr = nil
+			require.NoError(t, aliceMessenger.lastErr)
+
+			msgBytes, msgType, err := MarshalPeerswapMessage(tc.message)
+			require.NoError(t, err)
+
+			charlieMessenger.SendMessage("alice", msgBytes, msgType)
+			<-aliceMsgChan
+
+			if tc.assertError {
+				require.Error(t, aliceMessenger.lastErr)
+				assert.Equal(t, ErrReceivedMessageFromUnexpectedPeer(charlieMessenger.thisPeerId, aliceSwap.Id).Error(), aliceSwapService.swapServices.messenger.(*ConnectedMessenger).lastErr.Error())
+			} else {
+				require.NoError(t, aliceMessenger.lastErr)
+			}
+		})
+	}
+}
+
 func getTestSetup(name string) *SwapService {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
@@ -265,10 +361,12 @@ func getTestSetup(name string) *SwapService {
 }
 
 type ConnectedMessenger struct {
+	sync.Mutex
 	thisPeerId      string
 	OnMessage       func(peerId string, msgType string, msgBytes []byte) error
 	other           *ConnectedMessenger
 	msgReceivedChan chan messages.MessageType
+	lastErr         error
 }
 
 func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
@@ -278,6 +376,9 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 		err := c.other.OnMessage(c.thisPeerId, msgString, msg)
 		if err != nil {
 			log.Printf("error on message send %v", err)
+			c.other.Lock()
+			c.other.lastErr = err
+			c.other.Unlock()
 		}
 		if c.other.msgReceivedChan != nil {
 			c.other.msgReceivedChan <- messages.MessageType(msgType)
