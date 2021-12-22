@@ -45,9 +45,12 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 		return nil, fmt.Errorf("getFreePort() %w", err)
 	}
 
-	rpcListen, err := GetFreePort()
-	if err != nil {
-		return nil, fmt.Errorf("getFreePort() %w", err)
+	rpcListen := listen
+	for rpcListen == listen {
+		rpcListen, err = GetFreePort()
+		if err != nil {
+			return nil, fmt.Errorf("getFreePort() %w", err)
+		}
 	}
 
 	rngDirExtension, err := GenerateRandomString(5)
