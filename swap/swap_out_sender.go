@@ -44,7 +44,7 @@ func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) Ev
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequest{
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequestMessage{
 		SwapId:          swap.Id,
 		ChannelId:       swap.ChannelId,
 		Amount:          swap.Amount,
@@ -260,10 +260,10 @@ func getSwapOutSenderStates() States {
 			Action: &SendMessageAction{},
 			Events: Events{
 				Event_ActionFailed:    State_SwapCanceled,
-				Event_ActionSucceeded: State_SwapOutSender_AwaitFeeResponse,
+				Event_ActionSucceeded: State_SwapOutSender_AwaitAgreement,
 			},
 		},
-		State_SwapOutSender_AwaitFeeResponse: {
+		State_SwapOutSender_AwaitAgreement: {
 			Action: &NoOpAction{},
 			Events: Events{
 				Event_OnCancelReceived:     State_SwapCanceled,

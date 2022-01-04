@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/sputn1ck/peerswap/clightning"
@@ -160,7 +159,8 @@ func (suite *LndClnSwapsOnBitcoinSuite) SetupSuite() {
 	suite.lcid = lcid
 }
 
-func (suite *LndClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
+func (suite *LndClnSwapsOnBitcoinSuite) BeforeTest(suiteName, testName string) {
+	fmt.Printf("===RUN %s/%s\n", suiteName, testName)
 	// make shure we dont have pending balances on lnd.
 	err := testframework.WaitForWithErr(func() (bool, error) {
 		hasPending, err := suite.lnd.HasPendingHtlcOnChannel(suite.scid)
@@ -184,8 +184,19 @@ func (suite *LndClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
 	suite.walletBalances = walletBalances
 }
 
-func (suite *LndClnSwapsOnBitcoinSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
-	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
+func (suite *LndClnSwapsOnBitcoinSuite) HandleStats(suiteName string, stats *suite.SuiteInformation) {
+	var head = "FAIL"
+	if stats.Passed() {
+		head = "PASS"
+	}
+	fmt.Printf("--- %s: %s (%.2fs)\n", head, suiteName, stats.End.Sub(stats.Start).Seconds())
+	for _, tStats := range stats.TestStats {
+		var head = "FAIL"
+		if tStats.Passed {
+			head = "PASS"
+		}
+		fmt.Printf("\t--- %s: %s (%.2fs)\n", head, tStats.TestName, tStats.End.Sub(tStats.Start).Seconds())
+	}
 }
 
 //

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
 	"github.com/sputn1ck/peerswap/testframework"
@@ -133,7 +132,8 @@ func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 	suite.scid = scid
 }
 
-func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
+func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(suiteName, testName string) {
+	fmt.Printf("===RUN %s/%s\n", suiteName, testName)
 	var channelBalances []uint64
 	var walletBalances []uint64
 	for _, lightningd := range suite.lightningds {
@@ -151,8 +151,19 @@ func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(_, _ string) {
 	suite.walletBalances = walletBalances
 }
 
-func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(_ string, stats *suite.SuiteInformation) {
-	suite.T().Log(fmt.Sprintf("Time elapsed: %v", time.Since(stats.Start)))
+func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(suiteName string, stats *suite.SuiteInformation) {
+	var head = "FAIL"
+	if stats.Passed() {
+		head = "PASS"
+	}
+	fmt.Printf("--- %s: %s (%.2fs)\n", head, suiteName, stats.End.Sub(stats.Start).Seconds())
+	for _, tStats := range stats.TestStats {
+		var head = "FAIL"
+		if tStats.Passed {
+			head = "PASS"
+		}
+		fmt.Printf("\t--- %s: %s (%.2fs)\n", head, tStats.TestName, tStats.End.Sub(tStats.Start).Seconds())
+	}
 }
 
 //

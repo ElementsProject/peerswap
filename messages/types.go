@@ -12,7 +12,7 @@ const (
 	// peerswap messages in the range of custom message
 	// types according to BOLT #1. All other peerswap
 	// messages add even numbers to the base type to keep
-	// the meesage type odd.
+	// the message type odd.
 	BASE_MESSAGE_TYPE = 42069
 	// These are the peeerswap swap related messages as
 	// specified by the peerswap protocol. They are
@@ -24,13 +24,11 @@ const (
 	_
 	MESSAGETYPE_SWAPINAGREEMENT
 	_
-	MESSAGETYPE_FEERESPONSE
+	MESSAGETYPE_SWAPOUTAGREEMENT
 	_
-	MESSAGETYPE_TXOPENEDRESPONSE
+	MESSAGETYPE_OPENINGTXBROADCASTED
 	_
 	MESSAGETYPE_CANCELED
-	_
-	MESSAGETYPE_CLAIMED
 	_
 	MESSAGETYPE_COOPCLOSE
 	_

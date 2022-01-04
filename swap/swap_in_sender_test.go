@@ -39,7 +39,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
-	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
@@ -110,7 +110,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 		TakerPubkeyHash: takerPubkeyHash,
 	})
 	msg = <-msgChan
-	assert.Equal(t, messages.MESSAGETYPE_TXOPENEDRESPONSE, msg.MessageType())
+	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
 	_, err = swap.SendEvent(Event_OnCoopCloseReceived, nil)
 	if err != nil {

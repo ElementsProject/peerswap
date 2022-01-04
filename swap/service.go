@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/messages"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/sputn1ck/peerswap/messages"
 )
 
 const (
@@ -19,11 +20,21 @@ var (
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
 
+type ErrUnknownSwapMessageType string
+
+func (s ErrUnknownSwapMessageType) Error() string {
+	return fmt.Sprintf("message type %s is unknown to peerswap", string(s))
+}
+
 type PeerNotAllowedError string
 
 func (s PeerNotAllowedError) Error() string {
 	log.Printf("unalowed request from non-allowlist peer: %s", string(s))
 	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
+}
+
+func ErrReceivedMessageFromUnexpectedPeer(peerId, swapId string) error {
+	return fmt.Errorf("received a message from an unexpected peer, peerId: %s, swapId: %s", peerId, swapId)
 }
 
 // SwapService contains the logic for swaps
@@ -109,8 +120,10 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	msgBytes := []byte(payload)
 	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
+	default:
+		return ErrUnknownSwapMessageType(msgTypeString)
 	case messages.MESSAGETYPE_SWAPOUTREQUEST:
-		var msg *SwapOutRequest
+		var msg *SwapOutRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -119,22 +132,42 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
-	case messages.MESSAGETYPE_FEERESPONSE:
-		var msg *FeeMessage
+	case messages.MESSAGETYPE_SWAPOUTAGREEMENT:
+		var msg *SwapOutAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-		err = s.OnFeeInvoiceReceived(msg)
+
+		// Check if sender is expected swap partner peer.
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
-	case messages.MESSAGETYPE_TXOPENEDRESPONSE:
-		var msg *TxOpenedMessage
+		if !ok {
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
+		}
+
+		err = s.OnSwapOutAgreementReceived(msg)
+		if err != nil {
+			return err
+		}
+	case messages.MESSAGETYPE_OPENINGTXBROADCASTED:
+		var msg *OpeningTxBroadcastedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
+
+		// Check if sender is expected swap partner peer.
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
+		}
+
 		err = s.OnTxOpenedMessage(msg)
 		if err != nil {
 			return err
@@ -145,12 +178,22 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+
+		// Check if sender is expected swap partner peer.
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
+		}
+
 		err = s.OnCancelReceived(msg.SwapId, msg)
 		if err != nil {
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINREQUEST:
-		var msg *SwapInRequest
+		var msg *SwapInRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
@@ -165,6 +208,16 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+
+		// Check if sender is expected swap partner peer.
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
+		}
+
 		err = s.OnAgreementReceived(msg)
 		if err != nil {
 			return err
@@ -175,21 +228,17 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		if err != nil {
 			return err
 		}
+
+		// Check if sender is expected swap partner peer.
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
+		}
+
 		err = s.OnCoopCloseReceived(msg.SwapId, msg)
-		if err != nil {
-			return err
-		}
-	case messages.MESSAGETYPE_CLAIMED:
-		var msg *ClaimedMessage
-		err := json.Unmarshal(msgBytes, &msg)
-		if err != nil {
-			return err
-		}
-		if msg.ClaimType == CLAIMTYPE_CSV {
-			err = s.OnCsvClaimMessageReceived(msg)
-		} else if msg.ClaimType == CLAIMTYPE_PREIMAGE {
-			err = s.OnPreimageClaimMessageReceived(msg)
-		}
 		if err != nil {
 			return err
 		}
@@ -233,7 +282,6 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 	return nil
 }
 
-// todo check prerequisites
 // SwapOut starts a new swap out process
 func (s *SwapService) SwapOut(peer string, asset string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	if s.hasActiveSwapOnChannel(channelId) {
@@ -355,8 +403,8 @@ func (s *SwapService) OnAgreementReceived(msg *SwapInAgreementMessage) error {
 	return nil
 }
 
-// OnFeeInvoiceReceived sends the FeeInvoiceReceived event to the corresponding swap state machine
-func (s *SwapService) OnFeeInvoiceReceived(message *FeeMessage) error {
+// OnSwapOutAgreementReceived sends the FeeInvoiceReceived event to the corresponding swap state machine
+func (s *SwapService) OnSwapOutAgreementReceived(message *SwapOutAgreementMessage) error {
 	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
@@ -403,40 +451,8 @@ func (s *SwapService) OnClaimInvoicePaid(swapId string) error {
 	return nil
 }
 
-// OnPreimageClaimMessageReceived sends the ClaimedPreimage event to the corresponding swap state machine
-func (s *SwapService) OnPreimageClaimMessageReceived(message *ClaimedMessage) error {
-	swap, err := s.GetActiveSwap(message.SwapId)
-	if err != nil {
-		return err
-	}
-	done, err := swap.SendEvent(Event_OnClaimedPreimage, message)
-	if err != nil {
-		return err
-	}
-	if done {
-		s.RemoveActiveSwap(swap.Id)
-	}
-	return nil
-}
-
-// OnCsvClaimMessageReceived sends the ClaimedCsv event to the corresponding swap state machine
-func (s *SwapService) OnCsvClaimMessageReceived(message *ClaimedMessage) error {
-	swap, err := s.GetActiveSwap(message.SwapId)
-	if err != nil {
-		return err
-	}
-	done, err := swap.SendEvent(Event_OnClaimedCsv, message)
-	if err != nil {
-		return err
-	}
-	if done {
-		s.RemoveActiveSwap(swap.Id)
-	}
-	return nil
-}
-
 // OnTxOpenedMessage sends the TxOpenedMessage event to the corresponding swap state machine
-func (s *SwapService) OnTxOpenedMessage(message *TxOpenedMessage) error {
+func (s *SwapService) OnTxOpenedMessage(message *OpeningTxBroadcastedMessage) error {
 	swap, err := s.GetActiveSwap(message.SwapId)
 	if err != nil {
 		return err
@@ -592,4 +608,14 @@ type WrongAssetError string
 
 func (e WrongAssetError) Error() string {
 	return fmt.Sprintf("unallowed asset: %s", string(e))
+}
+
+// isMessageSenderExpectedPeer returns true if the senderId matches the
+// PeerNodeId of the swap, false if not.
+func (s *SwapService) isMessageSenderExpectedPeer(senderId, swapId string) (bool, error) {
+	swap, err := s.GetActiveSwap(swapId)
+	if err != nil {
+		return false, err
+	}
+	return swap.Data.PeerNodeId == senderId, nil
 }

@@ -14,7 +14,7 @@ const (
 const (
 	State_SwapOutSender_CreateSwap                   StateType = "State_SwapOutSender_CreateSwap"
 	State_SwapOutSender_SendRequest                  StateType = "State_SwapOutSender_SendRequest"
-	State_SwapOutSender_AwaitFeeResponse             StateType = "State_SwapOutSender_AwaitFeeResponse"
+	State_SwapOutSender_AwaitAgreement               StateType = "State_SwapOutSender_AwaitAgreement"
 	State_SwapOutSender_PayFeeInvoice                StateType = "State_SwapOutSender_PayFeeInvoice"
 	State_SwapOutSender_AwaitTxBroadcastedMessage    StateType = "State_SwapOutSender_AwaitTxBroadcastedMessage"
 	State_SwapOutSender_AwaitTxConfirmation          StateType = "State_SwapOutSender_AwaitTxConfirmation"
@@ -77,7 +77,6 @@ const (
 
 	Event_OnFeeInvoicePaid   EventType = "Event_OnFeeInvoicePaid"
 	Event_OnClaimInvoicePaid EventType = "Event_OnClaimInvoicePaid"
-	Event_OnClaimedPreimage  EventType = "Event_OnClaimedPreimage"
 	Event_OnCsvPassed        EventType = "Event_OnCsvPassed"
 
 	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"

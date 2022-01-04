@@ -51,14 +51,20 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 		return nil, err
 	}
 
-	zmqpubrawblockPort, err := GetFreePort()
-	if err != nil {
-		return nil, err
+	zmqpubrawblockPort := rpcPort
+	for zmqpubrawblockPort == rpcPort {
+		zmqpubrawblockPort, err = GetFreePort()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	zmqpubrawtxPort, err := GetFreePort()
-	if err != nil {
-		return nil, err
+	zmqpubrawtxPort := rpcPort
+	for zmqpubrawtxPort == rpcPort || zmqpubrawtxPort == zmqpubrawblockPort {
+		zmqpubrawtxPort, err = GetFreePort()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	zmqpubrawblock := fmt.Sprintf("tcp://127.0.0.1:%d", zmqpubrawblockPort)
@@ -215,9 +221,12 @@ func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, e
 		return nil, err
 	}
 
-	port, err := GetFreePort()
-	if err != nil {
-		return nil, err
+	port := rpcPort
+	for port == rpcPort {
+		port, err = GetFreePort()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	rngDirExtension, err := GenerateRandomString(5)
