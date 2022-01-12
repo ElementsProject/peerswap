@@ -161,22 +161,30 @@ func TestRemoveUnseen(t *testing.T) {
 	}
 
 	now := time.Now()
-	duration := 100 * time.Millisecond
+	duration := 10 * time.Millisecond
 
-	store.Update("peer", PollInfo{
+	err = store.Update("peer", PollInfo{
 		Assets:      []string{"l-btc", "btc"},
 		PeerAllowed: false,
 		LastSeen:    now,
 	})
-	store.Update("peer1", PollInfo{
+	if err != nil {
+		t.Fatalf("could not create store: %v", err)
+	}
+	err = store.Update("peer1", PollInfo{
 		Assets:      []string{"l-btc", "btc"},
 		PeerAllowed: false,
 		LastSeen:    now.Add(duration),
 	})
+	if err != nil {
+		t.Fatalf("could not create store: %v", err)
+	}
 
 	time.Sleep(duration)
-	store.RemoveUnseen(duration)
-
+	err = store.RemoveUnseen(duration)
+	if err != nil {
+		t.Fatalf("could not create store: %v", err)
+	}
 	m, err := store.GetAll()
 	if err != nil {
 		t.Fatalf("GetAll(): %v", err)

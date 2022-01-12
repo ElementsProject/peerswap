@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil/psbt"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -177,7 +178,11 @@ func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams
 	return hex.EncodeToString(sigBytes.Serialize()), nil
 }
 
-func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (string, string, error) {
+func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (string, string, error) {
+	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	if err != nil {
+		return "", "", err
+	}
 	tx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err

@@ -77,6 +77,9 @@ type OpeningTxBroadcastedMessage struct {
 	RefundFee       uint64
 	Invoice         string
 	TxHex           string
+
+	// BlindingStuff
+	BlindingKeyHex string
 }
 
 func (t OpeningTxBroadcastedMessage) ApplyOnSwap(swap *SwapData) {
@@ -85,6 +88,8 @@ func (t OpeningTxBroadcastedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.OpeningTxHex = t.TxHex
 	swap.MakerRefundAddr = t.RefundAddr
 	swap.RefundFee = t.RefundFee
+
+	swap.BlindingKeyHex = t.BlindingKeyHex
 }
 
 func (t OpeningTxBroadcastedMessage) MessageType() messages.MessageType {
@@ -109,6 +114,10 @@ func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 type CoopCloseMessage struct {
 	SwapId             string
 	TakerRefundSigHash string
+
+	EphemeralKeyHex        string
+	AssetBlindingFactorHex string
+	SeedHex                string
 }
 
 func (c CoopCloseMessage) MessageType() messages.MessageType {
@@ -117,4 +126,7 @@ func (c CoopCloseMessage) MessageType() messages.MessageType {
 
 func (c CoopCloseMessage) ApplyOnSwap(swap *SwapData) {
 	swap.TakerRefundSigHash = c.TakerRefundSigHash
+	swap.EphemeralKeyHex = c.EphemeralKeyHex
+	swap.AssetBlindingFactorHex = c.AssetBlindingFactorHex
+	swap.SeedHex = c.SeedHex
 }

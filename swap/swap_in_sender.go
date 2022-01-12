@@ -99,6 +99,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		TxHex:           swap.OpeningTxHex,
 		RefundAddr:      swap.MakerRefundAddr,
 		RefundFee:       swap.RefundFee,
+		BlindingKeyHex:  swap.BlindingKeyHex,
 	})
 	if err != nil {
 		return swap.HandleError(err)

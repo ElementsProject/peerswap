@@ -367,7 +367,7 @@ func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimPara
 	return "takersighash", nil
 }
 
-func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
 }
 

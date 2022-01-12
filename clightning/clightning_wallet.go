@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
+
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/swap"
-	"log"
 )
 
 func (b *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
@@ -156,7 +157,11 @@ func (b *ClightningClient) TakerCreateCoopSigHash(swapParams *swap.OpeningParams
 
 }
 
-func (b *ClightningClient) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+func (b *ClightningClient) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+	_, vout, err := b.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	if err != nil {
+		return "", "", err
+	}
 	tx, sigHashBytes, redeemScript, err := b.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err

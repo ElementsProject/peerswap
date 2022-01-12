@@ -192,6 +192,7 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 		TxHex:           finalizedTx,
 		RefundAddr:      swap.MakerRefundAddr,
 		RefundFee:       swap.RefundFee,
+		BlindingKeyHex:  swap.BlindingKeyHex,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -229,11 +230,12 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 		ClaimPaymentHash: swap.ClaimPaymentHash,
 		Amount:           swap.Amount,
 	}
-	spendParams := &ClaimParams{
+	claimParams := &ClaimParams{
 		Signer:       key,
 		OpeningTxHex: swap.OpeningTxHex,
 	}
-	txId, _, err := wallet.CreateCooperativeSpendingTransaction(openingParams, spendParams, swap.MakerRefundAddr, swap.OpeningTxVout, swap.TakerRefundSigHash, swap.RefundFee)
+	SetBlindingParams(swap, openingParams, claimParams)
+	txId, _, err := wallet.CreateCooperativeSpendingTransaction(openingParams, claimParams, swap.MakerRefundAddr, swap.TakerRefundSigHash, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -278,14 +280,26 @@ func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData
 		Signer:       key,
 		OpeningTxHex: swap.OpeningTxHex,
 	}
-	sigHash, err := wallet.TakerCreateCoopSigHash(swap.GetOpeningParams(), claimParams, swap.MakerRefundAddr, swap.RefundFee)
+	openingParams := swap.GetOpeningParams()
+	if swap.Asset == l_btc_asset {
+		SetBlindingParams(swap, openingParams, claimParams)
+	}
+	sigHash, err := wallet.TakerCreateCoopSigHash(openingParams, claimParams, swap.MakerRefundAddr, swap.RefundFee)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	swap.TakerRefundSigHash = sigHash
+
+	var ephemeralKeyHex string
+	if claimParams.EphemeralKey != nil {
+		ephemeralKeyHex = hex.EncodeToString(claimParams.EphemeralKey.Serialize())
+	}
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
-		SwapId:             swap.Id,
-		TakerRefundSigHash: sigHash,
+		SwapId:                 swap.Id,
+		TakerRefundSigHash:     sigHash,
+		EphemeralKeyHex:        ephemeralKeyHex,
+		SeedHex:                hex.EncodeToString(claimParams.BlindingSeed),
+		AssetBlindingFactorHex: hex.EncodeToString(claimParams.OutputAssetBlindingFactor),
 	})
 	if err != nil {
 		return swap.HandleError(err)

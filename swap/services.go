@@ -8,6 +8,11 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 )
 
+const (
+	btc_asset   = "btc"
+	l_btc_asset = "l-btc"
+)
+
 type Messenger interface {
 	SendMessage(peerId string, message []byte, messageType int) error
 	AddMessageHandler(func(peerId string, msgType string, payload []byte) error)
@@ -48,7 +53,7 @@ type Wallet interface {
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error)
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error)
 	TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error)
-	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, vout uint32, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
+	CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error)
 	GetOutputScript(params *OpeningParams) ([]byte, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
@@ -59,6 +64,8 @@ type OpeningParams struct {
 	MakerPubkeyHash  string
 	ClaimPaymentHash string
 	Amount           uint64
+	BlindingKey      *btcec.PrivateKey
+	OpeningAddress   string
 }
 
 func (o *OpeningParams) String() string {
@@ -69,6 +76,11 @@ type ClaimParams struct {
 	Preimage     string
 	Signer       Signer
 	OpeningTxHex string
+
+	// blinded tx stuff
+	BlindingSeed              []byte
+	OutputAssetBlindingFactor []byte
+	EphemeralKey              *btcec.PrivateKey
 }
 
 type Signer interface {
@@ -126,10 +138,10 @@ func (s *SwapServices) getOnchainAsset(asset string) (TxWatcher, Wallet, Validat
 	if asset == "" {
 		return nil, nil, nil, fmt.Errorf("missing asset")
 	}
-	if asset == "btc" {
+	if asset == btc_asset {
 		return s.bitcoinTxWatcher, s.bitcoinWallet, s.bitcoinValidator, nil
 	}
-	if asset == "l-btc" {
+	if asset == l_btc_asset {
 		return s.liquidTxWatcher, s.liquidWallet, s.liquidValidator, nil
 	}
 	return nil, nil, nil, WrongAssetError(asset)
