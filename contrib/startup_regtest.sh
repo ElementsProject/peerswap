@@ -109,7 +109,7 @@ liquid.rpcwallet=swaplnd-$i
 accept_all_peers=true
 EOF
   
-    ./peerswapd "--configfile=/tmp/lnd-peerswap-$i/config" > /dev/null 2>&1 &
+    ./out/peerswapd "--configfile=/tmp/lnd-peerswap-$i/config" > /dev/null 2>&1 &
 
     done
 }
@@ -164,7 +164,7 @@ EOF
     # Start the lightning nodes
     test -f "/tmp/l$i-$network/lightningd-$network.pid" ||
       "$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-        "--plugin=$PWD/peerswap" \
+        "--plugin=$PWD/out/peerswap" \
         --peerswap-liquid-rpchost=http://127.0.0.1 \
         --peerswap-liquid-rpcport=$liquidrpcPort \
         --peerswap-liquid-rpcuser=admin1 \
@@ -373,8 +373,8 @@ start_dev_env() {
 }
 
 stop_peerswap_lnd() {
-  ./peerswap-cli "--rpcserver=localhost:42169" stop
-  ./peerswap-cli "--rpcserver=localhost:42269" stop
+  ./out/pscli "--rpcserver=localhost:42169" stop
+  ./out/pscli "--rpcserver=localhost:42269" stop
 }
 
 rebuild_peerswap_lnd() {
