@@ -98,6 +98,11 @@ type SwapData struct {
 	OpeningTxHex           string `json:"opening_tx-hex"`
 	StartingBlockHeight    uint32 `json:"opening_block_height"`
 
+	BlindingKeyHex         string `json:"blinding_key_hex, omitempty`
+	EphemeralKeyHex        string `json:"ephemeral_key_hex, omitempty`
+	AssetBlindingFactorHex string `json:"asset_blinding_factor_hex, omitempty`
+	SeedHex                string `json:"seed_hex", omitempty`
+
 	ClaimTxId string `json:"claim_tx_id"`
 
 	NextMessage     []byte
@@ -121,11 +126,17 @@ func (s *SwapData) GetCurrentState() StateType {
 }
 
 func (s *SwapData) GetOpeningParams() *OpeningParams {
+	var blindingKey *btcec.PrivateKey
+	if s.BlindingKeyHex != "" {
+		blindingKeyBytes, _ := hex.DecodeString(s.BlindingKeyHex)
+		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
+	}
 	return &OpeningParams{
 		TakerPubkeyHash:  s.TakerPubkeyHash,
 		MakerPubkeyHash:  s.MakerPubkeyHash,
 		ClaimPaymentHash: s.ClaimPaymentHash,
 		Amount:           s.Amount,
+		BlindingKey:      blindingKey,
 	}
 }
 
