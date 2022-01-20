@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sputn1ck/peerswap/isdev"
+	"github.com/sputn1ck/peerswap/messages"
 )
 
 type SwapCreationContext struct {
@@ -72,6 +73,24 @@ func (s *SendMessageAction) Execute(services *SwapServices, swap *SwapData) Even
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	return Event_ActionSucceeded
+}
+
+type SendMessageWithRetryAction struct{}
+
+func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.NextMessage == nil {
+		return swap.HandleError(errors.New("swap.NextMessage is nil"))
+	}
+
+	// Send message repeated as we really want the message to be received at some point!
+	rm := messages.NewRedundantMessenger(services.messenger, 10*time.Second)
+	err := services.messengerManager.AddSender(swap.Id, rm)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	rm.SendMessage(swap.PeerNodeId, swap.NextMessage, swap.NextMessageType)
+
 	return Event_ActionSucceeded
 }
 
@@ -220,6 +239,9 @@ func (n *NoOpAction) Execute(services *SwapServices, swap *SwapData) EventType {
 type NoOpDoneAction struct{}
 
 func (a *NoOpDoneAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	// Remove possible message sender
+	services.messengerManager.RemoveSender(swap.Id)
+
 	return Event_Done
 }
 

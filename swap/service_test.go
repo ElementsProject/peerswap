@@ -352,10 +352,11 @@ func getTestSetup(name string) *SwapService {
 	messenger := &ConnectedMessenger{
 		thisPeerId: name,
 	}
+	mmgr := &MessengerManagerStub{}
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, policy, true, chain, chain, chain, true, chain, chain, chain)
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
 	swapService := NewSwapService(swapServices)
 	return swapService
 }
@@ -390,4 +391,26 @@ func (c *ConnectedMessenger) SendMessage(peerId string, msg []byte, msgType int)
 
 func (c *ConnectedMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
 	c.OnMessage = f
+}
+
+type MessengerManagerStub struct {
+	sync.Mutex
+	called  int
+	added   int
+	removed int
+}
+
+func (s *MessengerManagerStub) AddSender(id string, messenger messages.StoppableMessenger) error {
+	s.Lock()
+	defer s.Unlock()
+	s.called++
+	s.added++
+	return nil
+}
+
+func (s *MessengerManagerStub) RemoveSender(id string) {
+	s.Lock()
+	defer s.Unlock()
+	s.called++
+	s.removed++
 }

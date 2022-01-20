@@ -126,6 +126,7 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	lc := &dummyLightningClient{preimage: "fee"}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{}
-	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, policy, true, chain, chain, chain, true, chain, chain, chain)
+	mmgr := &MessengerManagerStub{}
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
 	return swapServices
 }

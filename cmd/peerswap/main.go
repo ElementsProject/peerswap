@@ -21,6 +21,7 @@ import (
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/clightning"
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/policy"
 	"github.com/sputn1ck/peerswap/poll"
@@ -169,19 +170,25 @@ func run() error {
 	}
 	log.Printf("using policy:\n%s", pol)
 
+	// Swap store.
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
 	}
+
 	requestedSwapStore, err := swap.NewRequestedSwapsStore(swapDb)
 	if err != nil {
 		return err
 	}
 
+	// Manager for send message retry.
+	mesmgr := messages.NewManager()
+
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
 		lightningPlugin,
 		lightningPlugin,
+		mesmgr,
 		pol,
 		bitcoinEnabled,
 		lightningPlugin,

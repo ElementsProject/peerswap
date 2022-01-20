@@ -10,21 +10,26 @@ type Messenger interface {
 	SendMessage(peerId string, message []byte, messageType int) error
 }
 
-type RedundantSender struct {
+type StoppableMessenger interface {
+	Messenger
+	Stop()
+}
+
+type RedundantMessenger struct {
 	messenger Messenger
 	ticker    time.Ticker
 	stop      chan struct{}
 }
 
-func NewRedundantSender(messenger Messenger, retryTime time.Duration) *RedundantSender {
-	return &RedundantSender{
+func NewRedundantMessenger(messenger Messenger, retryTime time.Duration) *RedundantMessenger {
+	return &RedundantMessenger{
 		messenger: messenger,
 		ticker:    *time.NewTicker(retryTime),
 		stop:      make(chan struct{}),
 	}
 }
 
-func (s *RedundantSender) SendMessageWithRetry(peerId string, message []byte, messageType int) {
+func (s *RedundantMessenger) SendMessage(peerId string, message []byte, messageType int) error {
 	log.Printf("[RedundantSender]\tstart sending messages of type %d to %s\n", messageType, peerId)
 	go func() {
 		for {
@@ -40,32 +45,39 @@ func (s *RedundantSender) SendMessageWithRetry(peerId string, message []byte, me
 			}
 		}
 	}()
-}
 
-func (s *RedundantSender) Stop() {
-	close(s.stop)
-}
-
-type SenderManager struct {
-	sync.Mutex
-	sender map[string]*RedundantSender
-}
-
-func (m *SenderManager) AddSender(id string, sender *RedundantSender) error {
-	m.Lock()
-	defer m.Unlock()
-	if _, ok := m.sender[id]; ok {
-		return ErrAlreadyHasASender(id)
-	}
-	m.sender[id] = sender
+	// This function returns an error to fulfil the Messenger interface.
 	return nil
 }
 
-func (m *SenderManager) RemoveSender(id string) {
+func (s *RedundantMessenger) Stop() {
+	close(s.stop)
+}
+
+type Manager struct {
+	sync.Mutex
+	messengers map[string]StoppableMessenger
+}
+
+func NewManager() *Manager {
+	return &Manager{messengers: map[string]StoppableMessenger{}}
+}
+
+func (m *Manager) AddSender(id string, messenger StoppableMessenger) error {
 	m.Lock()
 	defer m.Unlock()
-	if sender, ok := m.sender[id]; ok {
+	if _, ok := m.messengers[id]; ok {
+		return ErrAlreadyHasASender(id)
+	}
+	m.messengers[id] = messenger
+	return nil
+}
+
+func (m *Manager) RemoveSender(id string) {
+	m.Lock()
+	defer m.Unlock()
+	if sender, ok := m.messengers[id]; ok {
 		sender.Stop()
 	}
-	delete(m.sender, id)
+	delete(m.messengers, id)
 }

@@ -18,6 +18,10 @@ type Messenger interface {
 	AddMessageHandler(func(peerId string, msgType string, payload []byte) error)
 }
 
+type MessengerManager interface {
+	AddSender(id string, messenger messages.StoppableMessenger) error
+	RemoveSender(id string)
+}
 type PeerMessage interface {
 	MessageType() messages.MessageType
 }
@@ -92,6 +96,7 @@ type SwapServices struct {
 	requestedSwapsStore RequestedSwapsStore
 	lightning           LightningClient
 	messenger           Messenger
+	messengerManager    MessengerManager
 	policy              Policy
 	bitcoinTxWatcher    TxWatcher
 	bitcoinValidator    Validator
@@ -108,6 +113,7 @@ func NewSwapServices(
 	requestedSwapsStore RequestedSwapsStore,
 	lightning LightningClient,
 	messenger Messenger,
+	messengerManager MessengerManager,
 	policy Policy,
 	bitcoinEnabled bool,
 	bitcoinWallet Wallet,
@@ -122,6 +128,7 @@ func NewSwapServices(
 		requestedSwapsStore: requestedSwapsStore,
 		lightning:           lightning,
 		messenger:           messenger,
+		messengerManager:    messengerManager,
 		policy:              policy,
 		bitcoinTxWatcher:    bitcoinTxWatcher,
 		bitcoinWallet:       bitcoinWallet,
