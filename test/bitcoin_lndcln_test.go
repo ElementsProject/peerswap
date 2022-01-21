@@ -142,13 +142,11 @@ func (suite *LndClnSwapsOnBitcoinSuite) SetupSuite() {
 	}
 
 	// Sync peer polling
-	t.Log("Wait for poll syncing")
-	var result interface{}
-	err = cln.Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
+	_, err = peerswapd.PeerswapClient.ReloadPolicyFile(context.Background(), &peerswaprpc.ReloadPolicyFileRequest{})
 	if err != nil {
-		t.Fatalf("ListPeers %v", err)
+		t.Fatalf("ReloadPolicyFile %v", err)
 	}
-	cln.WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lnd.Info.IdentityPubkey), testframework.TIMEOUT)
+	cln.WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lnd.Info.IdentityPubkey), testframework.TIMEOUT)
 
 	suite.bitcoind = bitcoind
 	suite.lnd = lnd
