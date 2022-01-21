@@ -121,7 +121,8 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	default:
-		return ErrUnknownSwapMessageType(msgTypeString)
+		// Do nothing here, as it will spam the cln log.
+		return nil
 	case messages.MESSAGETYPE_SWAPOUTREQUEST:
 		var msg *SwapOutRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
