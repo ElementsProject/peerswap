@@ -84,10 +84,16 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 			case <-s.ctx.Done():
 				return nil
 			case nb := <-s.newBlockChan:
-				err := s.HandleConfirmedTx(nb)
-				if err != nil {
-					return err
-				}
+				// This is a blocking action so we need to spawn it in a separate go routine if we do not want to take
+				// risk of deadlocks.
+				// Todo: How to care about errors?
+				go func() {
+					err := s.HandleConfirmedTx(nb)
+					if err != nil {
+						log.Printf("HandleConfirmedTx: %v", err)
+					}
+				}()
+				// Todo: Maybe the same goes for the HandleCsvTx.
 				err = s.HandleCsvTx(nb)
 				if err != nil {
 					return err
@@ -189,13 +195,19 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	s.TxClaimed(toRemove)
 	return nil
 }
-func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, scriptpubkey []byte) {
+
+func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, _ uint32, _ []byte) {
 	l.Lock()
-	defer l.Unlock()
 	l.txWatchList[swapId] = txId
+	l.Unlock()
+
+	// In case that the blockheight already exceeds the desired height, we do not want to wait for another block before
+	// we trigger HandleConfirmedTx
+	h, _ := l.blockchain.GetBlockHeight()
+	go l.HandleConfirmedTx(h)
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte) {
+func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, _ uint32, _ []byte) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvtxWatchList[swapId] = &SwapTxInfo{

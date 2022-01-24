@@ -150,19 +150,18 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 	}
 
 	// Sync peer polling
-	t.Log("Wait for poll syncing")
 	var result interface{}
 	err = lightningds[0].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
 	if err != nil {
 		t.Fatalf("ListPeers %v", err)
 	}
-	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[0].Info.Id), testframework.TIMEOUT)
+	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[0].Info.Id), testframework.TIMEOUT)
 
 	err = lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
 	if err != nil {
 		t.Fatalf("ListPeers %v", err)
 	}
-	lightningds[0].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[1].Info.Id), testframework.TIMEOUT)
+	lightningds[0].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[1].Info.Id), testframework.TIMEOUT)
 
 	suite.bitcoind = bitcoind
 	suite.lightningds = lightningds

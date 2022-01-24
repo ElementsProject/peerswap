@@ -26,6 +26,7 @@ import (
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/peerswap/cmd/peerswaplnd"
 	lnd2 "github.com/sputn1ck/peerswap/lnd"
+	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/peerswaprpc"
 	"github.com/sputn1ck/peerswap/policy"
@@ -200,10 +201,14 @@ func run() error {
 		return err
 	}
 
+	// Manager for send message retry.
+	mesmgr := messages.NewManager()
+
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
 		lnd,
 		lnd,
+		mesmgr,
 		pol,
 		cfg.BitcoinEnabled,
 		lnd,

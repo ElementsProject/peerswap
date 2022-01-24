@@ -366,7 +366,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_SendTxBroadcastedMessage: {
-			Action: &SendMessageAction{},
+			Action: &SendMessageWithRetryAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutReceiver_AwaitClaimInvoicePayment,
 				Event_ActionFailed:    State_SwapOutReceiver_SwapAborted,
@@ -382,7 +382,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCoop: {
-			Action: &ClaimSwapTransactionCoop{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &ClaimSwapTransactionCoop{}},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCoop,
 				Event_ActionFailed:    State_SwapOutReceiver_SwapAborted,
@@ -395,7 +395,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCsv: {
-			Action: &ClaimSwapTransactionWithCsv{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &ClaimSwapTransactionWithCsv{}},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCsv,
 				Event_OnRetry:         State_SwapOutReceiver_ClaimSwapCsv,

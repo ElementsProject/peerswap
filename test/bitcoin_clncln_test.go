@@ -114,7 +114,6 @@ func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// Sync peer polling
-	t.Log("Wait for poll syncing")
 	for i := 0; i < 2; i++ {
 		// Reload policy to trigger sync
 		var result interface{}
@@ -124,7 +123,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 		}
 	}
 	for i := 0; i < 2; i++ {
-		lightningds[i].WaitForLog(fmt.Sprintf("From: %s got msgtype: a465", lightningds[(i+1)%2].Info.Id), testframework.TIMEOUT)
+		lightningds[i].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[(i+1)%2].Info.Id), testframework.TIMEOUT)
 	}
 
 	suite.bitcoind = bitcoind

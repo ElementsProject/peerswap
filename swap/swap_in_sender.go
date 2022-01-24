@@ -110,6 +110,18 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	return Event_ActionSucceeded
 }
 
+type StopSendMessageWithRetryWrapperAction struct {
+	next Action
+}
+
+func (a StopSendMessageWithRetryWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	// Stop sending repeated messages
+	services.messengerManager.RemoveSender(swap.Id)
+
+	// Call next Action
+	return a.next.Execute(services, swap)
+}
+
 // AwaitCsvAction adds the opening tx to the txwatcher
 type AwaitCsvAction struct{}
 
@@ -125,6 +137,7 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
@@ -185,7 +198,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_SendTxBroadcastedMessage: {
-			Action: &SendMessageAction{},
+			Action: &SendMessageWithRetryAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInSender_AwaitClaimPayment,
 				Event_ActionFailed:    State_WaitCsv,
@@ -201,21 +214,21 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_ClaimSwapCsv: {
-			Action: &ClaimSwapTransactionWithCsv{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &ClaimSwapTransactionWithCsv{}},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCsv,
 				Event_OnRetry:         State_SwapInSender_ClaimSwapCsv,
 			},
 		},
 		State_SwapInSender_ClaimSwapCoop: {
-			Action: &ClaimSwapTransactionCoop{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &ClaimSwapTransactionCoop{}},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCoop,
 				Event_ActionFailed:    State_WaitCsv,
 			},
 		},
 		State_WaitCsv: {
-			Action: &AwaitCsvAction{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &AwaitCsvAction{}},
 			Events: Events{
 				Event_OnCsvPassed: State_SwapInSender_ClaimSwapCsv,
 			},

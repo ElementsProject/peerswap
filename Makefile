@@ -21,7 +21,7 @@ test: build-with-fast-test
 .PHONY: test
 
 test-integration: build-with-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 go test -tags dev -tags fast_test -timeout=60m ./test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 LIGHTNING_TESTFRAMEWORK_FILTER="peerswap" go test -tags dev -tags fast_test -timeout=60m ./test
 .PHONY: test-integration
 
 lnd-release:
