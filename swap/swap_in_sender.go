@@ -65,11 +65,6 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.ClaimPreimage = preimage.String()
 	swap.ClaimPaymentHash = pHash.String()
 
-	err = SetRefundAddress(services, swap)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		return swap.HandleError(err)
@@ -87,18 +82,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.OpeningTxHex = txHex
 	swap.OpeningTxId = txId
 
-	refundFee, err := wallet.GetRefundFee()
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.RefundFee = refundFee
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxHex:           swap.OpeningTxHex,
-		RefundAddr:      swap.MakerRefundAddr,
-		RefundFee:       swap.RefundFee,
 		BlindingKeyHex:  swap.BlindingKeyHex,
 	})
 	if err != nil {

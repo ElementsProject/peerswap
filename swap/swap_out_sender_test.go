@@ -363,11 +363,7 @@ func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, cla
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) TakerCreateCoopSigHash(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	return "takersighash", nil
-}
-
-func (d *dummyChain) CreateCooperativeSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
+func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error) {
 	return "txid", "txhex", nil
 }
 

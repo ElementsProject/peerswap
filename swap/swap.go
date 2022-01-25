@@ -84,9 +84,7 @@ type SwapData struct {
 	MakerPubkeyHash string `json:"maker_pubkey_hash"`
 	TakerPubkeyHash string `json:"taker_pubkey_hash"`
 
-	MakerRefundAddr    string `json:"maker_refund_addr"`
-	TakerRefundSigHash string `json:"taker_refund_sig_hash"`
-	RefundFee          uint64 `json:"refund_fee"`
+	TakerPrivkey string `json:"taker_priv_key"`
 
 	FeeInvoice  string `json:"fee_invoice"`
 	FeePreimage string `json:"fee_preimage"`
@@ -98,10 +96,7 @@ type SwapData struct {
 	OpeningTxHex           string `json:"opening_tx-hex"`
 	StartingBlockHeight    uint32 `json:"opening_block_height"`
 
-	BlindingKeyHex         string `json:"blinding_key_hex, omitempty`
-	EphemeralKeyHex        string `json:"ephemeral_key_hex, omitempty`
-	AssetBlindingFactorHex string `json:"asset_blinding_factor_hex, omitempty`
-	SeedHex                string `json:"seed_hex", omitempty`
+	BlindingKeyHex string `json:"blinding_key_hex,omitempty"`
 
 	ClaimTxId string `json:"claim_tx_id"`
 

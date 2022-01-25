@@ -53,61 +53,61 @@ type PeerswapClightningConfig struct {
 }
 
 // RegisterOptions adds options to clightning
-func (c *ClightningClient) RegisterOptions() error {
-	err := c.plugin.RegisterNewOption(dbOption, "path to boltdb", "")
+func (cl *ClightningClient) RegisterOptions() error {
+	err := cl.plugin.RegisterNewOption(dbOption, "path to boltdb", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
+	err = cl.plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(bitcoinRpcPortOption, "bitcoind rpcport", "")
+	err = cl.plugin.RegisterNewOption(bitcoinRpcPortOption, "bitcoind rpcport", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(bitcoinRpcUserOption, "bitcoind rpcuser", "")
+	err = cl.plugin.RegisterNewOption(bitcoinRpcUserOption, "bitcoind rpcuser", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(bitcoinRpcPasswordOption, "bitcoind rpcpassword", "")
+	err = cl.plugin.RegisterNewOption(bitcoinRpcPasswordOption, "bitcoind rpcpassword", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(bitcoinCookieFilePath, "path to bitcoin cookie file", "")
+	err = cl.plugin.RegisterNewOption(bitcoinCookieFilePath, "path to bitcoin cookie file", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "")
+	err = cl.plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "")
+	err = cl.plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcUserOption, "elementsd rpcuser", "")
+	err = cl.plugin.RegisterNewOption(liquidRpcUserOption, "elementsd rpcuser", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcPasswordOption, "elementsd rpcpassword", "")
+	err = cl.plugin.RegisterNewOption(liquidRpcPasswordOption, "elementsd rpcpassword", "")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidNetworkOption, "liquid-network", "regtest")
+	err = cl.plugin.RegisterNewOption(liquidNetworkOption, "liquid-network", "regtest")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
+	err = cl.plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
 	if err != nil {
 		return err
 	}
-	err = c.plugin.RegisterNewOption(liquidRpcPasswordFilepathOption, "elementsd rpcpassword filepath", "")
+	err = cl.plugin.RegisterNewOption(liquidRpcPasswordFilepathOption, "elementsd rpcpassword filepath", "")
 	if err != nil {
 		return err
 	}
 	// register policy options
-	err = c.plugin.RegisterNewOption(policyPathOption, "Path to the policy file. If empty the default policy is used", "")
+	err = cl.plugin.RegisterNewOption(policyPathOption, "Path to the policy file. If empty the default policy is used", "")
 	if err != nil {
 		return err
 	}
@@ -115,9 +115,9 @@ func (c *ClightningClient) RegisterOptions() error {
 }
 
 // GetConfig returns the peerswap config
-func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
+func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 
-	dbpath, err := c.plugin.GetOption(dbOption)
+	dbpath, err := cl.plugin.GetOption(dbOption)
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +133,11 @@ func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		return nil, err
 	}
 	// bitcoin rpc settings
-	bitcoinRpcHost, err := c.plugin.GetOption(bitcoinRpcHostOption)
+	bitcoinRpcHost, err := cl.plugin.GetOption(bitcoinRpcHostOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinRpcPortString, err := c.plugin.GetOption(bitcoinRpcPortOption)
+	bitcoinRpcPortString, err := cl.plugin.GetOption(bitcoinRpcPortOption)
 	if err != nil {
 		return nil, err
 	}
@@ -148,24 +148,24 @@ func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 			return nil, errors.New(fmt.Sprintf("%s is not an int", liquidRpcPortOption))
 		}
 	}
-	bitcoinRpcUser, err := c.plugin.GetOption(bitcoinRpcUserOption)
+	bitcoinRpcUser, err := cl.plugin.GetOption(bitcoinRpcUserOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinRpcPassword, err := c.plugin.GetOption(bitcoinRpcPasswordOption)
+	bitcoinRpcPassword, err := cl.plugin.GetOption(bitcoinRpcPasswordOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinCookieFilePath, err := c.plugin.GetOption(bitcoinCookieFilePath)
+	bitcoinCookieFilePath, err := cl.plugin.GetOption(bitcoinCookieFilePath)
 	if err != nil {
 		return nil, err
 	}
 	// liquid rpc settings
-	liquidRpcHost, err := c.plugin.GetOption(liquidRpcHostOption)
+	liquidRpcHost, err := cl.plugin.GetOption(liquidRpcHostOption)
 	if err != nil {
 		return nil, err
 	}
-	liquidRpcPortString, err := c.plugin.GetOption(liquidRpcPortOption)
+	liquidRpcPortString, err := cl.plugin.GetOption(liquidRpcPortOption)
 	if err != nil {
 		return nil, err
 	}
@@ -179,22 +179,22 @@ func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 			return nil, errors.New(fmt.Sprintf("%s is not an int", liquidRpcPortOption))
 		}
 	}
-	liquidRpcUser, err := c.plugin.GetOption(liquidRpcUserOption)
+	liquidRpcUser, err := cl.plugin.GetOption(liquidRpcUserOption)
 	if err != nil {
 		return nil, err
 	}
 	if liquidRpcHost != "" && liquidRpcUser == "" {
 		return nil, errors.New(fmt.Sprintf("%s need to be set", liquidRpcUserOption))
 	}
-	liquidRpcPass, err := c.plugin.GetOption(liquidRpcPasswordOption)
+	liquidRpcPass, err := cl.plugin.GetOption(liquidRpcPasswordOption)
 	if err != nil {
 		return nil, err
 	}
-	liquidRpcPassFile, err := c.plugin.GetOption(liquidRpcPasswordFilepathOption)
+	liquidRpcPassFile, err := cl.plugin.GetOption(liquidRpcPasswordFilepathOption)
 	if liquidRpcHost != "" && liquidRpcPass == "" && liquidRpcPassFile == "" {
 		return nil, errors.New(fmt.Sprintf("%s or %s need to be set", liquidRpcPasswordOption, liquidRpcPasswordFilepathOption))
 	}
-	liquidRpcWallet, err := c.plugin.GetOption(rpcWalletOption)
+	liquidRpcWallet, err := cl.plugin.GetOption(rpcWalletOption)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (c *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 	}
 
 	// get policy path
-	policyPath, err := c.plugin.GetOption(policyPathOption)
+	policyPath, err := cl.plugin.GetOption(policyPathOption)
 	if err != nil {
 		return nil, err
 	}

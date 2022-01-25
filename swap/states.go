@@ -20,7 +20,7 @@ const (
 	State_SwapOutSender_AwaitTxConfirmation          StateType = "State_SwapOutSender_AwaitTxConfirmation"
 	State_SwapOutSender_ValidateTxAndPayClaimInvoice StateType = "State_SwapOutSender_ValidateTxAndPayClaimInvoice"
 	State_SwapOutSender_ClaimSwap                    StateType = "State_SwapOutSender_ClaimSwap"
-	State_SwapOutSender_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
+	State_SwapOutSender_SendPrivkey                  StateType = "State_SwapOutSender_SendPrivkey"
 	State_SwapOutSender_SendCoopClose                StateType = "State_SwapOutSender_SendCoopClose"
 )
 
@@ -57,7 +57,7 @@ const (
 	State_SwapInReceiver_AwaitTxConfirmation          StateType = "State_SwapInReceiver_AwaitTxConfirmation"
 	State_SwapInReceiver_ValidateTxAndPayClaimInvoice StateType = "State_SwapInReceiver_ValidateTxAndPayClaimInvoice"
 	State_SwapInReceiver_ClaimSwap                    StateType = "State_SwapInReceiver_ClaimSwap"
-	State_SwapInReceiver_BuildSigHash                 StateType = "State_SwapOutSender_BuildSigHash"
+	State_SwapInReceiver_SendPrivkey                  StateType = "State_SwapOutSender_SendPrivkey"
 	State_SwapInReceiver_SendCoopClose                StateType = "State_SwapInReceiver_SendCoopClose"
 )
 

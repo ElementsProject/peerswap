@@ -73,8 +73,6 @@ func (s SwapOutAgreementMessage) MessageType() messages.MessageType {
 type OpeningTxBroadcastedMessage struct {
 	SwapId          string
 	MakerPubkeyHash string
-	RefundAddr      string
-	RefundFee       uint64
 	Invoice         string
 	TxHex           string
 
@@ -86,8 +84,6 @@ func (t OpeningTxBroadcastedMessage) ApplyOnSwap(swap *SwapData) {
 	swap.MakerPubkeyHash = t.MakerPubkeyHash
 	swap.ClaimInvoice = t.Invoice
 	swap.OpeningTxHex = t.TxHex
-	swap.MakerRefundAddr = t.RefundAddr
-	swap.RefundFee = t.RefundFee
 
 	swap.BlindingKeyHex = t.BlindingKeyHex
 }
@@ -112,12 +108,9 @@ func (c CancelMessage) ApplyOnSwap(swap *SwapData) {
 
 // CoopCloseMessage is the message sent by the transaction taker if he wants to cancel the swap, but allow the maker a quick close
 type CoopCloseMessage struct {
-	SwapId             string
-	TakerRefundSigHash string
+	SwapId string
 
-	EphemeralKeyHex        string
-	AssetBlindingFactorHex string
-	SeedHex                string
+	TakerPrivKey string
 }
 
 func (c CoopCloseMessage) MessageType() messages.MessageType {
@@ -125,8 +118,5 @@ func (c CoopCloseMessage) MessageType() messages.MessageType {
 }
 
 func (c CoopCloseMessage) ApplyOnSwap(swap *SwapData) {
-	swap.TakerRefundSigHash = c.TakerRefundSigHash
-	swap.EphemeralKeyHex = c.EphemeralKeyHex
-	swap.AssetBlindingFactorHex = c.AssetBlindingFactorHex
-	swap.SeedHex = c.SeedHex
+	swap.TakerPrivkey = c.TakerPrivKey
 }

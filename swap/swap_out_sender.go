@@ -317,14 +317,14 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_AwaitTxConfirmation: {
 			Action: &AwaitTxConfirmationAction{},
 			Events: Events{
-				Event_ActionFailed:  State_SwapOutSender_BuildSigHash,
+				Event_ActionFailed:  State_SwapOutSender_SendPrivkey,
 				Event_OnTxConfirmed: State_SwapOutSender_ValidateTxAndPayClaimInvoice,
 			},
 		},
 		State_SwapOutSender_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
-				Event_ActionFailed:    State_SwapOutSender_BuildSigHash,
+				Event_ActionFailed:    State_SwapOutSender_SendPrivkey,
 				Event_ActionSucceeded: State_SwapOutSender_ClaimSwap,
 			},
 		},
@@ -335,8 +335,8 @@ func getSwapOutSenderStates() States {
 				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
 			},
 		},
-		State_SwapOutSender_BuildSigHash: {
-			Action: &TakerBuildSigHashAction{},
+		State_SwapOutSender_SendPrivkey: {
+			Action: &TakerSendPrivkeyAction{},
 			Events: Events{
 				Event_ActionFailed:    State_SendCancel,
 				Event_ActionSucceeded: State_SwapOutSender_SendCoopClose,

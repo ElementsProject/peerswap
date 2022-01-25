@@ -5,16 +5,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
-
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/swap"
 )
 
-func (b *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
-	addr, err := b.bitcoinChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
+func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+	addr, err := cl.bitcoinChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
 	if err != nil {
 		return "", 0, 0, err
 	}
@@ -24,51 +22,51 @@ func (b *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPara
 			Satoshi: swapParams.Amount,
 		},
 	}
-	prepRes, err := b.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
+	prepRes, err := cl.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
 	if err != nil {
 		return "", 0, 0, err
 	}
 
-	fee, err = b.bitcoinChain.GetFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
+	fee, err = cl.bitcoinChain.GetFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
 	if err != nil {
 		return "", 0, 0, err
 	}
 
-	_, vout, err = b.bitcoinChain.GetVoutAndVerify(prepRes.UnsignedTx, swapParams)
+	_, vout, err = cl.bitcoinChain.GetVoutAndVerify(prepRes.UnsignedTx, swapParams)
 	if err != nil {
 		return "", 0, 0, err
 	}
-	b.hexToIdMap[prepRes.UnsignedTx] = prepRes.TxId
+	cl.hexToIdMap[prepRes.UnsignedTx] = prepRes.TxId
 	return prepRes.UnsignedTx, fee, vout, nil
 }
 
-func (b *ClightningClient) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
+func (cl *ClightningClient) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	var unpreparedTxId string
 	var ok bool
-	if unpreparedTxId, ok = b.hexToIdMap[unpreparedTxHex]; !ok {
+	if unpreparedTxId, ok = cl.hexToIdMap[unpreparedTxHex]; !ok {
 		return "", "", errors.New("tx was not prepared not found in map")
 	}
-	delete(b.hexToIdMap, unpreparedTxHex)
-	sendRes, err := b.glightning.SendTx(unpreparedTxId)
+	delete(cl.hexToIdMap, unpreparedTxHex)
+	sendRes, err := cl.glightning.SendTx(unpreparedTxId)
 	if err != nil {
 		return "", "", errors.New(fmt.Sprintf("tx was not prepared %v", err))
 	}
 	return sendRes.TxId, sendRes.SignedTx, nil
 }
 
-func (b *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, err error) {
+func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, err error) {
 
-	_, vout, err := b.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", "", err
 	}
 
-	newAddr, err := b.glightning.NewAddr()
+	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {
 		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := b.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, 0, 0)
+	tx, sigHash, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, 0, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -93,25 +91,25 @@ func (b *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.Op
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
-	txId, err = b.gbitcoin.SendRawTx(txHex)
+	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
 		return "", "", err
 	}
 	return txId, txHex, nil
 }
 
-func (b *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, error error) {
-	newAddr, err := b.glightning.NewAddr()
+func (cl *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, error error) {
+	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {
 		return "", "", err
 	}
 
-	_, vout, err := b.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", "", err
 	}
 
-	tx, sigHash, redeemScript, err := b.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, onchain.BitcoinCsv, 0)
+	tx, sigHash, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, onchain.BitcoinCsv, 0)
 	if err != nil {
 		return "", "", err
 	}
@@ -132,88 +130,77 @@ func (b *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.Opening
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
-	txId, err = b.gbitcoin.SendRawTx(txHex)
+	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
 		return "", "", err
 	}
 	return txId, txHex, nil
 }
 
-func (b *ClightningClient) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	_, vout, err := b.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
-	if err != nil {
-		return "", err
-	}
-	_, sigHashBytes, _, err := b.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
-	if err != nil {
-		return "", err
-	}
-	log.Printf("sighash at takercreate %s", hex.EncodeToString(sigHashBytes))
-	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(sigBytes.Serialize()), nil
-
-}
-
-func (b *ClightningClient) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
-	_, vout, err := b.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+func (cl *ClightningClient) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+	refundAddr, err := cl.NewAddress()
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigHashBytes, redeemScript, err := b.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
+	refundFee, err := cl.GetRefundFee()
+	if err != nil {
+		return "", "", err
+	}
+	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+	if err != nil {
+		return "", "", err
+	}
+	spendingTx, sigHashBytes, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddr, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err
 	}
 
-	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
+	takerSig, err := takerSigner.Sign(sigHashBytes[:])
+	if err != nil {
+		return "", "", err
+	}
+	makerSig, err := claimParams.Signer.Sign(sigHashBytes[:])
 	if err != nil {
 		return "", "", err
 	}
 
-	takerSigBytes, err := hex.DecodeString(takerSignatureHex)
-	if err != nil {
-		return "", "", err
-	}
-
-	tx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSigBytes, sigBytes.Serialize(), redeemScript)
+	spendingTx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
 
 	bytesBuffer := new(bytes.Buffer)
 
-	err = tx.Serialize(bytesBuffer)
+	err = spendingTx.Serialize(bytesBuffer)
 	if err != nil {
 		return "", "", err
 	}
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
-	txId, err = b.gbitcoin.SendRawTx(txHex)
+	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
 		return "", "", err
 	}
-	return txId, txHex, nil
+	return spendingTx.TxHash().String(), txHex, nil
 }
 
-func (b *ClightningClient) NewAddress() (string, error) {
-	newAddr, err := b.glightning.NewAddr()
+func (cl *ClightningClient) NewAddress() (string, error) {
+	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {
 		return "", err
 	}
 	return newAddr, nil
 }
 
-func (b *ClightningClient) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
-	return b.bitcoinChain.GetOutputScript(params)
+func (cl *ClightningClient) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
+	return cl.bitcoinChain.GetOutputScript(params)
 }
 
-func (b *ClightningClient) GetRefundFee() (uint64, error) {
+func (cl *ClightningClient) GetRefundFee() (uint64, error) {
 	// todo correct size estimation
-	return b.bitcoinChain.GetFee(250)
+	return cl.bitcoinChain.GetFee(250)
 }
 
-func (b *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
-	feeRes, err := b.gbitcoin.EstimateFee(targetblocks, "ECONOMICAL")
+func (cl *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
+	feeRes, err := cl.gbitcoin.EstimateFee(targetblocks, "ECONOMICAL")
 	if err != nil {
 		return 0, err
 	}
