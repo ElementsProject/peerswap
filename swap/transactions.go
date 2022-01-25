@@ -38,20 +38,6 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	return nil
 }
 
-func SetRefundAddress(services *SwapServices, swap *SwapData) error {
-	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
-	if err != nil {
-		return err
-	}
-
-	refundAddr, err := wallet.NewAddress()
-	if err != nil {
-		return err
-	}
-	swap.MakerRefundAddr = refundAddr
-	return nil
-}
-
 // CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
 func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) error {
 	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
@@ -73,7 +59,10 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 		OpeningTxHex: swap.OpeningTxHex,
 	}
 	if swap.Asset == l_btc_asset {
-		SetBlindingParams(swap, openingParams, claimParams)
+		err = SetBlindingParams(swap, openingParams)
+		if err != nil {
+			return err
+		}
 	}
 	txId, _, err := wallet.CreatePreimageSpendingTransaction(openingParams, claimParams)
 	if err != nil {
@@ -84,32 +73,13 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 	return nil
 }
 
-func SetBlindingParams(swap *SwapData, openingParams *OpeningParams, claimParams *ClaimParams) error {
+func SetBlindingParams(swap *SwapData, openingParams *OpeningParams) error {
 	blindingKeyBytes, err := hex.DecodeString(swap.BlindingKeyHex)
 	if err != nil {
 		return err
 	}
 	blindingKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
 	openingParams.BlindingKey = blindingKey
-
-	ephemeralKeyBtes, err := hex.DecodeString(swap.EphemeralKeyHex)
-	if err != nil {
-		return err
-	}
-	ephemeralKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), ephemeralKeyBtes)
-	claimParams.EphemeralKey = ephemeralKey
-
-	abfBytes, err := hex.DecodeString(swap.AssetBlindingFactorHex)
-	if err != nil {
-		return err
-	}
-	claimParams.OutputAssetBlindingFactor = abfBytes
-
-	seedBytes, err := hex.DecodeString(swap.SeedHex)
-	if err != nil {
-		return err
-	}
-	claimParams.BlindingSeed = seedBytes
 	return nil
 
 }
@@ -132,7 +102,10 @@ func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error 
 		OpeningTxHex: swap.OpeningTxHex,
 	}
 	if swap.Asset == l_btc_asset {
-		SetBlindingParams(swap, openingParams, claimParams)
+		err = SetBlindingParams(swap, openingParams)
+		if err != nil {
+			return err
+		}
 	}
 	txId, _, err := wallet.CreateCsvSpendingTransaction(openingParams, claimParams)
 	if err != nil {

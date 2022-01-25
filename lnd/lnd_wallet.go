@@ -162,58 +162,49 @@ func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claim
 	return tx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, refundFee uint64) (sigHash string, error error) {
-	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
+func (l *Lnd) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+	refundAddr, err := l.NewAddress()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	_, sigHashBytes, _, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
+	refundFee, err := l.GetRefundFee()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(sigBytes.Serialize()), nil
-}
-
-func (l *Lnd) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (string, string, error) {
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", "", err
 	}
-	tx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddress, vout, 0, refundFee)
+	spendingTx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddr, vout, 0, refundFee)
 	if err != nil {
 		return "", "", err
 	}
 
-	sigBytes, err := claimParams.Signer.Sign(sigHashBytes)
+	takerSig, err := takerSigner.Sign(sigHashBytes[:])
+	if err != nil {
+		return "", "", err
+	}
+	makerSig, err := claimParams.Signer.Sign(sigHashBytes[:])
 	if err != nil {
 		return "", "", err
 	}
 
-	takerSigBytes, err := hex.DecodeString(takerSignatureHex)
-	if err != nil {
-		return "", "", err
-	}
-
-	tx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSigBytes, sigBytes.Serialize(), redeemScript)
+	spendingTx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
 
 	bytesBuffer := new(bytes.Buffer)
 
-	err = tx.Serialize(bytesBuffer)
+	err = spendingTx.Serialize(bytesBuffer)
 	if err != nil {
 		return "", "", err
 	}
 
-	txHex := hex.EncodeToString(bytesBuffer.Bytes())
+	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
 	_, err = l.walletClient.PublishTransaction(l.ctx, &walletrpc.Transaction{TxHex: bytesBuffer.Bytes()})
 	if err != nil {
 		return "", "", err
 	}
-	return tx.TxHash().String(), txHex, nil
+	return spendingTx.TxHash().String(), txHex, nil
 }
 
 func (l *Lnd) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {

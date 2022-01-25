@@ -112,11 +112,6 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 	swap.ClaimPreimage = preimage.String()
 	swap.ClaimPaymentHash = pHash.String()
 
-	err = SetRefundAddress(services, swap)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
 	err = CreateOpeningTransaction(services, swap)
 	if err != nil {
 		swap.LastErr = err
@@ -179,19 +174,11 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	}
 	swap.StartingBlockHeight = startingHeight
 
-	refundFee, err := wallet.GetRefundFee()
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.RefundFee = refundFee
-
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
 		SwapId:          swap.Id,
 		MakerPubkeyHash: swap.MakerPubkeyHash,
 		Invoice:         swap.ClaimInvoice,
 		TxHex:           finalizedTx,
-		RefundAddr:      swap.MakerRefundAddr,
-		RefundFee:       swap.RefundFee,
 		BlindingKeyHex:  swap.BlindingKeyHex,
 	})
 	if err != nil {
@@ -223,19 +210,31 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 	openingParams := &OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
 		MakerPubkeyHash:  swap.MakerPubkeyHash,
 		ClaimPaymentHash: swap.ClaimPaymentHash,
 		Amount:           swap.Amount,
 	}
+
+	takerKeyBytes, err := hex.DecodeString(swap.TakerPrivkey)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	takerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), takerKeyBytes)
+	makerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
+
 	claimParams := &ClaimParams{
-		Signer:       key,
+		Signer:       makerKey,
 		OpeningTxHex: swap.OpeningTxHex,
 	}
-	SetBlindingParams(swap, openingParams, claimParams)
-	txId, _, err := wallet.CreateCooperativeSpendingTransaction(openingParams, claimParams, swap.MakerRefundAddr, swap.TakerRefundSigHash, swap.RefundFee)
+	if swap.Asset == l_btc_asset {
+		err = SetBlindingParams(swap, openingParams)
+		if err != nil {
+			return swap.HandleError(err)
+		}
+	}
+	txId, _, err := wallet.CreateCoopSpendingTransaction(openingParams, claimParams, takerKey)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -267,39 +266,14 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	return Event_ActionSucceeded
 }
 
-// TakerBuildSigHashAction builds the sighash to send the maker for cooperatively closing the swap
-type TakerBuildSigHashAction struct{}
+// TakerSendPrivkeyAction builds the sighash to send the maker for cooperatively closing the swap
+type TakerSendPrivkeyAction struct{}
 
-func (s *TakerBuildSigHashAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
-	claimParams := &ClaimParams{
-		Signer:       key,
-		OpeningTxHex: swap.OpeningTxHex,
-	}
-	openingParams := swap.GetOpeningParams()
-	if swap.Asset == l_btc_asset {
-		SetBlindingParams(swap, openingParams, claimParams)
-	}
-	sigHash, err := wallet.TakerCreateCoopSigHash(openingParams, claimParams, swap.MakerRefundAddr, swap.RefundFee)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.TakerRefundSigHash = sigHash
-
-	var ephemeralKeyHex string
-	if claimParams.EphemeralKey != nil {
-		ephemeralKeyHex = hex.EncodeToString(claimParams.EphemeralKey.Serialize())
-	}
+func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
-		SwapId:                 swap.Id,
-		TakerRefundSigHash:     sigHash,
-		EphemeralKeyHex:        ephemeralKeyHex,
-		SeedHex:                hex.EncodeToString(claimParams.BlindingSeed),
-		AssetBlindingFactorHex: hex.EncodeToString(claimParams.OutputAssetBlindingFactor),
+		SwapId:       swap.Id,
+		TakerPrivKey: privkeystring,
 	})
 	if err != nil {
 		return swap.HandleError(err)

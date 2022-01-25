@@ -92,8 +92,8 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 }
 
 // CheckChannel checks if a channel is eligable for a swap
-func (c *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
-	funds, err := c.glightning.ListFunds()
+func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
+	funds, err := cl.glightning.ListFunds()
 	if err != nil {
 		return err
 	}
@@ -119,12 +119,12 @@ func (c *ClightningClient) CheckChannel(channelId string, amountSat uint64) erro
 }
 
 // GetNodeId returns the lightning nodes pubkey
-func (c *ClightningClient) GetNodeId() string {
-	return c.nodeId
+func (cl *ClightningClient) GetNodeId() string {
+	return cl.nodeId
 }
 
 // GetPreimage returns a random preimage
-func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
+func (cl *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 	var preimage lightning.Preimage
 
 	if _, err := rand.Read(preimage[:]); err != nil {
@@ -134,43 +134,43 @@ func (c *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 }
 
 // SetupClients injects the required services
-func (c *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
+func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
 	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service) {
-	c.liquidWallet = liquidWallet
-	c.requestedSwaps = requestedSwaps
-	c.swaps = swaps
-	c.Gelements = elements
-	c.policy = policy
-	c.gbitcoin = bitcoin
-	c.pollService = pollService
-	c.bitcoinChain = bitcoinChain
-	if c.bitcoinChain != nil {
-		c.bitcoinNetwork = bitcoinChain.GetChain()
+	cl.liquidWallet = liquidWallet
+	cl.requestedSwaps = requestedSwaps
+	cl.swaps = swaps
+	cl.Gelements = elements
+	cl.policy = policy
+	cl.gbitcoin = bitcoin
+	cl.pollService = pollService
+	cl.bitcoinChain = bitcoinChain
+	if cl.bitcoinChain != nil {
+		cl.bitcoinNetwork = bitcoinChain.GetChain()
 	}
 }
 
-func (c *ClightningClient) GetLightningRpc() *glightning.Lightning {
-	return c.glightning
+func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {
+	return cl.glightning
 }
 
 // OnPayment gets called by clightnings hooks
-func (c *ClightningClient) OnPayment(payment *glightning.Payment) {
-	for _, v := range c.paymentSubscriptions {
+func (cl *ClightningClient) OnPayment(payment *glightning.Payment) {
+	for _, v := range cl.paymentSubscriptions {
 		v(payment.Label)
 	}
 }
 
 // Start starts the plugin
-func (c *ClightningClient) Start() error {
-	return c.plugin.Start(os.Stdin, os.Stdout)
+func (cl *ClightningClient) Start() error {
+	return cl.plugin.Start(os.Stdin, os.Stdout)
 }
 
 // SendMessage sends a hexmessage to a peer
-func (c *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
+func (cl *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
 	msg := messages.MessageTypeToHexString(messages.MessageType(messageType)) + hex.EncodeToString(message)
-	res, err := c.glightning.SendCustomMessage(peerId, msg)
+	res, err := cl.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
 		return err
 	}
@@ -181,14 +181,14 @@ func (c *ClightningClient) SendMessage(peerId string, message []byte, messageTyp
 }
 
 // OnCustomMsg is the hook that c-lightning calls
-func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
+func (cl *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent) (*glightning.CustomMsgReceivedResponse, error) {
 	typeString := event.Payload[:4]
 	payload := event.Payload[4:]
 	payloadDecoded, err := hex.DecodeString(payload)
 	if err != nil {
 		log.Printf("[Messenger] error decoding payload %v", err)
 	}
-	for _, v := range c.msgHandlers {
+	for _, v := range cl.msgHandlers {
 		err := v(event.PeerId, typeString, payloadDecoded)
 		if err != nil {
 			log.Printf("\n msghandler err: %v", err)
@@ -198,18 +198,18 @@ func (c *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent)
 }
 
 // AddMessageHandler adds a listener for incoming peermessages
-func (c *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
-	c.msgHandlers = append(c.msgHandlers, f)
+func (cl *ClightningClient) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
+	cl.msgHandlers = append(cl.msgHandlers, f)
 }
 
 // AddPaymentCallback adds a callback when a payment was paid
-func (c *ClightningClient) AddPaymentCallback(f func(paymentLabel string)) {
-	c.paymentSubscriptions = append(c.paymentSubscriptions, f)
+func (cl *ClightningClient) AddPaymentCallback(f func(paymentLabel string)) {
+	cl.paymentSubscriptions = append(cl.paymentSubscriptions, f)
 }
 
 // GetPayreq returns a Bolt11 Invoice
-func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string, expiry uint64) (string, error) {
-	res, err := c.glightning.CreateInvoice(amountMsat, label, "liquid swap", uint32(expiry), []string{}, preImage, false)
+func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string, expiry uint64) (string, error) {
+	res, err := cl.glightning.CreateInvoice(amountMsat, label, "liquid swap", uint32(expiry), []string{}, preImage, false)
 	if err != nil {
 		return "", err
 	}
@@ -217,8 +217,8 @@ func (c *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label s
 }
 
 // DecodePayreq decodes a Bolt11 Invoice
-func (c *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
-	res, err := c.glightning.DecodeBolt11(payreq)
+func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
+	res, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
 		return "", 0, err
 	}
@@ -226,8 +226,8 @@ func (c *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amou
 }
 
 // PayInvoice tries to pay a Bolt11 Invoice
-func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
-	res, err := c.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
+func (cl *ClightningClient) PayInvoice(payreq string) (preimage string, err error) {
+	res, err := cl.glightning.Pay(&glightning.PayRequest{Bolt11: payreq})
 	if err != nil {
 		return "", err
 	}
@@ -236,30 +236,30 @@ func (c *ClightningClient) PayInvoice(payreq string) (preimage string, err error
 
 // RebalancePayment handles the lightning payment that should rebalance the channel
 // if the payment is larger than 4mm sats it forces a mpp payment through the channel
-func (c *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
-	Bolt11, err := c.glightning.DecodeBolt11(payreq)
+func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
+	Bolt11, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
 		return "", err
 	}
 	if !strings.Contains(channel, "x") {
 		channel = strings.Replace(channel, ":", "x", -1)
 	}
-	err = c.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
+	err = cl.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
 	if err != nil {
 		return "", err
 	}
 	if Bolt11.MilliSatoshis > 4000000000 {
-		preimage, err = c.MppPayment(payreq, channel, Bolt11)
+		preimage, err = cl.MppPayment(payreq, channel, Bolt11)
 		if err != nil {
 			return "", err
 		}
 	} else {
 		label := randomString()
-		_, err = c.SendPayChannel(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
+		_, err = cl.SendPayChannel(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
 		if err != nil {
 			return "", err
 		}
-		res, err := c.glightning.WaitSendPay(Bolt11.PaymentHash, 30)
+		res, err := cl.glightning.WaitSendPay(Bolt11.PaymentHash, 30)
 		if err != nil {
 			return "", err
 		}
@@ -269,7 +269,7 @@ func (c *ClightningClient) RebalancePayment(payreq string, channel string) (prei
 }
 
 // MppPayment splits the payment in parts and waits for the payments to finish
-func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
+func (cl *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
 	label := randomString()
 	var preimage string
 
@@ -279,7 +279,7 @@ func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *gli
 	var i uint64
 	for i = 1; i < splits+1; i++ {
 		split := i
-		_, err := c.SendPayChannel(payreq, Bolt11, paymentSplitterMsat, channel, fmt.Sprintf("%s%v", label, i), split)
+		_, err := cl.SendPayChannel(payreq, Bolt11, paymentSplitterMsat, channel, fmt.Sprintf("%s%v", label, i), split)
 		if err != nil {
 			return "", err
 		}
@@ -287,14 +287,14 @@ func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *gli
 	remainingSats := Bolt11.MilliSatoshis - splits*paymentSplitterMsat
 	if remainingSats > 0 {
 		split := i
-		_, err := c.SendPayChannel(payreq, Bolt11, remainingSats, channel, fmt.Sprintf("%s%v", label, i), split)
+		_, err := cl.SendPayChannel(payreq, Bolt11, remainingSats, channel, fmt.Sprintf("%s%v", label, i), split)
 		if err != nil {
 			return "", err
 		}
 	} else {
 		i--
 	}
-	res, err := c.glightning.WaitSendPayPart(Bolt11.PaymentHash, 30, i)
+	res, err := cl.glightning.WaitSendPayPart(Bolt11.PaymentHash, 30, i)
 	if err != nil {
 		return "", err
 	}
@@ -303,10 +303,10 @@ func (c *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *gli
 }
 
 // SendPayChannel sends a payment through a specific channel
-func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error) {
+func (cl *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error) {
 
 	satString := fmt.Sprintf("%smsat", strconv.FormatUint(amountMsat, 10))
-	res, err := c.glightning.SendPay(
+	res, err := cl.glightning.SendPay(
 		[]glightning.RouteHop{
 			{
 				Id:             bolt11.Payee,
@@ -330,13 +330,13 @@ func (c *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.Deco
 	return res.PaymentPreimage, nil
 }
 
-func (c *ClightningClient) PeerRunsPeerSwap(peerid string) error {
+func (cl *ClightningClient) PeerRunsPeerSwap(peerid string) error {
 	// get polls
-	polls, err := c.pollService.GetPolls()
+	polls, err := cl.pollService.GetPolls()
 	if err != nil {
 		return err
 	}
-	peers, err := c.glightning.ListPeers()
+	peers, err := cl.glightning.ListPeers()
 	if err != nil {
 		return err
 	}
@@ -354,27 +354,27 @@ func (c *ClightningClient) PeerRunsPeerSwap(peerid string) error {
 }
 
 // This is called after the plugin starts up successfully
-func (c *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
+func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
 	log.Printf("successfully init'd! %s\n", config.RpcFile)
-	c.glightning.StartUp(config.RpcFile, config.LightningDir)
+	cl.glightning.StartUp(config.RpcFile, config.LightningDir)
 
-	getInfo, err := c.glightning.GetInfo()
+	getInfo, err := cl.glightning.GetInfo()
 	if err != nil {
 		log.Fatalf("getinfo err %v", err)
 	}
-	c.nodeId = getInfo.Id
-	c.initChan <- true
+	cl.nodeId = getInfo.Id
+	cl.initChan <- true
 }
 
 // OnConnect is called after the connect event. The
 // handler sends out a poll to the peer it connected
 // to.
-func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
+func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			if c.pollService != nil {
-				c.pollService.RequestPoll(connectEvent.PeerId)
+			if cl.pollService != nil {
+				cl.pollService.RequestPoll(connectEvent.PeerId)
 				return
 			}
 		}
@@ -382,48 +382,48 @@ func (c *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 }
 
 // RegisterMethods registeres rpc methods to c-lightning
-func (c *ClightningClient) RegisterMethods() error {
+func (cl *ClightningClient) RegisterMethods() error {
 	swapIn := glightning.NewRpcMethod(&SwapIn{
-		cl: c,
+		cl: cl,
 	}, "swap In")
 	swapIn.Category = "peerswap"
-	err := c.plugin.RegisterMethod(swapIn)
+	err := cl.plugin.RegisterMethod(swapIn)
 	if err != nil {
 		return err
 	}
 
 	swapOut := glightning.NewRpcMethod(&SwapOut{
-		cl: c,
+		cl: cl,
 	}, "swap out")
 	swapOut.Category = "peerswap"
-	err = c.plugin.RegisterMethod(swapOut)
+	err = cl.plugin.RegisterMethod(swapOut)
 	if err != nil {
 		return err
 	}
 
 	listSwaps := glightning.NewRpcMethod(&ListSwaps{
-		cl: c,
+		cl: cl,
 	}, "list swaps")
 	listSwaps.Category = "peerswap"
-	err = c.plugin.RegisterMethod(listSwaps)
+	err = cl.plugin.RegisterMethod(listSwaps)
 	if err != nil {
 		return err
 	}
 
 	getAddress := glightning.NewRpcMethod(&LiquidGetAddress{
-		cl: c,
+		cl: cl,
 	}, "get new liquid address")
 	getAddress.Category = "peerswap"
-	err = c.plugin.RegisterMethod(getAddress)
+	err = cl.plugin.RegisterMethod(getAddress)
 	if err != nil {
 		return err
 	}
 
 	getBalance := glightning.NewRpcMethod(&LiquidGetBalance{
-		cl: c,
+		cl: cl,
 	}, "get liquid liquidWallet balance")
 	getBalance.Category = "peerswap"
-	err = c.plugin.RegisterMethod(getBalance)
+	err = cl.plugin.RegisterMethod(getBalance)
 	if err != nil {
 		return err
 	}
@@ -433,20 +433,20 @@ func (c *ClightningClient) RegisterMethods() error {
 	config, so fields that are not set are interpreted as default.`
 	reloadPolicyFile := &glightning.RpcMethod{
 		Method: &ReloadPolicyFile{
-			cl:   c,
+			cl:   cl,
 			name: "peerswap-reload-policy",
 		},
 		Desc:     "Reload the policy file.",
 		LongDesc: long,
 		Category: "peerswap",
 	}
-	err = c.plugin.RegisterMethod(reloadPolicyFile)
+	err = cl.plugin.RegisterMethod(reloadPolicyFile)
 	if err != nil {
 		return err
 	}
 
 	listRequestedSwapsMethod := &GetRequestedSwaps{
-		cl:   c,
+		cl:   cl,
 		name: "peerswap-listswaprequests",
 	}
 	listRequestedSwaps := &glightning.RpcMethod{
@@ -455,29 +455,29 @@ func (c *ClightningClient) RegisterMethods() error {
 		LongDesc: listRequestedSwapsMethod.LongDescription(),
 		Category: "peerswap",
 	}
-	err = c.plugin.RegisterMethod(listRequestedSwaps)
+	err = cl.plugin.RegisterMethod(listRequestedSwaps)
 	if err != nil {
 		return err
 	}
 
 	for _, v := range methods {
-		method := v.Get(c)
+		method := v.Get(cl)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
 		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
-		err = c.plugin.RegisterMethod(glightningMethod)
+		err = cl.plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
 	}
 	for _, v := range devmethods {
-		method := v.Get(c)
+		method := v.Get(cl)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
 		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
-		err = c.plugin.RegisterMethod(glightningMethod)
+		err = cl.plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
@@ -491,8 +491,8 @@ type peerswaprpcMethod interface {
 	LongDescription() string
 }
 
-func (c *ClightningClient) GetPeers() []string {
-	peers, err := c.glightning.ListPeers()
+func (cl *ClightningClient) GetPeers() []string {
+	peers, err := cl.glightning.ListPeers()
 	if err != nil {
 		log.Printf("could not listpeers: %v", err)
 		return nil

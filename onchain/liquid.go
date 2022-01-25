@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -168,13 +167,47 @@ func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPar
 	return txId, txHex, nil
 }
 
-func (l *LiquidOnChain) TakerCreateCoopSigHash(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, refundFee uint64) (signature string, error error) {
-	l.AddBlindingRandomFactors(claimParams)
-	_, sigBytes, _, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, 0, refundFee)
+func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+	refundAddr, err := l.NewAddress()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return hex.EncodeToString(sigBytes), nil
+	refundFee, err := l.GetRefundFee()
+	if err != nil {
+		return "", "", err
+	}
+	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
+	if err != nil {
+		return "", "", err
+	}
+	err = l.AddBlindingRandomFactors(claimParams)
+	if err != nil {
+		return "", "", err
+	}
+	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, 0, l.asset, redeemScript, refundAddr, refundFee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
+	if err != nil {
+		return "", "", err
+	}
+	takerSig, err := takerSigner.Sign(sigHash[:])
+	if err != nil {
+		return "", "", err
+	}
+	makerSig, err := claimParams.Signer.Sign(sigHash[:])
+	if err != nil {
+		return "", "", err
+	}
+
+	spendingTx.Inputs[0].Witness = GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
+
+	txHex, err = spendingTx.ToHex()
+	if err != nil {
+		return "", "", err
+	}
+	txId, err = l.elements.SendRawTx(txHex)
+	if err != nil {
+		return "", "", err
+	}
+	return txId, txHex, nil
 }
 
 func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) (err error) {
@@ -185,29 +218,6 @@ func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) 
 		return err
 	}
 	return nil
-}
-
-func (l *LiquidOnChain) CreateCooperativeSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, refundAddress string, takerSignatureHex string, refundFee uint64) (txId, txHex string, error error) {
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, refundAddress, 0, refundFee)
-	if err != nil {
-		return "", "", err
-	}
-	takerSigBytes, err := hex.DecodeString(takerSignatureHex)
-	if err != nil {
-		return "", "", err
-	}
-
-	tx.Inputs[0].Witness = GetCooperativeWitness(takerSigBytes, sigBytes, redeemScript)
-
-	txHex, err = tx.ToHex()
-	if err != nil {
-		return "", "", err
-	}
-	txId, err = l.elements.SendRawTx(txHex)
-	if err != nil {
-		return "", "", err
-	}
-	return txId, txHex, nil
 }
 
 func (l *LiquidOnChain) NewAddress() (string, error) {
