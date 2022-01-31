@@ -11,11 +11,11 @@ Note over B: check channel balance
 B->>A: swap in agreement response
 deactivate B
 activate A
-Note over A: create commitment tx
+Note over A: create opening tx
 A->>B: tx opened message
 deactivate A
 alt claim with preimage
-Note over B: await commitment tx has N confirmations
+Note over B: await opening tx has N confirmations
 B-->>A: pay claim invoice
 Note over B: broadcast claim tx
 else refund cooperatively

@@ -12,11 +12,11 @@ B->>A: swap out agreement response
 deactivate B
 A-->>B: pay fee invoice
 activate B
-Note over B: create commitment tx
+Note over B: create opening tx
 B->>A: tx opened message
 deactivate B
 alt claim with preimage
-Note over A: await commitment tx has N confirmations
+Note over A: await opening tx has N confirmations
 A-->>B: pay claim invoice
 Note over A: broadcast claim tx
 else refund cooperatively
