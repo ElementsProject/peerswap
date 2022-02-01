@@ -64,7 +64,8 @@ type States map[StateType]State
 // SwapStateMachine represents the state machine.
 type SwapStateMachine struct {
 	// Id holds the unique Id for the store
-	Id string `json:"id"`
+	Id     string  `json:"id"`
+	SwapId *SwapId `json:"swap_id"`
 
 	// Data holds the statemachine metadata
 	Data *SwapData `json:"data"`

@@ -19,7 +19,8 @@ type CreateSwapFromRequestContext struct {
 	asset           string
 	peer            string
 	channelId       string
-	swapId          string
+	swapId          *SwapId
+	id              string
 	takerPubkeyHash string
 	protocolversion uint64
 }
@@ -28,8 +29,9 @@ func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
 	swap.Asset = c.asset
 	swap.PeerNodeId = c.peer
-	swap.ChannelId = c.channelId
-	swap.Id = c.swapId
+	swap.Scid = c.channelId
+	swap.Id = c.id
+	swap.SwapId = c.swapId
 	swap.TakerPubkeyHash = c.takerPubkeyHash
 	swap.ProtocolVersion = c.protocolversion
 }
@@ -73,7 +75,7 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
-	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_OUT, swap.ProtocolVersion)
+	newSwap := NewSwapFromRequest(swap.Id, swap.SwapId, swap.Asset, swap.PeerNodeId, swap.Amount, swap.Scid, SWAPTYPE_OUT, swap.ProtocolVersion)
 	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
 	*swap = *newSwap
 
@@ -140,8 +142,9 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
-		SwapId:          swap.Id,
-		Invoice:         swap.FeeInvoice,
+		SwapId:          swap.SwapId,
+		Pubkey:          swap.MakerPubkeyHash,
+		Payreq:          swap.FeeInvoice,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -175,11 +178,11 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 	swap.StartingBlockHeight = startingHeight
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: swap.MakerPubkeyHash,
-		Invoice:         swap.ClaimInvoice,
-		TxHex:           finalizedTx,
-		BlindingKeyHex:  swap.BlindingKeyHex,
+		SwapId:      swap.SwapId,
+		Payreq:      swap.ClaimInvoice,
+		TxId:        txId,
+		ScriptOut:   swap.OpeningTxVout,
+		BlindingKey: swap.BlindingKeyHex,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -252,8 +255,8 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	messenger := services.messenger
 
 	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-		SwapId: swap.Id,
-		Error:  swap.CancelMessage,
+		SwapId:  swap.SwapId,
+		Message: swap.CancelMessage,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -272,8 +275,9 @@ type TakerSendPrivkeyAction struct{}
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
-		SwapId:       swap.Id,
-		TakerPrivKey: privkeystring,
+		SwapId:  swap.SwapId,
+		Message: swap.CancelMessage,
+		Privkey: privkeystring,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -292,9 +296,10 @@ func swapOutReceiverFromStore(smData *SwapStateMachine, services *SwapServices) 
 }
 
 // newSwapOutReceiverFSM returns a new swap statemachine for a swap-out receiver
-func newSwapOutReceiverFSM(id string, services *SwapServices) *SwapStateMachine {
+func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices) *SwapStateMachine {
 	return &SwapStateMachine{
-		Id:           id,
+		Id:           swapId.String(),
+		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_RECEIVER,

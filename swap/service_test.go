@@ -42,16 +42,15 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
+
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
-
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
-
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
@@ -198,7 +197,7 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			InitiatorNodeId:        "",
 			PeerNodeId:             "",
 			Amount:                 0,
-			ChannelId:              "channelID",
+			Scid:                   "channelID",
 			PrivkeyBytes:           []byte{},
 			ClaimInvoice:           "",
 			ClaimPreimage:          "",
@@ -314,13 +313,13 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	}
 
 	tests := []test{
-		{name: "swap in agreement message", message: &SwapInAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "swap out agreement message", message: &SwapOutAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "opening tx broadcasted message", message: &OpeningTxBroadcastedMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "coop close message", message: &CoopCloseMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "cancel message", message: &CancelMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "swap in request message", message: &SwapInRequestMessage{SwapId: "charlie_swap"}, assertError: false},
-		{name: "swap out request message", message: &SwapOutRequestMessage{SwapId: "charlie_swap"}, assertError: false},
+		{name: "swap in agreement message", message: &SwapInAgreementMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "swap out agreement message", message: &SwapOutAgreementMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "opening tx broadcasted message", message: &OpeningTxBroadcastedMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "coop close message", message: &CoopCloseMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "cancel message", message: &CancelMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "swap in request message", message: &SwapInRequestMessage{SwapId: NewSwapId()}, assertError: false},
+		{name: "swap out request message", message: &SwapOutRequestMessage{SwapId: NewSwapId()}, assertError: false},
 	}
 
 	for _, tc := range tests {

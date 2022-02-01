@@ -45,7 +45,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
-	newSwap := NewSwapFromRequest(swap.PeerNodeId, swap.Asset, swap.Id, swap.Amount, swap.ChannelId, SWAPTYPE_IN, swap.ProtocolVersion)
+	newSwap := NewSwapFromRequest(swap.Id, swap.SwapId, swap.Asset, swap.PeerNodeId, swap.Amount, swap.Scid, SWAPTYPE_IN, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
@@ -65,8 +65,10 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
-		SwapId:          swap.Id,
-		TakerPubkeyHash: swap.TakerPubkeyHash,
+		SwapId:          swap.SwapId,
+		Pubkey:          swap.TakerPubkeyHash,
+		// todo: set premium
+		Premium: 0,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -141,9 +143,10 @@ func swapInReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *
 }
 
 // newSwapInReceiverFSM returns a new swap statemachine for a swap-in receiver
-func newSwapInReceiverFSM(id string, services *SwapServices) *SwapStateMachine {
+func newSwapInReceiverFSM(swapId *SwapId, services *SwapServices) *SwapStateMachine {
 	return &SwapStateMachine{
-		Id:           id,
+		Id:           swapId.String(),
+		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_RECEIVER,

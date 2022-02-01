@@ -24,7 +24,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
-		swapId:      swap.Id,
+		id:          swap.Id,
 		asset:       "btc",
 	})
 	if err != nil {
@@ -35,8 +35,8 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
-		SwapId:          swap.Id,
-		TakerPubkeyHash: takerPubkeyHash,
+		SwapId: swap.SwapId,
+		Pubkey: takerPubkeyHash,
 	})
 	msg = <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())
@@ -63,7 +63,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
-		swapId:      swap.Id,
+		id:          swap.Id,
 		asset:       "btc",
 	})
 	if err != nil {
@@ -95,7 +95,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 		initiatorId: initiator,
 		peer:        peer,
 		channelId:   chanId,
-		swapId:      swap.Id,
+		id:          swap.Id,
 		asset:       "btc",
 	})
 	if err != nil {
@@ -106,8 +106,8 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
 
 	_, _ = swap.SendEvent(Event_SwapInSender_OnAgreementReceived, &SwapInAgreementMessage{
-		SwapId:          swap.Id,
-		TakerPubkeyHash: takerPubkeyHash,
+		SwapId: swap.SwapId,
+		Pubkey: takerPubkeyHash,
 	})
 	msg = <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())

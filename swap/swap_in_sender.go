@@ -11,7 +11,7 @@ import (
 type SwapInSenderCreateSwapAction struct{}
 
 func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
+	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -19,19 +19,26 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	swap.Role = SWAPROLE_SENDER
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
+	// This is needed to parse the SwapId string from the database
+	swapId, err := ParseSwapIdFromString(swap.Id)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequestMessage{
-		SwapId:          swap.Id,
-		ChannelId:       swap.ChannelId,
-		Amount:          swap.Amount,
-		Asset:           swap.Asset,
 		ProtocolVersion: swap.ProtocolVersion,
+		SwapId:          swapId,
+		Asset:           swap.Asset,
+		Scid:            swap.Scid,
+		Amount:          swap.Amount,
+		Pubkey:          swap.MakerPubkeyHash,
 	})
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
-
 	return Event_ActionSucceeded
 }
 
@@ -83,11 +90,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.OpeningTxId = txId
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: swap.MakerPubkeyHash,
-		Invoice:         swap.ClaimInvoice,
-		TxHex:           swap.OpeningTxHex,
-		BlindingKeyHex:  swap.BlindingKeyHex,
+		SwapId:      swap.SwapId,
+		Payreq:      swap.ClaimInvoice,
+		TxId:        txId,
+		ScriptOut:   swap.OpeningTxVout,
+		BlindingKey: swap.BlindingKeyHex,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -139,8 +146,10 @@ func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *Sw
 
 // newSwapInSenderFSM returns a new swap statemachine for a swap-in sender
 func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
+	swapId := NewSwapId()
 	return &SwapStateMachine{
-		Id:           newSwapId(),
+		Id:           swapId.String(),
+		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_SENDER,

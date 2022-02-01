@@ -15,7 +15,8 @@ import (
 )
 
 type SwapCreationContext struct {
-	swapId          string
+	id              string
+	swapId          *SwapId
 	asset           string
 	amount          uint64
 	peer            string
@@ -27,9 +28,10 @@ type SwapCreationContext struct {
 func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
 	swap.Amount = c.amount
 	swap.PeerNodeId = c.peer
-	swap.ChannelId = c.channelId
+	swap.Scid = c.channelId
 	swap.Asset = c.asset
-	swap.Id = c.swapId
+	swap.Id = c.id
+	swap.SwapId = c.swapId
 	swap.InitiatorNodeId = c.initiatorId
 	swap.ProtocolVersion = c.protocolversion
 }
@@ -39,19 +41,19 @@ type CreateSwapOutAction struct{}
 
 //todo validate data
 func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
+	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Asset, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
-
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequestMessage{
-		SwapId:          swap.Id,
-		ChannelId:       swap.ChannelId,
-		Amount:          swap.Amount,
-		TakerPubkeyHash: swap.TakerPubkeyHash,
 		ProtocolVersion: swap.ProtocolVersion,
+		SwapId:          swap.SwapId,
 		Asset:           swap.Asset,
+		Network:         "",
+		Scid:            swap.Scid,
+		Amount:          swap.Amount,
+		Pubkey:          swap.TakerPubkeyHash,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -212,7 +214,7 @@ paymentLoop:
 		case <-ctx.Done():
 			break paymentLoop
 		default:
-			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.ChannelId)
+			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.Scid)
 			if err != nil {
 				log.Printf("error trying to pay invoice: %v", err)
 			}
@@ -254,8 +256,10 @@ func swapOutSenderFromStore(smData *SwapStateMachine, services *SwapServices) *S
 
 // newSwapOutSenderFSM returns a new swap statemachine for a swap-out sender
 func newSwapOutSenderFSM(services *SwapServices) *SwapStateMachine {
+	swapId := NewSwapId()
 	return &SwapStateMachine{
-		Id:           newSwapId(),
+		Id:           swapId.String(),
+		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_SENDER,
