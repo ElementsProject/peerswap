@@ -3,6 +3,8 @@ package swap
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -226,4 +228,54 @@ func getRandomPrivkey() *btcec.PrivateKey {
 		return nil
 	}
 	return privkey
+}
+
+type SwapId [32]byte
+
+func NewSwapId() *SwapId {
+	var swapId *SwapId = new(SwapId)
+	rand.Read(swapId[:])
+	return swapId
+}
+
+func (s *SwapId) String() string {
+	return hex.EncodeToString(s[:])
+}
+
+func (s *SwapId) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *SwapId) UnmarshalJSON(data []byte) error {
+	var result string
+	err := json.Unmarshal(data, &result)
+	if err != nil {
+		return err
+	}
+	return s.FromString(result)
+}
+
+func (s *SwapId) FromString(str string) error {
+	data, err := hex.DecodeString(str)
+	if err != nil {
+		return err
+	}
+	if len(data) != 32 {
+		return fmt.Errorf("can not decode string: invalid length")
+	}
+	copy(s[:], data[:])
+	return nil
+}
+
+func ParseSwapIdFromString(str string) (*SwapId, error) {
+	data, err := hex.DecodeString(str)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) != 32 {
+		return nil, fmt.Errorf("can not decode string: invalid length")
+	}
+	var swapId *SwapId = new(SwapId)
+	copy(swapId[:], data[:])
+	return swapId, err
 }
