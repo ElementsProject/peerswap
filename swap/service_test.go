@@ -107,7 +107,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	}
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
-	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.Id)
+	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.SwapId.String())
 	assert.NoError(t, err)
 
 	aliceReceivedMsg := <-aliceMsgChan
@@ -337,7 +337,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 
 			if tc.assertError {
 				require.Error(t, aliceMessenger.lastErr)
-				assert.Equal(t, ErrReceivedMessageFromUnexpectedPeer(charlieMessenger.thisPeerId, aliceSwap.Id).Error(), aliceSwapService.swapServices.messenger.(*ConnectedMessenger).lastErr.Error())
+				assert.Equal(t, ErrReceivedMessageFromUnexpectedPeer(charlieMessenger.thisPeerId, aliceSwap.SwapId).Error(), aliceSwapService.swapServices.messenger.(*ConnectedMessenger).lastErr.Error())
 			} else {
 				require.NoError(t, aliceMessenger.lastErr)
 			}

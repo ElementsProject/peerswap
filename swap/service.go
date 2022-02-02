@@ -33,8 +33,8 @@ func (s PeerNotAllowedError) Error() string {
 	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
 }
 
-func ErrReceivedMessageFromUnexpectedPeer(peerId, swapId string) error {
-	return fmt.Errorf("received a message from an unexpected peer, peerId: %s, swapId: %s", peerId, swapId)
+func ErrReceivedMessageFromUnexpectedPeer(peerId string, swapId *SwapId) error {
+	return fmt.Errorf("received a message from an unexpected peer, peerId: %s, swapId: %s", peerId, swapId.String())
 }
 
 // SwapService contains the logic for swaps
@@ -144,12 +144,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		fmt.Println("\n\n\n\n", msg.SwapId)
 
 		// Check if sender is expected swap partner peer.
-		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId.String())
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId.String())
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
 		}
 
 		err = s.OnSwapOutAgreementReceived(msg)
@@ -164,12 +164,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		}
 
 		// Check if sender is expected swap partner peer.
-		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId.String())
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId.String())
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
 		}
 
 		err = s.OnTxOpenedMessage(msg)
@@ -184,12 +184,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		}
 
 		// Check if sender is expected swap partner peer.
-		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId.String())
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId.String())
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
 		}
 
 		err = s.OnCancelReceived(msg.SwapId, msg)
@@ -214,12 +214,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		}
 
 		// Check if sender is expected swap partner peer.
-		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId.String())
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId.String())
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
 		}
 
 		err = s.OnAgreementReceived(msg)
@@ -234,12 +234,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		}
 
 		// Check if sender is expected swap partner peer.
-		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId.String())
+		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
 			return err
 		}
 		if !ok {
-			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId.String())
+			return ErrReceivedMessageFromUnexpectedPeer(peerId, msg.SwapId)
 		}
 
 		err = s.OnCoopCloseReceived(msg.SwapId, msg)
@@ -636,8 +636,8 @@ func (e WrongAssetError) Error() string {
 
 // isMessageSenderExpectedPeer returns true if the senderId matches the
 // PeerNodeId of the swap, false if not.
-func (s *SwapService) isMessageSenderExpectedPeer(senderId, swapId string) (bool, error) {
-	swap, err := s.GetActiveSwap(swapId)
+func (s *SwapService) isMessageSenderExpectedPeer(senderId string, swapId *SwapId) (bool, error) {
+	swap, err := s.GetActiveSwap(swapId.String())
 	if err != nil {
 		return false, err
 	}
