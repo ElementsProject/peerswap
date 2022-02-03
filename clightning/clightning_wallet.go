@@ -212,3 +212,11 @@ func (cl *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
 	}
 	return satPerByte, nil
 }
+
+func (cl *ClightningClient) GetAsset() string {
+	return ""
+}
+
+func (cl *ClightningClient) GetNetwork() string {
+	return cl.bitcoinChain.GetChain().Name
+}

@@ -24,7 +24,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		id:              swapId.String(),
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -72,7 +72,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		id:              swapId.String(),
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		channelId:       chanId,
 		swapId:          swapId,
 		id:              swapId.String(),
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {

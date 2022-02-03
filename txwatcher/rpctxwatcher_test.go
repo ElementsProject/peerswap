@@ -22,8 +22,8 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, nil)
-	txWatcher.AddConfirmationCallback(func(swapId string) error {
+	txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, 0, nil)
+	txWatcher.AddConfirmationCallback(func(swapId string, txHex string) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
@@ -76,6 +76,14 @@ type DummyBlockchain struct {
 	sync.RWMutex
 	nextBlockheight uint64
 	nextTxOutResp   *TxOutResp
+}
+
+func (d *DummyBlockchain) GetBlockHash(height uint32) (string, error) {
+	return "blockhash", nil
+}
+
+func (d *DummyBlockchain) GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error) {
+	return "txhex", nil
 }
 
 func (d *DummyBlockchain) SetBlockHeight(height uint64) {

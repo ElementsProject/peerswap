@@ -2,24 +2,26 @@ package swap
 
 import (
 	"encoding/hex"
+	"errors"
 
 	"github.com/btcsuite/btcd/btcec"
 )
 
 // CreateOpeningTransaction creates the opening transaction from a swap
 func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
-	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return err
 	}
 	var blindingKey *btcec.PrivateKey
-	if swap.Asset == l_btc_asset {
+	if swap.Chain == l_btc_asset {
 		blindingKey, err = btcec.NewPrivateKey(btcec.S256())
 		if err != nil {
 			return err
 		}
 		swap.BlindingKeyHex = hex.EncodeToString(blindingKey.Serialize())
 	}
+
 	// Create the opening transaction
 	txHex, fee, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkeyHash:  swap.TakerPubkeyHash,
@@ -31,6 +33,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 	if err != nil {
 		return err
 	}
+
 	swap.OpeningTxUnpreparedHex = txHex
 	swap.OpeningTxFee = fee
 	swap.OpeningTxVout = vout
@@ -40,7 +43,7 @@ func CreateOpeningTransaction(services *SwapServices, swap *SwapData) error {
 
 // CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
 func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) error {
-	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return err
 	}
@@ -58,7 +61,7 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 		Signer:       key,
 		OpeningTxHex: swap.OpeningTxHex,
 	}
-	if swap.Asset == l_btc_asset {
+	if swap.Chain == l_btc_asset {
 		err = SetBlindingParams(swap, openingParams)
 		if err != nil {
 			return err
@@ -74,6 +77,9 @@ func CreatePreimageSpendingTransaction(services *SwapServices, swap *SwapData) e
 }
 
 func SetBlindingParams(swap *SwapData, openingParams *OpeningParams) error {
+	if swap.BlindingKeyHex == "" {
+		return errors.New("blinding key not set")
+	}
 	blindingKeyBytes, err := hex.DecodeString(swap.BlindingKeyHex)
 	if err != nil {
 		return err
@@ -86,7 +92,7 @@ func SetBlindingParams(swap *SwapData, openingParams *OpeningParams) error {
 
 // CreateCsvSpendingTransaction creates the spending transaction from a swap when spending the csv passed branch
 func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error {
-	_, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	_, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return err
 	}
@@ -101,7 +107,7 @@ func CreateCsvSpendingTransaction(services *SwapServices, swap *SwapData) error 
 		Signer:       key,
 		OpeningTxHex: swap.OpeningTxHex,
 	}
-	if swap.Asset == l_btc_asset {
+	if swap.Chain == l_btc_asset {
 		err = SetBlindingParams(swap, openingParams)
 		if err != nil {
 			return err

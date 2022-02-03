@@ -30,6 +30,8 @@ type Policy interface {
 	IsPeerAllowed(peer string) bool
 	GetReserveOnchainMsat() uint64
 }
+
+// todo add check if invoice paid dinges
 type LightningClient interface {
 	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
@@ -39,9 +41,9 @@ type LightningClient interface {
 }
 
 type TxWatcher interface {
-	AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, scriptpubkey []byte)
+	AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, scriptpubkey []byte)
 	AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte)
-	AddConfirmationCallback(func(swapId string) error)
+	AddConfirmationCallback(func(swapId string, txHex string) error)
 	AddCsvCallback(func(swapId string) error)
 	GetBlockHeight() (uint32, error)
 }
@@ -60,6 +62,8 @@ type Wallet interface {
 	GetOutputScript(params *OpeningParams) ([]byte, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
+	GetAsset() string
+	GetNetwork() string
 }
 
 type OpeningParams struct {
@@ -140,7 +144,7 @@ func NewSwapServices(
 	}
 }
 
-func (s *SwapServices) getOnchainAsset(asset string) (TxWatcher, Wallet, Validator, error) {
+func (s *SwapServices) getOnChainServices(asset string) (TxWatcher, Wallet, Validator, error) {
 	if asset == "" {
 		return nil, nil, nil, fmt.Errorf("missing asset")
 	}

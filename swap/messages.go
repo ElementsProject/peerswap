@@ -12,6 +12,10 @@ type SwapInRequestMessage struct {
 	// through the whole process of a swap and serves as an identifier for a
 	// specific swap.
 	SwapId *SwapId `json:"swap_id"`
+	// Network is the desired on-chain network to use. This can be:
+	// Bitcoin: mainnet, testnet, signet, regtest
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	Network string `json:"network"`
 	// Asset is the desired on-chain asset to use. This can be:
 	// Bitcoin: The field is left blank.
 	// Liquid: The asset id of the networks Bitcoin asset.
@@ -69,7 +73,7 @@ type SwapOutRequestMessage struct {
 	Asset string `json:"asset"`
 	// Network is the desired on-chain network to use. This can be:
 	// Bitcoin: mainnet, testnet, signet, regtest
-	// Liquid: The field is left blank as the asset id also defines the network.
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
 	Network string `json:"network"`
 	// Scid is the short channel id in human readable format, defined by BOLT#7
 	// with x as separator, e.g. 539268x845x1.
@@ -85,10 +89,11 @@ func (s SwapOutRequestMessage) ApplyOnSwap(swap *SwapData) {
 	swap.Id = s.SwapId.String()
 	swap.SwapId = s.SwapId
 	swap.Scid = s.Scid
-	swap.Asset = s.Asset
+	swap.ElementsAsset = s.Asset
 	swap.Amount = s.Amount
 	swap.TakerPubkeyHash = s.Pubkey
 	swap.ProtocolVersion = s.ProtocolVersion
+	swap.BitcoinNetwork = s.Network
 }
 
 func (s SwapOutRequestMessage) MessageType() messages.MessageType {
@@ -138,7 +143,7 @@ type OpeningTxBroadcastedMessage struct {
 	ScriptOut uint32 `json:"script_out"`
 	// BlindingKey:
 	// Bitcoin: Blank.
-	// Liquid Network: Is the 32 byte blinding key to un-blind the outputs of
+	// Liquid BitcoinNetwork: Is the 32 byte blinding key to un-blind the outputs of
 	//the opening_transaction.
 	BlindingKey string `json:"blinding_key"`
 }

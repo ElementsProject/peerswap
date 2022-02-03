@@ -35,6 +35,14 @@ func (e *ElementsBlockChainRpc) String() string {
 	return "l-btc"
 }
 
+func (e *ElementsBlockChainRpc) GetBlockHash(height uint32) (string, error) {
+	return e.ecli.GetBlockHash(height)
+}
+
+func (e *ElementsBlockChainRpc) GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error) {
+	return e.ecli.GetRawtransactionWithBlockHash(txId, blockHash)
+}
+
 type BitcoinBlockchainRpc struct {
 	bcli *gbitcoin.Bitcoin
 }
@@ -61,6 +69,13 @@ func (b *BitcoinBlockchainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, e
 	}, nil
 }
 
-func (e *BitcoinBlockchainRpc) String() string {
+func (b *BitcoinBlockchainRpc) String() string {
 	return "btc"
+}
+func (b *BitcoinBlockchainRpc) GetBlockHash(height uint32) (string, error) {
+	return b.bcli.GetBlockHash(height)
+}
+
+func (b *BitcoinBlockchainRpc) GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error) {
+	return b.bcli.GetRawtransactionWithBlockHash(txId, blockHash)
 }

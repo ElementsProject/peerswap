@@ -12,32 +12,38 @@ import (
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if swap.Asset == "l-btc" && !services.liquidEnabled {
+	if swap.ElementsAsset != "" && swap.BitcoinNetwork == "" {
+		swap.Chain = l_btc_asset
+	} else if swap.ElementsAsset == "" && swap.BitcoinNetwork != "" {
+		swap.Chain = btc_asset
+	} else {
+		swap.LastErr = errors.New("malformed request")
+		swap.CancelMessage = "malformed request"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Chain,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+	if swap.Chain == l_btc_asset && !services.liquidEnabled {
+
 		swap.LastErr = errors.New("l-btc swaps are not supported")
 		swap.CancelMessage = "l-btc swaps are not supported"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Asset,
+			Asset:           swap.Chain,
 			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
-	if swap.Asset == "btc" && !services.bitcoinEnabled {
+	if swap.Chain == btc_asset && !services.bitcoinEnabled {
 		swap.LastErr = errors.New("btc swaps are not supported")
 		swap.CancelMessage = "btc swaps are not supported"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Asset,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
-		swap.CancelMessage = "incompatible peerswap version"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Asset,
+			Asset:           swap.Chain,
 			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
@@ -45,13 +51,49 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
-	newSwap := NewSwapFromRequest(swap.Id, swap.SwapId, swap.Asset, swap.PeerNodeId, swap.Amount, swap.Scid, SWAPTYPE_IN, swap.ProtocolVersion)
+	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
+		swap.CancelMessage = "incompatible peerswap version"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Chain,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+
+	_, wallet, _, err := services.getOnChainServices(swap.Chain)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	if swap.ElementsAsset != "" && swap.ElementsAsset != wallet.GetAsset() {
+		swap.CancelMessage = "invalid liquid asset"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Chain,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+	if swap.BitcoinNetwork != "" && swap.BitcoinNetwork != wallet.GetNetwork() {
+		swap.CancelMessage = "invalid bitcoin network"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.Chain,
+			AmountSat:       swap.Amount,
+			Type:            swap.Type,
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+	newSwap := NewSwapFromRequest(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, swap.PeerNodeId, swap.Amount, swap.Scid, SWAPTYPE_IN, swap.ProtocolVersion)
+	newSwap.MakerPubkeyHash = swap.MakerPubkeyHash
 	*swap = *newSwap
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
 		swap.CancelMessage = "peer not allowed to request swaps"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Asset,
+			Asset:           swap.Chain,
 			AmountSat:       swap.Amount,
 			Type:            swap.Type,
 			RejectionReason: swap.CancelMessage,
@@ -114,7 +156,7 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 type SetStartingBlockHeightAction struct{}
 
 func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, _, _, err := services.getOnchainAsset(swap.Asset)
+	onchain, _, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return swap.HandleError(err)
 	}

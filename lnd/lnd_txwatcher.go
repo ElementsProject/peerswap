@@ -16,7 +16,7 @@ type LndTxWatcher struct {
 
 	network *chaincfg.Params
 
-	txCallback        func(swapId string) error
+	txCallback        func(swapId string, txHex string) error
 	csvPassedCallback func(swapId string) error
 
 	ctx context.Context
@@ -34,15 +34,15 @@ func (l *LndTxWatcher) GetBlockHeight() (uint32, error) {
 	return gi.BlockHeight, nil
 }
 
-func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, outputScript []byte) {
+func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, outputScript []byte) {
 	go func() {
-		_, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, onchain.BitcoinMinConfs, outputScript)
+		confDetails, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, onchain.BitcoinMinConfs, outputScript)
 		if err != nil {
 			log.Printf("error waiting for confirmation of tx %v", err)
 			return
 		}
 
-		err = l.txCallback(swapId)
+		err = l.txCallback(swapId, hex.EncodeToString(confDetails.RawTx))
 		if err != nil {
 			log.Printf("error on callback %v", err)
 			return
@@ -141,7 +141,7 @@ func (l *LndTxWatcher) listenForBlockheight(startingHeight uint32, targetBlockhe
 	}
 }
 
-func (l *LndTxWatcher) AddConfirmationCallback(f func(swapId string) error) {
+func (l *LndTxWatcher) AddConfirmationCallback(f func(swapId string, txHex string) error) {
 	l.txCallback = f
 }
 

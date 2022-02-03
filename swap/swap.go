@@ -65,8 +65,10 @@ const (
 // SwapData holds all the data needed for a swap
 type SwapData struct {
 	Id              string    `json:"id"`
-	SwapId          *SwapId   `json:"swap_id"`
-	Asset           string    `json:"asset"`
+	SwapId         *SwapId `json:"swap_id"`
+	Chain          string  `json:"asset"`
+	BitcoinNetwork string  `json:"bitcoinNetwork"`
+	ElementsAsset   string    `json:"asset"`
 	ProtocolVersion uint64    `json:"protocol_version"`
 	Type            SwapType  `json:"type"`
 	FSMState        StateType `json:"fsm_state"`
@@ -183,11 +185,13 @@ func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwap returns a new swap with a random hex id and the given arguments
-func NewSwap(swapId string, sId *SwapId, asset string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string, protocolVersion uint64) *SwapData {
+func NewSwap(swapId string, sId *SwapId, asset, elementsAsset, bitcoinNetwork string, swapType SwapType, swapRole SwapRole, amount uint64, initiatorNodeId string, peerNodeId string, channelId string, protocolVersion uint64) *SwapData {
 	return &SwapData{
 		Id:              swapId,
 		SwapId:          sId,
-		Asset:           asset,
+		Chain:           asset,
+		ElementsAsset:   elementsAsset,
+		BitcoinNetwork:  bitcoinNetwork,
 		Role:            swapRole,
 		Type:            swapType,
 		PeerNodeId:      peerNodeId,
@@ -201,11 +205,14 @@ func NewSwap(swapId string, sId *SwapId, asset string, swapType SwapType, swapRo
 }
 
 // NewSwapFromRequest returns a new swap created from a swap request
-func NewSwapFromRequest(swapId string, sId *SwapId, asset string, senderNodeId string, amount uint64, channelId string, swapType SwapType, protocolVersion uint64) *SwapData {
+func NewSwapFromRequest(swapId string, sId *SwapId, asset, elementsAsset, bitcoinNetwork string, senderNodeId string, amount uint64, channelId string, swapType SwapType, protocolVersion uint64) *SwapData {
 	return &SwapData{
-		Id:              swapId,
-		SwapId:          sId,
-		Asset:           asset,
+		Id:     swapId,
+		SwapId: sId,
+		Chain:  asset,
+
+		ElementsAsset:   elementsAsset,
+		BitcoinNetwork:  bitcoinNetwork,
 		Type:            swapType,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,

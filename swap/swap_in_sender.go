@@ -11,7 +11,7 @@ import (
 type SwapInSenderCreateSwapAction struct{}
 
 func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
+	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -28,10 +28,11 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequestMessage{
 		ProtocolVersion: swap.ProtocolVersion,
 		SwapId:          swapId,
-		Asset:           swap.Asset,
+		Asset:           swap.ElementsAsset,
 		Scid:            swap.Scid,
 		Amount:          swap.Amount,
 		Pubkey:          swap.MakerPubkeyHash,
+		Network:         swap.BitcoinNetwork,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -45,7 +46,7 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 type CreateAndBroadcastOpeningTransaction struct{}
 
 func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -60,7 +61,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 	pHash := preimage.Hash()
 	expiry := uint64(3600)
-	if swap.Asset == "btc" {
+	if swap.Chain == "btc" {
 		expiry = 3600 * 24
 	}
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
@@ -122,7 +123,7 @@ type AwaitCsvAction struct{}
 
 //todo this will never throw an error
 func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	onchain, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return swap.HandleError(err)
 	}

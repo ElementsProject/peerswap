@@ -64,7 +64,9 @@ func Test_ValidSwap(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, swapFSM.Data.GetCurrentState())
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
-		Payreq: "claiminv",
+		Payreq:    "claiminv",
+		TxId:      "txid",
+		ScriptOut: 0,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +78,7 @@ func Test_ValidSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "txid", swapFSM.Data.OpeningTxId)
+
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
@@ -317,34 +320,20 @@ func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channel
 	return true
 }
 
-type DummyTxWatcher struct {
-	txConfirmedFunc func(swapId string) error
-	csvPassedFunc   func(swapId string) error
-}
-
-func (d *DummyTxWatcher) AddCltvTx(swapId string, cltv int64) {
-
-}
-
-func (d *DummyTxWatcher) AddConfirmationsTx(swapId, txId string) {
-
-}
-
-func (d *DummyTxWatcher) AddTxConfirmedHandler(f func(swapId string) error) {
-	d.txConfirmedFunc = f
-}
-
-func (d *DummyTxWatcher) AddCsvPassedHandler(f func(swapId string) error) {
-	d.csvPassedFunc = f
-}
-
 type dummyChain struct {
-	txConfirmedFunc func(swapId string) error
+	txConfirmedFunc func(swapId string, txHex string) error
 	csvPassedFunc   func(swapId string) error
 }
 
 func (d *dummyChain) GetOutputScript(params *OpeningParams) ([]byte, error) {
 	return []byte{}, nil
+}
+func (cl *dummyChain) GetAsset() string {
+	return "a420"
+}
+
+func (cl *dummyChain) GetNetwork() string {
+	return "mainnet"
 }
 
 func (d *dummyChain) TxIdFromHex(txHex string) (string, error) {
@@ -363,7 +352,7 @@ func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, cl
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, startingHeight uint32, wantscript []byte) {
+func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) {
 
 }
 
@@ -395,7 +384,7 @@ func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex str
 	return "txid", "txhex", nil
 }
 
-func (d *dummyChain) AddConfirmationCallback(f func(swapId string) error) {
+func (d *dummyChain) AddConfirmationCallback(f func(swapId string, txHex string) error) {
 	d.txConfirmedFunc = f
 }
 
