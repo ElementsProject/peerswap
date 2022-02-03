@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -112,6 +113,10 @@ type SwapData struct {
 
 	LastErr       error  `json:"-"`
 	LastErrString string `json:"last_err,omitempty"`
+
+	// TimeOut cancel func. If set and called cancels the timout context so that
+	// the TimeOut callback does not get called after cancel.
+	toCancel context.CancelFunc
 }
 
 func (s *SwapData) GetId() string {
@@ -137,6 +142,12 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 		ClaimPaymentHash: s.ClaimPaymentHash,
 		Amount:           s.Amount,
 		BlindingKey:      blindingKey,
+	}
+}
+
+func (s *SwapData) cancelTimeout() {
+	if s.toCancel != nil {
+		s.toCancel()
 	}
 }
 

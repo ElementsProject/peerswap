@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"context"
 	"log"
 	"sync"
 	"testing"
@@ -345,6 +346,37 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	}
 }
 
+func TestTimeout(t *testing.T) {
+	t.Parallel()
+	sws := getTestSetup("alice")
+	sws.swapServices.messenger = &noopMessenger{}
+	sws.Start()
+
+	fsm := newSwapInSenderFSM(sws.swapServices)
+	sws.AddActiveSwap(fsm.Id, fsm)
+
+	fsm.Current = State_SwapInSender_AwaitAgreement
+	sws.swapServices.toService.addNewTimeOut(context.Background(), 10*time.Millisecond, fsm.Id)
+
+	tm := time.NewTimer(1 * time.Second)
+
+	for {
+		select {
+		case <-tm.C:
+			t.Errorf("expected state to change to State_SwapCanceled")
+			return
+		default:
+			fsm.mutex.Lock()
+			if fsm.Current == State_SwapCanceled {
+				fsm.mutex.Unlock()
+				tm.Stop()
+				return
+			}
+			fsm.mutex.Unlock()
+		}
+	}
+}
+
 func getTestSetup(name string) *SwapService {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
@@ -412,4 +444,14 @@ func (s *MessengerManagerStub) RemoveSender(id string) {
 	defer s.Unlock()
 	s.called++
 	s.removed++
+}
+
+type noopMessenger struct {
+}
+
+func (m *noopMessenger) SendMessage(peerId string, msg []byte, msgType int) error {
+	return nil
+}
+
+func (m *noopMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
 }

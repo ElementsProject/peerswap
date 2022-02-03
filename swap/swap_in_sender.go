@@ -1,8 +1,10 @@
 package swap
 
 import (
+	"context"
 	"encoding/hex"
 	"log"
+	"time"
 
 	"github.com/sputn1ck/peerswap/lightning"
 )
@@ -40,6 +42,10 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
+
+	toCtx, cancel := context.WithCancel(context.Background())
+	swap.toCancel = cancel
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swapId.String())
 	return Event_ActionSucceeded
 }
 
@@ -184,8 +190,9 @@ func getSwapInSenderStates() States {
 		State_SwapInSender_AwaitAgreement: {
 			Action: &NoOpAction{},
 			Events: Events{
-				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_BroadcastOpeningTx,
 				Event_OnCancelReceived:                 State_SwapCanceled,
+				Event_OnTimeout:                        State_SendCancel,
+				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_BroadcastOpeningTx,
 			},
 		},
 		State_SwapInSender_BroadcastOpeningTx: {

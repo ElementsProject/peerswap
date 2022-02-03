@@ -8,7 +8,6 @@ import (
 )
 
 func Test_SwapInSenderValidSwap(t *testing.T) {
-
 	swapAmount := uint64(100)
 	initiator := "ab123"
 	peer := "ba123"
@@ -16,7 +15,10 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	chanId := "baz"
 	msgChan := make(chan PeerMessage)
 
+	timeOutD := &timeOutDummy{}
+
 	swapServices := getSwapServices(msgChan)
+	swapServices.toService = timeOutD
 	swap := newSwapInSenderFSM(swapServices)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
@@ -30,6 +32,10 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Check if timeout was set
+	assert.Equal(t, 1, timeOutD.getCalled())
+
 	msg := <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPINREQUEST, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitAgreement, swap.Current)
@@ -128,5 +134,6 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	chain := &dummyChain{}
 	mmgr := &MessengerManagerStub{}
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
+	swapServices.toService = &timeOutDummy{}
 	return swapServices
 }

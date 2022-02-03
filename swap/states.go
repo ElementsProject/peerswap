@@ -82,6 +82,8 @@ const (
 	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"
 	Event_OnCoopCloseReceived EventType = "Event_OnCoopCloseReceived"
 
+	Event_OnTimeout = "Event_OnTimeout"
+
 	Event_ActionSucceeded                  EventType = "Event_ActionSucceeded"
 	Event_SwapInSender_OnSwapInRequested   EventType = "Event_SwapInSender_OnSwapInRequested"
 	Event_SwapInSender_OnAgreementReceived EventType = "Event_SwapInSender_OnAgreementReceived"

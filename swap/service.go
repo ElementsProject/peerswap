@@ -59,6 +59,7 @@ func NewSwapService(services *SwapServices) *SwapService {
 
 // Start adds callback to the messenger, txwatcher services and lightning client
 func (s *SwapService) Start() error {
+	s.swapServices.toService = newTimeOutService(s.createTimeoutCallback)
 	s.swapServices.messenger.AddMessageHandler(s.OnMessageReceived)
 
 	if s.LiquidEnabled {
@@ -660,4 +661,27 @@ func (s *SwapService) isMessageSenderExpectedPeer(senderId string, swapId *SwapI
 		return false, err
 	}
 	return swap.Data.PeerNodeId == senderId, nil
+}
+
+func (s *SwapService) createTimeoutCallback(swapId string) func() {
+	return func() {
+		swap, err := s.GetActiveSwap(swapId)
+		if err != nil {
+			log.Printf("[SwapService]\ttimeout callback: %v", err)
+			return
+		}
+
+		// Reset cancel func
+		swap.Data.toCancel = nil
+
+		done, err := swap.SendEvent(Event_OnTimeout, nil)
+		if err != nil {
+			log.Printf("[SwapService]\tSendEvent(): %v", err)
+			return
+		}
+
+		if done {
+			s.RemoveActiveSwap(swap.Id)
+		}
+	}
 }
