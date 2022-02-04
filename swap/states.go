@@ -90,4 +90,6 @@ const (
 	Event_ActionFailed                     EventType = "Event_ActionFailed"
 	Event_SwapInReceiver_OnRequestReceived EventType = "Event_SwapInReceiver_OnRequestReceived"
 	Event_Done                             EventType = "Event_Done"
+
+	Event_OnInvalid_Message EventType = "Event_Invalid_Message"
 )

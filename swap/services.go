@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	btc_asset   = "btc"
-	l_btc_asset = "l-btc"
+	btc_chain   = "btc"
+	l_btc_chain = "l-btc"
 )
 
 type Messenger interface {
@@ -155,10 +155,10 @@ func (s *SwapServices) getOnChainServices(asset string) (TxWatcher, Wallet, Vali
 	if asset == "" {
 		return nil, nil, nil, fmt.Errorf("missing asset")
 	}
-	if asset == btc_asset {
+	if asset == btc_chain {
 		return s.bitcoinTxWatcher, s.bitcoinWallet, s.bitcoinValidator, nil
 	}
-	if asset == l_btc_asset {
+	if asset == l_btc_chain {
 		return s.liquidTxWatcher, s.liquidWallet, s.liquidValidator, nil
 	}
 	return nil, nil, nil, WrongAssetError(asset)

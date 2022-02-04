@@ -315,18 +315,18 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 						paidFees += s.Data.OpeningTxFee
 						if s.Type == swap.SWAPTYPE_OUT {
 							SenderSwapsOut++
-							SenderSatsOut += s.Data.Amount
+							SenderSatsOut += s.Data.GetAmount()
 						} else {
 							SenderSwapsIn++
-							SenderSatsIn += s.Data.Amount
+							SenderSatsIn += s.Data.GetAmount()
 						}
 					} else {
 						if s.Type == swap.SWAPTYPE_OUT {
 							ReceiverSwapsOut++
-							ReceiverSatsOut += s.Data.Amount
+							ReceiverSatsOut += s.Data.GetAmount()
 						} else {
 							ReceiverSwapsIn++
-							ReceiverSatsIn += s.Data.Amount
+							ReceiverSatsIn += s.Data.GetAmount()
 						}
 					}
 				}
@@ -492,10 +492,11 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		State:           string(swap.Current),
 		InitiatorNodeId: swap.Data.InitiatorNodeId,
 		PeerNodeId:      swap.Data.PeerNodeId,
-		Amount:          swap.Data.Amount,
-		ChannelId:       swap.Data.Scid,
-		OpeningTxId:     swap.Data.OpeningTxId,
-		ClaimTxId:       swap.Data.ClaimTxId,
-		CancelMessage:   swap.Data.CancelMessage,
+		Amount:          swap.Data.GetAmount(),
+		ChannelId:       swap.Data.GetScid(),
+		// todo this might panic
+		OpeningTxId:   swap.Data.OpeningTxBroadcasted.TxId,
+		ClaimTxId:     swap.Data.ClaimTxId,
+		CancelMessage: swap.Data.CancelMessage,
 	}
 }

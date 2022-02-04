@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"sync"
-	"time"
 )
 
 // ErrEventRejected is the error returned when the state machine cannot process
@@ -33,9 +32,7 @@ type StateType string
 type EventType string
 
 // EventContext represents the context to be passed to the action implementation.
-type EventContext interface {
-	ApplyOnSwap(swap *SwapData)
-}
+type EventContext interface{}
 
 // Action represents the action to be executed in a given state.
 type Action interface {
@@ -135,9 +132,9 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		return true, nil
 	}
 
-	// apply new event data
-	if eventCtx != nil && s.EventIsValid(event) {
-		eventCtx.ApplyOnSwap(s.Data)
+	err := s.swapServices.swapStore.UpdateData(s)
+	if err != nil {
+		return false, err
 	}
 
 	for {
@@ -158,9 +155,6 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		// Transition over to the next state.
 		s.Previous = s.Current
 		s.Current = nextState
-		if s.Data != nil {
-			s.Data.SetState(s.Current)
-		}
 
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
@@ -184,8 +178,6 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		case Event_ActionFailed:
 			if s.Data.LastErr != nil {
 				log.Printf("[FSM] Action failure %v", s.Data.LastErr)
-				s.failures++
-				time.Sleep(time.Duration(s.failures) * time.Second)
 			}
 		}
 

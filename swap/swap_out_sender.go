@@ -2,7 +2,6 @@ package swap
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -14,66 +13,22 @@ import (
 	"github.com/sputn1ck/peerswap/messages"
 )
 
-type SwapCreationContext struct {
-	id              string
-	swapId          *SwapId
-	asset           string
-	amount          uint64
-	peer            string
-	channelId       string
-	initiatorId     string
-	protocolversion uint64
-	bitcoinNetwork  string
-	elementsAsset   string
-}
-
-func (c *SwapCreationContext) ApplyOnSwap(swap *SwapData) {
-	swap.Amount = c.amount
-	swap.PeerNodeId = c.peer
-	swap.Scid = c.channelId
-	swap.Chain = c.asset
-	swap.Id = c.id
-	swap.SwapId = c.swapId
-	swap.InitiatorNodeId = c.initiatorId
-	swap.ProtocolVersion = c.protocolversion
-	swap.BitcoinNetwork = c.bitcoinNetwork
-	swap.ElementsAsset = c.elementsAsset
-}
-
 // SwapInSenderCreateSwapAction creates the swap data
-type CreateSwapOutAction struct{}
+type CreateSwapRequestAction struct{}
 
 //todo validate data
-func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
-	*swap = *newSwap
-
-	// This is needed to parse the SwapId string from the database
-	swapId, err := ParseSwapIdFromString(swap.Id)
+func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(swap.GetRequest())
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	pubkey := swap.GetPrivkey().PubKey()
-	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequestMessage{
-		ProtocolVersion: swap.ProtocolVersion,
-		SwapId:          swapId,
-		Asset:           swap.ElementsAsset,
-		Network:         swap.BitcoinNetwork,
-		Scid:            swap.Scid,
-		Amount:          swap.Amount,
-		Pubkey:          swap.TakerPubkeyHash,
-	})
-	if err != nil {
-		return swap.HandleError(err)
-	}
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
 
 	toCtx, cancel := context.WithCancel(context.Background())
 	swap.toCancel = cancel
-	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swapId.String())
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.Id.String())
 
 	return Event_ActionSucceeded
 }
@@ -101,7 +56,7 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 
 	// Send message repeated as we really want the message to be received at some point!
 	rm := messages.NewRedundantMessenger(services.messenger, 10*time.Second)
-	err := services.messengerManager.AddSender(swap.Id, rm)
+	err := services.messengerManager.AddSender(swap.Id.String(), rm)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -116,7 +71,7 @@ type PayFeeInvoiceAction struct{}
 func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	ll := services.lightning
 	// policy := services.policy
-	_, msatAmt, err := ll.DecodePayreq(swap.FeeInvoice)
+	_, msatAmt, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
 	if err != nil {
 		log.Printf("error decoding %v", err)
 		return swap.HandleError(err)
@@ -130,7 +85,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 			return Event_ActionFailed
 		}
 	*/
-	preimage, err := ll.PayInvoice(swap.FeeInvoice)
+	preimage, err := ll.PayInvoice(swap.SwapOutAgreement.Payreq)
 	if err != nil {
 		log.Printf("error paying out %v", err)
 		return swap.HandleError(err)
@@ -144,15 +99,20 @@ type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnChainServices(swap.Chain)
+	txWatcher, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	phash, _, err := services.lightning.DecodePayreq(swap.ClaimInvoice)
+	phash, msatAmount, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
+	if msatAmount != swap.GetAmount()*1000 {
+		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", swap.OpeningTxBroadcasted.Payreq, swap.GetAmount()))
+	}
+
 	swap.ClaimPaymentHash = phash
 
 	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
@@ -160,7 +120,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		return swap.HandleError(err)
 	}
 
-	txWatcher.AddWaitForConfirmationTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.StartingBlockHeight, wantScript)
+	txWatcher.AddWaitForConfirmationTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -171,22 +131,10 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	_, _, validator, err := services.getOnChainServices(swap.Chain)
+	_, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
-	phash, msatAmount, err := lc.DecodePayreq(swap.ClaimInvoice)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	// todo this might fail, msats...
-	if msatAmount != swap.Amount*1000 {
-		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", swap.ClaimInvoice, swap.Amount))
-	}
-
-	swap.ClaimPaymentHash = phash
 
 	// todo get opening tx hex
 	ok, err := validator.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxHex)
@@ -222,7 +170,7 @@ paymentLoop:
 		case <-ctx.Done():
 			break paymentLoop
 		default:
-			preimageString, err = lc.RebalancePayment(swap.ClaimInvoice, swap.Scid)
+			preimageString, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
 			if err != nil {
 				log.Printf("error trying to pay invoice: %v", err)
 			}
@@ -250,7 +198,7 @@ type NoOpDoneAction struct{}
 
 func (a *NoOpDoneAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// Remove possible message sender
-	services.messengerManager.RemoveSender(swap.Id)
+	services.messengerManager.RemoveSender(swap.Id.String())
 
 	return Event_Done
 }
@@ -285,7 +233,7 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SwapOutSender_CreateSwap: {
-			Action: &CreateSwapOutAction{},
+			Action: &CreateSwapRequestAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutSender_SendRequest,
 			},
@@ -303,6 +251,7 @@ func getSwapOutSenderStates() States {
 				Event_OnCancelReceived:     State_SwapCanceled,
 				Event_OnTimeout:            State_SendCancel,
 				Event_OnFeeInvoiceReceived: State_SwapOutSender_PayFeeInvoice,
+				Event_OnInvalid_Message:    State_SendCancel,
 			},
 		},
 		State_SwapOutSender_PayFeeInvoice: {
@@ -317,6 +266,8 @@ func getSwapOutSenderStates() States {
 			Events: Events{
 				Event_OnCancelReceived:  State_SwapCanceled,
 				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
+				Event_OnInvalid_Message: State_SendCancel,
+				Event_OnTimeout:         State_SwapOutSender_SendPrivkey,
 			},
 		},
 		State_SendCancel: {

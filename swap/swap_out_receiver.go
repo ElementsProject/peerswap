@@ -2,7 +2,6 @@ package swap
 
 import (
 	"encoding/hex"
-	"errors"
 	"log"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -14,150 +13,19 @@ import (
 // or make the sender a more sophisticated program which tries resending...
 const ()
 
-type CreateSwapFromRequestContext struct {
-	amount          uint64
-	elementsAsset   string
-	bitcoinNetwork  string
-	peer            string
-	channelId       string
-	swapId          *SwapId
-	id              string
-	takerPubkeyHash string
-	protocolversion uint64
-	makerPubkey     string
-}
+// CreateSwapOutFromRequestAction creates the swap-out process and prepares the opening transaction
+type CreateSwapOutFromRequestAction struct{}
 
-func (c *CreateSwapFromRequestContext) ApplyOnSwap(swap *SwapData) {
-	swap.Amount = c.amount
-	swap.ElementsAsset = c.elementsAsset
-	swap.BitcoinNetwork = c.bitcoinNetwork
-	swap.PeerNodeId = c.peer
-	swap.Scid = c.channelId
-	swap.Id = c.id
-	swap.SwapId = c.swapId
-	swap.TakerPubkeyHash = c.takerPubkeyHash
-	swap.MakerPubkeyHash = c.makerPubkey
-	swap.ProtocolVersion = c.protocolversion
-}
-
-// CreateSwapFromRequestAction creates the swap-out process and prepares the opening transaction
-type CreateSwapFromRequestAction struct{}
-
-func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if swap.ElementsAsset != "" && swap.BitcoinNetwork == "" {
-		swap.Chain = l_btc_asset
-	} else if swap.ElementsAsset == "" && swap.BitcoinNetwork != "" {
-		swap.Chain = btc_asset
-	} else {
-		swap.LastErr = errors.New("malformed request")
-		swap.CancelMessage = "malformed request"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-	if swap.Chain == l_btc_asset && !services.liquidEnabled {
-		swap.LastErr = errors.New("l-btc swaps are not supported")
-		swap.CancelMessage = "l-btc swaps are not supported"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-
-	if swap.Chain == btc_asset && !services.bitcoinEnabled {
-		swap.LastErr = errors.New("btc swaps are not supported")
-		swap.CancelMessage = "btc swaps are not supported"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-
-	if swap.ProtocolVersion != PEERSWAP_PROTOCOL_VERSION {
-		swap.CancelMessage = "incompatible peerswap version"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-	_, wallet, _, err := services.getOnChainServices(swap.Chain)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	if swap.ElementsAsset != "" && swap.ElementsAsset != wallet.GetAsset() {
-		swap.CancelMessage = "invalid liquid asset"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-	if swap.BitcoinNetwork != "" && swap.BitcoinNetwork != wallet.GetNetwork() {
-		swap.CancelMessage = "invalid bitcoin network"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-
-	newSwap := NewSwapFromRequest(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, swap.PeerNodeId, swap.Amount, swap.Scid, SWAPTYPE_OUT, swap.ProtocolVersion)
-	newSwap.TakerPubkeyHash = swap.TakerPubkeyHash
-	*swap = *newSwap
-
-	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
-		swap.CancelMessage = "peer not allowed to request swaps"
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.Chain,
-			AmountSat:       swap.Amount,
-			Type:            swap.Type,
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-	//todo check balance/policy if we want to create the swap
-	pubkey := swap.GetPrivkey().PubKey()
-
-	swap.Role = SWAPROLE_RECEIVER
-	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
+func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// Generate Preimage
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	pHash := preimage.Hash()
-	log.Printf("maker preimage: %s ", preimage.String())
-	expiry := uint64(3600)
-	if swap.Chain == "btc" {
-		expiry = 3600 * 24
-	}
-	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	swap.ClaimInvoice = payreq
-	swap.ClaimPreimage = preimage.String()
-	swap.ClaimPaymentHash = pHash.String()
-
-	err = CreateOpeningTransaction(services, swap)
+	pubkey := swap.SwapOutRequest.Pubkey
+	// todo replace with premium estimation https://github.com/sputn1ck/peerswap/issues/109
+	openingTxRes, err := CreateOpeningTransaction(services, swap.GetChain(), pubkey, pubkey, pHash.String(), swap.SwapOutRequest.Amount)
 	if err != nil {
 		swap.LastErr = err
 		return swap.HandleError(err)
@@ -170,63 +38,26 @@ func (c *CreateSwapFromRequestAction) Execute(services *SwapServices, swap *Swap
 		return Event_ActionFailed
 		}
 	*/
-	feeSat := swap.OpeningTxFee
 
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(feeSat*1000, feepreimage.String(), "fee_"+swap.Id, 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingTxRes.Fee*1000, feepreimage.String(), "fee_"+swap.Id.String(), 600)
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	swap.FeeInvoice = feeInvoice
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutAgreementMessage{
+	message := &SwapOutAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
-		SwapId:          swap.SwapId,
-		Pubkey:          swap.MakerPubkeyHash,
-		Payreq:          swap.FeeInvoice,
-	})
-	if err != nil {
-		return swap.HandleError(err)
+		SwapId:          swap.Id,
+		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
+		Payreq:          feeInvoice,
 	}
-	swap.NextMessage = nextMessage
-	swap.NextMessageType = nextMessageType
+	swap.SwapOutAgreement = message
 
-	return Event_ActionSucceeded
-}
-
-// BroadCastOpeningTxAction finalizes and broadcasts the opening transaction
-type BroadCastOpeningTxAction struct{}
-
-func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnChainServices(swap.Chain)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	txId, finalizedTx, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	swap.OpeningTxHex = finalizedTx
-	swap.OpeningTxId = txId
-
-	startingHeight, err := txWatcher.GetBlockHeight()
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.StartingBlockHeight = startingHeight
-
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
-		SwapId:      swap.SwapId,
-		Payreq:      swap.ClaimInvoice,
-		TxId:        txId,
-		ScriptOut:   swap.OpeningTxVout,
-		BlindingKey: swap.BlindingKeyHex,
-	})
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(message)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -240,11 +71,12 @@ func (b *BroadCastOpeningTxAction) Execute(services *SwapServices, swap *SwapDat
 type ClaimSwapTransactionWithCsv struct{}
 
 func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *SwapData) EventType {
-	err := CreateCsvSpendingTransaction(services, swap)
+	txId, err := CreateCsvSpendingTransaction(services, swap.GetChain(), swap.GetOpeningParams(), swap.GetClaimParams())
 	if err != nil {
 		swap.HandleError(err)
 		return Event_OnRetry
 	}
+	swap.ClaimTxId = txId
 	return Event_ActionSucceeded
 }
 
@@ -252,35 +84,18 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 type ClaimSwapTransactionCoop struct{}
 
 func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapData) EventType {
-	_, wallet, _, err := services.getOnChainServices(swap.Chain)
+	_, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	openingParams := &OpeningParams{
-		TakerPubkeyHash:  swap.TakerPubkeyHash,
-		MakerPubkeyHash:  swap.MakerPubkeyHash,
-		ClaimPaymentHash: swap.ClaimPaymentHash,
-		Amount:           swap.Amount,
-	}
 
-	takerKeyBytes, err := hex.DecodeString(swap.TakerPrivkey)
+	takerKeyBytes, err := hex.DecodeString(swap.CoopClose.Privkey)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 	takerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), takerKeyBytes)
-	makerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), swap.PrivkeyBytes)
 
-	claimParams := &ClaimParams{
-		Signer:       makerKey,
-		OpeningTxHex: swap.OpeningTxHex,
-	}
-	if swap.Chain == l_btc_asset {
-		err = SetBlindingParams(swap, openingParams)
-		if err != nil {
-			return swap.HandleError(err)
-		}
-	}
-	txId, _, err := wallet.CreateCoopSpendingTransaction(openingParams, claimParams, takerKey)
+	txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), takerKey)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -298,7 +113,7 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	messenger := services.messenger
 
 	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-		SwapId:  swap.SwapId,
+		SwapId:  swap.Id,
 		Message: swap.CancelMessage,
 	})
 	if err != nil {
@@ -318,7 +133,7 @@ type TakerSendPrivkeyAction struct{}
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
-		SwapId:  swap.SwapId,
+		SwapId:  swap.Id,
 		Message: swap.CancelMessage,
 		Privkey: privkeystring,
 	})
@@ -360,7 +175,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_CreateSwap: {
-			Action: &CreateSwapFromRequestAction{},
+			Action: &CheckRequestWrapperAction{next: &CreateSwapOutFromRequestAction{}},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutReceiver_SendFeeInvoice,
 				Event_ActionFailed:    State_SendCancel,
@@ -381,7 +196,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_BroadcastOpeningTx: {
-			Action: &BroadCastOpeningTxAction{},
+			Action: &CreateAndBroadcastOpeningTransaction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutReceiver_SendTxBroadcastedMessage,
 				Event_ActionFailed:    State_SendCancel,
@@ -401,16 +216,17 @@ func getSwapOutReceiverStates() States {
 				Event_OnCancelReceived:    State_SwapOutReceiver_ClaimSwapCsv,
 				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
 				Event_OnCsvPassed:         State_SwapOutReceiver_ClaimSwapCsv,
+				Event_OnInvalid_Message:   State_WaitCsv,
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCoop: {
 			Action: &StopSendMessageWithRetryWrapperAction{next: &ClaimSwapTransactionCoop{}},
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedCoop,
-				Event_ActionFailed:    State_SwapOutReceiver_SwapAborted,
+				Event_ActionFailed:    State_WaitCsv,
 			},
 		},
-		State_SwapOutReceiver_SwapAborted: {
+		State_WaitCsv: {
 			Action: &AwaitCsvAction{},
 			Events: Events{
 				Event_OnCsvPassed: State_SwapOutReceiver_ClaimSwapCsv,
