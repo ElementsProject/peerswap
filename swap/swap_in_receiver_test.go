@@ -9,11 +9,9 @@ import (
 
 func Test_SwapInReceiverValid(t *testing.T) {
 
-	swapId := "swapid"
+	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	//initiator := "ab123"
 	peer := "ba123"
-	makerPubkeyHash := "maker"
 	chanId := "baz"
 	msgChan := make(chan PeerMessage)
 
@@ -25,7 +23,8 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
-		asset:           "btc",
+		id:              swapId.String(),
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -36,10 +35,11 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: makerPubkeyHash,
-		Invoice:         "invoice",
-		TxHex:           "txhex",
+		SwapId:      swap.SwapId,
+		Payreq:      "invoice",
+		TxId:        "",
+		ScriptOut:   0,
+		BlindingKey: "",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 }
 func Test_SwapInReceiverCancel1(t *testing.T) {
 
-	swapId := "swapid"
+	swapId := NewSwapId()
 	swapAmount := uint64(100)
 	//initiator := "ab123"
 	peer := "ba123"
@@ -71,7 +71,8 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
-		asset:           "btc",
+		id:              swapId.String(),
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -90,11 +91,9 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 }
 func Test_SwapInReceiverCancel2(t *testing.T) {
 
-	swapId := "swapid"
+	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	//initiator := "ab123"
 	peer := "ba123"
-	makerPubkeyHash := "maker"
 	chanId := "baz"
 	msgChan := make(chan PeerMessage)
 
@@ -106,7 +105,8 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
-		asset:           "btc",
+		id:              swapId.String(),
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -117,10 +117,11 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	assert.Equal(t, State_SwapInReceiver_AwaitTxBroadcastedMessage, swap.Current)
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: makerPubkeyHash,
-		Invoice:         "invoice",
-		TxHex:           "txhex",
+		SwapId:      swap.SwapId,
+		Payreq:      "invoice",
+		TxId:        "",
+		ScriptOut:   0,
+		BlindingKey: "",
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -11,7 +11,7 @@ import (
 type SwapInSenderCreateSwapAction struct{}
 
 func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.Asset, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.ChannelId, swap.ProtocolVersion)
+	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
 	*swap = *newSwap
 
 	pubkey := swap.GetPrivkey().PubKey()
@@ -19,26 +19,34 @@ func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *Swa
 	swap.Role = SWAPROLE_SENDER
 	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 
+	// This is needed to parse the SwapId string from the database
+	swapId, err := ParseSwapIdFromString(swap.Id)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequestMessage{
-		SwapId:          swap.Id,
-		ChannelId:       swap.ChannelId,
-		Amount:          swap.Amount,
-		Asset:           swap.Asset,
 		ProtocolVersion: swap.ProtocolVersion,
+		SwapId:          swapId,
+		Asset:           swap.ElementsAsset,
+		Scid:            swap.Scid,
+		Amount:          swap.Amount,
+		Pubkey:          swap.MakerPubkeyHash,
+		Network:         swap.BitcoinNetwork,
 	})
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
-
 	return Event_ActionSucceeded
 }
 
 type CreateAndBroadcastOpeningTransaction struct{}
 
 func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	txWatcher, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -53,7 +61,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 	pHash := preimage.Hash()
 	expiry := uint64(3600)
-	if swap.Asset == "btc" {
+	if swap.Chain == "btc" {
 		expiry = 3600 * 24
 	}
 	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
@@ -83,11 +91,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.OpeningTxId = txId
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
-		SwapId:          swap.Id,
-		MakerPubkeyHash: swap.MakerPubkeyHash,
-		Invoice:         swap.ClaimInvoice,
-		TxHex:           swap.OpeningTxHex,
-		BlindingKeyHex:  swap.BlindingKeyHex,
+		SwapId:      swap.SwapId,
+		Payreq:      swap.ClaimInvoice,
+		TxId:        txId,
+		ScriptOut:   swap.OpeningTxVout,
+		BlindingKey: swap.BlindingKeyHex,
 	})
 	if err != nil {
 		return swap.HandleError(err)
@@ -115,7 +123,7 @@ type AwaitCsvAction struct{}
 
 //todo this will never throw an error
 func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, wallet, _, err := services.getOnchainAsset(swap.Asset)
+	onchain, wallet, _, err := services.getOnChainServices(swap.Chain)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -139,8 +147,10 @@ func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *Sw
 
 // newSwapInSenderFSM returns a new swap statemachine for a swap-in sender
 func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
+	swapId := NewSwapId()
 	return &SwapStateMachine{
-		Id:           newSwapId(),
+		Id:           swapId.String(),
+		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_SENDER,

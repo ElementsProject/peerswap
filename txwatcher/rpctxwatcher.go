@@ -11,6 +11,8 @@ import (
 type BlockchainRpc interface {
 	GetBlockHeight() (uint64, error)
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
+	GetBlockHash(height uint32) (string, error)
+	GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error)
 }
 
 type TxOutResp struct {
@@ -21,9 +23,10 @@ type TxOutResp struct {
 }
 
 type SwapTxInfo struct {
-	TxId   string
-	TxVout uint32
-	Csv    uint32
+	TxId                string
+	TxVout              uint32
+	StartingBlockHeight uint32
+	Csv                 uint32
 }
 
 // todo zmq notifications
@@ -32,10 +35,10 @@ type SwapTxInfo struct {
 type BlockchainRpcTxWatcher struct {
 	blockchain BlockchainRpc
 
-	txCallback        func(swapId string) error
+	txCallback        func(swapId string, txHex string) error
 	csvPassedCallback func(swapId string) error
 
-	txWatchList    map[string]string
+	txWatchList    map[string]*SwapTxInfo
 	csvtxWatchList map[string]*SwapTxInfo
 	newBlockChan   chan uint64
 
@@ -59,7 +62,7 @@ func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, re
 		ctx:            ctx,
 		csv:            csv,
 		blockchain:     blockchain,
-		txWatchList:    make(map[string]string),
+		txWatchList:    make(map[string]*SwapTxInfo),
 		csvtxWatchList: make(map[string]*SwapTxInfo),
 		newBlockChan:   make(chan uint64),
 		requiredConfs:  requiredConfs,
@@ -136,7 +139,7 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 	s.Lock()
 	for k, v := range s.txWatchList {
 		// todo does vout matter here?
-		res, err := s.blockchain.GetTxOut(v, 0)
+		res, err := s.blockchain.GetTxOut(v.TxId, v.TxVout)
 		if err != nil {
 			log.Printf("watchlist fetchtx err: %v", err)
 			continue
@@ -151,7 +154,11 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 		if s.txCallback == nil {
 			continue
 		}
-		err = s.txCallback(k)
+		txHex, err := s.TxHexFromId(res, v.TxId)
+		if err != nil {
+			return err
+		}
+		err = s.txCallback(k, txHex)
 		if err != nil {
 			log.Printf("tx callback error %v", err)
 			continue
@@ -169,7 +176,6 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	var toRemove []string
 	s.Lock()
 	for k, v := range s.csvtxWatchList {
-		// todo does vout matter here?
 		res, err := s.blockchain.GetTxOut(v.TxId, v.TxVout)
 		if err != nil {
 			log.Printf("watchlist fetchtx err: %v", err)
@@ -197,24 +203,61 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	return nil
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, _ uint32, _ []byte) {
+func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingBlockheight uint32, _ []byte) {
+	hex := l.CheckTxConfirmed(swapId, txId, vout)
+	if hex != "" {
+		go func() {
+			err := l.txCallback(swapId, hex)
+			if err != nil {
+				log.Printf("tx callback error %v", err)
+				return
+			}
+		}()
+		return
+	}
 	l.Lock()
-	l.txWatchList[swapId] = txId
-	l.Unlock()
-
-	// In case that the blockheight already exceeds the desired height, we do not want to wait for another block before
-	// we trigger HandleConfirmedTx
-	h, _ := l.blockchain.GetBlockHeight()
-	go l.HandleConfirmedTx(h)
+	defer l.Unlock()
+	l.txWatchList[swapId] = &SwapTxInfo{
+		TxId:                txId,
+		TxVout:              vout,
+		Csv:                 l.csv,
+		StartingBlockHeight: startingBlockheight,
+	}
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, _ uint32, _ []byte) {
+func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vout uint32) string {
+	res, err := s.blockchain.GetTxOut(txId, vout)
+	if err != nil {
+		log.Printf("watchlist fetchtx err: %v", err)
+		return ""
+	}
+	if res == nil {
+		return ""
+	}
+	if !(res.Confirmations >= s.requiredConfs) {
+		log.Printf("tx does not have enough confirmations")
+		return ""
+	}
+	if s.txCallback == nil {
+		return ""
+	}
+	txHex, err := s.TxHexFromId(res, txId)
+	if err != nil {
+		log.Printf("watchlist txfrom hex err: %v", err)
+		return ""
+	}
+
+	return txHex
+}
+
+func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight uint32, _ []byte) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvtxWatchList[swapId] = &SwapTxInfo{
-		TxId:   txId,
-		TxVout: vout,
-		Csv:    l.csv,
+		TxId:                txId,
+		TxVout:              vout,
+		Csv:                 l.csv,
+		StartingBlockHeight: startingBlockheight,
 	}
 }
 
@@ -227,7 +270,7 @@ func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
 	}
 }
 
-func (l *BlockchainRpcTxWatcher) AddConfirmationCallback(f func(swapId string) error) {
+func (l *BlockchainRpcTxWatcher) AddConfirmationCallback(f func(swapId string, txHex string) error) {
 	l.Lock()
 	defer l.Unlock()
 	l.txCallback = f
@@ -237,4 +280,24 @@ func (l *BlockchainRpcTxWatcher) AddCsvCallback(f func(swapId string) error) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvPassedCallback = f
+}
+
+// todo remove race condition with
+// https://bitcoin.stackexchange.com/questions/108444/get-raw-transaction-from-tx-id-without-txindex-1/108451#108451
+func (l *BlockchainRpcTxWatcher) TxHexFromId(resp *TxOutResp, txId string) (string, error) {
+	blockheight, err := l.blockchain.GetBlockHeight()
+	if err != nil {
+		return "", err
+	}
+
+	blockhash, err := l.blockchain.GetBlockHash(uint32(blockheight) - resp.Confirmations + 1)
+	if err != nil {
+		return "", err
+	}
+
+	rawTxHex, err := l.blockchain.GetRawtransactionWithBlockHash(txId, blockhash)
+	if err != nil {
+		return "", err
+	}
+	return rawTxHex, nil
 }

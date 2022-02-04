@@ -9,7 +9,7 @@ import (
 
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
-	swapId := "swapid"
+	swapId := NewSwapId()
 	takerpubkeyhash := "abcdef"
 	peer := "bar"
 	chanId := "baz"
@@ -24,8 +24,9 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
+		id:              swapId.String(),
 		takerPubkeyHash: takerpubkeyhash,
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -49,7 +50,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 }
 func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 	swapAmount := uint64(100)
-	swapId := "swapid"
+	swapId := NewSwapId()
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
@@ -65,8 +66,9 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
+		id:              swapId.String(),
 		takerPubkeyHash: initiator,
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -91,7 +93,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	swapAmount := uint64(100)
-	swapId := "swapid"
+	swapId := NewSwapId()
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
@@ -107,8 +109,9 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
+		id:              swapId.String(),
 		takerPubkeyHash: initiator,
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -127,7 +130,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 
 func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	swapAmount := uint64(100)
-	swapId := "swapid"
+	swapId := NewSwapId()
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
@@ -144,8 +147,9 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 		peer:            peer,
 		channelId:       chanId,
 		swapId:          swapId,
+		id:              swapId.String(),
 		takerPubkeyHash: initiator,
-		asset:           "btc",
+		bitcoinNetwork:  "mainnet",
 		protocolversion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {

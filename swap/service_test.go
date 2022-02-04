@@ -42,16 +42,15 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
+
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
 	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
-
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
-
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
 		Label: "fee_" + bobSwap.Id,
 	})
@@ -61,7 +60,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id, aliceSwap.Data.OpeningTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +107,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	}
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
-	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.Id)
+	bobSwap, err := bobSwapService.GetActiveSwap(aliceSwap.SwapId.String())
 	assert.NoError(t, err)
 
 	aliceReceivedMsg := <-aliceMsgChan
@@ -169,7 +168,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id, aliceSwap.Data.OpeningTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +197,7 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			InitiatorNodeId:        "",
 			PeerNodeId:             "",
 			Amount:                 0,
-			ChannelId:              "channelID",
+			Scid:                   "channelID",
 			PrivkeyBytes:           []byte{},
 			ClaimInvoice:           "",
 			ClaimPreimage:          "",
@@ -314,13 +313,13 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	}
 
 	tests := []test{
-		{name: "swap in agreement message", message: &SwapInAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "swap out agreement message", message: &SwapOutAgreementMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "opening tx broadcasted message", message: &OpeningTxBroadcastedMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "coop close message", message: &CoopCloseMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "cancel message", message: &CancelMessage{SwapId: aliceSwap.Id}, assertError: true},
-		{name: "swap in request message", message: &SwapInRequestMessage{SwapId: "charlie_swap"}, assertError: false},
-		{name: "swap out request message", message: &SwapOutRequestMessage{SwapId: "charlie_swap"}, assertError: false},
+		{name: "swap in agreement message", message: &SwapInAgreementMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "swap out agreement message", message: &SwapOutAgreementMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "opening tx broadcasted message", message: &OpeningTxBroadcastedMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "coop close message", message: &CoopCloseMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "cancel message", message: &CancelMessage{SwapId: aliceSwap.SwapId}, assertError: true},
+		{name: "swap in request message", message: &SwapInRequestMessage{SwapId: NewSwapId()}, assertError: false},
+		{name: "swap out request message", message: &SwapOutRequestMessage{SwapId: NewSwapId()}, assertError: false},
 	}
 
 	for _, tc := range tests {
@@ -338,7 +337,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 
 			if tc.assertError {
 				require.Error(t, aliceMessenger.lastErr)
-				assert.Equal(t, ErrReceivedMessageFromUnexpectedPeer(charlieMessenger.thisPeerId, aliceSwap.Id).Error(), aliceSwapService.swapServices.messenger.(*ConnectedMessenger).lastErr.Error())
+				assert.Equal(t, ErrReceivedMessageFromUnexpectedPeer(charlieMessenger.thisPeerId, aliceSwap.SwapId).Error(), aliceSwapService.swapServices.messenger.(*ConnectedMessenger).lastErr.Error())
 			} else {
 				require.NoError(t, aliceMessenger.lastErr)
 			}

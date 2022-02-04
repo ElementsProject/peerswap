@@ -48,7 +48,7 @@ func (p *PeerSwapConfig) String() string {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
 
-	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Network %s Bitcoin enabled: %v, Lnd Config: %s, Liquid: %s", p.Host, p.ConfigFile, p.DataDir, p.Network, p.BitcoinEnabled, lndString, liquidString)
+	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, BitcoinNetwork %s Bitcoin enabled: %v, Lnd Config: %s, Liquid: %s", p.Host, p.ConfigFile, p.DataDir, p.Network, p.BitcoinEnabled, lndString, liquidString)
 }
 
 func (p *PeerSwapConfig) Validate() error {

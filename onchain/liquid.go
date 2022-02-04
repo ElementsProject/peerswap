@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -565,10 +566,17 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 	return uint64(fee), nil
 }
 
-//fixme this does not work
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	// todo get tx size
 	return l.getFee(l.getClaimTxSize())
+}
+
+func (l *LiquidOnChain) GetAsset() string {
+	return hex.EncodeToString(l.asset)
+}
+
+func (l *LiquidOnChain) GetNetwork() string {
+	return ""
 }
 
 func generateRandom32Bytes() []byte {

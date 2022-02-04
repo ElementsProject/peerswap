@@ -493,7 +493,7 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		InitiatorNodeId: swap.Data.InitiatorNodeId,
 		PeerNodeId:      swap.Data.PeerNodeId,
 		Amount:          swap.Data.Amount,
-		ChannelId:       swap.Data.ChannelId,
+		ChannelId:       swap.Data.Scid,
 		OpeningTxId:     swap.Data.OpeningTxId,
 		ClaimTxId:       swap.Data.ClaimTxId,
 		CancelMessage:   swap.Data.CancelMessage,

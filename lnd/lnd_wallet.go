@@ -222,6 +222,13 @@ func (l *Lnd) NewAddress() (string, error) {
 func (l *Lnd) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
 }
+func (cl *Lnd) GetAsset() string {
+	return "a342"
+}
+
+func (cl *Lnd) GetNetwork() string {
+	return cl.bitcoinOnChain.GetChain().Name
+}
 
 type LndFeeEstimator struct {
 	ctx       context.Context
