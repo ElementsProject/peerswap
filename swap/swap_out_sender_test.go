@@ -37,11 +37,12 @@ func Test_ValidSwap(t *testing.T) {
 	peer := "ba123"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
-
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	timeOutD := &timeOutDummy{}
 
+	swapServices := getSwapServices(msgChan)
+	swapServices.toService = timeOutD
 	swapFSM := newSwapOutSenderFSM(swapServices)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
@@ -55,6 +56,10 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Check if timeout was set
+	assert.Equal(t, 1, timeOutD.getCalled())
+
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
 

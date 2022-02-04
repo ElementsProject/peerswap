@@ -1,7 +1,9 @@
 package swap
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/sputn1ck/peerswap/messages"
 
@@ -94,6 +96,10 @@ type Signer interface {
 	Sign(hash []byte) (*btcec.Signature, error)
 }
 
+type TimeOutService interface {
+	addNewTimeOut(ctx context.Context, d time.Duration, id string)
+}
+
 type SwapServices struct {
 	swapStore           Store
 	requestedSwapsStore RequestedSwapsStore
@@ -109,6 +115,7 @@ type SwapServices struct {
 	liquidValidator     Validator
 	liquidWallet        Wallet
 	liquidEnabled       bool
+	toService           TimeOutService
 }
 
 func NewSwapServices(

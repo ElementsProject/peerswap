@@ -48,11 +48,17 @@ func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) Ev
 	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, SWAPTYPE_OUT, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
 	*swap = *newSwap
 
+	// This is needed to parse the SwapId string from the database
+	swapId, err := ParseSwapIdFromString(swap.Id)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	pubkey := swap.GetPrivkey().PubKey()
 	swap.TakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapOutRequestMessage{
 		ProtocolVersion: swap.ProtocolVersion,
-		SwapId:          swap.SwapId,
+		SwapId:          swapId,
 		Asset:           swap.ElementsAsset,
 		Network:         swap.BitcoinNetwork,
 		Scid:            swap.Scid,
@@ -64,6 +70,10 @@ func (a *CreateSwapOutAction) Execute(services *SwapServices, swap *SwapData) Ev
 	}
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
+
+	toCtx, cancel := context.WithCancel(context.Background())
+	swap.toCancel = cancel
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swapId.String())
 
 	return Event_ActionSucceeded
 }
@@ -291,6 +301,7 @@ func getSwapOutSenderStates() States {
 			Action: &NoOpAction{},
 			Events: Events{
 				Event_OnCancelReceived:     State_SwapCanceled,
+				Event_OnTimeout:            State_SendCancel,
 				Event_OnFeeInvoiceReceived: State_SwapOutSender_PayFeeInvoice,
 			},
 		},
@@ -306,7 +317,6 @@ func getSwapOutSenderStates() States {
 			Events: Events{
 				Event_OnCancelReceived:  State_SwapCanceled,
 				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
-				Event_ActionSucceeded:   State_SendCancel,
 			},
 		},
 		State_SendCancel: {
