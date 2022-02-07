@@ -190,8 +190,6 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	service.AddActiveSwap("swapid", &SwapStateMachine{
 		Id: "swapid",
 		Data: &SwapData{
-			Id:               NewSwapId(),
-			Type:             0,
 			FSMState:         "",
 			Role:             0,
 			CreatedAt:        0,
@@ -207,6 +205,7 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 			CancelMessage:    "",
 			LastErr:          nil,
 			LastErrString:    "",
+			SwapInRequest:    &SwapInRequestMessage{Scid: "channelID"},
 		},
 		Type:     0,
 		Role:     0,
@@ -343,7 +342,7 @@ func TestTimeout(t *testing.T) {
 	sws.swapServices.messenger = &noopMessenger{}
 	sws.Start()
 
-	fsm := newSwapInSenderFSM(sws.swapServices)
+	fsm := newSwapInSenderFSM(sws.swapServices, "alice", "bob")
 	sws.AddActiveSwap(fsm.Id, fsm)
 
 	fsm.Current = State_SwapInSender_AwaitAgreement

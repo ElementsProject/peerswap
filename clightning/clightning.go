@@ -67,6 +67,11 @@ type ClightningClient struct {
 	hexToIdMap           map[string]string
 }
 
+// todo implement
+func (cl *ClightningClient) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	panic("implement me")
+}
+
 // NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
 func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	cl := &ClightningClient{}

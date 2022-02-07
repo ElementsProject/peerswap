@@ -40,7 +40,7 @@ func (s SwapInRequestMessage) MessageType() messages.MessageType {
 }
 
 func (s SwapInRequestMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (s SwapInRequestMessage) ApplyToSwapData(swap *SwapData) error {
@@ -70,7 +70,7 @@ type SwapInAgreementMessage struct {
 }
 
 func (s SwapInAgreementMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (s SwapInAgreementMessage) MessageType() messages.MessageType {
@@ -113,7 +113,7 @@ type SwapOutRequestMessage struct {
 }
 
 func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (s SwapOutRequestMessage) MessageType() messages.MessageType {
@@ -147,7 +147,7 @@ type SwapOutAgreementMessage struct {
 }
 
 func (s SwapOutAgreementMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (s SwapOutAgreementMessage) MessageType() messages.MessageType {
@@ -216,7 +216,7 @@ func (e CancelMessage) MessageType() messages.MessageType {
 }
 
 func (s CancelMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (m CancelMessage) ApplyToSwapData(swap *SwapData) error {
@@ -240,7 +240,7 @@ func (c CoopCloseMessage) MessageType() messages.MessageType {
 }
 
 func (s CoopCloseMessage) Validate(swap *SwapData) error {
-	panic("implement me")
+	return nil
 }
 
 func (m CoopCloseMessage) ApplyToSwapData(swap *SwapData) error {

@@ -16,16 +16,14 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
-
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          "asd",
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -64,16 +62,15 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          "asd",
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,16 +95,15 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          "asd",
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)

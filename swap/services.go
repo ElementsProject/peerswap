@@ -62,6 +62,7 @@ type Wallet interface {
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error)
 	CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error)
 	GetOutputScript(params *OpeningParams) ([]byte, error)
+	EstimateTxFee(txSize uint64) (uint64, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
 	GetAsset() string
@@ -69,8 +70,8 @@ type Wallet interface {
 }
 
 type OpeningParams struct {
-	TakerPubkeyHash  string
-	MakerPubkeyHash  string
+	TakerPubkey      string
+	MakerPubkey      string
 	ClaimPaymentHash string
 	Amount           uint64
 	BlindingKey      *btcec.PrivateKey
@@ -78,7 +79,7 @@ type OpeningParams struct {
 }
 
 func (o *OpeningParams) String() string {
-	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v", o.TakerPubkeyHash, o.MakerPubkeyHash, o.ClaimPaymentHash, o.Amount)
+	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v", o.TakerPubkey, o.MakerPubkey, o.ClaimPaymentHash, o.Amount)
 }
 
 type ClaimParams struct {

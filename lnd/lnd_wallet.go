@@ -223,7 +223,7 @@ func (l *Lnd) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
 }
 func (cl *Lnd) GetAsset() string {
-	return "a342"
+	return ""
 }
 
 func (cl *Lnd) GetNetwork() string {

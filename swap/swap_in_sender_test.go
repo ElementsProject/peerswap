@@ -19,15 +19,15 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 
 	swapServices := getSwapServices(msgChan)
 	swapServices.toService = timeOutD
-	swap := newSwapInSenderFSM(swapServices)
+	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
-	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swap.Id,
-		asset:       "btc",
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swap.SwapId,
+		Network:         "mainnet",
+		Scid:            chanId,
+		Pubkey:          initiator,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -62,15 +62,15 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInSenderFSM(swapServices)
+	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
-	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swap.Id,
-		asset:       "btc",
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swap.SwapId,
+		Network:         "mainnet",
+		Scid:            chanId,
+		Pubkey:          initiator,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -94,15 +94,15 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInSenderFSM(swapServices)
+	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
-	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swap.Id,
-		asset:       "btc",
+	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swap.SwapId,
+		Network:         "mainnet",
+		Scid:            chanId,
+		Pubkey:          initiator,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +118,11 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
-	_, err = swap.SendEvent(Event_OnCoopCloseReceived, nil)
+	_, err = swap.SendEvent(Event_OnCoopCloseReceived, &CoopCloseMessage{
+		SwapId:  swap.SwapId,
+		Message: "",
+		Privkey: "",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

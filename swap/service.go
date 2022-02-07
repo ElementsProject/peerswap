@@ -299,10 +299,8 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 
-	swap := newSwapOutSenderFSM(s.swapServices)
+	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
-
-	swap.Data = NewSwapData(swap.SwapId, initiator, peer)
 
 	var bitcoinNetwork string
 	var elementsAsset string
@@ -347,10 +345,8 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	} else if chain == btc_chain {
 		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
 	}
-	swap := newSwapInSenderFSM(s.swapServices)
+	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
-
-	swap.Data = NewSwapData(swap.SwapId, initiator, peer)
 
 	request := &SwapInRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
@@ -379,9 +375,8 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	swap := newSwapInReceiverFSM(swapId, s.swapServices)
+	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
 	s.AddActiveSwap(swapId.String(), swap)
-	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId)
 
 	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, message)
 	if done {
@@ -397,12 +392,11 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
-	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId)
+	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
 
 	s.AddActiveSwap(swapId.String(), swap)
 
-	done, err := swap.SendEvent(Event_OnSwapOutRequestReceived, nil)
+	done, err := swap.SendEvent(Event_OnSwapOutRequestReceived, message)
 	if err != nil {
 		return err
 	}

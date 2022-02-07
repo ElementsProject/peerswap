@@ -125,6 +125,12 @@ func (s *SwapData) GetProtocolVersion() uint8 {
 	if s.SwapOutRequest != nil {
 		return s.SwapOutRequest.ProtocolVersion
 	}
+	if s.SwapInAgreement != nil {
+		return s.SwapInAgreement.ProtocolVersion
+	}
+	if s.SwapOutAgreement != nil {
+		return s.SwapOutAgreement.ProtocolVersion
+	}
 	return 0
 }
 
@@ -194,7 +200,7 @@ func (s *SwapData) GetNetwork() string {
 func (s *SwapData) GetChain() string {
 	if s.GetAsset() != "" && s.GetNetwork() == "" {
 		return l_btc_chain
-	} else if s.SwapOutRequest.Asset == "" && s.SwapOutRequest.Network != "" {
+	} else if s.GetAsset() == "" && s.GetNetwork() != "" {
 		return btc_chain
 	} else {
 		return ""
@@ -245,23 +251,12 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 		blindingKeyBytes, _ := hex.DecodeString(s.OpeningTxBroadcasted.BlindingKey)
 		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
 	}
-	var takerPubkeyHash, makerPubkeyHash string
-	var amount uint64
-	if s.SwapInRequest != nil {
-		takerPubkeyHash = s.SwapInAgreement.Pubkey
-		makerPubkeyHash = s.SwapInRequest.Pubkey
-		amount = s.SwapInRequest.Amount
-	}
-	if s.SwapOutRequest != nil {
-		takerPubkeyHash = s.SwapOutRequest.Pubkey
-		makerPubkeyHash = s.SwapOutAgreement.Pubkey
-		amount = s.SwapOutRequest.Amount
-	}
+
 	return &OpeningParams{
-		TakerPubkeyHash:  takerPubkeyHash,
-		MakerPubkeyHash:  makerPubkeyHash,
+		TakerPubkey:      s.GetTakerPubkey(),
+		MakerPubkey:      s.GetMakerPubkey(),
 		ClaimPaymentHash: s.ClaimPaymentHash,
-		Amount:           amount,
+		Amount:           s.GetAmount(),
 		BlindingKey:      blindingKey,
 	}
 }

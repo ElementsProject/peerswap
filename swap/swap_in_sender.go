@@ -8,7 +8,7 @@ func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *Sw
 }
 
 // newSwapInSenderFSM returns a new swap statemachine for a swap-in sender
-func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
+func newSwapInSenderFSM(services *SwapServices, initiatorNodeId, peerNodeId string) *SwapStateMachine {
 	swapId := NewSwapId()
 	return &SwapStateMachine{
 		Id:           swapId.String(),
@@ -17,7 +17,7 @@ func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_SENDER,
 		States:       getSwapInSenderStates(),
-		Data:         &SwapData{},
+		Data:         NewSwapData(swapId, initiatorNodeId, peerNodeId),
 	}
 }
 

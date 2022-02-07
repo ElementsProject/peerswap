@@ -571,6 +571,11 @@ func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	return l.getFee(l.getClaimTxSize())
 }
 
+// todo implement
+func (cl *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	panic("implement me")
+}
+
 func (l *LiquidOnChain) GetAsset() string {
 	return hex.EncodeToString(l.asset)
 }

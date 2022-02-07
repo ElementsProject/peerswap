@@ -182,8 +182,8 @@ func Test_LndSystemsPreimage(t *testing.T) {
 	txParams := NewTxParams(uint32(100), 10000)
 	txParams.SwapAmount = 10000
 	openingParams := &swap.OpeningParams{
-		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
-		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+		TakerPubkey:      hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+		MakerPubkey:      hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 		Amount:           txParams.SwapAmount,
 	}
@@ -287,8 +287,8 @@ func Test_LndSystemsCsv(t *testing.T) {
 	txParams := NewTxParams(uint32(100), 10000)
 	txParams.SwapAmount = 10000
 	openingParams := &swap.OpeningParams{
-		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
-		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+		TakerPubkey:      hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+		MakerPubkey:      hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 		Amount:           txParams.SwapAmount,
 	}

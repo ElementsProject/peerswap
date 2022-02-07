@@ -103,13 +103,16 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInAgreementMessage{
+	agreementMessage := &SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.Id,
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		// todo: set premium
 		Premium: 0,
-	})
+	}
+	swap.SwapInAgreement = agreementMessage
+
+	nextMessage, nextMessageType, err := MarshalPeerswapMessage(agreementMessage)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -173,12 +176,30 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 
-	openingTxRes, err := CreateOpeningTransaction(services, swap.GetChain(), swap.SwapInAgreement.Pubkey, swap.SwapInRequest.Pubkey, preimage.Hash().String(), swap.SwapInRequest.Amount)
+	var blindingKey *btcec.PrivateKey
+	var blindingKeyHex string
+
+	if swap.GetChain() == l_btc_chain && blindingKey == nil {
+		blindingKey, err = btcec.NewPrivateKey(btcec.S256())
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		blindingKeyHex = hex.EncodeToString(blindingKey.Serialize())
+	}
+
+	// Create the opening transaction
+	txHex, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
+		TakerPubkey:      swap.GetTakerPubkey(),
+		MakerPubkey:      swap.GetMakerPubkey(),
+		ClaimPaymentHash: preimage.Hash().String(),
+		Amount:           swap.GetAmount(),
+		BlindingKey:      blindingKey,
+	})
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	txId, txHex, err := wallet.BroadcastOpeningTx(openingTxRes.UnpreparedHex)
+	txId, txHex, err := wallet.BroadcastOpeningTx(txHex)
 	if err != nil {
 		// todo: idempotent states
 		return swap.HandleError(err)
@@ -195,9 +216,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		SwapId:      swap.Id,
 		Payreq:      payreq,
 		TxId:        txId,
-		ScriptOut:   openingTxRes.Vout,
-		BlindingKey: openingTxRes.BlindingKey,
+		ScriptOut:   vout,
+		BlindingKey: blindingKeyHex,
 	}
+
+	swap.OpeningTxBroadcasted = message
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(message)
 	if err != nil {
@@ -245,15 +268,13 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 type CreateSwapOutFromRequestAction struct{}
 
 func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	// Generate Preimage
-	preimage, err := lightning.GetPreimage()
+	_, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	pHash := preimage.Hash()
-	pubkey := swap.SwapOutRequest.Pubkey
+
 	// todo replace with premium estimation https://github.com/sputn1ck/peerswap/issues/109
-	openingTxRes, err := CreateOpeningTransaction(services, swap.GetChain(), pubkey, pubkey, pHash.String(), swap.SwapOutRequest.Amount)
+	openingFee, err := wallet.EstimateTxFee(swap.SwapOutRequest.Amount)
 	if err != nil {
 		swap.LastErr = err
 		return swap.HandleError(err)
@@ -272,7 +293,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(openingTxRes.Fee*1000, feepreimage.String(), "fee_"+swap.Id.String(), 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), "fee_"+swap.Id.String(), 600)
 	if err != nil {
 		return swap.HandleError(err)
 	}

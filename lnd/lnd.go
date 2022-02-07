@@ -38,6 +38,11 @@ type Lnd struct {
 	pubkey          string
 }
 
+// todo implement
+func (cl *Lnd) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	panic("implement me")
+}
+
 func (l *Lnd) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {

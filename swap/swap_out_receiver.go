@@ -12,7 +12,7 @@ func swapOutReceiverFromStore(smData *SwapStateMachine, services *SwapServices) 
 }
 
 // newSwapOutReceiverFSM returns a new swap statemachine for a swap-out receiver
-func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices) *SwapStateMachine {
+func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices, peer string) *SwapStateMachine {
 	return &SwapStateMachine{
 		Id:           swapId.String(),
 		SwapId:       swapId,
@@ -20,7 +20,7 @@ func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices) *SwapStateMac
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_RECEIVER,
 		States:       getSwapOutReceiverStates(),
-		Data:         &SwapData{},
+		Data:         NewSwapDataFromRequest(swapId, peer),
 	}
 }
 

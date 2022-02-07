@@ -7,11 +7,11 @@ import (
 )
 
 func ParamsToTxScript(p *swap.OpeningParams, locktimeHeight uint32) ([]byte, error) {
-	takerBytes, err := hex.DecodeString(p.TakerPubkeyHash)
+	takerBytes, err := hex.DecodeString(p.TakerPubkey)
 	if err != nil {
 		return nil, err
 	}
-	makerBytes, err := hex.DecodeString(p.MakerPubkeyHash)
+	makerBytes, err := hex.DecodeString(p.MakerPubkey)
 	if err != nil {
 		return nil, err
 	}

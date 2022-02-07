@@ -8,7 +8,7 @@ func swapOutSenderFromStore(smData *SwapStateMachine, services *SwapServices) *S
 }
 
 // newSwapOutSenderFSM returns a new swap statemachine for a swap-out sender
-func newSwapOutSenderFSM(services *SwapServices) *SwapStateMachine {
+func newSwapOutSenderFSM(services *SwapServices, initiatorNodeId, peerNodeId string) *SwapStateMachine {
 	swapId := NewSwapId()
 	return &SwapStateMachine{
 		Id:           swapId.String(),
@@ -17,7 +17,7 @@ func newSwapOutSenderFSM(services *SwapServices) *SwapStateMachine {
 		Type:         SWAPTYPE_OUT,
 		Role:         SWAPROLE_SENDER,
 		States:       getSwapOutSenderStates(),
-		Data:         &SwapData{},
+		Data:         NewSwapData(swapId, initiatorNodeId, peerNodeId),
 	}
 }
 

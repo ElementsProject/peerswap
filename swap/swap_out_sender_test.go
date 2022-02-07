@@ -12,10 +12,10 @@ import (
 )
 
 func Test_SwapMarshalling(t *testing.T) {
-	swap := newSwapOutSenderFSM(&SwapServices{})
+	swap := newSwapOutSenderFSM(&SwapServices{}, "alice", "bob")
 
 	swap.Data = &SwapData{
-		Id: "gude",
+		Id: NewSwapId(),
 	}
 
 	swapBytes, err := json.Marshal(swap)
@@ -35,6 +35,7 @@ func Test_ValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
 	initiator := "ab123"
 	peer := "ba123"
+	takerpubkeyhash := "abcdef"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
 	msgChan := make(chan PeerMessage)
@@ -43,15 +44,15 @@ func Test_ValidSwap(t *testing.T) {
 
 	swapServices := getSwapServices(msgChan)
 	swapServices.toService = timeOutD
-	swapFSM := newSwapOutSenderFSM(swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swapFSM.Id,
-		asset:       "btc",
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +62,7 @@ func Test_ValidSwap(t *testing.T) {
 	assert.Equal(t, 1, timeOutD.getCalled())
 
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{Payreq: FeeInvoice})
 	if err != nil {
@@ -82,7 +83,7 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "txid", swapFSM.Data.OpeningTxId)
+	assert.Equal(t, "txid", swapFSM.Data.OpeningTxBroadcasted.TxId)
 
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
@@ -90,19 +91,20 @@ func Test_Cancel2(t *testing.T) {
 	swapAmount := uint64(100)
 	initiator := "foo"
 	peer := "bar"
+	takerpubkeyhash := "abcdef"
 	chanId := "baz"
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swapFSM := newSwapOutSenderFSM(swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swapFSM.Id,
-		asset:       "btc",
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -120,19 +122,20 @@ func Test_Cancel1(t *testing.T) {
 	initiator := "foo"
 	peer := "bar"
 	chanId := "baz"
+	takerpubkeyhash := "abcdef"
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swapFSM := newSwapOutSenderFSM(swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swapFSM.Id,
-		asset:       "btc",
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -153,26 +156,27 @@ func Test_AbortCsvClaim(t *testing.T) {
 	peer := "bar"
 	chanId := "baz"
 	FeeInvoice := "feeinv"
+	takerpubkeyhash := "abcdef"
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
 
-	swapFSM := newSwapOutSenderFSM(swapServices)
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapCreationContext{
-		amount:      swapAmount,
-		initiatorId: initiator,
-		peer:        peer,
-		channelId:   chanId,
-		id:          swapFSM.Id,
-		asset:       "btc",
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	<-msgChan
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{Payreq: FeeInvoice})
 	if err != nil {
@@ -187,7 +191,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapOutSender_AwaitTxConfirmation, swapFSM.Data.GetCurrentState())
 
-	swapFSM.Data.ClaimInvoice = "err"
+	swapFSM.Data.OpeningTxBroadcasted.Payreq = "err"
 	_, err = swapFSM.SendEvent(Event_OnTxConfirmed, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -328,6 +332,10 @@ func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channel
 type dummyChain struct {
 	txConfirmedFunc func(swapId string, txHex string) error
 	csvPassedFunc   func(swapId string) error
+}
+
+func (d *dummyChain) EstimateTxFee(txSize uint64) (uint64, error) {
+	return 100, nil
 }
 
 func (d *dummyChain) GetOutputScript(params *OpeningParams) ([]byte, error) {

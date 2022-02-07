@@ -171,6 +171,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		// Transition over to the next state.
 		s.Previous = s.Current
 		s.Current = nextState
+		s.Data.SetState(s.Current)
 
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
