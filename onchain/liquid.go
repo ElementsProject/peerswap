@@ -553,14 +553,13 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 	}
 	log.Printf("fee res %v", feeRes)
 	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 1 {
-		satPerByte = 1
+	if satPerByte < 0.1 {
+		satPerByte = 0.1
 	}
 	if len(feeRes.Errors) > 0 {
 		//todo sane default sat per byte
-		satPerByte = 1
+		satPerByte = 0.1
 	}
-	satPerByte = 0.1
 	// assume largest witness
 	fee := satPerByte * float64(txSize)
 	return uint64(fee), nil
@@ -571,9 +570,8 @@ func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	return l.getFee(l.getClaimTxSize())
 }
 
-// todo implement
-func (cl *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	panic("implement me")
+func (l *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	return l.getFee(2 * l.getClaimTxSize())
 }
 
 func (l *LiquidOnChain) GetAsset() string {
