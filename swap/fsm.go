@@ -32,7 +32,10 @@ type StateType string
 type EventType string
 
 // EventContext represents the context to be passed to the action implementation.
-type EventContext interface{}
+type EventContext interface {
+	ApplyToSwapData(data *SwapData) error
+	Validate(data *SwapData) error
+}
 
 // Action represents the action to be executed in a given state.
 type Action interface {
@@ -131,8 +134,21 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 	if event == Event_Done {
 		return true, nil
 	}
+	var err error
 
-	err := s.swapServices.swapStore.UpdateData(s)
+	// validate and apply event context
+	if eventCtx != nil {
+		err = eventCtx.Validate(s.Data)
+		if err != nil {
+			return s.SendEvent(Event_OnInvalid_Message, nil)
+		}
+		err = eventCtx.ApplyToSwapData(s.Data)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	err = s.swapServices.swapStore.UpdateData(s)
 	if err != nil {
 		return false, err
 	}

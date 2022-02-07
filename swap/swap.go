@@ -51,15 +51,15 @@ type ClaimType int
 // SwapType in means the initiator wants to pay lbtc to rebalance the channel to his side
 // swap out means the initiator wants to pay an invoice to rebalance the the channel to his peer
 const (
-	SWAPTYPE_IN SwapType = iota
+	SWAPTYPE_IN SwapType = iota + 1
 	SWAPTYPE_OUT
 )
 const (
-	SWAPROLE_SENDER SwapRole = iota
+	SWAPROLE_SENDER SwapRole = iota + 1
 	SWAPROLE_RECEIVER
 )
 const (
-	CLAIMTYPE_PREIMAGE = iota
+	CLAIMTYPE_PREIMAGE = iota + 1
 	CLAIMTYPE_CSV
 )
 
@@ -90,7 +90,6 @@ type SwapData struct {
 	PeerNodeId          string    `json:"peer_nod_id"`
 	InitiatorNodeId     string    `json:"initiator_node_id"`
 	CreatedAt           int64     `json:"created_at"`
-	Type                SwapType  `json:"type"`
 	Role                SwapRole  `json:"role"`
 	FSMState            StateType `json:"fsm_state"`
 	PrivkeyBytes        []byte
@@ -125,6 +124,16 @@ func (s *SwapData) GetProtocolVersion() uint8 {
 	}
 	if s.SwapOutRequest != nil {
 		return s.SwapOutRequest.ProtocolVersion
+	}
+	return 0
+}
+
+func (s *SwapData) GetType() SwapType {
+	if s.SwapInRequest != nil {
+		return SWAPTYPE_IN
+	}
+	if s.SwapOutRequest != nil {
+		return SWAPTYPE_OUT
 	}
 	return 0
 }
@@ -310,7 +319,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	}
 	return &PrettyPrintSwapData{
 		Id:              s.Id.String(),
-		Type:            s.Type.String(),
+		Type:            s.GetType().String(),
 		Role:            s.Role.String(),
 		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,
@@ -330,10 +339,9 @@ func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 }
 
 // NewSwapData returns a new swap with a random hex id and the given arguments
-func NewSwapData(swapId *SwapId, swapType SwapType, initiatorNodeId string, peerNodeId string) *SwapData {
+func NewSwapData(swapId *SwapId, initiatorNodeId string, peerNodeId string) *SwapData {
 	return &SwapData{
 		Id:              swapId,
-		Type:            swapType,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
@@ -343,26 +351,15 @@ func NewSwapData(swapId *SwapId, swapType SwapType, initiatorNodeId string, peer
 }
 
 // NewSwapDataFromRequest returns a new swap created from a swap request
-func NewSwapDataFromRequest(swapId *SwapId, senderNodeId string, swapType SwapType) *SwapData {
+func NewSwapDataFromRequest(swapId *SwapId, senderNodeId string) *SwapData {
 	return &SwapData{
 		Id:              swapId,
-		Type:            swapType,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
 		CreatedAt:       time.Now().Unix(),
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
 		Role:            SWAPROLE_RECEIVER,
 	}
-}
-
-func (s *SwapData) WithSwapInMessage(message *SwapInRequestMessage) *SwapData {
-	s.SwapInRequest = message
-	return s
-}
-
-func (s *SwapData) WithSwapOutMessage(message *SwapOutRequestMessage) *SwapData {
-	s.SwapOutRequest = message
-	return s
 }
 
 // newSwapId returns a random 32 byte hex string

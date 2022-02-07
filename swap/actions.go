@@ -27,7 +27,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -39,7 +39,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -50,7 +50,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -66,7 +66,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -77,7 +77,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -88,7 +88,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
-			Type:            swap.Type,
+			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
 		return swap.HandleError(errors.New(swap.CancelMessage))
@@ -309,10 +309,13 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 		return Event_OnRetry
 	}
 
-	txId, _, err := wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
-	if err != nil {
-		swap.HandleError(err)
-		return Event_OnRetry
+	var txId string
+	if swap.ClaimTxId != "" {
+		txId, _, err = wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
+		if err != nil {
+			swap.HandleError(err)
+			return Event_OnRetry
+		}
 	}
 
 	swap.ClaimTxId = txId

@@ -302,7 +302,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	swap := newSwapOutSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 
-	swap.Data = NewSwapData(swap.SwapId, SWAPTYPE_OUT, initiator, peer)
+	swap.Data = NewSwapData(swap.SwapId, initiator, peer)
 
 	var bitcoinNetwork string
 	var elementsAsset string
@@ -312,7 +312,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
 	}
 
-	swap.Data.SwapOutRequest = &SwapOutRequestMessage{
+	request := &SwapOutRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
 		Asset:           elementsAsset,
@@ -322,7 +322,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
-	done, err := swap.SendEvent(Event_OnSwapOutStarted, nil)
+	done, err := swap.SendEvent(Event_OnSwapOutStarted, request)
 	if err != nil {
 		return nil, err
 	}
@@ -350,9 +350,9 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	swap := newSwapInSenderFSM(s.swapServices)
 	s.AddActiveSwap(swap.Id, swap)
 
-	swap.Data = NewSwapData(swap.SwapId, SWAPTYPE_IN, initiator, peer)
+	swap.Data = NewSwapData(swap.SwapId, initiator, peer)
 
-	swap.Data.SwapInRequest = &SwapInRequestMessage{
+	request := &SwapInRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
 		Asset:           elementsAsset,
@@ -362,7 +362,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
-	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, nil)
+	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, request)
 	if err != nil {
 		return nil, err
 	}
@@ -378,22 +378,12 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 	if s.hasActiveSwapOnChannel(message.Scid) {
 		return fmt.Errorf("already has an active swap on channel")
 	}
-	err := message.Validate()
-	if err != nil {
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: fmt.Sprintf("invalid request %s", err),
-		})
-		if err != nil {
-			return err
-		}
-		return s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-	}
+
 	swap := newSwapInReceiverFSM(swapId, s.swapServices)
 	s.AddActiveSwap(swapId.String(), swap)
-	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId, SWAPTYPE_OUT).WithSwapInMessage(message)
+	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId)
 
-	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, nil)
+	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, message)
 	if done {
 		s.RemoveActiveSwap(swap.Id)
 	}
@@ -406,19 +396,9 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 	if s.hasActiveSwapOnChannel(message.Scid) {
 		return fmt.Errorf("already has an active swap on channel")
 	}
-	err := message.Validate()
-	if err != nil {
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: fmt.Sprintf("invalid request %s", err),
-		})
-		if err != nil {
-			return err
-		}
-		return s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-	}
+
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices)
-	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId, SWAPTYPE_OUT).WithSwapOutMessage(message)
+	swap.Data = NewSwapDataFromRequest(swap.SwapId, peerId)
 
 	s.AddActiveSwap(swapId.String(), swap)
 
@@ -439,22 +419,7 @@ func (s *SwapService) OnSwapInAgreementReceived(msg *SwapInAgreementMessage) err
 		return err
 	}
 
-	err = msg.Validate()
-	if err != nil {
-		swap.Data.CancelMessage = fmt.Sprintf("invalid request %s", err.Error())
-		done, err := swap.SendEvent(Event_OnInvalid_Message, nil)
-		if err != nil {
-			return err
-		}
-		if done {
-			s.RemoveActiveSwap(swap.Id)
-		}
-		return nil
-	}
-
-	swap.Data.SwapInAgreement = msg
-
-	done, err := swap.SendEvent(Event_SwapInSender_OnAgreementReceived, nil)
+	done, err := swap.SendEvent(Event_SwapInSender_OnAgreementReceived, msg)
 	if err != nil {
 		return err
 	}
@@ -471,31 +436,12 @@ func (s *SwapService) OnSwapOutAgreementReceived(message *SwapOutAgreementMessag
 		return err
 	}
 
-	err = message.Validate()
-	if err != nil {
-		return s.HandleInvalidMessage(swap, err)
-	}
-
-	swap.Data.SwapOutAgreement = message
-
-	done, err := swap.SendEvent(Event_OnFeeInvoiceReceived, nil)
+	done, err := swap.SendEvent(Event_OnFeeInvoiceReceived, message)
 	if err != nil {
 		return err
 	}
 	if done {
 		s.RemoveActiveSwap(swap.Id)
-	}
-	return nil
-}
-
-func (s *SwapService) HandleInvalidMessage(swapFsm *SwapStateMachine, err error) error {
-	swapFsm.Data.CancelMessage = fmt.Sprintf("invalid request %s", err.Error())
-	done, err := swapFsm.SendEvent(Event_OnInvalid_Message, nil)
-	if err != nil {
-		return err
-	}
-	if done {
-		s.RemoveActiveSwap(swapFsm.Id)
 	}
 	return nil
 }
@@ -539,14 +485,7 @@ func (s *SwapService) OnTxOpenedMessage(message *OpeningTxBroadcastedMessage) er
 		return err
 	}
 
-	err = message.Validate(swap.Data.GetChain())
-	if err != nil {
-		return s.HandleInvalidMessage(swap, err)
-	}
-
-	swap.Data.OpeningTxBroadcasted = message
-
-	done, err := swap.SendEvent(Event_OnTxOpenedMessage, nil)
+	done, err := swap.SendEvent(Event_OnTxOpenedMessage, message)
 	if err != nil {
 		return err
 	}
@@ -620,9 +559,7 @@ func (s *SwapService) OnCancelReceived(swapId *SwapId, cancelMsg *CancelMessage)
 		return err
 	}
 
-	swap.Data.Cancel = cancelMsg
-
-	done, err := swap.SendEvent(Event_OnCancelReceived, nil)
+	done, err := swap.SendEvent(Event_OnCancelReceived, cancelMsg)
 	if err != nil {
 		return err
 	}
@@ -639,14 +576,7 @@ func (s *SwapService) OnCoopCloseReceived(swapId *SwapId, coopCloseMessage *Coop
 		return err
 	}
 
-	err = coopCloseMessage.Validate()
-	if err != nil {
-		return s.HandleInvalidMessage(swap, err)
-	}
-
-	swap.Data.CoopClose = coopCloseMessage
-
-	done, err := swap.SendEvent(Event_OnCoopCloseReceived, nil)
+	done, err := swap.SendEvent(Event_OnCoopCloseReceived, coopCloseMessage)
 	if err != nil {
 		return err
 	}

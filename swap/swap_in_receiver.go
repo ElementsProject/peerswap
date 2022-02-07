@@ -26,6 +26,7 @@ func getSwapInReceiverStates() States {
 		Default: State{
 			Events: Events{
 				Event_SwapInReceiver_OnRequestReceived: State_SwapInReceiver_CreateSwap,
+				Event_OnInvalid_Message:                State_SendCancel,
 			},
 		},
 		State_SwapInReceiver_CreateSwap: {

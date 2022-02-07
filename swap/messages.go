@@ -2,8 +2,13 @@ package swap
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/sputn1ck/peerswap/messages"
+)
+
+var (
+	AlreadyExistsError = errors.New("Message already exists")
 )
 
 type SwapInRequestMessage struct {
@@ -34,8 +39,16 @@ func (s SwapInRequestMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_SWAPINREQUEST
 }
 
-func (s SwapInRequestMessage) Validate() error {
+func (s SwapInRequestMessage) Validate(swap *SwapData) error {
 	panic("implement me")
+}
+
+func (s SwapInRequestMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.SwapInRequest != nil {
+		return AlreadyExistsError
+	}
+	swap.SwapInRequest = &s
+	return nil
 }
 
 // SwapInAgreementMessage is the response by the swap-in peer if he accepts the
@@ -56,12 +69,20 @@ type SwapInAgreementMessage struct {
 	Premium uint64 `json:"premium"`
 }
 
-func (s SwapInAgreementMessage) Validate() error {
+func (s SwapInAgreementMessage) Validate(swap *SwapData) error {
 	panic("implement me")
 }
 
 func (s SwapInAgreementMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_SWAPINAGREEMENT
+}
+
+func (s SwapInAgreementMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.SwapInAgreement != nil {
+		return AlreadyExistsError
+	}
+	swap.SwapInAgreement = &s
+	return nil
 }
 
 // SwapOutRequestMessage gets send when a peer wants to start a new swap.
@@ -91,12 +112,20 @@ type SwapOutRequestMessage struct {
 	Pubkey string `json:"pubkey"`
 }
 
-func (s SwapOutRequestMessage) Validate() error {
+func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
 	panic("implement me")
 }
 
 func (s SwapOutRequestMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_SWAPOUTREQUEST
+}
+
+func (s SwapOutRequestMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.SwapOutRequest != nil {
+		return AlreadyExistsError
+	}
+	swap.SwapOutRequest = &s
+	return nil
 }
 
 // SwapOutAgreementMessage is the response by the swap-out peer if he accepts
@@ -117,12 +146,20 @@ type SwapOutAgreementMessage struct {
 	Payreq string
 }
 
-func (s SwapOutAgreementMessage) Validate() error {
+func (s SwapOutAgreementMessage) Validate(swap *SwapData) error {
 	panic("implement me")
 }
 
 func (s SwapOutAgreementMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_SWAPOUTAGREEMENT
+}
+
+func (s SwapOutAgreementMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.SwapOutAgreement != nil {
+		return AlreadyExistsError
+	}
+	swap.SwapOutAgreement = &s
+	return nil
 }
 
 // OpeningTxBroadcastedMessage is the message sent by the creator of the opening
@@ -146,8 +183,8 @@ type OpeningTxBroadcastedMessage struct {
 	BlindingKey string `json:"blinding_key"`
 }
 
-func (s OpeningTxBroadcastedMessage) Validate(chain string) error {
-	if chain == l_btc_chain {
+func (s OpeningTxBroadcastedMessage) Validate(swap *SwapData) error {
+	if swap.GetChain() == l_btc_chain {
 		// check blinding key
 	}
 	return nil
@@ -155,6 +192,14 @@ func (s OpeningTxBroadcastedMessage) Validate(chain string) error {
 
 func (t OpeningTxBroadcastedMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_OPENINGTXBROADCASTED
+}
+
+func (m OpeningTxBroadcastedMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.OpeningTxBroadcasted != nil {
+		return AlreadyExistsError
+	}
+	swap.OpeningTxBroadcasted = &m
+	return nil
 }
 
 // CancelMessage is the message sent by a peer if he wants to / has to cancel
@@ -170,8 +215,13 @@ func (e CancelMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_CANCELED
 }
 
-func (s CancelMessage) Validate() error {
+func (s CancelMessage) Validate(swap *SwapData) error {
 	panic("implement me")
+}
+
+func (m CancelMessage) ApplyToSwapData(swap *SwapData) error {
+	swap.Cancel = &m
+	return nil
 }
 
 // CoopCloseMessage is the message sent by the transaction taker if he wants to
@@ -189,8 +239,16 @@ func (c CoopCloseMessage) MessageType() messages.MessageType {
 	return messages.MESSAGETYPE_COOPCLOSE
 }
 
-func (s CoopCloseMessage) Validate() error {
+func (s CoopCloseMessage) Validate(swap *SwapData) error {
 	panic("implement me")
+}
+
+func (m CoopCloseMessage) ApplyToSwapData(swap *SwapData) error {
+	if swap.CoopClose != nil {
+		return AlreadyExistsError
+	}
+	swap.CoopClose = &m
+	return nil
 }
 
 func MarshalPeerswapMessage(msg PeerMessage) ([]byte, int, error) {

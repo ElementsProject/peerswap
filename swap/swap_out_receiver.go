@@ -30,6 +30,7 @@ func getSwapOutReceiverStates() States {
 		Default: State{
 			Events: Events{
 				Event_OnSwapOutRequestReceived: State_SwapOutReceiver_CreateSwap,
+				Event_OnInvalid_Message:        State_SendCancel,
 			},
 		},
 		State_SwapOutReceiver_CreateSwap: {
@@ -71,7 +72,7 @@ func getSwapOutReceiverStates() States {
 			Action: &AwaitCsvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
-				Event_OnCancelReceived:    State_SwapOutReceiver_ClaimSwapCsv,
+				Event_OnCancelReceived:    State_WaitCsv,
 				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
 				Event_OnCsvPassed:         State_SwapOutReceiver_ClaimSwapCsv,
 				Event_OnInvalid_Message:   State_WaitCsv,
@@ -85,7 +86,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_WaitCsv: {
-			Action: &AwaitCsvAction{},
+			Action: &StopSendMessageWithRetryWrapperAction{next: &AwaitCsvAction{}},
 			Events: Events{
 				Event_OnCsvPassed: State_SwapOutReceiver_ClaimSwapCsv,
 			},
