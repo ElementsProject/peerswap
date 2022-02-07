@@ -322,13 +322,6 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(swap.Data.SwapOutRequest)
-	if err != nil {
-		return nil, err
-	}
-	swap.Data.NextMessage = nextMessage
-	swap.Data.NextMessageType = nextMessageType
-
 	done, err := swap.SendEvent(Event_OnSwapOutStarted, nil)
 	if err != nil {
 		return nil, err
@@ -368,13 +361,6 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Amount:          amount,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
-
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(swap.Data.SwapInRequest)
-	if err != nil {
-		return nil, err
-	}
-	swap.Data.NextMessage = nextMessage
-	swap.Data.NextMessageType = nextMessageType
 
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, nil)
 	if err != nil {

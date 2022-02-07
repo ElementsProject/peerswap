@@ -51,33 +51,3 @@ func CreateOpeningTransaction(services *SwapServices, chain, takerPubkey, makerP
 
 	return res, nil
 }
-
-// CreatePreimageSpendingTransaction creates the spending transaction from a swap when spending the preimage branch
-func CreatePreimageSpendingTransaction(services *SwapServices, chain string, openingParams *OpeningParams, claimParams *ClaimParams) (string, error) {
-	_, wallet, _, err := services.getOnChainServices(chain)
-	if err != nil {
-		return "", err
-	}
-
-	txId, _, err := wallet.CreatePreimageSpendingTransaction(openingParams, claimParams)
-	if err != nil {
-		return "", err
-	}
-
-	return txId, nil
-}
-
-// CreateCsvSpendingTransaction creates the spending transaction from a swap when spending the csv passed branch
-func CreateCsvSpendingTransaction(services *SwapServices, chain string, openingParams *OpeningParams, claimParams *ClaimParams) (string, error) {
-	_, wallet, _, err := services.getOnChainServices(chain)
-	if err != nil {
-		return "", err
-	}
-
-	txId, _, err := wallet.CreateCsvSpendingTransaction(openingParams, claimParams)
-	if err != nil {
-		return "", err
-	}
-
-	return txId, nil
-}
