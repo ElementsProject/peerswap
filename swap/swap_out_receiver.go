@@ -34,11 +34,12 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_CreateSwap: {
-			Action: &CheckRequestWrapperAction{next: &CreateSwapOutFromRequestAction{}},
+			Action: &CheckRequestWrapperAction{next: &SetBlindingKeyActionWrapper{next: &CreateSwapOutFromRequestAction{}}},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutReceiver_SendFeeInvoice,
 				Event_ActionFailed:    State_SendCancel,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutReceiver_SendFeeInvoice: {
 			Action: &SendMessageAction{},

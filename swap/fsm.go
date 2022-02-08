@@ -47,8 +47,9 @@ type Events map[EventType]StateType
 
 // State binds a state with an action and a set of events it can handle.
 type State struct {
-	Action Action
-	Events Events
+	Action        Action
+	Events        Events
+	FailOnrecover bool
 }
 
 type Store interface {
@@ -209,6 +210,9 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 	if !ok || state.Action == nil {
 		// configuration error
 		return false, ErrFsmConfig
+	}
+	if state.FailOnrecover {
+		return s.SendEvent(Event_ActionFailed, nil)
 	}
 
 	nextEvent := state.Action.Execute(s.swapServices, s.Data)

@@ -148,12 +148,15 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 		return swap.HandleError(err)
 	}
 
-	txId, _, err := wallet.CreatePreimageSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
-	if err != nil {
-		log.Printf("error claiming tx with preimage %v", err)
-		return Event_OnRetry
+	if swap.ClaimTxId == "" {
+		txId, _, err := wallet.CreatePreimageSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
+		if err != nil {
+			log.Printf("error claiming tx with preimage %v", err)
+			return Event_OnRetry
+		}
+		swap.ClaimTxId = txId
 	}
-	swap.ClaimTxId = txId
+
 	return Event_ActionSucceeded
 }
 
@@ -163,6 +166,10 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	txWatcher, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
+	}
+
+	if swap.OpeningTxBroadcasted != nil {
+		return Event_ActionSucceeded
 	}
 
 	// Generate Preimage
@@ -178,12 +185,8 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 
 	var blindingKey *btcec.PrivateKey
 	var blindingKeyHex string
-
-	if swap.GetChain() == l_btc_chain && blindingKey == nil {
-		blindingKey, err = btcec.NewPrivateKey(btcec.S256())
-		if err != nil {
-			return swap.HandleError(err)
-		}
+	if swap.GetChain() == l_btc_chain {
+		blindingKey = swap.GetOpeningParams().BlindingKey
 		blindingKeyHex = hex.EncodeToString(blindingKey.Serialize())
 	}
 
@@ -264,6 +267,22 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 	return NoOp
 }
 
+type SetBlindingKeyActionWrapper struct {
+	next Action
+}
+
+func (a *SetBlindingKeyActionWrapper) Execute(services *SwapServices, swap *SwapData) EventType {
+	// Set the blinding key for opening transaction if we do a liquid swap
+	if swap.GetChain() == l_btc_chain {
+		blindingKey, err := btcec.NewPrivateKey(btcec.S256())
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		swap.BlindingKeyHex = hex.EncodeToString(blindingKey.Serialize())
+	}
+	return a.next.Execute(services, swap)
+}
+
 // CreateSwapOutFromRequestAction creates the swap-out process and prepares the opening transaction
 type CreateSwapOutFromRequestAction struct{}
 
@@ -330,16 +349,15 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 		return Event_OnRetry
 	}
 
-	var txId string
 	if swap.ClaimTxId != "" {
-		txId, _, err = wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
+		txId, _, err := wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
 		if err != nil {
 			swap.HandleError(err)
 			return Event_OnRetry
 		}
+		swap.ClaimTxId = txId
 	}
 
-	swap.ClaimTxId = txId
 	return Event_ActionSucceeded
 }
 
@@ -358,11 +376,13 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	}
 	takerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), takerKeyBytes)
 
-	txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), takerKey)
-	if err != nil {
-		return swap.HandleError(err)
+	if swap.ClaimTxId != "" {
+		txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), takerKey)
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		swap.ClaimTxId = txId
 	}
-	swap.ClaimTxId = txId
 	return Event_ActionSucceeded
 }
 

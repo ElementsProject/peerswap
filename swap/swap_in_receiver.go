@@ -35,6 +35,7 @@ func getSwapInReceiverStates() States {
 				Event_ActionSucceeded: State_SwapInReceiver_SendAgreement,
 				Event_ActionFailed:    State_SendCancel,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapInReceiver_SendAgreement: {
 			Action: &SendMessageAction{},

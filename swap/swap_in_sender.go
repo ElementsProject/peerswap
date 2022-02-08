@@ -30,11 +30,12 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_CreateSwap: {
-			Action: &CreateSwapRequestAction{},
+			Action: &SetBlindingKeyActionWrapper{next: &CreateSwapRequestAction{}},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInSender_SendRequest,
 				Event_ActionFailed:    State_SwapCanceled,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapInSender_SendRequest: {
 			Action: &SendMessageAction{},

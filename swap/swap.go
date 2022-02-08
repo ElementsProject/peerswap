@@ -101,6 +101,8 @@ type SwapData struct {
 	ClaimPaymentHash    string `json:"claim_payment_hash"`
 	ClaimPreimage       string `json:"claim_preimage"`
 
+	BlindingKeyHex string `json:"blinding_key"`
+
 	LastMessage EventContext `json:"last_message"`
 
 	NextMessage     []byte
@@ -249,6 +251,9 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 	var blindingKey *btcec.PrivateKey
 	if s.OpeningTxBroadcasted != nil && s.OpeningTxBroadcasted.BlindingKey != "" {
 		blindingKeyBytes, _ := hex.DecodeString(s.OpeningTxBroadcasted.BlindingKey)
+		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
+	} else if s.BlindingKeyHex != "" {
+		blindingKeyBytes, _ := hex.DecodeString(s.BlindingKeyHex)
 		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
 	}
 

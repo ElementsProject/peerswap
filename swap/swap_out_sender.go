@@ -33,7 +33,9 @@ func getSwapOutSenderStates() States {
 			Action: &CreateSwapRequestAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutSender_SendRequest,
+				Event_ActionFailed:    State_SwapCanceled,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutSender_SendRequest: {
 			Action: &SendMessageAction{},
@@ -41,6 +43,7 @@ func getSwapOutSenderStates() States {
 				Event_ActionFailed:    State_SwapCanceled,
 				Event_ActionSucceeded: State_SwapOutSender_AwaitAgreement,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutSender_AwaitAgreement: {
 			Action: &NoOpAction{},
@@ -50,6 +53,7 @@ func getSwapOutSenderStates() States {
 				Event_OnFeeInvoiceReceived: State_SwapOutSender_PayFeeInvoice,
 				Event_OnInvalid_Message:    State_SendCancel,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutSender_PayFeeInvoice: {
 			Action: &PayFeeInvoiceAction{},
@@ -57,6 +61,7 @@ func getSwapOutSenderStates() States {
 				Event_ActionFailed:    State_SendCancel,
 				Event_ActionSucceeded: State_SwapOutSender_AwaitTxBroadcastedMessage,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutSender_AwaitTxBroadcastedMessage: {
 			Action: &SetStartingBlockHeightAction{},
