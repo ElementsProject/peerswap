@@ -166,8 +166,13 @@ func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 	return nil
 }
 
-func (n *CLightningNode) Shutdown() error {
+func (n *CLightningNode) Stop() error {
 	n.Rpc.Stop()
+	return n.WaitForLog("hsmd: Shutting down", TIMEOUT)
+}
+
+func (n *CLightningNode) Shutdown() error {
+	n.Stop()
 	return os.Remove(filepath.Join(n.dataDir, "lightning-rpc"))
 }
 

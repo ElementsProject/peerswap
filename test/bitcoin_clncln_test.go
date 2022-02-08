@@ -132,7 +132,6 @@ func (suite *ClnClnSwapsOnBitcoinSuite) SetupSuite() {
 }
 
 func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(suiteName, testName string) {
-	fmt.Printf("===RUN %s/%s\n", suiteName, testName)
 	var channelBalances []uint64
 	var walletBalances []uint64
 	for _, lightningd := range suite.lightningds {
@@ -151,17 +150,36 @@ func (suite *ClnClnSwapsOnBitcoinSuite) BeforeTest(suiteName, testName string) {
 }
 
 func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(suiteName string, stats *suite.SuiteInformation) {
-	var head = "FAIL"
-	if stats.Passed() {
-		head = "PASS"
-	}
-	fmt.Printf("--- %s: %s (%.2fs)\n", head, suiteName, stats.End.Sub(stats.Start).Seconds())
-	for _, tStats := range stats.TestStats {
-		var head = "FAIL"
-		if tStats.Passed {
-			head = "PASS"
+	if !stats.Passed() {
+		filter := os.Getenv("PEERSWAP_TEST_FILTER")
+		fmt.Println("============================= FAILURE ==============================")
+		fmt.Println()
+
+		fmt.Println("+++++++++++++++++++++++++++++ bitcoind +++++++++++++++++++++++++++++")
+		fmt.Printf("%s", suite.bitcoind.DaemonProcess.StdOut.String())
+		if suite.bitcoind.DaemonProcess.StdErr.String() != "" {
+			fmt.Println("+++++++++++++++++++++++++++++ bitcoind (ERR) +++++++++++++++++++++++++++++")
+			fmt.Printf("%s", suite.bitcoind.DaemonProcess.StdErr.String())
 		}
-		fmt.Printf("\t--- %s: %s (%.2fs)\n", head, tStats.TestName, tStats.End.Sub(tStats.Start).Seconds())
+		fmt.Println("+++++++++++++++++++++++++++++ bitcoind +++++++++++++++++++++++++++++")
+
+		fmt.Println()
+		fmt.Println("+++++++++++++++++++++++++++++ clightning 1 +++++++++++++++++++++++++++++")
+		fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdOut.Filter(filter))
+		if suite.bitcoind.DaemonProcess.StdErr.String() != "" {
+			fmt.Println("+++++++++++++++++++++++++++++ clightning 1 (ERR) +++++++++++++++++++++++++++++")
+			fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdErr.String())
+		}
+		fmt.Println("+++++++++++++++++++++++++++++ clightning 1 +++++++++++++++++++++++++++++")
+
+		fmt.Println()
+		fmt.Println("+++++++++++++++++++++++++++++ clightning 2 +++++++++++++++++++++++++++++")
+		fmt.Printf("%s", suite.lightningds[1].DaemonProcess.StdOut.Filter(filter))
+		if suite.bitcoind.DaemonProcess.StdErr.String() != "" {
+			fmt.Println("+++++++++++++++++++++++++++++ clightning 2 (ERR) +++++++++++++++++++++++++++++")
+			fmt.Printf("%s", suite.lightningds[1].DaemonProcess.StdErr.String())
+		}
+		fmt.Println("+++++++++++++++++++++++++++++ clightning 2 +++++++++++++++++++++++++++++")
 	}
 }
 

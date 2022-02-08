@@ -61,6 +61,37 @@ func WaitForWithErr(f WaitFuncWithErr, timeout time.Duration) error {
 	}
 }
 
+// RequireWaitForBalanceChange waits for a change from the before value until
+// timeout. Fatals the test.
+func RequireWaitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) {
+	if err := waitForBalanceChange(t, node, scid, before, timeout); err != nil {
+		t.Fatalf("expected: balance change from: %d", before)
+	}
+}
+
+// AssertWaitForBalanceChange waits for a change form the before value until
+// timeout. Returns false if timeout was triggered and fails the test.
+func AssertWaitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) bool {
+	err := waitForBalanceChange(t, node, scid, before, timeout)
+	if err != nil {
+		t.Logf("expected balance change from: %d", before)
+		t.Fail()
+		return false
+	}
+	return true
+}
+
+func waitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) error {
+	return WaitFor(func() bool {
+		current, err := node.GetChannelBalanceSat(scid)
+		if err != nil {
+			t.Fatalf("got err %v", err)
+		}
+
+		return current != before
+	}, timeout)
+}
+
 func AssertWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) bool {
 	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
