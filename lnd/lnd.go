@@ -5,6 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"time"
+
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
@@ -19,9 +23,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	"log"
-	"time"
 )
 
 type Lnd struct {
@@ -74,10 +75,9 @@ func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.
 									go v(swapId, invoiceType)
 								}
 							}
+							return
 						case lnrpc.Invoice_CANCELED:
-							for _, v := range l.paymentCallback {
-								go v(swapId, invoiceType)
-							}
+							return
 						}
 					}
 
@@ -124,7 +124,7 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 		return nil, errors.New("channel not found")
 	}
 	if channel.LocalBalance < int64(amountSat) {
-		return nil, errors.New("not enough outbound capacity to perform swapOut")
+		return nil, errors.New("not enough outbound capacity to pay invoice")
 	}
 
 	return channel, nil
@@ -200,7 +200,6 @@ func (l *Lnd) SendMessage(peerId string, message []byte, messageType int) error 
 		return err
 	}
 
-	log.Printf("sending message %s %s %v", peerId, hex.EncodeToString(message), messageType)
 	_, err = l.lndClient.SendCustomMessage(l.ctx, &lnrpc.SendCustomMessageRequest{
 		Peer: peerBytes,
 		Type: uint32(messageType),

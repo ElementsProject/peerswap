@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
@@ -176,7 +177,7 @@ func (suite *LndLndSwapsOnBitcoinSuite) HandleStats(suiteName string, stats *sui
 
 // TestSwapIn_ClaimPreimage execute a swap-in with the claim by preimage
 // spending branch.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapIn_ClaimPreimage() {
 	var err error
 
 	lightningds := suite.lightningds
@@ -288,16 +289,11 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 		}
 		return false
 	}, testframework.TIMEOUT))
+	err = peerswapds[1].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInSender_BroadcastOpeningTx", testframework.TIMEOUT)
+	suite.Require().NoError(err)
 
 	// Confirm claim tx.
 	bitcoind.GenerateBlocks(3)
-	for _, lightningd := range lightningds {
-		testframework.WaitFor(func() bool {
-			ok, err := lightningd.IsBlockHeightSynced()
-			suite.Require().NoError(err)
-			return ok
-		}, testframework.TIMEOUT)
-	}
 
 	// Wail for claim tx confirmation.
 	err = peerswapds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT)
@@ -325,13 +321,13 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapIn_ClaimCsv() {
 	suite.T().SkipNow()
 }
 
 // TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
 //coop spending branch is used.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapIn_ClaimCoop() {
 	var err error
 
 	lightningds := suite.lightningds
@@ -536,7 +532,7 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 
 // TestSwapOut_ClaimPreimage execute a swap-out with the claim by
 // preimage spending branch.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapOut_ClaimPreimage() {
 	lightningds := suite.lightningds
 	peerswapds := suite.peerswapds
 	bitcoind := suite.bitcoind
@@ -564,6 +560,9 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 
 	// Wait for opening tx being broadcasted.
 	// Get commitmentFee.
+	premium := uint64(750)
+	// Wait for opening tx being broadcasted.
+	// Get commitmentFee.
 	var commitmentFee uint64
 	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
@@ -589,14 +588,14 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	// Check if Fee Invoice was payed. (Should have been payed before
 	// commitment tx was broadcasted).
 	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
+	expected := float64(beforeChannelBalances[0] - premium)
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., 10*time.Second) {
 		balance, err := lightningds[0].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
 	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
+	expected = float64(beforeChannelBalances[1] + premium)
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., 10*time.Second) {
 		balance, err := lightningds[1].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
@@ -645,14 +644,14 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 
 	// Check if swap Invoice had correct amts.
 	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
-	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
+	expected = float64(beforeChannelBalances[0] - premium - swapAmt)
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., time.Second*10) {
 		balance, err := lightningds[0].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
 	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
+	expected = float64(beforeChannelBalances[1] + premium + swapAmt)
+	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., time.Second*10) {
 		balance, err := lightningds[1].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
@@ -698,14 +697,14 @@ func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 // gets the channel stuck. See
 // https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
 // fixed, the skip has to be removed.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimCsv() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapOut_ClaimCsv() {
 	suite.T().SkipNow()
 	// Todo: add test!
 }
 
 // TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
 // coop spending branch is used.
-func (suite *LndLndSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
+func (suite *LndLndSwapsOnBitcoinSuite) TestBitcoinLndLndSwapOut_ClaimCoop() {
 	var err error
 
 	lightningds := suite.lightningds
