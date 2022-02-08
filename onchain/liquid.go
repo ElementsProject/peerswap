@@ -398,7 +398,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 }
 
 func (l *LiquidOnChain) getClaimTxSize() int {
-	return 4729
+	return 4730
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
@@ -570,8 +570,9 @@ func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	return l.getFee(l.getClaimTxSize())
 }
 
+// todo this needs to be really thought over / premium idea
 func (l *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	return l.getFee(2 * l.getClaimTxSize())
+	return l.getFee(l.getClaimTxSize())
 }
 
 func (l *LiquidOnChain) GetAsset() string {

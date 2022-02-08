@@ -48,7 +48,7 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// initialize
-	lightningPlugin, initChan, err := clightning.NewClightningClient()
+	lightningPlugin, initChan, err := clightning.NewClightningClient(ctx)
 	if err != nil {
 		return err
 	}

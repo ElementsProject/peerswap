@@ -440,28 +440,31 @@ func (s *SwapService) OnSwapOutAgreementReceived(message *SwapOutAgreementMessag
 	return nil
 }
 
-// OnFeeInvoicePaid sends the FeeInvoicePaid event to the corresponding swap state machine
-func (s *SwapService) OnFeeInvoicePaid(swapId *SwapId) error {
+// OnFeeInvoiceNotification sends the FeeInvoicePaid event to the corresponding swap state machine
+func (s *SwapService) OnFeeInvoiceNotification(swapId *SwapId) error {
 	swap, err := s.GetActiveSwap(swapId.String())
 	if err != nil {
 		return err
 	}
+
 	done, err := swap.SendEvent(Event_OnFeeInvoicePaid, nil)
 	if err != nil {
 		return err
 	}
+
 	if done {
 		s.RemoveActiveSwap(swap.Id)
 	}
 	return nil
 }
 
-// OnClaimInvoicePaid sends the ClaimInvoicePaid event to the corresponding swap state machine
-func (s *SwapService) OnClaimInvoicePaid(swapId *SwapId) error {
+// OnClaimInvoiceNotification sends the ClaimInvoicePaid event to the corresponding swap state machine
+func (s *SwapService) OnClaimInvoiceNotification(swapId *SwapId) error {
 	swap, err := s.GetActiveSwap(swapId.String())
 	if err != nil {
 		return err
 	}
+
 	done, err := swap.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		return err
@@ -518,27 +521,23 @@ func getPaymentLabel(description string) string {
 
 // OnPayment handles incoming payments and if it corresponds to a claim or
 // fee invoice passes the dater to the corresponding function
-func (s *SwapService) OnPayment(description string) {
+func (s *SwapService) OnPayment(swapIdStr string, invoiceType InvoiceType) {
+	swapId, err := ParseSwapIdFromString(swapIdStr)
+	if err != nil {
+		log.Printf("parse swapId error")
+		return
+	}
+
 	// Check for claim_ label
-	switch getPaymentLabel(description) {
-	case "fee":
-		swapId, err := ParseSwapIdFromString(description[4:])
-		if err != nil {
-			log.Printf("[SwapService] Error parsing id from invoice: %v", err)
+	switch invoiceType {
+	case INVOICE_FEE:
+		if err := s.OnFeeInvoiceNotification(swapId); err != nil {
+			log.Printf("[SwapService] Error OnFeeInvoiceNotification: %v", err)
 			return
 		}
-		if err := s.OnFeeInvoicePaid(swapId); err != nil {
-			log.Printf("[SwapService] Error OnFeeInvoicePaid: %v", err)
-			return
-		}
-	case "claim":
-		swapId, err := ParseSwapIdFromString(description[6:])
-		if err != nil {
-			log.Printf("[SwapService] Error parsing id from invoice: %v", err)
-			return
-		}
-		if err := s.OnClaimInvoicePaid(swapId); err != nil {
-			log.Printf("[SwapService] Error OnClaimInvoicePaid: %v", err)
+	case INVOICE_CLAIM:
+		if err := s.OnClaimInvoiceNotification(swapId); err != nil {
+			log.Printf("[SwapService] Error OnClaimInvoiceNotification: %v", err)
 			return
 		}
 	default:

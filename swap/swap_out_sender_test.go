@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/lightning"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
@@ -250,8 +249,12 @@ func (d DummyMessageType) MessageType() messages.MessageType {
 
 type dummyLightningClient struct {
 	preimage        string
-	paymentCallback func(string)
+	paymentCallback func(swapId string, invoiceType InvoiceType)
 	failpayment     bool
+}
+
+func (d *dummyLightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) (alreadyPaid bool) {
+	return false
 }
 
 func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
@@ -268,16 +271,16 @@ func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (
 	return pi.String(), nil
 }
 
-func (d *dummyLightningClient) TriggerPayment(payment *glightning.Payment) {
-	d.paymentCallback(payment.Label)
+func (d *dummyLightningClient) TriggerPayment(swapId string, invoiceType InvoiceType) {
+	d.paymentCallback(swapId, invoiceType)
 }
 
-func (d *dummyLightningClient) AddPaymentCallback(f func(string)) {
+func (d *dummyLightningClient) AddPaymentCallback(f func(string, InvoiceType)) {
 	d.paymentCallback = f
 }
 
 //todo implement
-func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, label string, expiry uint64) (string, error) {
+func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expiry uint64) (string, error) {
 	if d.preimage == "err" {
 		return "", errors.New("err")
 	}

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,9 +51,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -68,9 +65,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, aliceSwap.Current)
 
 	// trigger bob payment received
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "claim_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_CLAIM)
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
@@ -159,9 +154,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -281,9 +274,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan

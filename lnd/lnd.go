@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -14,6 +15,7 @@ import (
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/sputn1ck/peerswap/onchain"
 	"github.com/sputn1ck/peerswap/poll"
+	"github.com/sputn1ck/peerswap/swap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
@@ -23,9 +25,10 @@ import (
 )
 
 type Lnd struct {
-	lndClient    lnrpc.LightningClient
-	walletClient walletrpc.WalletKitClient
-	routerClient routerrpc.RouterClient
+	lndClient      lnrpc.LightningClient
+	walletClient   walletrpc.WalletKitClient
+	routerClient   routerrpc.RouterClient
+	invoicesClient invoicesrpc.InvoicesClient
 
 	PollService    *poll.Service
 	bitcoinOnChain *onchain.BitcoinOnChain
@@ -34,8 +37,57 @@ type Lnd struct {
 	ctx context.Context
 
 	messageHandler  []func(peerId string, msgType string, payload []byte) error
-	paymentCallback func(paymentLabel string)
+	paymentCallback []func(swapId string, invoiceType swap.InvoiceType)
 	pubkey          string
+}
+
+func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) (alreadyPaid bool) {
+	invoice, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
+	if err != nil {
+		log.Printf("decode invoice error")
+		return false
+	}
+	rHash, err := hex.DecodeString(invoice.PaymentHash)
+	if err != nil {
+		log.Printf("decode rhash error")
+		return false
+	}
+	lookup, err := l.lndClient.LookupInvoice(l.ctx, &lnrpc.PaymentHash{RHash: rHash})
+	if err != nil && (lookup.State == lnrpc.Invoice_SETTLED && lookup.AmtPaidSat == invoice.NumSatoshis) {
+		return true
+	}
+	go func() {
+		for {
+			select {
+			case <-l.ctx.Done():
+				log.Printf("context done")
+				return
+			default:
+				stream, err := l.invoicesClient.SubscribeSingleInvoice(l.ctx, &invoicesrpc.SubscribeSingleInvoiceRequest{RHash: rHash})
+				if err == nil {
+					inv, err := stream.Recv()
+					if err == nil {
+						switch inv.State {
+						case lnrpc.Invoice_SETTLED:
+							for _, v := range l.paymentCallback {
+								if inv.AmtPaidSat == invoice.NumSatoshis {
+									go v(swapId, invoiceType)
+								}
+							}
+						case lnrpc.Invoice_CANCELED:
+							for _, v := range l.paymentCallback {
+								go v(swapId, invoiceType)
+							}
+						}
+					}
+
+				}
+				time.Sleep(100 * time.Millisecond)
+
+			}
+		}
+	}()
+	return false
 }
 
 func (l *Lnd) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
@@ -78,7 +130,7 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 	return channel, nil
 }
 
-func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string, expiry uint64) (string, error) {
+func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
 	preimage, err := lightning.MakePreimageFromStr(preimageString)
 	if err != nil {
 		return "", err
@@ -86,7 +138,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string, 
 
 	payreq, err := l.lndClient.AddInvoice(l.ctx, &lnrpc.Invoice{
 		ValueMsat:  int64(msatAmount),
-		Memo:       label,
+		Memo:       fmt.Sprintf("%s_%s", swapId, invoiceType),
 		RPreimage:  preimage[:],
 		Expiry:     int64(expiry),
 		CltvExpiry: 144,
@@ -97,8 +149,8 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, label string, 
 	return payreq.PaymentRequest, nil
 }
 
-func (l *Lnd) AddPaymentCallback(f func(paymentLabel string)) {
-	l.paymentCallback = f
+func (l *Lnd) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {
+	l.paymentCallback = append(l.paymentCallback, f)
 }
 
 func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
@@ -177,12 +229,6 @@ func (l *Lnd) StartListening() {
 		}
 	}()
 	go func() {
-		err := l.listenPayments()
-		if err != nil {
-			log.Printf("error listening on payments %v", err)
-		}
-	}()
-	go func() {
 		err := l.listenPeerEvents()
 		if err != nil {
 			log.Printf("error listening on peer events %v", err)
@@ -202,27 +248,6 @@ func (l *Lnd) GetPeers() []string {
 		peerlist = append(peerlist, peer.PubKey)
 	}
 	return peerlist
-}
-
-func (l *Lnd) listenPayments() error {
-	client, err := l.lndClient.SubscribeInvoices(l.ctx, &lnrpc.InvoiceSubscription{})
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-l.ctx.Done():
-			return client.CloseSend()
-		default:
-			msg, err := client.Recv()
-			if err != nil {
-				return err
-			}
-			if msg.State == lnrpc.Invoice_SETTLED {
-				l.paymentCallback(msg.Memo)
-			}
-		}
-	}
 }
 
 func (l *Lnd) listenMessages() error {
@@ -290,6 +315,7 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 	lndClient := lnrpc.NewLightningClient(cc)
 	walletClient := walletrpc.NewWalletKitClient(cc)
 	routerClient := routerrpc.NewRouterClient(cc)
+	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
 
 	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -299,6 +325,7 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 		lndClient:      lndClient,
 		walletClient:   walletClient,
 		routerClient:   routerClient,
+		invoicesClient: invoicesClient,
 		bitcoinOnChain: chain,
 		cc:             cc,
 		ctx:            ctx,

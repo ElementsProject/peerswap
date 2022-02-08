@@ -49,7 +49,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_AwaitFeeInvoicePayment: {
-			Action: &NoOpAction{},
+			Action: &AwaitFeeInvoicePayment{},
 			Events: Events{
 				Event_OnFeeInvoicePaid: State_SwapOutReceiver_BroadcastOpeningTx,
 				Event_OnCancelReceived: State_SwapCanceled,
@@ -70,7 +70,7 @@ func getSwapOutReceiverStates() States {
 			},
 		},
 		State_SwapOutReceiver_AwaitClaimInvoicePayment: {
-			Action: &AwaitCsvAction{},
+			Action: &AwaitPaymentOrCsvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
 				Event_OnCancelReceived:    State_WaitCsv,
@@ -89,7 +89,8 @@ func getSwapOutReceiverStates() States {
 		State_WaitCsv: {
 			Action: &StopSendMessageWithRetryWrapperAction{next: &AwaitCsvAction{}},
 			Events: Events{
-				Event_OnCsvPassed: State_SwapOutReceiver_ClaimSwapCsv,
+				Event_OnCsvPassed:         State_SwapOutReceiver_ClaimSwapCsv,
+				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCsv: {

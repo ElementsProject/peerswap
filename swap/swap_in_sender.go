@@ -68,7 +68,7 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_AwaitClaimPayment: {
-			Action: &AwaitCsvAction{},
+			Action: &AwaitPaymentOrCsvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
 				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
@@ -94,7 +94,8 @@ func getSwapInSenderStates() States {
 		State_WaitCsv: {
 			Action: &StopSendMessageWithRetryWrapperAction{next: &AwaitCsvAction{}},
 			Events: Events{
-				Event_OnCsvPassed: State_SwapInSender_ClaimSwapCsv,
+				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
+				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 			},
 		},
 		State_SendCancel: {

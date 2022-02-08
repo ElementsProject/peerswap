@@ -33,12 +33,12 @@ type Policy interface {
 	GetReserveOnchainMsat() uint64
 }
 
-// todo add check if invoice paid dinges
 type LightningClient interface {
 	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
-	GetPayreq(msatAmount uint64, preimage string, label string, expirySeconds uint64) (string, error)
-	AddPaymentCallback(f func(paymentLabel string))
+	GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expirySeconds uint64) (string, error)
+	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
+	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) (alreadyPaid bool)
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 

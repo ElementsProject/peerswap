@@ -178,7 +178,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 
-	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), "claim_"+swap.Id.String(), swap.GetInvoiceExpiry())
+	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.Id.String(), INVOICE_CLAIM, swap.GetInvoiceExpiry())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -248,6 +248,44 @@ func (a StopSendMessageWithRetryWrapperAction) Execute(services *SwapServices, s
 	return a.next.Execute(services, swap)
 }
 
+// AwaitPaymentOrCsvAction checks if the invoice has been paid
+type AwaitPaymentOrCsvAction struct{}
+
+//todo this will never throw an error
+func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	onchain, wallet, _, err := services.getOnChainServices(swap.GetChain())
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	// invoice payment part
+	alreadyPaid := services.lightning.AddPaymentNotifier(swap.Id.String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
+	if alreadyPaid {
+		return Event_OnClaimInvoicePaid
+	}
+
+	// csv part
+	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	onchain.AddWaitForCsvTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	return NoOp
+}
+
+// AwaitFeeInvoicePayment adds the opening tx to the txwatcher
+type AwaitFeeInvoicePayment struct{}
+
+func (w *AwaitFeeInvoicePayment) Execute(services *SwapServices, swap *SwapData) EventType {
+	// invoice payment part
+	alreadyPaid := services.lightning.AddPaymentNotifier(swap.Id.String(), swap.SwapOutAgreement.Payreq, INVOICE_FEE)
+	if alreadyPaid {
+		return Event_OnFeeInvoicePaid
+	}
+	return NoOp
+}
+
 // AwaitCsvAction adds the opening tx to the txwatcher
 type AwaitCsvAction struct{}
 
@@ -312,7 +350,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), "fee_"+swap.Id.String(), 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.Id.String(), INVOICE_FEE, 600)
 	if err != nil {
 		return swap.HandleError(err)
 	}

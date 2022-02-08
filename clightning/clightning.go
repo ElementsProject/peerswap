@@ -1,6 +1,7 @@
 package clightning
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -61,15 +62,56 @@ type ClightningClient struct {
 	bitcoinNetwork *chaincfg.Params
 
 	msgHandlers          []func(peerId string, messageType string, payload []byte) error
-	paymentSubscriptions []func(paymentLabel string)
+	paymentSubscriptions []func(swapId string, invoiceType swap.InvoiceType)
 	initChan             chan interface{}
 	nodeId               string
 	hexToIdMap           map[string]string
+
+	ctx context.Context
+}
+
+func (cl *ClightningClient) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {
+	cl.paymentSubscriptions = append(cl.paymentSubscriptions, f)
+}
+
+func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) bool {
+	res, err := cl.glightning.GetInvoice(getLabel(swapId, invoiceType))
+	if err != nil {
+		log.Printf("[Payment Notifier] Error %v", err)
+	}
+	if res.Status == "paid" {
+		return true
+	}
+	go func() {
+		for {
+			select {
+			case <-cl.ctx.Done():
+				return
+			default:
+				res, err := cl.glightning.WaitInvoice(getLabel(swapId, invoiceType))
+				if err != nil {
+					log.Printf("[Payment Notifier] Error %v", err)
+				} else {
+					if res.Status == "paid" {
+						for _, v := range cl.paymentSubscriptions {
+							go v(swapId, invoiceType)
+							return
+						}
+						// todo should that be done?payment receiver generally should not do that
+					} else if res.Status == "expired" {
+						return
+					}
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+	return false
 }
 
 // NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
-func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
-	cl := &ClightningClient{}
+func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interface{}, error) {
+	cl := &ClightningClient{ctx: ctx}
 	cl.plugin = glightning.NewPlugin(cl.onInit)
 	err := cl.plugin.RegisterHooks(&glightning.Hooks{
 		CustomMsgReceived: cl.OnCustomMsg,
@@ -77,7 +119,6 @@ func NewClightningClient() (*ClightningClient, <-chan interface{}, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	cl.plugin.SubscribeInvoicePaid(cl.OnPayment)
 	cl.plugin.SubscribeConnect(cl.OnConnect)
 
 	cl.glightning = glightning.NewLightning()
@@ -155,13 +196,6 @@ func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {
 	return cl.glightning
 }
 
-// OnPayment gets called by clightnings hooks
-func (cl *ClightningClient) OnPayment(payment *glightning.Payment) {
-	for _, v := range cl.paymentSubscriptions {
-		v(payment.Label)
-	}
-}
-
 // Start starts the plugin
 func (cl *ClightningClient) Start() error {
 	return cl.plugin.Start(os.Stdin, os.Stdout)
@@ -202,18 +236,17 @@ func (cl *ClightningClient) AddMessageHandler(f func(peerId string, msgType stri
 	cl.msgHandlers = append(cl.msgHandlers, f)
 }
 
-// AddPaymentCallback adds a callback when a payment was paid
-func (cl *ClightningClient) AddPaymentCallback(f func(paymentLabel string)) {
-	cl.paymentSubscriptions = append(cl.paymentSubscriptions, f)
-}
-
 // GetPayreq returns a Bolt11 Invoice
-func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, label string, expiry uint64) (string, error) {
-	res, err := cl.glightning.CreateInvoice(amountMsat, label, "liquid swap", uint32(expiry), []string{}, preImage, false)
+func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, swapId string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
+	res, err := cl.glightning.CreateInvoice(amountMsat, getLabel(swapId, invoiceType), "liquid swap", uint32(expiry), []string{}, preImage, false)
 	if err != nil {
 		return "", err
 	}
 	return res.Bolt11, nil
+}
+
+func getLabel(swapId string, invoiceType swap.InvoiceType) string {
+	return fmt.Sprintf("%s_%s", swapId, invoiceType)
 }
 
 // DecodePayreq decodes a Bolt11 Invoice

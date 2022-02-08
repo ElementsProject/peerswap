@@ -63,6 +63,23 @@ const (
 	CLAIMTYPE_CSV
 )
 
+type InvoiceType int
+
+const (
+	INVOICE_CLAIM InvoiceType = iota + 1
+	INVOICE_FEE
+)
+
+func (i InvoiceType) String() string {
+	switch i {
+	case INVOICE_CLAIM:
+		return "claim"
+	case INVOICE_FEE:
+		return "fee"
+	}
+	return ""
+}
+
 // SwapData holds all the data needed for a swap
 type SwapData struct {
 	Id *SwapId `json:"id"`
@@ -426,4 +443,24 @@ func ParseSwapIdFromString(str string) (*SwapId, error) {
 	var swapId *SwapId = new(SwapId)
 	copy(swapId[:], data[:])
 	return swapId, err
+}
+
+type SwapErrorContext struct {
+	Err      error
+	SendPeer bool
+}
+
+func (s SwapErrorContext) ApplyToSwapData(data *SwapData) error {
+	if s.Err != nil {
+		data.LastErr = s.Err
+		data.LastErrString = s.Err.Error()
+		if s.SendPeer {
+			data.CancelMessage = s.Err.Error()
+		}
+	}
+	return nil
+}
+
+func (s *SwapErrorContext) Validate(data *SwapData) error {
+	return nil
 }

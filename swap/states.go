@@ -75,10 +75,9 @@ const (
 
 	Event_OnSwapOutRequestReceived EventType = "Event_OnSwapOutRequestReceived"
 
-	Event_OnFeeInvoicePaid   EventType = "Event_OnFeeInvoicePaid"
-	Event_OnClaimInvoicePaid EventType = "Event_OnClaimInvoicePaid"
-	Event_OnCsvPassed        EventType = "Event_OnCsvPassed"
-
+	Event_OnFeeInvoicePaid    EventType = "Event_OnFeeInvoicePaid"
+	Event_OnClaimInvoicePaid  EventType = "Event_OnClaimInvoicePaid"
+	Event_OnCsvPassed         EventType = "Event_OnCsvPassed"
 	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"
 	Event_OnCoopCloseReceived EventType = "Event_OnCoopCloseReceived"
 

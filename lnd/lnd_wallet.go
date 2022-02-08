@@ -250,5 +250,5 @@ func (l *LndFeeEstimator) GetFeePerKw(targetBlocks uint32) (float64, error) {
 }
 
 func (l *Lnd) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	return l.bitcoinOnChain.GetFee(2 * 250)
+	return l.bitcoinOnChain.GetFee(250)
 }
