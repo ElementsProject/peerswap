@@ -34,6 +34,7 @@ type ClnClnSwapsOnLiquidTestSuite struct {
 // TestClnClnSwapsOnLiquid runs all integration tests concerning
 // liquid backend and cln-cln operation.
 func TestClnClnSwapsOnLiquid(t *testing.T) {
+	t.Parallel()
 	// Long running tests only run in integration test mode.
 	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
 	if testEnabled == "" {
@@ -565,7 +566,21 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 	}()
 
 	//
-	//	STEP 1: Broadcasting commitment tx
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	// Get premium from difference.
+	newBalance, err := lightningds[0].GetChannelBalanceSat(scid)
+	suite.Require().NoError(err)
+	premium := beforeChannelBalances[0] - newBalance
+
+	//
+	//	STEP 2: Broadcasting opening tx
 	//
 
 	// Wait for commitment tx being broadcasted.
@@ -592,26 +607,8 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Check if Fee Invoice was payed. (Should have been payed before
-	// commitment tx was broadcasted).
-	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
-		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
-	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
-		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
-	}
-
 	//
-	//	STEP 2: Pay invoice // Broadcast claim Tx
+	//	STEP 3: Pay invoice // Broadcast claim Tx
 	//
 
 	// Confirm commitment tx. We need 2 confirmations.
@@ -645,15 +642,15 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Check if swap Invoice had correct amts.
-	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
-	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
+	// Expect: [0] (before - premium) - swapamt ------ (before + premium) + swapamt [1]
+	expected := float64(beforeChannelBalances[0] - premium - swapAmt)
 	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[0].Rpc.ListFunds()
 		require.NoError(t, err)
 		require.Len(t, funds.Channels, 1)
 		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1., "expected %d, got %d")
 	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
+	expected = float64(beforeChannelBalances[1] + premium + swapAmt)
 	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		funds, err := lightningds[1].Rpc.ListFunds()
 		require.NoError(t, err)
@@ -726,7 +723,16 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	}()
 
 	//
-	//	STEP 1: Broadcasting opening tx
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	//
+	//	STEP 2: Broadcasting opening tx
 	//
 
 	// Wait for opening tx being broadcasted.
@@ -753,26 +759,8 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Check if Fee Invoice was payed. (Should have been payed before
-	// commitment tx was broadcasted).
-	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
-		funds, err := lightningds[0].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1.)
-	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(t, lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
-		funds, err := lightningds[1].Rpc.ListFunds()
-		require.NoError(t, err)
-		require.Len(t, funds.Channels, 1)
-		require.InDelta(t, expected, funds.Channels[0].ChannelSatoshi, 1.)
-	}
-
 	//
-	//	STEP 2: Move balance
+	//	STEP 3: Move balance
 	//
 
 	// Move local balance from node [0] to [1] so that
@@ -803,7 +791,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	}, testframework.TIMEOUT))
 
 	//
-	//	STEP 3: Confirm opening tx
+	//	STEP 4: Confirm opening tx
 	//
 
 	liquidd.GenerateBlocks(2)
@@ -812,7 +800,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	require.NoError(t, lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 12*testframework.TIMEOUT))
 
 	//
-	//	STEP 4: Broadcasting coop claim tx
+	//	STEP 5: Broadcasting coop claim tx
 	//
 
 	// Wait for coop claim tx being broadcasted.
@@ -845,7 +833,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	require.NoError(t, lightningds[1].WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", 10*testframework.TIMEOUT))
 
 	//
-	//	STEP 4: Balance change
+	//	STEP 6: Balance change
 	//
 
 	// Check that channel balance did not change.
@@ -860,7 +848,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
 	var response clightning.GetBalanceResponse
-	expected = float64(beforeWalletBalances[0])
+	expected := float64(beforeWalletBalances[0])
 	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
 	require.NoError(t, err)
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
@@ -871,7 +859,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	assertions.Count(assert.InDelta(t, expected, float64(response.LiquidBalance), 1., "expected %d, got %d", expected, response.LiquidBalance))
 
 	//
-	// Step 5: Reset channel
+	// Step 7: Reset channel
 	//
 
 	require.NoError(t, testframework.BalanceChannel5050(lightningds[0], lightningds[1], scid))

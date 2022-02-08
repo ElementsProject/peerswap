@@ -177,6 +177,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	swap.ClaimPreimage = hex.EncodeToString(preimage[:])
 
 	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.Id.String(), INVOICE_CLAIM, swap.GetInvoiceExpiry())
 	if err != nil {
@@ -387,7 +388,7 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 		return Event_OnRetry
 	}
 
-	if swap.ClaimTxId != "" {
+	if swap.ClaimTxId == "" {
 		txId, _, err := wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
 		if err != nil {
 			swap.HandleError(err)
@@ -414,7 +415,7 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	}
 	takerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), takerKeyBytes)
 
-	if swap.ClaimTxId != "" {
+	if swap.ClaimTxId == "" {
 		txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), takerKey)
 		if err != nil {
 			return swap.HandleError(err)

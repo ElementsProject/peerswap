@@ -2,6 +2,7 @@ package swap
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -79,7 +80,11 @@ type OpeningParams struct {
 }
 
 func (o *OpeningParams) String() string {
-	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v", o.TakerPubkey, o.MakerPubkey, o.ClaimPaymentHash, o.Amount)
+	var bk string
+	if o.BlindingKey != nil {
+		bk = string(o.BlindingKey.Serialize())
+	}
+	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v, blindingKey: %s", o.TakerPubkey, o.MakerPubkey, o.ClaimPaymentHash, o.Amount, bk)
 }
 
 type ClaimParams struct {
@@ -91,6 +96,10 @@ type ClaimParams struct {
 	BlindingSeed              []byte
 	OutputAssetBlindingFactor []byte
 	EphemeralKey              *btcec.PrivateKey
+}
+
+func (o *ClaimParams) String() string {
+	return fmt.Sprintf("preimage %s, openingtxHex %s", hex.EncodeToString([]byte(o.Preimage)), o.OpeningTxHex)
 }
 
 type Signer interface {

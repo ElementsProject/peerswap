@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/sputn1ck/peerswap/lightning"
 )
 
 type SwapType int
@@ -247,6 +248,21 @@ func (s *SwapData) GetTakerPubkey() string {
 	return ""
 }
 
+func (s *SwapData) GetPreimage() string {
+	return s.ClaimPreimage
+}
+
+func (s *SwapData) GetPaymentHash() string {
+	if s.ClaimPaymentHash != "" {
+		return s.ClaimPaymentHash
+	}
+	if s.ClaimPreimage != "" {
+		preimage, _ := lightning.MakePreimageFromStr(s.ClaimPreimage)
+		return preimage.Hash().String()
+	}
+	return ""
+}
+
 func (s *SwapData) SetState(stateType StateType) {
 	s.FSMState = stateType
 }
@@ -277,7 +293,7 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 	return &OpeningParams{
 		TakerPubkey:      s.GetTakerPubkey(),
 		MakerPubkey:      s.GetMakerPubkey(),
-		ClaimPaymentHash: s.ClaimPaymentHash,
+		ClaimPaymentHash: s.GetPaymentHash(),
 		Amount:           s.GetAmount(),
 		BlindingKey:      blindingKey,
 	}

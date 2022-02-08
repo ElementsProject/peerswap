@@ -37,6 +37,7 @@ type LndClnSwapsOnLiquidSuite struct {
 // TestLndClnSwapsOnLiquid runs all integration tests concerning
 // liquid backend and lnd-cln operation.
 func TestLndClnSwapsOnLiquid(t *testing.T) {
+	t.Parallel()
 	// Long running tests only run in integration test mode.
 	testEnabled := os.Getenv("RUN_INTEGRATION_TESTS")
 	if testEnabled == "" {
@@ -630,7 +631,21 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimPreimage() {
 	}()
 
 	//
-	//	STEP 1: Broadcasting opening tx
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	// Get premium from difference.
+	newBalance, err := lightningds[0].GetChannelBalanceSat(scid)
+	suite.Require().NoError(err)
+	premium := beforeChannelBalances[0] - newBalance
+
+	//
+	//	STEP 2: Broadcasting opening tx
 	//
 
 	// Wait for opening tx being broadcasted.
@@ -657,24 +672,8 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimPreimage() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Check if Fee Invoice was payed. (Should have been payed before
-	// commitment tx was broadcasted).
-	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[0].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
-	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[1].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
-	}
-
 	//
-	//	STEP 2: Pay invoice // Broadcast claim Tx
+	//	STEP 3: Pay invoice // Broadcast claim Tx
 	//
 
 	// Confirm commitment tx. We need 3 confirmations.
@@ -708,14 +707,14 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Check if swap Invoice had correct amts.
-	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
-	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
+	// Expect: [0] (before - premium) - swapamt ------ (before + premium) + swapamt [1]
+	expected := float64(beforeChannelBalances[0] - premium - swapAmt)
 	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		balance, err := lightningds[0].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
 	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
+	expected = float64(beforeChannelBalances[1] + premium + swapAmt)
 	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		balance, err := lightningds[1].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
@@ -730,7 +729,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimPreimage() {
 	suite.Require().NoError(err)
 
 	//
-	//	STEP 3: Onchain balance change
+	//	STEP 4: Onchain balance change
 	//
 
 	// Check Wallet balance.
@@ -790,7 +789,16 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	}()
 
 	//
-	//	STEP 1: Broadcasting opening tx
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	//
+	//	STEP 2: Broadcasting opening tx
 	//
 
 	// Wait for opening tx being broadcasted.
@@ -817,24 +825,8 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Check if Fee Invoice was payed. (Should have been payed before
-	// commitment tx was broadcasted).
-	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[0].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1.)
-	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[1].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1.)
-	}
-
 	//
-	//	STEP 2: Move balance
+	//	STEP 3: Move balance
 	//
 	// Move local balance from node [0] to [1] so that
 	// [0] does not have enough balance to pay the
@@ -867,7 +859,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	suite.Require().True(setupFunds < swapAmt)
 
 	//
-	//	STEP 3: Confirm opening tx
+	//	STEP 4: Confirm opening tx
 	//
 
 	chaind.GenerateBlocks(2)
@@ -876,7 +868,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	suite.Require().NoError(peerswapd.WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", 10*testframework.TIMEOUT))
 
 	//
-	//	STEP 4: Broadcasting coop claim tx
+	//	STEP 5: Broadcasting coop claim tx
 	//
 
 	// Wait for coop claim tx being broadcasted.
@@ -909,7 +901,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	suite.Require().NoError(cln.WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
 
 	//
-	//	STEP 4: Balance change
+	//	STEP 6: Balance change
 	//
 
 	// Check that channel balance did not change.
@@ -924,7 +916,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	// Expect:
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
-	expected = float64(beforeWalletBalances[0])
+	expected := float64(beforeWalletBalances[0])
 	br, err := peerswapd.PeerswapClient.LiquidGetBalance(context.Background(), &peerswaprpc.GetBalanceRequest{})
 	suite.Require().NoError(err)
 	suite.Require().InDelta(expected, float64(br.SatAmount), 1., "expected %d, got %d", uint64(expected), br.SatAmount)
@@ -936,7 +928,7 @@ func (suite *LndClnSwapsOnLiquidSuite) TestSwapOut_ClaimCoop() {
 	suite.Require().InDelta(expected, float64(response.LiquidBalance), 1., "expected %d, got %d", uint64(expected), response.LiquidBalance)
 
 	//
-	// Step 5: Reset channel
+	// Step 7: Reset channel
 	//
 
 	chs, err := lnd.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})

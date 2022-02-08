@@ -1,4 +1,6 @@
 OUTDIR=./out
+PAYMENT_RETRY_TIME=10
+PEERSWAP_TEST_FILTER="peerswap"
 
 build:
 	go build -tags dev -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
@@ -17,11 +19,11 @@ build-with-fast-test:
 .PHONY: build-with-fast-test
 
 test: build-with-fast-test
-	PAYMENT_RETRY_TIME=20 go test -tags dev -tags fast_test -timeout=10m -v ./...
+	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -timeout=10m -v ./...
 .PHONY: test
 
 test-integration: build-with-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=20 LIGHTNING_TESTFRAMEWORK_FILTER="peerswap" go test -tags dev -tags fast_test -timeout=60m ./test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=20m -v ./test
 .PHONY: test-integration
 
 lnd-release:
