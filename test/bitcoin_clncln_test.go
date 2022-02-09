@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/sputn1ck/peerswap/clightning"
 	"github.com/sputn1ck/peerswap/testframework"
@@ -167,7 +166,8 @@ func (suite *ClnClnSwapsOnBitcoinSuite) HandleStats(suiteName string, stats *sui
 
 		fmt.Println()
 		fmt.Println("+++++++++++++++++++++++++++++ clightning 1 +++++++++++++++++++++++++++++")
-		fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdOut.Filter(filter))
+		fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdOut.String())
+		// fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdOut.Filter(filter))
 		if suite.bitcoind.DaemonProcess.StdErr.String() != "" {
 			fmt.Println("+++++++++++++++++++++++++++++ clightning 1 (ERR) +++++++++++++++++++++++++++++")
 			fmt.Printf("%s", suite.lightningds[0].DaemonProcess.StdErr.String())
@@ -195,7 +195,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 	var err error
 
 	lightningds := suite.lightningds
-	bitcoind := suite.bitcoind
+	chaind := suite.bitcoind
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
@@ -224,7 +224,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -240,7 +240,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Confirm opening tx. We need 3 confirmations.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -287,7 +287,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -303,7 +303,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Confirm claim tx.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -333,17 +333,11 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimPreimage() {
 
 // TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
-//
-// Todo: Is skipped for now because we can not run it in the suite as it
-// gets the channel stuck. See
-// https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
-// fixed, the skip has to be removed.
 func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
-	suite.T().SkipNow()
 	var err error
 
 	lightningds := suite.lightningds
-	bitcoind := suite.bitcoind
+	chaind := suite.bitcoind
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
@@ -351,11 +345,6 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 10
-
-	// Expectations.
-	confirmationsForCsv := 100
-	expectedLightningSat := []uint64{beforeChannelBalances[0], beforeChannelBalances[1]}
-	expectedOnchainSat := []uint64{beforeWalletBalances[0], beforeWalletBalances[1] - 1914}
 
 	// Do swap-in.
 	go func() {
@@ -369,16 +358,28 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	//
 
 	// Wait for opening tx being broadcasted.
-	testframework.WaitFor(func() bool {
-		var mempool []string
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool")
+	// Get commitmentFee.
+	var commitmentFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
 		suite.Require().NoError(err)
 
-		return len(mempool) == 1
-	}, testframework.TIMEOUT)
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				commitmentFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
 
 	//
 	// STEP 2: Stop peer, this leads to the maker
@@ -386,14 +387,14 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	// invoice.
 	//
 
-	lightningds[0].Shutdown()
+	lightningds[0].Stop()
 
 	// Generate one less block than required.
-	bitcoind.GenerateBlocks(confirmationsForCsv - 1)
+	chaind.GenerateBlocks(int(BitcoinCsv) - 1)
 	testframework.WaitFor(func() bool {
-		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		ok, err := lightningds[1].IsBlockHeightSynced()
 		suite.Require().NoError(err)
-		return isSynced
+		return ok
 	}, testframework.TIMEOUT)
 
 	// Check that csv is not claimed yet.
@@ -402,7 +403,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	suite.Require().False(triedToClaim)
 
 	// Generate one more block to trigger claim by csv.
-	bitcoind.GenerateBlocks(1)
+	chaind.GenerateBlocks(1)
 	testframework.WaitFor(func() bool {
 		isSynced, err := lightningds[1].IsBlockHeightSynced()
 		suite.Require().NoError(err)
@@ -415,16 +416,30 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	suite.Require().True(triedToClaim)
 
 	// Check claim tx is broadcasted.
-	var mempool []string
-	jsonR, err := bitcoind.Rpc.Call("getrawmempool")
-	suite.Require().NoError(err)
+	var claimFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
 
-	err = jsonR.GetObject(&mempool)
-	suite.Require().NoError(err)
-	suite.Require().Len(mempool, 1)
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				claimFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
 
 	// Generate to claim
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	testframework.WaitFor(func() bool {
 		isSynced, err := lightningds[1].IsBlockHeightSynced()
 		suite.Require().NoError(err)
@@ -435,18 +450,22 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCsv() {
 	err = lightningds[0].Run(true, true)
 	suite.Require().NoError(err)
 
+	// Wait for node to coop cancel swap
+	err = lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
 	// Check if channel balance is correct.
-	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(expectedLightningSat[0]), 5000., testframework.TIMEOUT))
-	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(expectedLightningSat[1]), 5000., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(beforeChannelBalances[0]), 1., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(beforeChannelBalances[1]), 1., testframework.TIMEOUT))
 
 	// Check Wallet balance.
 	balance, err := lightningds[0].GetBtcBalanceSat()
 	suite.Require().NoError(err)
-	suite.Require().EqualValuesf(expectedOnchainSat[0], balance, "expected %d, got %d", expectedOnchainSat[0], balance)
+	suite.Require().EqualValuesf(beforeWalletBalances[0], balance, "expected %d, got %d", beforeWalletBalances[0], balance)
 
 	balance, err = lightningds[1].GetBtcBalanceSat()
 	suite.Require().NoError(err)
-	suite.Require().EqualValuesf(expectedOnchainSat[1], balance, "expected %d, got %d", expectedOnchainSat[1], balance)
+	suite.Require().EqualValuesf(beforeWalletBalances[1]-commitmentFee-claimFee, balance, "expected %d, got %d", beforeWalletBalances[1], balance)
 }
 
 // TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
@@ -455,7 +474,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 	var err error
 
 	lightningds := suite.lightningds
-	bitcoind := suite.bitcoind
+	chaind := suite.bitcoind
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
@@ -484,7 +503,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -529,7 +548,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 	//	STEP 3: Confirm opening tx
 	//
 
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -554,7 +573,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -570,7 +589,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapIn_ClaimCoop() {
 	}, testframework.TIMEOUT))
 
 	// Confirm coop claim tx.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -621,7 +640,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	var err error
 
 	lightningds := suite.lightningds
-	bitcoind := suite.bitcoind
+	chaind := suite.bitcoind
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
@@ -630,7 +649,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 10
 
-	// Do swap-in.
+	// Do swap-out.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
@@ -658,14 +677,13 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	// Wait for commitment tx being broadcasted.
 	// Get commitmentFee.
 	var commitmentFee uint64
-
 	suite.Require().NoError(testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -685,7 +703,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	//
 
 	// Confirm commitment tx. We need 3 confirmations.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -706,7 +724,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -739,7 +757,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	}
 
 	// Confirm claim tx.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -773,14 +791,153 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 
 // TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
-//
-// Todo: Is skipped for now because we can not run it in the suite as it
-// gets the channel stuck. See
-// https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
-// fixed, the skip has to be removed.
 func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCsv() {
-	suite.T().SkipNow()
-	// Todo: add test!
+	var err error
+
+	lightningds := suite.lightningds
+	chaind := suite.bitcoind
+	scid := suite.scid
+
+	beforeChannelBalances := suite.channelBalances
+	beforeWalletBalances := suite.walletBalances
+
+	// Changes.
+	var swapAmt uint64 = beforeChannelBalances[0] / 10
+
+	// Do swap-out.
+	go func() {
+		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
+		var response map[string]interface{}
+		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: swapAmt, ShortChannelId: scid, Asset: "btc"}, &response)
+	}()
+
+	//
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	// Get premium from difference.
+	newBalance, err := lightningds[0].GetChannelBalanceSat(scid)
+	suite.Require().NoError(err)
+	premium := beforeChannelBalances[0] - newBalance
+
+	//
+	//	STEP 2: Broadcasting commitment tx
+	//
+
+	// Wait for commitment tx being broadcasted.
+	// Get commitmentFee.
+	var commitmentFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				commitmentFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	//
+	// STEP 3: Stop peer, this leads to the maker
+	// claiming by csv as the peer does not pay the
+	// invoice.
+	//
+
+	lightningds[0].Stop()
+
+	// Generate one less block than required.
+	chaind.GenerateBlocks(int(BitcoinCsv) - 1)
+	testframework.WaitFor(func() bool {
+		ok, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return ok
+	}, testframework.TIMEOUT)
+
+	// Check that csv is not claimed yet.
+	triedToClaim, err := lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv")
+	suite.Require().NoError(err)
+	suite.Require().False(triedToClaim)
+
+	// Generate one more block to trigger claim by csv.
+	chaind.GenerateBlocks(1)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Check that csv gets claimed.
+	triedToClaim, err = lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv")
+	suite.Require().NoError(err)
+	suite.Require().True(triedToClaim)
+
+	// Check claim tx is broadcasted.
+	var claimFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				claimFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	// Generate to claim
+	chaind.GenerateBlocks(3)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Start node again
+	err = lightningds[0].Run(true, true)
+	suite.Require().NoError(err)
+
+	// Wait for node to coop cancel swap
+	err = lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
+	// Check if channel balance is correct.
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(beforeChannelBalances[0]-premium), 1., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(beforeChannelBalances[1]+premium), 1., testframework.TIMEOUT))
+
+	// Check Wallet balance.
+	balance, err := lightningds[0].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().EqualValuesf(beforeWalletBalances[0], balance, "expected %d, got %d", beforeWalletBalances[0], balance)
+
+	balance, err = lightningds[1].GetBtcBalanceSat()
+	suite.Require().NoError(err)
+	suite.Require().EqualValuesf(beforeWalletBalances[1]-commitmentFee-claimFee, balance, "expected %d, got %d", beforeWalletBalances[1], balance)
 }
 
 // TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
@@ -789,7 +946,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 	var err error
 
 	lightningds := suite.lightningds
-	bitcoind := suite.bitcoind
+	chaind := suite.bitcoind
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
@@ -827,7 +984,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -873,7 +1030,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 	//	STEP 3: Confirm opening tx
 	//
 
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()
@@ -897,7 +1054,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := bitcoind.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		suite.Require().NoError(err)
 
 		err = jsonR.GetObject(&mempool)
@@ -912,7 +1069,7 @@ func (suite *ClnClnSwapsOnBitcoinSuite) TestSwapOut_ClaimCoop() {
 	}, testframework.TIMEOUT))
 
 	// Confirm coop claim tx.
-	bitcoind.GenerateBlocks(3)
+	chaind.GenerateBlocks(3)
 	for _, lightningd := range lightningds {
 		testframework.WaitFor(func() bool {
 			ok, err := lightningd.IsBlockHeightSynced()

@@ -54,6 +54,7 @@ type TxWatcher interface {
 type Validator interface {
 	TxIdFromHex(txHex string) (string, error)
 	ValidateTx(swapParams *OpeningParams, txHex string) (bool, error)
+	GetCSVHeight() uint32
 }
 
 type Wallet interface {

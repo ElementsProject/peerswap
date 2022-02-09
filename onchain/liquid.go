@@ -47,6 +47,10 @@ func NewLiquidOnChain(elements *gelements.Elements, wallet wallet.Wallet, networ
 	return &LiquidOnChain{elements: elements, liquidWallet: wallet, network: network, asset: lbtc}
 }
 
+func (l *LiquidOnChain) GetCSVHeight() uint32 {
+	return LiquidCsv
+}
+
 func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {

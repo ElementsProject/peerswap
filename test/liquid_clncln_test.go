@@ -25,8 +25,8 @@ type ClnClnSwapsOnLiquidTestSuite struct {
 	lightningds []*testframework.CLightningNode
 	scid        string
 
-	channelBalances      []uint64
-	liquidWalletBalances []uint64
+	channelBalances []uint64
+	walletBalances  []uint64
 
 	liquidWalletNames []string
 }
@@ -156,12 +156,12 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) SetupSuite() {
 	if err != nil {
 		t.Fatalf("ListPeers %v", err)
 	}
-	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[0].Info.Id), testframework.TIMEOUT)
-
 	err = lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
 	if err != nil {
 		t.Fatalf("ListPeers %v", err)
 	}
+
+	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[0].Info.Id), testframework.TIMEOUT)
 	lightningds[0].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[1].Info.Id), testframework.TIMEOUT)
 
 	suite.bitcoind = bitcoind
@@ -187,7 +187,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) BeforeTest(suiteName, testName string
 	}
 
 	suite.channelBalances = channelBalances
-	suite.liquidWalletBalances = liquidWalletBalances
+	suite.walletBalances = liquidWalletBalances
 }
 
 func (suite *ClnClnSwapsOnLiquidTestSuite) HandleStats(suiteName string, stats *suite.SuiteInformation) {
@@ -245,11 +245,11 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	t := suite.T()
 	assertions := suite.assertions
 	lightningds := suite.lightningds
-	liquidd := suite.liquidd
+	chaind := suite.liquidd
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
-	beforeWalletBalances := suite.liquidWalletBalances
+	beforeWalletBalances := suite.walletBalances
 
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 10
@@ -258,7 +258,8 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: swapAmt, ShortChannelId: scid, Asset: "l-btc"}, &response)
+		err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: swapAmt, ShortChannelId: scid, Asset: "l-btc"}, &response)
+		suite.T().Logf("request error: %v", err)
 	}()
 
 	//
@@ -274,7 +275,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := liquidd.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		require.NoError(t, err)
 
 		err = jsonR.GetObject(&mempool)
@@ -289,8 +290,8 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Confirm opening tx. We need 2 confirmations.
-	liquidd.GenerateBlocks(2)
+	// Confirm opening tx.
+	chaind.GenerateBlocks(LiquidConfirms)
 
 	//
 	//	STEP 2: Pay invoice
@@ -330,7 +331,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := liquidd.Rpc.Call("getrawmempool", true)
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
 		require.NoError(t, err)
 
 		err = jsonR.GetObject(&mempool)
@@ -346,7 +347,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Confirm claim tx.
-	liquidd.GenerateBlocks(2)
+	chaind.GenerateBlocks(2)
 
 	// Wait for claim tx confirmation.
 	err = lightningds[0].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT)
@@ -370,14 +371,140 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimPreimage() {
 
 // TestSwapIn_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
-//
-// Todo: Is skipped for now because we can not run it in the suite as it
-// gets the channel stuck. See
-// https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
-// fixed, the skip has to be removed.
 func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCsv() {
-	suite.T().SkipNow()
-	// todo: implement test
+	var err error
+
+	lightningds := suite.lightningds
+	chaind := suite.liquidd
+	scid := suite.scid
+
+	beforeChannelBalances := suite.channelBalances
+	beforeWalletBalances := suite.walletBalances
+
+	// Changes.
+	var swapAmt uint64 = beforeChannelBalances[0] / 10
+
+	// Do swap-in.
+	go func() {
+		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
+		var response map[string]interface{}
+		lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: swapAmt, ShortChannelId: scid, Asset: "l-btc"}, &response)
+	}()
+
+	//
+	//	STEP 1: Broadcasting opening tx
+	//
+
+	// Wait for opening tx being broadcasted.
+	// Get commitmentFee.
+	var commitmentFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				commitmentFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	//
+	// STEP 2: Stop peer, this leads to the maker
+	// claiming by csv as the peer does not pay the
+	// invoice.
+	//
+
+	lightningds[0].Stop()
+
+	// Generate one less block than required.
+	chaind.GenerateBlocks(int(LiquidCsv) - 1)
+	testframework.WaitFor(func() bool {
+		ok, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return ok
+	}, testframework.TIMEOUT)
+
+	// Check that csv is not claimed yet.
+	triedToClaim, err := lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
+	suite.Require().NoError(err)
+	suite.Require().False(triedToClaim)
+
+	// Generate one more block to trigger claim by csv.
+	chaind.GenerateBlocks(1)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Check that csv gets claimed.
+	err = lightningds[1].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
+	// Check claim tx is broadcasted.
+	var claimFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				claimFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	// Generate to claim
+	chaind.GenerateBlocks(LiquidConfirms)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Start node again
+	err = lightningds[0].Run(true, true)
+	suite.Require().NoError(err)
+	lightningds[0].Connect(lightningds[1], true)
+
+	// Wait for node to coop cancel swap
+	err = lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
+	// Check if channel balance is correct.
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(beforeChannelBalances[0]), 1., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(beforeChannelBalances[1]), 1., testframework.TIMEOUT))
+
+	// Check Wallet balance.
+	var response clightning.GetBalanceResponse
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
+	suite.Require().NoError(err)
+	suite.Assert().InDelta(beforeWalletBalances[0], float64(response.LiquidBalance), 1., "expected %d, got %d", beforeWalletBalances[0], response.LiquidBalance)
+
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
+	suite.Require().NoError(err)
+	suite.Assert().InDelta(beforeWalletBalances[1]-commitmentFee-claimFee, float64(response.LiquidBalance), 1., "expected %d, got %d", beforeWalletBalances[1]-commitmentFee-claimFee, response.LiquidBalance)
 }
 
 // TestSwapIn_ClaimCoop execute a swap-in where one node cancels and the
@@ -392,7 +519,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapIn_ClaimCoop() {
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
-	beforeWalletBalances := suite.liquidWalletBalances
+	beforeWalletBalances := suite.walletBalances
 
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 2
@@ -550,7 +677,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
-	beforeWalletBalances := suite.liquidWalletBalances
+	beforeWalletBalances := suite.walletBalances
 
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 10
@@ -687,14 +814,154 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimPreimage() {
 
 // TestSwapOut_ClaimCsv execute a swap-in where the peer does not pay the
 // invoice and the maker claims by csv.
-//
-// Todo: Is skipped for now because we can not run it in the suite as it
-// gets the channel stuck. See
-// https://github.com/sputn1ck/peerswap/issues/69. As soon as this is
-// fixed, the skip has to be removed.
 func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCsv() {
-	suite.T().SkipNow()
-	// Todo: add test!
+	var err error
+
+	lightningds := suite.lightningds
+	chaind := suite.liquidd
+	scid := suite.scid
+
+	beforeChannelBalances := suite.channelBalances
+	beforeWalletBalances := suite.walletBalances
+
+	// Changes.
+	var swapAmt uint64 = beforeChannelBalances[0] / 10
+
+	// Do swap-out.
+	go func() {
+		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
+		var response map[string]interface{}
+		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: swapAmt, ShortChannelId: scid, Asset: "l-btc"}, &response)
+	}()
+
+	//
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	// Get premium from difference.
+	newBalance, err := lightningds[0].GetChannelBalanceSat(scid)
+	suite.Require().NoError(err)
+	premium := beforeChannelBalances[0] - newBalance
+
+	//
+	//	STEP 2: Broadcasting commitment tx
+	//
+
+	// Wait for commitment tx being broadcasted.
+	// Get commitmentFee.
+	var commitmentFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				commitmentFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	//
+	// STEP 3: Stop peer, this leads to the maker
+	// claiming by csv as the peer does not pay the
+	// invoice.
+	//
+
+	lightningds[0].Stop()
+
+	// Generate one less block than required.
+	chaind.GenerateBlocks(int(LiquidCsv) - 1)
+	testframework.WaitFor(func() bool {
+		ok, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return ok
+	}, testframework.TIMEOUT)
+
+	// Check that csv is not claimed yet.
+	triedToClaim, err := lightningds[1].DaemonProcess.HasLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv")
+	suite.Require().NoError(err)
+	suite.Require().False(triedToClaim)
+
+	// Generate one more block to trigger claim by csv.
+	chaind.GenerateBlocks(1)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Check that csv gets claimed.
+	err = lightningds[1].DaemonProcess.WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
+	// Check claim tx is broadcasted.
+	var claimFee uint64
+	suite.Require().NoError(testframework.WaitFor(func() bool {
+		var mempool map[string]struct {
+			Fees struct {
+				Base float64 `json:"base"`
+			} `json:"fees"`
+		}
+		jsonR, err := chaind.Rpc.Call("getrawmempool", true)
+		suite.Require().NoError(err)
+
+		err = jsonR.GetObject(&mempool)
+		suite.Require().NoError(err)
+
+		if len(mempool) == 1 {
+			for _, tx := range mempool {
+				claimFee = uint64(tx.Fees.Base * 100000000)
+				return true
+			}
+		}
+		return false
+	}, testframework.TIMEOUT))
+
+	// Generate to claim
+	chaind.GenerateBlocks(3)
+	testframework.WaitFor(func() bool {
+		isSynced, err := lightningds[1].IsBlockHeightSynced()
+		suite.Require().NoError(err)
+		return isSynced
+	}, testframework.TIMEOUT)
+
+	// Start node again
+	err = lightningds[0].Run(true, true)
+	suite.Require().NoError(err)
+	lightningds[0].Connect(lightningds[1], true)
+
+	// Wait for node to coop cancel swap
+	err = lightningds[0].WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT)
+	suite.Require().NoError(err)
+
+	// Check if channel balance is correct.
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, float64(beforeChannelBalances[0]-premium), 1., testframework.TIMEOUT))
+	suite.Require().True(testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, float64(beforeChannelBalances[1]+premium), 1., testframework.TIMEOUT))
+
+	// Check Wallet balance.
+	var response clightning.GetBalanceResponse
+	err = lightningds[0].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
+	suite.Require().NoError(err)
+	suite.Assert().InDelta(beforeWalletBalances[0], float64(response.LiquidBalance), 1., "expected %d, got %d", beforeWalletBalances[0], response.LiquidBalance)
+
+	err = lightningds[1].Rpc.Request(&clightning.LiquidGetBalance{}, &response)
+	suite.Require().NoError(err)
+	suite.Assert().InDelta(beforeWalletBalances[1]-commitmentFee-claimFee, float64(response.LiquidBalance), 1., "expected %d, got %d", beforeWalletBalances[1]-commitmentFee-claimFee, response.LiquidBalance)
 }
 
 // TestSwapOut_ClaimCoop execute a swap-in where one node cancels and the
@@ -710,7 +977,7 @@ func (suite *ClnClnSwapsOnLiquidTestSuite) TestSwapOut_ClaimCoop() {
 	scid := suite.scid
 
 	beforeChannelBalances := suite.channelBalances
-	beforeWalletBalances := suite.liquidWalletBalances
+	beforeWalletBalances := suite.walletBalances
 
 	// Changes.
 	var swapAmt uint64 = beforeChannelBalances[0] / 2

@@ -2,6 +2,7 @@ package swap
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -206,6 +207,9 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() (bool, error) {
 	state, ok := s.States[s.Current]
+	if !ok {
+		return false, fmt.Errorf("unknown state: %s for swap %s", s.Current, s.Id)
+	}
 
 	if !ok || state.Action == nil {
 		// configuration error
@@ -216,7 +220,6 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 	}
 
 	nextEvent := state.Action.Execute(s.swapServices, s.Data)
-
 	err := s.swapServices.swapStore.UpdateData(s)
 	if err != nil {
 		return false, err
@@ -231,6 +234,7 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
 	case State_ClaimedCsv:
+	case State_SwapCanceled:
 	case State_ClaimedPreimage:
 		return true
 	}

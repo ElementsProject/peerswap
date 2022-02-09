@@ -68,6 +68,7 @@ func getSwapOutSenderStates() States {
 			Events: Events{
 				Event_OnCancelReceived:  State_SwapCanceled,
 				Event_OnTxOpenedMessage: State_SwapOutSender_AwaitTxConfirmation,
+				Event_ActionFailed:      State_SwapOutSender_SendPrivkey,
 				Event_OnInvalid_Message: State_SendCancel,
 				// fixme: We might want to timeout here, but we have to be
 				// careful not to loose our funds, maybe we want to set the

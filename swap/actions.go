@@ -549,14 +549,29 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	return Event_ActionSucceeded
 }
 
-// AwaitTxConfirmationAction  checks the claim invoice and adds the transaction to the txwatcher
+// AwaitTxConfirmationAction  checks the claim invoice and adds the transaction
+// to the txwatcher.
 type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnChainServices(swap.GetChain())
+	txWatcher, wallet, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
+	}
+
+	// Check if we are outside of our csv safety limit. This can happen on
+	// restart. We do NOT want to continue if we fail here.
+	if swap.StartingBlockHeight > 0 {
+		now, err := txWatcher.GetBlockHeight()
+		if err != nil {
+			return swap.HandleError(err)
+		}
+
+		if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {
+			err := fmt.Errorf("exceeded csv limit")
+			return swap.HandleError(err)
+		}
 	}
 
 	phash, msatAmount, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
@@ -578,8 +593,6 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	txWatcher.AddWaitForConfirmationTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
-
-// todo
 
 // ValidateTxAndPayClaimInvoiceAction pays the claim invoice
 type ValidateTxAndPayClaimInvoiceAction struct{}
@@ -644,15 +657,29 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 type SetStartingBlockHeightAction struct{}
 
 func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, _, _, err := services.getOnChainServices(swap.GetChain())
+	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
-		return swap.HandleError(err)
+		swap.LastErr = err
+		return Event_ActionFailed
 	}
-	blockheight, err := onchain.GetBlockHeight()
+
+	now, err := onchain.GetBlockHeight()
 	if err != nil {
-		return swap.HandleError(err)
+		swap.LastErr = err
+		return Event_ActionFailed
 	}
-	swap.StartingBlockHeight = blockheight
+
+	// Check if we already set a Blockheight and set if not. This check will
+	// leave the starting block height untouched in case of a restart. In the
+	// case of a restart we check if we already exceeded the csv limit.
+	if swap.StartingBlockHeight == 0 {
+		swap.StartingBlockHeight = now
+	} else if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {
+		swap.LastErr = fmt.Errorf("too close to csv")
+		swap.CancelMessage = swap.LastErr.Error()
+		return Event_ActionFailed
+	}
+
 	return NoOp
 }
 
