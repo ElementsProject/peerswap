@@ -623,7 +623,21 @@ func (suite *ClnLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	}()
 
 	//
-	//	STEP 1: Broadcasting opening tx
+	// STEP 1: Await fee invoice payment
+	//
+
+	// Wait for channel balance to change, this means the invoice was payed.
+	for i, d := range lightningds {
+		testframework.AssertWaitForBalanceChange(suite.T(), d, scid, beforeChannelBalances[i], testframework.TIMEOUT)
+	}
+
+	// Get premium from difference.
+	newBalance, err := lightningds[0].GetChannelBalanceSat(scid)
+	suite.Require().NoError(err)
+	premium := beforeChannelBalances[0] - newBalance
+
+	//
+	//	STEP 2: Broadcasting opening tx
 	//
 
 	// Wait for opening tx being broadcasted.
@@ -650,24 +664,8 @@ func (suite *ClnLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 		return false
 	}, testframework.TIMEOUT))
 
-	// Check if Fee Invoice was payed. (Should have been payed before
-	// commitment tx was broadcasted).
-	// Expect: [0] before - commitment_fee ------ before + commitment_fee [1]
-	expected := float64(beforeChannelBalances[0] - commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[0].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
-	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee)
-	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
-		balance, err := lightningds[1].GetChannelBalanceSat(scid)
-		suite.Require().NoError(err)
-		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
-	}
-
 	//
-	//	STEP 2: Pay invoice // Broadcast claim Tx
+	//	STEP 3: Pay invoice // Broadcast claim Tx
 	//
 
 	// Confirm commitment tx. We need 3 confirmations.
@@ -708,14 +706,14 @@ func (suite *ClnLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	}, testframework.TIMEOUT))
 
 	// Check if swap Invoice had correct amts.
-	// Expect: [0] (before - commitment_fee) - swapamt ------ (before + commitment_fee) + swapamt [1]
-	expected = float64(beforeChannelBalances[0] - commitmentFee - swapAmt)
+	// Expect: [0] (before - premium) - swapamt ------ (before + premium) + swapamt [1]
+	expected := float64(beforeChannelBalances[0] - premium - swapAmt)
 	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[0], scid, expected, 1., testframework.TIMEOUT) {
 		balance, err := lightningds[0].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
 		suite.Require().InDelta(expected, balance, 1., "expected %d, got %d")
 	}
-	expected = float64(beforeChannelBalances[1] + commitmentFee + swapAmt)
+	expected = float64(beforeChannelBalances[1] + premium + swapAmt)
 	if !testframework.AssertWaitForChannelBalance(suite.T(), lightningds[1], scid, expected, 1., testframework.TIMEOUT) {
 		balance, err := lightningds[1].GetChannelBalanceSat(scid)
 		suite.Require().NoError(err)
@@ -737,7 +735,7 @@ func (suite *ClnLndSwapsOnBitcoinSuite) TestSwapOut_ClaimPreimage() {
 	suite.Require().NoError(err)
 
 	//
-	//	STEP 3: Onchain balance change
+	//	STEP 4: Onchain balance change
 	//
 
 	// Check Wallet balance.

@@ -600,46 +600,44 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 
 	var retryTime time.Duration = 120 * time.Second
+	var interval time.Duration = 10 * time.Second
+
 	if isdev.FastTests() {
 		// Retry time should be in [s].
-		prtStr := os.Getenv("PAYMENT_RETRY_TIME")
-		if prtStr != "" {
+		if prtStr := os.Getenv("PAYMENT_RETRY_TIME"); prtStr != "" {
 			prtInt, err := strconv.Atoi(prtStr)
 			if err != nil {
 				log.Printf("could not read from PAYMENT_RETRY_TIME")
-			} else if prtInt < 1 {
-				log.Printf("PAYMENT_RETRY_TIME must be be positive int representing seconds")
 			} else {
 				retryTime = time.Duration(prtInt) * time.Second
 			}
 		}
+		interval = 1 * time.Second
 	}
 
-	ctx, done := context.WithTimeout(context.Background(), retryTime)
-	defer done()
-	var preimageString string
-paymentLoop:
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), retryTime)
+	defer cancel()
+
+	var preimage string
 	for {
 		select {
 		case <-ctx.Done():
-			break paymentLoop
-		default:
-			preimageString, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
+			return swap.HandleError(fmt.Errorf("could not pay invoice, last err %w", err))
+		case <-ticker.C:
+			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
 			if err != nil {
-				log.Printf("error trying to pay invoice: %v", err)
+				log.Printf("error trying to pay invoice: %v, retry...", err)
+				// Another round!
+				continue
 			}
-			if preimageString != "" {
-				swap.ClaimPreimage = preimageString
-				break paymentLoop
-			}
-			time.Sleep(time.Second * 10)
-			log.Printf("RETRY paying invoice")
+
+			swap.ClaimPreimage = preimage
+			return Event_ActionSucceeded
 		}
 	}
-	if preimageString == "" {
-		return swap.HandleError(fmt.Errorf("could not pay invoice, lastErr %w", err))
-	}
-	return Event_ActionSucceeded
 }
 
 type SetStartingBlockHeightAction struct{}
