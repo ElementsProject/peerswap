@@ -10,9 +10,7 @@ import (
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	takerpubkeyhash := "abcdef"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
@@ -23,7 +21,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
-		Pubkey:          takerpubkeyhash,
+		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
@@ -49,9 +47,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	peer := "bar"
-	chanId := "baz"
-	takerpubkeyhash := "abcdef"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
@@ -63,7 +59,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
-		Pubkey:          takerpubkeyhash,
+		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
@@ -79,7 +75,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Data.GetCurrentState())
-	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, &CoopCloseMessage{SwapId: swapId})
+	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, &CoopCloseMessage{SwapId: swapId, Privkey: getRandom32ByteHexString()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +86,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	takerpubkeyhash := "abcdef"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
@@ -104,7 +98,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
-		Pubkey:          takerpubkeyhash,
+		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
@@ -125,9 +119,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	takerpubkeyhash := "abcdef"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 	FeePreimage := "err"
 
 	msgChan := make(chan PeerMessage)
@@ -140,7 +132,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
-		Pubkey:          takerpubkeyhash,
+		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})

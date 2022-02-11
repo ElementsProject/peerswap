@@ -1,6 +1,8 @@
 package swap
 
 import (
+	"encoding/hex"
+	"github.com/btcsuite/btcd/btcec"
 	"context"
 	"log"
 	"sync"
@@ -14,13 +16,11 @@ import (
 
 func Test_GoodCase(t *testing.T) {
 
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -38,7 +38,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "l-btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, btc_chain, channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -69,13 +69,11 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 
 	// set lightning to fail
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
@@ -116,13 +114,11 @@ func Test_FeePaymentFailed(t *testing.T) {
 	assert.Equal(t, State_SwapCanceled, bobSwap.Current)
 }
 func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -236,13 +232,11 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 }
 
 func TestMessageFromUnexpectedPeer(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -435,4 +429,18 @@ func (m *noopMessenger) SendMessage(peerId string, msg []byte, msgType int) erro
 }
 
 func (m *noopMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
+}
+
+func getTestParams() (pubkeyA, pubkeyB, takerPubkey, makerPubkey, scid string) {
+	return getRandom33ByteHexString(), getRandom33ByteHexString(), getRandom33ByteHexString(), getRandom33ByteHexString(), "100x2x3"
+}
+
+func getRandom33ByteHexString() string {
+	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	return hex.EncodeToString(privkey.PubKey().SerializeCompressed())
+}
+
+func getRandom32ByteHexString() string {
+	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	return hex.EncodeToString(privkey.Serialize())
 }

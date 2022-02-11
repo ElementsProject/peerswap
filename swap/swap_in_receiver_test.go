@@ -11,15 +11,14 @@ func Test_SwapInReceiverValid(t *testing.T) {
 
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
 		Amount:          swapAmount,
-		Pubkey:          "asd",
+		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
@@ -35,7 +34,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
 		Payreq:      "invoice",
-		TxId:        "",
+		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
 	})
@@ -57,8 +56,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
 	//initiator := "ab123"
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -66,7 +64,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
 		Amount:          swapAmount,
-		Pubkey:          "asd",
+		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
@@ -90,8 +88,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -99,7 +96,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
 		Amount:          swapAmount,
-		Pubkey:          "asd",
+		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
@@ -115,7 +112,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
 		Payreq:      "invoice",
-		TxId:        "",
+		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
 	})

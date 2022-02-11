@@ -32,11 +32,9 @@ func Test_SwapMarshalling(t *testing.T) {
 }
 func Test_ValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "ab123"
-	peer := "ba123"
-	takerpubkeyhash := "abcdef"
-	chanId := "baz"
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	FeeInvoice := "feeinv"
+	txId := getRandom32ByteHexString()
 	msgChan := make(chan PeerMessage)
 
 	timeOutD := &timeOutDummy{}
@@ -63,15 +61,18 @@ func Test_ValidSwap(t *testing.T) {
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
-	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{Payreq: FeeInvoice})
+	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
+		Payreq: FeeInvoice,
+		Pubkey: peer,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, swapFSM.Data.GetCurrentState())
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		Payreq:    "claiminv",
-		TxId:      "txid",
 		ScriptOut: 0,
+		TxId:      txId,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -82,16 +83,13 @@ func Test_ValidSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "txid", swapFSM.Data.OpeningTxBroadcasted.TxId)
+	assert.Equal(t, txId, swapFSM.Data.OpeningTxBroadcasted.TxId)
 
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
 func Test_Cancel2(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "foo"
-	peer := "bar"
-	takerpubkeyhash := "abcdef"
-	chanId := "baz"
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -118,10 +116,7 @@ func Test_Cancel2(t *testing.T) {
 }
 func Test_Cancel1(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "foo"
-	peer := "bar"
-	chanId := "baz"
-	takerpubkeyhash := "abcdef"
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
 
@@ -151,11 +146,8 @@ func Test_Cancel1(t *testing.T) {
 }
 func Test_AbortCsvClaim(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "foo"
-	peer := "bar"
-	chanId := "baz"
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	FeeInvoice := "feeinv"
-	takerpubkeyhash := "abcdef"
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -177,13 +169,17 @@ func Test_AbortCsvClaim(t *testing.T) {
 	assert.Equal(t, initiator, swapFSM.Data.InitiatorNodeId)
 	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
-	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{Payreq: FeeInvoice})
+	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
+		Payreq: FeeInvoice,
+		Pubkey: peer,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, swapFSM.Data.GetCurrentState())
 	_, err = swapFSM.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		Payreq: "claiminv",
+		TxId:   getRandom32ByteHexString(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +349,7 @@ func (d *dummyChain) GetOutputScript(params *OpeningParams) ([]byte, error) {
 	return []byte{}, nil
 }
 func (cl *dummyChain) GetAsset() string {
-	return "a420"
+	return getRandom32ByteHexString()
 }
 
 func (cl *dummyChain) GetNetwork() string {
@@ -361,19 +357,19 @@ func (cl *dummyChain) GetNetwork() string {
 }
 
 func (d *dummyChain) TxIdFromHex(txHex string) (string, error) {
-	return "txid", nil
+	return getRandom32ByteHexString(), nil
 }
 
 func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error) {
-	return "txid", "txhex", nil
+	return getRandom32ByteHexString(), "txhex", nil
 }
 
 func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
+	return getRandom32ByteHexString(), "txhex", nil
 }
 
 func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
+	return getRandom32ByteHexString(), "txhex", nil
 }
 
 func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) {
@@ -405,7 +401,7 @@ func (d *dummyChain) NewAddress() (string, error) {
 }
 
 func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
-	return "txid", "txhex", nil
+	return getRandom32ByteHexString(), "txhex", nil
 }
 
 func (d *dummyChain) AddConfirmationCallback(f func(swapId string, txHex string) error) {

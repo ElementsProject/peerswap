@@ -142,7 +142,11 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 	if eventCtx != nil {
 		err = eventCtx.Validate(s.Data)
 		if err != nil {
-			return s.SendEvent(Event_OnInvalid_Message, nil)
+			s.mutex.Unlock()
+			log.Printf("Invalid Message error: %v", err)
+			res, err := s.SendEvent(Event_OnInvalid_Message, nil)
+			s.mutex.Lock()
+			return res, err
 		}
 		err = eventCtx.ApplyToSwapData(s.Data)
 		if err != nil {

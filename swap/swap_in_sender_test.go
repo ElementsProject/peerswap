@@ -9,10 +9,8 @@ import (
 
 func Test_SwapInSenderValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "ab123"
-	peer := "ba123"
-	takerPubkeyHash := "taker"
-	chanId := "baz"
+
+	initiator, peer, takerPubkeyHash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	timeOutD := &timeOutDummy{}
@@ -56,9 +54,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 }
 func Test_SwapInSenderCancel1(t *testing.T) {
 	swapAmount := uint64(100)
-	initiator := "ab123"
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -87,10 +83,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 func Test_SwapInSenderCoopClose(t *testing.T) {
 
 	swapAmount := uint64(100)
-	initiator := "ab123"
-	peer := "ba123"
-	takerPubkeyHash := "taker"
-	chanId := "baz"
+	initiator, peer, takerPubkeyHash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -118,10 +111,11 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, msg.MessageType())
 	assert.Equal(t, State_SwapInSender_AwaitClaimPayment, swap.Current)
+
 	_, err = swap.SendEvent(Event_OnCoopCloseReceived, &CoopCloseMessage{
 		SwapId:  swap.SwapId,
 		Message: "",
-		Privkey: "",
+		Privkey: getRandom32ByteHexString(),
 	})
 	if err != nil {
 		t.Fatal(err)

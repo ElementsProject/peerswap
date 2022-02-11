@@ -1,15 +1,27 @@
 package swap
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/sputn1ck/peerswap/messages"
 )
 
 var (
-	AlreadyExistsError = errors.New("Message already exists")
+	AlreadyExistsError     = errors.New("Message already exists")
+	InvalidLengthError     = errors.New("Hex string is of invalid length")
+	InvalidNetworkError    = errors.New("Invalid network")
+	InvalidScidError       = errors.New("Invalid Scid")
+	AssetOrNetworkSetError = errors.New("Either asset or network must be set")
 )
+
+func NewInvalidLengthError(paramName string, expected, actual int) error {
+	return fmt.Errorf("Param %s is of invalid length expected: %v, actual %v", paramName, expected, actual)
+}
 
 type SwapInRequestMessage struct {
 	// ProtocolVersion is the version of the PeerSwap peer protocol the sending
@@ -40,6 +52,94 @@ func (s SwapInRequestMessage) MessageType() messages.MessageType {
 }
 
 func (s SwapInRequestMessage) Validate(swap *SwapData) error {
+	err := validateHexString("pubkey", s.Pubkey, 33)
+	if err != nil {
+		return err
+	}
+	err = validateAssetAndNetwork(s.Asset, s.Network)
+	if err != nil {
+		return err
+	}
+	if s.Asset != "" {
+		err = validateHexString("asset", s.Asset, 33)
+		if err != nil {
+			return err
+		}
+	}
+	if s.Network != "" {
+		err = validateNetwork(s.Network)
+		if err != nil {
+			return err
+		}
+	}
+	err = validateScid(s.Scid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateScid(scid string) error {
+	var prefix string
+	if strings.Contains(scid, "x") {
+		prefix = "x"
+	} else if strings.Contains(scid, ":") {
+		prefix = ":"
+	} else {
+		return InvalidScidError
+	}
+	parts := strings.Split(scid, prefix)
+	if len(parts) != 3 {
+		return InvalidScidError
+	}
+	_, err := strconv.Atoi(parts[0])
+	_, err = strconv.Atoi(parts[1])
+	_, err = strconv.Atoi(parts[2])
+	if err != nil {
+		return InvalidScidError
+	}
+	return nil
+}
+func validateAssetAndNetwork(asset string, network string) error {
+	if (asset == "" && network == "") || (asset != "" && network != "") {
+		return AssetOrNetworkSetError
+	}
+	if asset != "" {
+		err := validateHexString("asset", asset, 33)
+		if err != nil {
+			return err
+		}
+	}
+	if network != "" {
+		err := validateNetwork(network)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNetwork(network string) error {
+	switch network {
+	case "mainnet":
+		fallthrough
+	case "testnet":
+		fallthrough
+	case "signet":
+		fallthrough
+	case "regtest":
+		return nil
+	}
+	return InvalidNetworkError
+}
+func validateHexString(paramName, hexString string, expectedLength int) error {
+	data, err := hex.DecodeString(hexString)
+	if err != nil {
+		return err
+	}
+	if len(data) != expectedLength {
+		return NewInvalidLengthError(paramName, expectedLength, len(data))
+	}
 	return nil
 }
 
@@ -70,6 +170,11 @@ type SwapInAgreementMessage struct {
 }
 
 func (s SwapInAgreementMessage) Validate(swap *SwapData) error {
+	err := validateHexString("pubkey", s.Pubkey, 33)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -113,6 +218,18 @@ type SwapOutRequestMessage struct {
 }
 
 func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
+	err := validateHexString("pubkey", s.Pubkey, 33)
+	if err != nil {
+		return err
+	}
+	err = validateAssetAndNetwork(s.Asset, s.Network)
+	if err != nil {
+		return err
+	}
+	err = validateScid(s.Scid)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -147,6 +264,10 @@ type SwapOutAgreementMessage struct {
 }
 
 func (s SwapOutAgreementMessage) Validate(swap *SwapData) error {
+	err := validateHexString("pubkey", s.Pubkey, 33)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -185,7 +306,14 @@ type OpeningTxBroadcastedMessage struct {
 
 func (s OpeningTxBroadcastedMessage) Validate(swap *SwapData) error {
 	if swap.GetChain() == l_btc_chain {
-		// check blinding key
+		err := validateHexString("blinding_key", s.BlindingKey, 32)
+		if err != nil {
+			return err
+		}
+	}
+	err := validateHexString("txId", s.TxId, 32)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -240,6 +368,10 @@ func (c CoopCloseMessage) MessageType() messages.MessageType {
 }
 
 func (s CoopCloseMessage) Validate(swap *SwapData) error {
+	err := validateHexString("privkey", s.Privkey, 32)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
