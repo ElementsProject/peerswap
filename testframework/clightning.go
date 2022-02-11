@@ -1,6 +1,7 @@
 package testframework
 
 import (
+	"crypto/rand"
 	"fmt"
 	"log"
 	"math"
@@ -338,7 +339,7 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 	}
 
 	if waitForActiveChannel || confirm {
-		n.bitcoin.GenerateBlocks(1)
+		n.bitcoin.GenerateBlocks(10)
 	}
 
 	if waitForActiveChannel {
@@ -419,6 +420,28 @@ func (n *CLightningNode) IsConnected(remote LightningNode) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func (n *CLightningNode) AddInvoice(amtSat uint64, desc, label string) (payreq string, err error) {
+	if label == "" {
+		var labelBytes = make([]byte, 5)
+		_, err := rand.Read(labelBytes)
+		if err != nil {
+			return "", err
+		}
+		label = string(labelBytes)
+	}
+
+	inv, err := n.Rpc.Invoice(amtSat*1000, label, desc)
+	if err != nil {
+		return "", nil
+	}
+	return inv.Bolt11, nil
+}
+
+func (n *CLightningNode) PayInvoice(payreq string) error {
+	_, err := n.Rpc.PayBolt(payreq)
+	return err
 }
 
 func (n *CLightningNode) GetDataDir() string {

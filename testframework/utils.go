@@ -124,16 +124,71 @@ func waitForChannelBalance(t *testing.T, node LightningNode, scid string, expect
 	return float64(actual), err
 }
 
+type PortMap struct {
+	sync.Mutex
+	ports map[int]struct{}
+}
+
+var usedPorts = &PortMap{ports: make(map[int]struct{})}
+
 func GetFreePort() (port int, err error) {
 	var a *net.TCPAddr
-	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
-		var l *net.TCPListener
-		if l, err = net.ListenTCP("tcp", a); err == nil {
-			defer l.Close()
+	var l *net.TCPListener
+
+	var esc int
+	for {
+		if esc >= 10 {
+			return 0, fmt.Errorf("could not find a free port in 10 tries/")
+		}
+
+		a, err = net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return
+		}
+
+		l, err = net.ListenTCP("tcp", a)
+		if err != nil {
+			return
+		}
+
+		// Check if port is registered by us.
+		usedPorts.Lock()
+		if _, ok := usedPorts.ports[l.Addr().(*net.TCPAddr).Port]; !ok {
+			// Not registered -> register it.
+			usedPorts.ports[l.Addr().(*net.TCPAddr).Port] = struct{}{}
+			usedPorts.Unlock()
+			l.Close()
 			return l.Addr().(*net.TCPAddr).Port, nil
 		}
+		// Is registered -> continue
+		usedPorts.Unlock()
+		l.Close()
+		esc++
 	}
-	return
+}
+
+func FreePort(port int) {
+	usedPorts.Lock()
+	defer usedPorts.Unlock()
+	delete(usedPorts.ports, port)
+}
+
+func GetFreePorts(n int) ([]int, error) {
+	var ports []int
+	for i := 0; i < n; i++ {
+		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return nil, err
+		}
+
+		l, err := net.ListenTCP("tcp", a)
+		if err != nil {
+			return nil, err
+		}
+		defer l.Close()
+		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
+	}
+	return ports, nil
 }
 
 func GenerateRandomString(n int) (string, error) {
