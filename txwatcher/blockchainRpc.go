@@ -9,6 +9,14 @@ type ElementsBlockChainRpc struct {
 	ecli *gelements.Elements
 }
 
+func (e *ElementsBlockChainRpc) GetBlockHeightByHash(blockhash string) (uint32, error) {
+	res, err := e.ecli.GetBlockHeader(blockhash)
+	if err != nil {
+		return 0, err
+	}
+	return res.Height, nil
+}
+
 func NewElementsCli(ecli *gelements.Elements) *ElementsBlockChainRpc {
 	return &ElementsBlockChainRpc{ecli: ecli}
 }
@@ -28,6 +36,7 @@ func (e *ElementsBlockChainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, 
 	return &TxOutResp{
 		Confirmations: txout.Confirmations,
 		Value:         txout.Value,
+		BestBlockHash: txout.BestBlockHash,
 	}, nil
 }
 
@@ -66,7 +75,16 @@ func (b *BitcoinBlockchainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, e
 	return &TxOutResp{
 		Confirmations: txout.Confirmations,
 		Value:         txout.Value,
+		BestBlockHash: txout.BestBlockHash,
 	}, nil
+}
+
+func (b *BitcoinBlockchainRpc) GetBlockHeightByHash(blockhash string) (uint32, error) {
+	res, err := b.bcli.GetBlockHeader(blockhash)
+	if err != nil {
+		return 0, err
+	}
+	return res.Height, nil
 }
 
 func (b *BitcoinBlockchainRpc) String() string {

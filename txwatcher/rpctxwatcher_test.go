@@ -78,6 +78,10 @@ type DummyBlockchain struct {
 	nextTxOutResp   *TxOutResp
 }
 
+func (d *DummyBlockchain) GetBlockHeightByHash(blockhash string) (uint32, error) {
+	return 1, nil
+}
+
 func (d *DummyBlockchain) GetBlockHash(height uint32) (string, error) {
 	return "blockhash", nil
 }

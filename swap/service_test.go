@@ -1,9 +1,9 @@
 package swap
 
 import (
+	"context"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec"
-	"context"
 	"log"
 	"sync"
 	"testing"
