@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -282,7 +283,7 @@ func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (pre
 		return "", err
 	}
 	if Bolt11.MilliSatoshis > 4000000000 {
-		preimage, err = cl.MppPayment(payreq, channel, Bolt11)
+		preimage, err = MppPayment(cl, cl.glightning, payreq, channel, Bolt11)
 		if err != nil {
 			return "", err
 		}
@@ -301,43 +302,66 @@ func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (pre
 	return preimage, nil
 }
 
+type MppPayer interface {
+	SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error)
+}
+type PayWaiter interface {
+	WaitSendPayPart(paymentHash string, timeout uint, partId uint64) (*glightning.SendPayFields, error)
+}
+
 // MppPayment splits the payment in parts and waits for the payments to finish
-func (cl *ClightningClient) MppPayment(payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
+func MppPayment(mppPayer MppPayer, payWaiter PayWaiter, payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
 	label := randomString()
-	var preimage string
 
 	splits := Bolt11.MilliSatoshis / paymentSplitterMsat
 
-	log.Printf("millisats: %v splitter: %v, splits: %v", Bolt11.MilliSatoshis, paymentSplitterMsat, splits)
+	var payments []uint64
+
 	var i uint64
 	for i = 1; i < splits+1; i++ {
-		split := i
-		_, err := cl.SendPayChannel(payreq, Bolt11, paymentSplitterMsat, channel, fmt.Sprintf("%s%v", label, i), split)
-		if err != nil {
-			return "", err
-		}
+		payments = append(payments, paymentSplitterMsat)
 	}
 	remainingSats := Bolt11.MilliSatoshis - splits*paymentSplitterMsat
 	if remainingSats > 0 {
-		split := i
-		_, err := cl.SendPayChannel(payreq, Bolt11, remainingSats, channel, fmt.Sprintf("%s%v", label, i), split)
+		payments = append(payments, remainingSats)
+	}
+	resChan := make(chan *glightning.SendPayFields, len(payments))
+	errChan := make(chan error, len(payments))
+	wg := sync.WaitGroup{}
+	for j, v := range payments {
+		_, err := mppPayer.SendPayChannel(payreq, Bolt11, v, channel, fmt.Sprintf("%s%v", label, uint64(i+1)), uint64(i+1))
 		if err != nil {
 			return "", err
 		}
-	} else {
-		i--
+
+		wg.Add(1)
+		go func(paymentPart uint64, value uint64) {
+			defer wg.Done()
+			res, err := payWaiter.WaitSendPayPart(Bolt11.PaymentHash, 30, paymentPart)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			resChan <- res
+		}(uint64(j+1), v)
 	}
-	res, err := cl.glightning.WaitSendPayPart(Bolt11.PaymentHash, 30, i)
-	if err != nil {
-		return "", err
+
+	wg.Wait()
+
+	for {
+		select {
+		case res := <-resChan:
+			if res.PaymentPreimage != "" {
+				return res.PaymentPreimage, nil
+			}
+		case err := <-errChan:
+			return "", err
+		}
 	}
-	preimage = res.PaymentPreimage
-	return preimage, nil
 }
 
 // SendPayChannel sends a payment through a specific channel
 func (cl *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error) {
-
 	satString := fmt.Sprintf("%smsat", strconv.FormatUint(amountMsat, 10))
 	res, err := cl.glightning.SendPay(
 		[]glightning.RouteHop{
