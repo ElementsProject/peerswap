@@ -13,15 +13,17 @@ import (
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
-var LND_CONFIG = map[string]string{
-	"bitcoin.active":           "true",
-	"bitcoin.regtest":          "true",
-	"bitcoin.node":             "bitcoind",
-	"bitcoin.defaultchanconfs": "1",
-	"noseedbackup":             "true",
-	"norest":                   "true",
-	"debuglevel":               "debug",
-	"trickledelay":             "1800",
+func getLndConfig() map[string]string {
+	return map[string]string{
+		"bitcoin.active":           "true",
+		"bitcoin.regtest":          "true",
+		"bitcoin.node":             "bitcoind",
+		"bitcoin.defaultchanconfs": "1",
+		"noseedbackup":             "true",
+		"norest":                   "true",
+		"debuglevel":               "debug",
+		"trickledelay":             "1800",
+	}
 }
 
 type LndNode struct {
@@ -65,7 +67,7 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 		return nil, fmt.Errorf("os.MkdirAll() %w", err)
 	}
 
-	regtestConfig := LND_CONFIG
+	regtestConfig := getLndConfig()
 	regtestConfig["lnddir"] = lndDir
 	regtestConfig["datadir"] = dataDir
 	regtestConfig["listen"] = fmt.Sprintf("localhost:%d", listen)

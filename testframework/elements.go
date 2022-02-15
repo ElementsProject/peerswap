@@ -13,21 +13,25 @@ const (
 	BTC_BURN  = "2N61yGL5ZBy3yaiEM8312CuG78CBNQMWE4Y"
 )
 
-var BITCOIND_CONFIG = map[string]string{
-	"regtest":     "1",
-	"rpcuser":     "rpcuser",
-	"rpcpassword": "rpcpass",
-	"fallbackfee": "0.00001",
+func getBitcoindConfig() map[string]string {
+	return map[string]string{
+		"regtest":     "1",
+		"rpcuser":     "rpcuser",
+		"rpcpassword": "rpcpass",
+		"fallbackfee": "0.00001",
+	}
 }
 
-var LIQUIDD_CONFIG = map[string]string{
-	"listen":           "1",
-	"rpcuser":          "rpcuser",
-	"rpcpassword":      "rpcpass",
-	"fallbackfee":      "0.00001",
-	"initialfreecoins": "2100000000000000",
-	"validatepegin":    "0",
-	"chain":            "liquidregtest",
+func getLiquiddConfig() map[string]string {
+	return map[string]string{
+		"listen":           "1",
+		"rpcuser":          "rpcuser",
+		"rpcpassword":      "rpcpass",
+		"fallbackfee":      "0.00001",
+		"initialfreecoins": "2100000000000000",
+		"validatepegin":    "0",
+		"chain":            "liquidregtest",
+	}
 }
 
 type BitcoinNode struct {
@@ -90,12 +94,12 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 		"-addresstype=bech32",
 	}
 
-	bitcoinConfig := BITCOIND_CONFIG
+	bitcoinConfig := getBitcoindConfig()
 	bitcoinConfig["zmqpubrawblock"] = zmqpubrawblock
 	bitcoinConfig["zmqpubrawtx"] = zmqpubrawtx
 	regtestConfig := map[string]string{"rpcport": strconv.Itoa(rpcPort)}
 	configFile := filepath.Join(dataDir, "bitcoin.conf")
-	WriteConfig(configFile, BITCOIND_CONFIG, regtestConfig, "regtest")
+	WriteConfig(configFile, bitcoinConfig, regtestConfig, "regtest")
 
 	proxy, err := NewRpcProxy(configFile)
 	if err != nil {
@@ -108,8 +112,8 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 		DataDir:        dataDir,
 		ConfigFile:     configFile,
 		RpcPort:        rpcPort,
-		RpcUser:        BITCOIND_CONFIG["rpcuser"],
-		RpcPassword:    BITCOIND_CONFIG["rpcpassword"],
+		RpcUser:        bitcoinConfig["rpcuser"],
+		RpcPassword:    bitcoinConfig["rpcpassword"],
 		WalletName:     "lightningd-tests",
 		ZmqPubRawBlock: zmqpubrawblock,
 		ZmqPubRawTx:    zmqpubrawtx,
@@ -246,10 +250,11 @@ func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, e
 		fmt.Sprintf("-datadir=%s", dataDir),
 	}
 
-	config := LIQUIDD_CONFIG
+	config := getLiquiddConfig()
+	bitcoindConfig := getBitcoindConfig()
 	config["mainchainrpcport"] = strconv.Itoa(bitcoin.RpcPort)
-	config["mainchainrpcuser"] = BITCOIND_CONFIG["rpcuser"]
-	config["mainchainrpcpassword"] = BITCOIND_CONFIG["rpcpassword"]
+	config["mainchainrpcuser"] = bitcoindConfig["rpcuser"]
+	config["mainchainrpcpassword"] = bitcoindConfig["rpcpassword"]
 
 	regtestConfig := map[string]string{"rpcport": strconv.Itoa(rpcPort), "port": strconv.Itoa(port)}
 	configFile := filepath.Join(dataDir, "elements.conf")
@@ -268,8 +273,8 @@ func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, e
 		RpcPort:       rpcPort,
 		Port:          port,
 		WalletName:    "liquidwallet",
-		RpcUser:       LIQUIDD_CONFIG["rpcuser"],
-		RpcPassword:   LIQUIDD_CONFIG["rpcpassword"],
+		RpcUser:       config["rpcuser"],
+		RpcPassword:   config["rpcpassword"],
 		Network:       config["chain"],
 		bitcoin:       bitcoin,
 	}, nil

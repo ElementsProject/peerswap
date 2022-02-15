@@ -23,8 +23,24 @@ test: build-with-fast-test
 .PHONY: test
 
 test-integration: build-with-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v ./test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v ./test 
 .PHONY: test-integration
+
+test-bitcoin-cln: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_ClnCln_Bitcoin_SwapOut|Test_ClnCln_Bitcoin_SwapIn|Test_ClnLnd_Bitcoin_SwapOut|Test_ClnLnd_Bitcoin_SwapIn)$'' github.com/sputn1ck/peerswap/test
+.PHONY: test-bitcoin-cln
+
+test-bitcoin-lnd: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_LndLnd_Bitcoin_SwapOut|Test_LndLnd_Bitcoin_SwapIn|Test_LndCln_Bitcoin_SwapOut|Test_LndCln_Bitcoin_SwapIn)$'' github.com/sputn1ck/peerswap/test
+.PHONY: test-liquid-lnd
+
+test-liquid-cln: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_ClnCln_Liquid_SwapOut|Test_ClnCln_Liquid_SwapIn|Test_ClnLnd_Liquid_SwapOut|Test_ClnLnd_Liquid_SwapIn)$'' github.com/sputn1ck/peerswap/test
+.PHONY: test-liquid-cln
+
+test-liquid-lnd: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_LndLnd_Liquid_SwapOut|Test_LndLnd_Liquid_SwapIn|Test_LndCln_Liquid_SwapOut|Test_LndCln_Liquid_SwapIn)$'' github.com/sputn1ck/peerswap/test
+.PHONY: test-liquid-lnd
 
 lnd-release:
 	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
