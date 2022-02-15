@@ -10,7 +10,7 @@ require (
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
 	github.com/lightningnetwork/lnd v0.14.1-beta
 	github.com/onsi/gomega v1.5.0 // indirect
-	github.com/sputn1ck/glightning v0.8.3-0.20211026092153-719e345cf2cd
+	github.com/sputn1ck/glightning v0.8.3-0.20220215131235-d96eb4c98439
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.2-0.20191024042601-850de854cda0
 	github.com/vulpemventures/go-elements v0.3.4

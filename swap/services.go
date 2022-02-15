@@ -2,6 +2,7 @@ package swap
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	btc_asset   = "btc"
-	l_btc_asset = "l-btc"
+	btc_chain   = "btc"
+	l_btc_chain = "l-btc"
 )
 
 type Messenger interface {
@@ -33,12 +34,12 @@ type Policy interface {
 	GetReserveOnchainMsat() uint64
 }
 
-// todo add check if invoice paid dinges
 type LightningClient interface {
 	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
-	GetPayreq(msatAmount uint64, preimage string, label string, expirySeconds uint64) (string, error)
-	AddPaymentCallback(f func(paymentLabel string))
+	GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expirySeconds uint64) (string, error)
+	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
+	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) (alreadyPaid bool)
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 
@@ -53,6 +54,7 @@ type TxWatcher interface {
 type Validator interface {
 	TxIdFromHex(txHex string) (string, error)
 	ValidateTx(swapParams *OpeningParams, txHex string) (bool, error)
+	GetCSVHeight() uint32
 }
 
 type Wallet interface {
@@ -62,6 +64,7 @@ type Wallet interface {
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error)
 	CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error)
 	GetOutputScript(params *OpeningParams) ([]byte, error)
+	EstimateTxFee(txSize uint64) (uint64, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
 	GetAsset() string
@@ -69,8 +72,8 @@ type Wallet interface {
 }
 
 type OpeningParams struct {
-	TakerPubkeyHash  string
-	MakerPubkeyHash  string
+	TakerPubkey      string
+	MakerPubkey      string
 	ClaimPaymentHash string
 	Amount           uint64
 	BlindingKey      *btcec.PrivateKey
@@ -78,7 +81,11 @@ type OpeningParams struct {
 }
 
 func (o *OpeningParams) String() string {
-	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v", o.TakerPubkeyHash, o.MakerPubkeyHash, o.ClaimPaymentHash, o.Amount)
+	var bk string
+	if o.BlindingKey != nil {
+		bk = string(o.BlindingKey.Serialize())
+	}
+	return fmt.Sprintf("takerpkh: %s, makerpkh: %s, claimPhash: %s amount: %v, blindingKey: %s", o.TakerPubkey, o.MakerPubkey, o.ClaimPaymentHash, o.Amount, bk)
 }
 
 type ClaimParams struct {
@@ -90,6 +97,10 @@ type ClaimParams struct {
 	BlindingSeed              []byte
 	OutputAssetBlindingFactor []byte
 	EphemeralKey              *btcec.PrivateKey
+}
+
+func (o *ClaimParams) String() string {
+	return fmt.Sprintf("preimage %s, openingtxHex %s", hex.EncodeToString([]byte(o.Preimage)), o.OpeningTxHex)
 }
 
 type Signer interface {
@@ -155,10 +166,10 @@ func (s *SwapServices) getOnChainServices(asset string) (TxWatcher, Wallet, Vali
 	if asset == "" {
 		return nil, nil, nil, fmt.Errorf("missing asset")
 	}
-	if asset == btc_asset {
+	if asset == btc_chain {
 		return s.bitcoinTxWatcher, s.bitcoinWallet, s.bitcoinValidator, nil
 	}
-	if asset == l_btc_asset {
+	if asset == l_btc_chain {
 		return s.liquidTxWatcher, s.liquidWallet, s.liquidValidator, nil
 	}
 	return nil, nil, nil, WrongAssetError(asset)

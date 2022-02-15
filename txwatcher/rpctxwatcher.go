@@ -13,6 +13,7 @@ type BlockchainRpc interface {
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
 	GetBlockHash(height uint32) (string, error)
 	GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error)
+	GetBlockHeightByHash(blockhash string) (uint32, error)
 }
 
 type TxOutResp struct {
@@ -282,10 +283,8 @@ func (l *BlockchainRpcTxWatcher) AddCsvCallback(f func(swapId string) error) {
 	l.csvPassedCallback = f
 }
 
-// todo remove race condition with
-// https://bitcoin.stackexchange.com/questions/108444/get-raw-transaction-from-tx-id-without-txindex-1/108451#108451
 func (l *BlockchainRpcTxWatcher) TxHexFromId(resp *TxOutResp, txId string) (string, error) {
-	blockheight, err := l.blockchain.GetBlockHeight()
+	blockheight, err := l.blockchain.GetBlockHeightByHash(resp.BestBlockHash)
 	if err != nil {
 		return "", err
 	}

@@ -61,6 +61,37 @@ func WaitForWithErr(f WaitFuncWithErr, timeout time.Duration) error {
 	}
 }
 
+// RequireWaitForBalanceChange waits for a change from the before value until
+// timeout. Fatals the test.
+func RequireWaitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) {
+	if err := waitForBalanceChange(t, node, scid, before, timeout); err != nil {
+		t.Fatalf("expected: balance change from: %d", before)
+	}
+}
+
+// AssertWaitForBalanceChange waits for a change form the before value until
+// timeout. Returns false if timeout was triggered and fails the test.
+func AssertWaitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) bool {
+	err := waitForBalanceChange(t, node, scid, before, timeout)
+	if err != nil {
+		t.Logf("expected balance change from: %d", before)
+		t.Fail()
+		return false
+	}
+	return true
+}
+
+func waitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) error {
+	return WaitFor(func() bool {
+		current, err := node.GetChannelBalanceSat(scid)
+		if err != nil {
+			t.Fatalf("got err %v", err)
+		}
+
+		return current != before
+	}, timeout)
+}
+
 func AssertWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) bool {
 	actual, err := waitForChannelBalance(t, node, scid, expected, delta, timeout)
 	if err != nil {
@@ -93,16 +124,71 @@ func waitForChannelBalance(t *testing.T, node LightningNode, scid string, expect
 	return float64(actual), err
 }
 
+type PortMap struct {
+	sync.Mutex
+	ports map[int]struct{}
+}
+
+var usedPorts = &PortMap{ports: make(map[int]struct{})}
+
 func GetFreePort() (port int, err error) {
 	var a *net.TCPAddr
-	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
-		var l *net.TCPListener
-		if l, err = net.ListenTCP("tcp", a); err == nil {
-			defer l.Close()
+	var l *net.TCPListener
+
+	var esc int
+	for {
+		if esc >= 10 {
+			return 0, fmt.Errorf("could not find a free port in 10 tries/")
+		}
+
+		a, err = net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return
+		}
+
+		l, err = net.ListenTCP("tcp", a)
+		if err != nil {
+			return
+		}
+
+		// Check if port is registered by us.
+		usedPorts.Lock()
+		if _, ok := usedPorts.ports[l.Addr().(*net.TCPAddr).Port]; !ok {
+			// Not registered -> register it.
+			usedPorts.ports[l.Addr().(*net.TCPAddr).Port] = struct{}{}
+			usedPorts.Unlock()
+			l.Close()
 			return l.Addr().(*net.TCPAddr).Port, nil
 		}
+		// Is registered -> continue
+		usedPorts.Unlock()
+		l.Close()
+		esc++
 	}
-	return
+}
+
+func FreePort(port int) {
+	usedPorts.Lock()
+	defer usedPorts.Unlock()
+	delete(usedPorts.ports, port)
+}
+
+func GetFreePorts(n int) ([]int, error) {
+	var ports []int
+	for i := 0; i < n; i++ {
+		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return nil, err
+		}
+
+		l, err := net.ListenTCP("tcp", a)
+		if err != nil {
+			return nil, err
+		}
+		defer l.Close()
+		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
+	}
+	return ports, nil
 }
 
 func GenerateRandomString(n int) (string, error) {

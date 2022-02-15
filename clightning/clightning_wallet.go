@@ -220,3 +220,7 @@ func (cl *ClightningClient) GetAsset() string {
 func (cl *ClightningClient) GetNetwork() string {
 	return cl.bitcoinChain.GetChain().Name
 }
+
+func (cl *ClightningClient) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	return cl.bitcoinChain.GetFee(250)
+}

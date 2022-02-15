@@ -2,12 +2,13 @@ package swap
 
 import (
 	"context"
+	"encoding/hex"
+	"github.com/btcsuite/btcd/btcec"
 	"log"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,13 +16,11 @@ import (
 
 func Test_GoodCase(t *testing.T) {
 
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -39,7 +38,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "l-btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, btc_chain, channelId, initiator, amount)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -52,9 +51,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -68,19 +65,15 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, aliceSwap.Current)
 
 	// trigger bob payment received
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "claim_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_CLAIM)
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 
 	// set lightning to fail
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
@@ -121,13 +114,11 @@ func Test_FeePaymentFailed(t *testing.T) {
 	assert.Equal(t, State_SwapCanceled, bobSwap.Current)
 }
 func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -159,9 +150,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -190,32 +179,22 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	service.AddActiveSwap("swapid", &SwapStateMachine{
 		Id: "swapid",
 		Data: &SwapData{
-			Id:                     "swapid",
-			Type:                   0,
-			FSMState:               "",
-			Role:                   0,
-			CreatedAt:              0,
-			InitiatorNodeId:        "",
-			PeerNodeId:             "",
-			Amount:                 0,
-			Scid:                   "channelID",
-			PrivkeyBytes:           []byte{},
-			ClaimInvoice:           "",
-			ClaimPreimage:          "",
-			ClaimPaymentHash:       "",
-			MakerPubkeyHash:        "",
-			TakerPubkeyHash:        "",
-			FeeInvoice:             "",
-			FeePreimage:            "",
-			OpeningTxId:            "",
-			OpeningTxUnpreparedHex: "",
-			OpeningTxVout:          0,
-			OpeningTxFee:           0,
-			OpeningTxHex:           "",
-			ClaimTxId:              "",
-			CancelMessage:          "",
-			LastErr:                nil,
-			LastErrString:          "",
+			FSMState:         "",
+			Role:             0,
+			CreatedAt:        0,
+			InitiatorNodeId:  "",
+			PeerNodeId:       "",
+			PrivkeyBytes:     []byte{},
+			ClaimPreimage:    "",
+			ClaimPaymentHash: "",
+			FeePreimage:      "",
+			OpeningTxFee:     0,
+			OpeningTxHex:     "",
+			ClaimTxId:        "",
+			CancelMessage:    "",
+			LastErr:          nil,
+			LastErrString:    "",
+			SwapInRequest:    &SwapInRequestMessage{Scid: "channelID"},
 		},
 		Type:     0,
 		Role:     0,
@@ -253,13 +232,11 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 }
 
 func TestMessageFromUnexpectedPeer(t *testing.T) {
-	channelId := "chanId"
 	amount := uint64(100)
-	peer := "bob"
-	initiator := "alice"
+	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup("alice")
-	bobSwapService := getTestSetup("bob")
+	aliceSwapService := getTestSetup(initiator)
+	bobSwapService := getTestSetup(peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -291,9 +268,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(&glightning.Payment{
-		Label: "fee_" + bobSwap.Id,
-	})
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -352,7 +327,7 @@ func TestTimeout(t *testing.T) {
 	sws.swapServices.messenger = &noopMessenger{}
 	sws.Start()
 
-	fsm := newSwapInSenderFSM(sws.swapServices)
+	fsm := newSwapInSenderFSM(sws.swapServices, "alice", "bob")
 	sws.AddActiveSwap(fsm.Id, fsm)
 
 	fsm.Current = State_SwapInSender_AwaitAgreement
@@ -386,7 +361,7 @@ func getTestSetup(name string) *SwapService {
 	mmgr := &MessengerManagerStub{}
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
-	chain := &dummyChain{}
+	chain := &dummyChain{returnGetCSVHeight: 1008}
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
 	swapService := NewSwapService(swapServices)
 	return swapService
@@ -454,4 +429,18 @@ func (m *noopMessenger) SendMessage(peerId string, msg []byte, msgType int) erro
 }
 
 func (m *noopMessenger) AddMessageHandler(f func(peerId string, msgType string, msgBytes []byte) error) {
+}
+
+func getTestParams() (pubkeyA, pubkeyB, takerPubkey, makerPubkey, scid string) {
+	return getRandom33ByteHexString(), getRandom33ByteHexString(), getRandom33ByteHexString(), getRandom33ByteHexString(), "100x2x3"
+}
+
+func getRandom33ByteHexString() string {
+	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	return hex.EncodeToString(privkey.PubKey().SerializeCompressed())
+}
+
+func getRandom32ByteHexString() string {
+	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	return hex.EncodeToString(privkey.Serialize())
 }

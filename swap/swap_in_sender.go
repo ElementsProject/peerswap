@@ -1,149 +1,5 @@
 package swap
 
-import (
-	"context"
-	"encoding/hex"
-	"log"
-	"time"
-
-	"github.com/sputn1ck/peerswap/lightning"
-)
-
-// SwapInSenderCreateSwapAction creates the swap data
-type SwapInSenderCreateSwapAction struct{}
-
-func (s *SwapInSenderCreateSwapAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	newSwap := NewSwap(swap.Id, swap.SwapId, swap.Chain, swap.ElementsAsset, swap.BitcoinNetwork, SWAPTYPE_IN, SWAPROLE_SENDER, swap.Amount, swap.InitiatorNodeId, swap.PeerNodeId, swap.Scid, swap.ProtocolVersion)
-	*swap = *newSwap
-
-	pubkey := swap.GetPrivkey().PubKey()
-
-	swap.Role = SWAPROLE_SENDER
-	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
-
-	// This is needed to parse the SwapId string from the database
-	swapId, err := ParseSwapIdFromString(swap.Id)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&SwapInRequestMessage{
-		ProtocolVersion: swap.ProtocolVersion,
-		SwapId:          swapId,
-		Asset:           swap.ElementsAsset,
-		Scid:            swap.Scid,
-		Amount:          swap.Amount,
-		Pubkey:          swap.MakerPubkeyHash,
-		Network:         swap.BitcoinNetwork,
-	})
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	swap.NextMessage = nextMessage
-	swap.NextMessageType = nextMessageType
-
-	toCtx, cancel := context.WithCancel(context.Background())
-	swap.toCancel = cancel
-	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swapId.String())
-	return Event_ActionSucceeded
-}
-
-type CreateAndBroadcastOpeningTransaction struct{}
-
-func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
-	txWatcher, wallet, _, err := services.getOnChainServices(swap.Chain)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	pubkey := swap.GetPrivkey().PubKey()
-
-	swap.Role = SWAPROLE_SENDER
-	swap.MakerPubkeyHash = hex.EncodeToString(pubkey.SerializeCompressed())
-	// Generate Preimage
-	preimage, err := lightning.GetPreimage()
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	pHash := preimage.Hash()
-	expiry := uint64(3600)
-	if swap.Chain == "btc" {
-		expiry = 3600 * 24
-	}
-	payreq, err := services.lightning.GetPayreq((swap.Amount)*1000, preimage.String(), "claim_"+swap.Id, expiry)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	swap.ClaimInvoice = payreq
-	swap.ClaimPreimage = preimage.String()
-	swap.ClaimPaymentHash = pHash.String()
-
-	err = CreateOpeningTransaction(services, swap)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	txId, txHex, err := wallet.BroadcastOpeningTx(swap.OpeningTxUnpreparedHex)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	startingHeight, err := txWatcher.GetBlockHeight()
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.StartingBlockHeight = startingHeight
-
-	swap.OpeningTxHex = txHex
-	swap.OpeningTxId = txId
-
-	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&OpeningTxBroadcastedMessage{
-		SwapId:      swap.SwapId,
-		Payreq:      swap.ClaimInvoice,
-		TxId:        txId,
-		ScriptOut:   swap.OpeningTxVout,
-		BlindingKey: swap.BlindingKeyHex,
-	})
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	swap.NextMessage = nextMessage
-	swap.NextMessageType = nextMessageType
-
-	return Event_ActionSucceeded
-}
-
-type StopSendMessageWithRetryWrapperAction struct {
-	next Action
-}
-
-func (a StopSendMessageWithRetryWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	// Stop sending repeated messages
-	services.messengerManager.RemoveSender(swap.Id)
-
-	// Call next Action
-	return a.next.Execute(services, swap)
-}
-
-// AwaitCsvAction adds the opening tx to the txwatcher
-type AwaitCsvAction struct{}
-
-//todo this will never throw an error
-func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	onchain, wallet, _, err := services.getOnChainServices(swap.Chain)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	log.Printf("opening params: %s", swap.GetOpeningParams())
-	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
-	if err != nil {
-		return swap.HandleError(err)
-	}
-
-	onchain.AddWaitForCsvTx(swap.Id, swap.OpeningTxId, swap.OpeningTxVout, swap.StartingBlockHeight, wantScript)
-	return NoOp
-}
-
 // swapInSenderFromStore recovers a swap statemachine from the swap store
 func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
@@ -152,7 +8,7 @@ func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *Sw
 }
 
 // newSwapInSenderFSM returns a new swap statemachine for a swap-in sender
-func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
+func newSwapInSenderFSM(services *SwapServices, initiatorNodeId, peerNodeId string) *SwapStateMachine {
 	swapId := NewSwapId()
 	return &SwapStateMachine{
 		Id:           swapId.String(),
@@ -161,7 +17,7 @@ func newSwapInSenderFSM(services *SwapServices) *SwapStateMachine {
 		Type:         SWAPTYPE_IN,
 		Role:         SWAPROLE_SENDER,
 		States:       getSwapInSenderStates(),
-		Data:         &SwapData{},
+		Data:         NewSwapData(swapId, initiatorNodeId, peerNodeId),
 	}
 }
 
@@ -174,11 +30,12 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_CreateSwap: {
-			Action: &SwapInSenderCreateSwapAction{},
+			Action: &SetBlindingKeyActionWrapper{next: &CreateSwapRequestAction{}},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapInSender_SendRequest,
 				Event_ActionFailed:    State_SwapCanceled,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapInSender_SendRequest: {
 			Action: &SendMessageAction{},
@@ -193,6 +50,7 @@ func getSwapInSenderStates() States {
 				Event_OnCancelReceived:                 State_SwapCanceled,
 				Event_OnTimeout:                        State_SendCancel,
 				Event_SwapInSender_OnAgreementReceived: State_SwapInSender_BroadcastOpeningTx,
+				Event_OnInvalid_Message:                State_SendCancel,
 			},
 		},
 		State_SwapInSender_BroadcastOpeningTx: {
@@ -210,12 +68,13 @@ func getSwapInSenderStates() States {
 			},
 		},
 		State_SwapInSender_AwaitClaimPayment: {
-			Action: &AwaitCsvAction{},
+			Action: &AwaitPaymentOrCsvAction{},
 			Events: Events{
 				Event_OnClaimInvoicePaid:  State_ClaimedPreimage,
 				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
 				Event_OnCancelReceived:    State_WaitCsv,
 				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
+				Event_OnInvalid_Message:   State_WaitCsv,
 			},
 		},
 		State_SwapInSender_ClaimSwapCsv: {
@@ -235,7 +94,8 @@ func getSwapInSenderStates() States {
 		State_WaitCsv: {
 			Action: &StopSendMessageWithRetryWrapperAction{next: &AwaitCsvAction{}},
 			Events: Events{
-				Event_OnCsvPassed: State_SwapInSender_ClaimSwapCsv,
+				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
+				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 			},
 		},
 		State_SendCancel: {

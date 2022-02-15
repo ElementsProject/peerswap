@@ -10,80 +10,72 @@ import (
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	takerpubkeyhash := "abcdef"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		takerPubkeyHash: takerpubkeyhash,
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Pubkey:          takerPubkeyHash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, peer, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
-	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutAgreement.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Current)
 	_, err = swapFSM.SendEvent(Event_OnClaimInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, State_ClaimedPreimage, swapFSM.Current)
 
 }
 func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	initiator := "foo"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
 
-	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		takerPubkeyHash: initiator,
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Pubkey:          takerPubkeyHash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, peer, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
-	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutAgreement.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoicePaid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, swapFSM.Data.GetCurrentState())
-	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, nil)
+	_, err = swapFSM.SendEvent(Event_OnCoopCloseReceived, &CoopCloseMessage{SwapId: swapId, Privkey: getRandom32ByteHexString()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,32 +86,28 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	initiator := "foo"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
 
-	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		takerPubkeyHash: initiator,
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Pubkey:          takerPubkeyHash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, peer, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
-	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutAgreement.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnCancelReceived, nil)
 	if err != nil {
@@ -131,33 +119,28 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	swapAmount := uint64(100)
 	swapId := NewSwapId()
-	initiator := "foo"
-	peer := "bar"
-	chanId := "baz"
+	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 	FeePreimage := "err"
 
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
-	swapFSM := newSwapOutReceiverFSM(swapId, swapServices)
+	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		takerPubkeyHash: initiator,
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Pubkey:          takerPubkeyHash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, peer, swapFSM.Data.InitiatorNodeId)
-	assert.NotEqual(t, "", swapFSM.Data.TakerPubkeyHash)
-	assert.NotEqual(t, "", swapFSM.Data.MakerPubkeyHash)
+	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 	msg := <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())

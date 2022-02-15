@@ -2,9 +2,9 @@ package swap
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
-	"time"
 )
 
 // ErrEventRejected is the error returned when the state machine cannot process
@@ -34,7 +34,8 @@ type EventType string
 
 // EventContext represents the context to be passed to the action implementation.
 type EventContext interface {
-	ApplyOnSwap(swap *SwapData)
+	ApplyToSwapData(data *SwapData) error
+	Validate(data *SwapData) error
 }
 
 // Action represents the action to be executed in a given state.
@@ -47,8 +48,9 @@ type Events map[EventType]StateType
 
 // State binds a state with an action and a set of events it can handle.
 type State struct {
-	Action Action
-	Events Events
+	Action        Action
+	Events        Events
+	FailOnrecover bool
 }
 
 type Store interface {
@@ -134,10 +136,27 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 	if event == Event_Done {
 		return true, nil
 	}
+	var err error
 
-	// apply new event data
-	if eventCtx != nil && s.EventIsValid(event) {
-		eventCtx.ApplyOnSwap(s.Data)
+	// validate and apply event context
+	if eventCtx != nil {
+		err = eventCtx.Validate(s.Data)
+		if err != nil {
+			s.mutex.Unlock()
+			log.Printf("Invalid Message error: %v", err)
+			res, err := s.SendEvent(Event_OnInvalid_Message, nil)
+			s.mutex.Lock()
+			return res, err
+		}
+		err = eventCtx.ApplyToSwapData(s.Data)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	err = s.swapServices.swapStore.UpdateData(s)
+	if err != nil {
+		return false, err
 	}
 
 	for {
@@ -158,9 +177,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		// Transition over to the next state.
 		s.Previous = s.Current
 		s.Current = nextState
-		if s.Data != nil {
-			s.Data.SetState(s.Current)
-		}
+		s.Data.SetState(s.Current)
 
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
@@ -184,8 +201,6 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		case Event_ActionFailed:
 			if s.Data.LastErr != nil {
 				log.Printf("[FSM] Action failure %v", s.Data.LastErr)
-				s.failures++
-				time.Sleep(time.Duration(s.failures) * time.Second)
 			}
 		}
 
@@ -196,14 +211,19 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() (bool, error) {
 	state, ok := s.States[s.Current]
+	if !ok {
+		return false, fmt.Errorf("unknown state: %s for swap %s", s.Current, s.Id)
+	}
 
 	if !ok || state.Action == nil {
 		// configuration error
 		return false, ErrFsmConfig
 	}
+	if state.FailOnrecover {
+		return s.SendEvent(Event_ActionFailed, nil)
+	}
 
 	nextEvent := state.Action.Execute(s.swapServices, s.Data)
-
 	err := s.swapServices.swapStore.UpdateData(s)
 	if err != nil {
 		return false, err
@@ -218,6 +238,7 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 func (s *SwapStateMachine) IsFinished() bool {
 	switch s.Current {
 	case State_ClaimedCsv:
+	case State_SwapCanceled:
 	case State_ClaimedPreimage:
 		return true
 	}

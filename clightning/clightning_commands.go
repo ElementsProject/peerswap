@@ -521,18 +521,18 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						paidFees += s.Data.OpeningTxFee
 						if s.Type == swap.SWAPTYPE_OUT {
 							SenderSwapsOut++
-							SenderSatsOut += s.Data.Amount
+							SenderSatsOut += s.Data.GetAmount()
 						} else {
 							SenderSwapsIn++
-							SenderSatsIn += s.Data.Amount
+							SenderSatsIn += s.Data.GetAmount()
 						}
 					} else {
 						if s.Type == swap.SWAPTYPE_OUT {
 							ReceiverSwapsOut++
-							ReceiverSatsOut += s.Data.Amount
+							ReceiverSatsOut += s.Data.GetAmount()
 						} else {
 							ReceiverSwapsIn++
-							ReceiverSatsIn += s.Data.Amount
+							ReceiverSatsIn += s.Data.GetAmount()
 						}
 					}
 				}

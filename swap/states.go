@@ -57,7 +57,7 @@ const (
 	State_SwapInReceiver_AwaitTxConfirmation          StateType = "State_SwapInReceiver_AwaitTxConfirmation"
 	State_SwapInReceiver_ValidateTxAndPayClaimInvoice StateType = "State_SwapInReceiver_ValidateTxAndPayClaimInvoice"
 	State_SwapInReceiver_ClaimSwap                    StateType = "State_SwapInReceiver_ClaimSwap"
-	State_SwapInReceiver_SendPrivkey                  StateType = "State_SwapOutSender_SendPrivkey"
+	State_SwapInReceiver_SendPrivkey                  StateType = "State_SwapInReceiver_SendPrivkey"
 	State_SwapInReceiver_SendCoopClose                StateType = "State_SwapInReceiver_SendCoopClose"
 )
 
@@ -75,10 +75,9 @@ const (
 
 	Event_OnSwapOutRequestReceived EventType = "Event_OnSwapOutRequestReceived"
 
-	Event_OnFeeInvoicePaid   EventType = "Event_OnFeeInvoicePaid"
-	Event_OnClaimInvoicePaid EventType = "Event_OnClaimInvoicePaid"
-	Event_OnCsvPassed        EventType = "Event_OnCsvPassed"
-
+	Event_OnFeeInvoicePaid    EventType = "Event_OnFeeInvoicePaid"
+	Event_OnClaimInvoicePaid  EventType = "Event_OnClaimInvoicePaid"
+	Event_OnCsvPassed         EventType = "Event_OnCsvPassed"
 	Event_OnCancelReceived    EventType = "Event_OnCancelReceived"
 	Event_OnCoopCloseReceived EventType = "Event_OnCoopCloseReceived"
 
@@ -90,4 +89,6 @@ const (
 	Event_ActionFailed                     EventType = "Event_ActionFailed"
 	Event_SwapInReceiver_OnRequestReceived EventType = "Event_SwapInReceiver_OnRequestReceived"
 	Event_Done                             EventType = "Event_Done"
+
+	Event_OnInvalid_Message EventType = "Event_Invalid_Message"
 )

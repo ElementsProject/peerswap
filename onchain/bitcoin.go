@@ -32,6 +32,10 @@ func NewBitcoinOnChain(estimator FeeEstimator, chain *chaincfg.Params) *BitcoinO
 	return &BitcoinOnChain{chain: chain, estimator: estimator}
 }
 
+func (b *BitcoinOnChain) GetCSVHeight() uint32 {
+	return BitcoinCsv
+}
+
 func (b *BitcoinOnChain) GetChain() *chaincfg.Params {
 	return b.chain
 }

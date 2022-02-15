@@ -461,8 +461,8 @@ func Test_RpcWalletPreimage(t *testing.T) {
 	// create opening params
 
 	openingParams := &swap.OpeningParams{
-		TakerPubkeyHash:  hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
-		MakerPubkeyHash:  hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
+		TakerPubkey:      hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
+		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
 		BlindingKey:      blindingKey,
@@ -538,8 +538,8 @@ func Test_RpcWalletCsv(t *testing.T) {
 	// create opening params
 
 	openingParams := &swap.OpeningParams{
-		TakerPubkeyHash:  hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
-		MakerPubkeyHash:  hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
+		TakerPubkey:      hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
+		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
 		BlindingKey:      blindingKey,
@@ -615,8 +615,8 @@ func Test_RpcWalletCoop(t *testing.T) {
 	// create opening params
 
 	openingParams := &swap.OpeningParams{
-		TakerPubkeyHash:  hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
-		MakerPubkeyHash:  hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
+		TakerPubkey:      hex.EncodeToString(alicePrivkey.PubKey().SerializeCompressed()),
+		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
 		BlindingKey:      blindingKey,
@@ -1835,8 +1835,8 @@ func rand32ByteArray() []byte {
 //	//blindingKey := getRandomPrivkey()
 //
 //	openingParams := &swap.OpeningParams{
-//		TakerPubkeyHash:  fmt.Sprintf("%x", alicePrivkey.PubKey().SerializeCompressed()),
-//		MakerPubkeyHash:  fmt.Sprintf("%x", bobPrivkey.PubKey().SerializeCompressed()),
+//		TakerPubkey:  fmt.Sprintf("%x", alicePrivkey.PubKey().SerializeCompressed()),
+//		MakerPubkey:  fmt.Sprintf("%x", bobPrivkey.PubKey().SerializeCompressed()),
 //		ClaimPaymentHash: fmt.Sprintf("%x", pHash),
 //		Amount:           100000,
 //	}

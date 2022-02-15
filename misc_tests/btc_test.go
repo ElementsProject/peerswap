@@ -71,12 +71,12 @@ package misc_tests
 //	txParams.SwapAmount = 10000
 //
 //	openingParams := &swap.OpeningParams{
-//		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
-//		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+//		TakerPubkey:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+//		MakerPubkey:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
 //		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 //		Amount:           txParams.SwapAmount,
 //	}
-//	log.Printf("%s %s %s", openingParams.TakerPubkeyHash, openingParams.MakerPubkeyHash, openingParams.ClaimPaymentHash)
+//	log.Printf("%s %s %s", openingParams.TakerPubkey, openingParams.MakerPubkey, openingParams.ClaimPaymentHash)
 //	unpreppedtxHex, _, _, cltv, _, err := bitcoinOnchain.CreateOpeningTransaction(openingParams)
 //	if err != nil {
 //		t.Fatal(err)
@@ -126,8 +126,8 @@ package misc_tests
 //	txParams.SwapAmount = 10000
 //
 //	openingParams := &swap.OpeningParams{
-//		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
-//		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+//		TakerPubkey:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+//		MakerPubkey:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
 //		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 //		Amount:           txParams.SwapAmount,
 //	}
@@ -176,8 +176,8 @@ package misc_tests
 //	txParams.SwapAmount = 10000
 //
 //	openingParams := &swap.OpeningParams{
-//		TakerPubkeyHash:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
-//		MakerPubkeyHash:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
+//		TakerPubkey:  hex.EncodeToString(txParams.AliceKey.PubKey().SerializeCompressed()),
+//		MakerPubkey:  hex.EncodeToString(txParams.BobKey.PubKey().SerializeCompressed()),
 //		ClaimPaymentHash: hex.EncodeToString(txParams.PaymentHash),
 //		Amount:           txParams.SwapAmount,
 //	}

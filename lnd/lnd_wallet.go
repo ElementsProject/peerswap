@@ -223,7 +223,7 @@ func (l *Lnd) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
 }
 func (cl *Lnd) GetAsset() string {
-	return "a342"
+	return ""
 }
 
 func (cl *Lnd) GetNetwork() string {
@@ -247,4 +247,8 @@ func (l *LndFeeEstimator) GetFeePerKw(targetBlocks uint32) (float64, error) {
 	}
 
 	return float64(res.SatPerKw / 4000), nil
+}
+
+func (l *Lnd) EstimateTxFee(swapAmount uint64) (uint64, error) {
+	return l.bitcoinOnChain.GetFee(250)
 }

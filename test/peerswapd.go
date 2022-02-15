@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -100,14 +101,19 @@ func (p *PeerSwapd) Run(waitForReady bool) error {
 	return nil
 }
 
-func (p *PeerSwapd) Kill() {
+func (p *PeerSwapd) Stop() {
 	if p.PeerswapClient != nil {
 		_, _ = p.PeerswapClient.Stop(context.Background(), &peerswaprpc.Empty{})
 	}
 	if p.clientConn != nil {
-		p.clientConn.Close()
+		if err := p.clientConn.Close(); err != nil {
+			log.Println("ERROR CLOSE CONNECTION TO PEERSWAPCLIENT", err.Error())
+		}
 	}
+}
 
+func (p *PeerSwapd) Kill() {
+	p.Stop()
 	p.DaemonProcess.Kill()
 }
 
@@ -128,6 +134,7 @@ func getClientConn(address string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
 		grpc.WithInsecure(),
+		grpc.WithBlock(),
 	}
 
 	conn, err := grpc.Dial(address, opts...)

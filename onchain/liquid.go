@@ -47,6 +47,10 @@ func NewLiquidOnChain(elements *gelements.Elements, wallet wallet.Wallet, networ
 	return &LiquidOnChain{elements: elements, liquidWallet: wallet, network: network, asset: lbtc}
 }
 
+func (l *LiquidOnChain) GetCSVHeight() uint32 {
+	return LiquidCsv
+}
+
 func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
@@ -398,7 +402,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 }
 
 func (l *LiquidOnChain) getClaimTxSize() int {
-	return 4729
+	return 4730
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
@@ -553,14 +557,13 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 	}
 	log.Printf("fee res %v", feeRes)
 	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 1 {
-		satPerByte = 1
+	if satPerByte < 0.1 {
+		satPerByte = 0.1
 	}
 	if len(feeRes.Errors) > 0 {
 		//todo sane default sat per byte
-		satPerByte = 1
+		satPerByte = 0.1
 	}
-	satPerByte = 0.1
 	// assume largest witness
 	fee := satPerByte * float64(txSize)
 	return uint64(fee), nil
@@ -568,6 +571,11 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	// todo get tx size
+	return l.getFee(l.getClaimTxSize())
+}
+
+// todo this needs to be really thought over / premium idea
+func (l *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
 	return l.getFee(l.getClaimTxSize())
 }
 

@@ -13,15 +13,17 @@ import (
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
-var LND_CONFIG = map[string]string{
-	"bitcoin.active":           "true",
-	"bitcoin.regtest":          "true",
-	"bitcoin.node":             "bitcoind",
-	"bitcoin.defaultchanconfs": "1",
-	"noseedbackup":             "true",
-	"norest":                   "true",
-	"debuglevel":               "debug",
-	"trickledelay":             "1800",
+func getLndConfig() map[string]string {
+	return map[string]string{
+		"bitcoin.active":           "true",
+		"bitcoin.regtest":          "true",
+		"bitcoin.node":             "bitcoind",
+		"bitcoin.defaultchanconfs": "1",
+		"noseedbackup":             "true",
+		"norest":                   "true",
+		"debuglevel":               "debug",
+		"trickledelay":             "1800",
+	}
 }
 
 type LndNode struct {
@@ -65,7 +67,7 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 		return nil, fmt.Errorf("os.MkdirAll() %w", err)
 	}
 
-	regtestConfig := LND_CONFIG
+	regtestConfig := getLndConfig()
 	regtestConfig["lnddir"] = lndDir
 	regtestConfig["datadir"] = dataDir
 	regtestConfig["listen"] = fmt.Sprintf("localhost:%d", listen)
@@ -444,26 +446,26 @@ func (n *LndNode) ChanIdFromScid(scid string) (uint64, error) {
 
 }
 
+func (n *LndNode) AddInvoice(amt uint64, desc, _ string) (payreq string, err error) {
+	inv, err := n.Rpc.AddInvoice(context.Background(), &lnrpc.Invoice{Value: int64(amt), Memo: desc})
+	if err != nil {
+		return "", err
+	}
+	return inv.PaymentRequest, nil
+}
+
+func (n *LndNode) PayInvoice(payreq string) error {
+	pstream, err := n.Rpc.SendPaymentSync(context.Background(), &lnrpc.SendRequest{PaymentRequest: payreq})
+	if err != nil {
+		return err
+	}
+	if len(pstream.PaymentError) > 0 {
+		return fmt.Errorf("got payment error %s", pstream.PaymentError)
+	}
+	return nil
+}
+
 func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)
 }
-
-// func clnScidToLndScid(scid string) (string, error) {
-// 	parts := strings.Split(scid, "x")
-// 	// is not cln scid representation
-// 	if len(parts) == 1 {
-// 		// check if already is lnd scid representation.
-// 		parts = strings.Split(scid, ":")
-// 		if len(parts) == 3 {
-// 			return scid, nil
-// 		}
-// 		return "", fmt.Errorf("can not identify scid format of %s", scid)
-// 	}
-// 	// is cln representation.
-// 	if len(parts) == 3 {
-// 		return fmt.Sprintf("%s:%s:%s", parts[0], parts[1], parts[2]), nil
-// 	}
-// 	// is neither
-// 	return "", fmt.Errorf("can not identify scid format of %s", scid)
-// }

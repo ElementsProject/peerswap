@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -17,17 +15,19 @@ import (
 type DaemonProcess struct {
 	CmdLine []string
 	Cmd     *exec.Cmd
-	Log     *lockedWriter
+	StdOut  *lockedWriter
+	StdErr  *lockedWriter
 
-	logger    *log.Logger
+	prefix    string
 	isRunning bool
 }
 
 func NewDaemonProcess(cmdline []string, prefix string) *DaemonProcess {
 	return &DaemonProcess{
 		CmdLine: cmdline,
-		Log:     &lockedWriter{w: new(strings.Builder)},
-		logger:  log.New(os.Stdout, fmt.Sprintf("%s: ", prefix), log.LstdFlags),
+		StdOut:  &lockedWriter{w: new(strings.Builder), prefix: []byte(fmt.Sprintf("%s: ", prefix))},
+		StdErr:  &lockedWriter{w: new(strings.Builder), prefix: []byte(fmt.Sprintf("%s: ", prefix))},
+		prefix:  prefix,
 	}
 }
 
@@ -49,27 +49,12 @@ func (d *DaemonProcess) WithCmd(cmd string) {
 func (d *DaemonProcess) Run() {
 	cmd := exec.Command(d.CmdLine[0], d.CmdLine[1:]...)
 	d.Cmd = cmd
-	d.logger.Printf("starting command %s", cmd.String())
+	cmd.Stdout = d.StdOut
+	cmd.Stderr = d.StdErr
 
-	w := io.MultiWriter(d.Log, &logWriter{l: d.logger, filter: os.Getenv("LIGHTNING_TESTFRAMEWORK_FILTER")})
-	cmd.Stdout = w
-
-	errReader, err := cmd.StderrPipe()
+	err := cmd.Start()
 	if err != nil {
-		d.logger.Println("error creating StderrPipe for cmd", err)
-		return
-	}
-
-	errScanner := bufio.NewScanner(errReader)
-	go func() {
-		for errScanner.Scan() {
-			d.logger.Printf("stdErr: %s\n", errScanner.Text())
-		}
-	}()
-
-	err = cmd.Start()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error starting cmd", err)
+		fmt.Fprintln(d.StdErr, "error starting cmd", err)
 		return
 	}
 
@@ -88,7 +73,7 @@ func (d *DaemonProcess) HasLog(regex string) (bool, error) {
 		return false, fmt.Errorf("Compile(regex) %w", err)
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(d.Log.String()))
+	scanner := bufio.NewScanner(strings.NewReader(d.StdOut.String()))
 	for scanner.Scan() {
 		match := rx.Find([]byte(scanner.Text()))
 		if match != nil {
@@ -99,7 +84,7 @@ func (d *DaemonProcess) HasLog(regex string) (bool, error) {
 }
 
 func (d *DaemonProcess) WaitForLog(regex string, timeout time.Duration) error {
-	d.logger.Printf("wait for log: %s", regex)
+	// d.logger.Printf("wait for log: %s", regex)
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
@@ -120,17 +105,22 @@ func (d *DaemonProcess) WaitForLog(regex string, timeout time.Duration) error {
 	}
 }
 
+func (d *DaemonProcess) Prefix() string {
+	return d.prefix
+}
+
 type lockedWriter struct {
 	sync.RWMutex
 
-	buf []byte
-	w   io.Writer
+	prefix []byte
+	buf    []byte
+	w      io.Writer
 }
 
 func (w *lockedWriter) Write(b []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
-
+	w.buf = append(w.buf, w.prefix...)
 	w.buf = append(w.buf, b...)
 	return w.w.Write(b)
 }
@@ -142,18 +132,47 @@ func (w *lockedWriter) String() string {
 	return string(w.buf)
 }
 
-type logWriter struct {
-	l      *log.Logger
-	filter string
-}
+func (w *lockedWriter) Filter(regex string) []byte {
+	w.RLock()
+	defer w.RUnlock()
 
-func (w *logWriter) Write(b []byte) (n int, err error) {
-	scanner := bufio.NewScanner(bytes.NewReader(b))
+	rx, err := regexp.Compile(regex)
+	if err != nil {
+		return nil
+	}
+
+	var buf []byte
+	scanner := bufio.NewScanner(bytes.NewReader(w.buf))
 	for scanner.Scan() {
-		text := scanner.Text()
-		if w.filter == "" || strings.Contains(text, w.filter) {
-			w.l.Println(text)
+		match := rx.Find(scanner.Bytes())
+		if match != nil {
+			buf = append(buf, scanner.Bytes()...)
+			buf = append(buf, []byte("\n")...)
 		}
 	}
-	return len(b), nil
+	return buf
+}
+
+func (w *lockedWriter) Tail(n int, regex string) string {
+	w.RLock()
+	defer w.RUnlock()
+
+	rx, err := regexp.Compile(regex)
+	if err != nil {
+		return ""
+	}
+
+	var lines []string
+	scanner := bufio.NewScanner(bytes.NewReader(w.buf))
+	for scanner.Scan() {
+		match := rx.Find(scanner.Bytes())
+		if match != nil {
+			lines = append(lines, scanner.Text())
+		}
+	}
+
+	if n > 0 && n <= len(lines) {
+		return strings.Join(lines[len(lines)-n:], "\n")
+	}
+	return strings.Join(lines, "\n")
 }

@@ -11,21 +11,18 @@ func Test_SwapInReceiverValid(t *testing.T) {
 
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
-
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          initiator,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +34,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
 		Payreq:      "invoice",
-		TxId:        "",
+		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
 	})
@@ -59,21 +56,19 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
 	//initiator := "ab123"
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          initiator,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -93,21 +88,19 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	swapId := NewSwapId()
 	swapAmount := uint64(100)
-	peer := "ba123"
-	chanId := "baz"
+	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
-	swap := newSwapInReceiverFSM(swapId, swapServices)
+	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
-	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &CreateSwapFromRequestContext{
-		amount:          swapAmount,
-		peer:            peer,
-		channelId:       chanId,
-		swapId:          swapId,
-		id:              swapId.String(),
-		bitcoinNetwork:  "mainnet",
-		protocolversion: PEERSWAP_PROTOCOL_VERSION,
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		Amount:          swapAmount,
+		Pubkey:          initiator,
+		Scid:            chanId,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +112,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
 		Payreq:      "invoice",
-		TxId:        "",
+		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
 	})
