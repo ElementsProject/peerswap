@@ -23,7 +23,7 @@ test: build-with-fast-test
 .PHONY: test
 
 test-integration: build-with-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=20m -v ./test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v ./test
 .PHONY: test-integration
 
 lnd-release:
