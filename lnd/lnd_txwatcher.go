@@ -6,8 +6,8 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
+	"github.com/sputn1ck/peerswap/log"
 	"github.com/sputn1ck/peerswap/onchain"
-	"log"
 )
 
 type LndTxWatcher struct {
@@ -38,13 +38,13 @@ func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, start
 	go func() {
 		confDetails, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, onchain.BitcoinMinConfs, outputScript)
 		if err != nil {
-			log.Printf("error waiting for confirmation of tx %v", err)
+			log.Infof("error waiting for confirmation of tx %v", err)
 			return
 		}
 
 		err = l.txCallback(swapId, hex.EncodeToString(confDetails.RawTx))
 		if err != nil {
-			log.Printf("error on callback %v", err)
+			log.Infof("error on callback %v", err)
 			return
 		}
 	}()
@@ -53,35 +53,35 @@ func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, start
 func (l *LndTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, outputScript []byte) {
 	go func() {
 		// get confirmation height of tx
-		log.Printf("looking for tx: %s", hex.EncodeToString(outputScript))
+
 		res, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, 1, outputScript)
 		if err != nil {
-			log.Printf("error waiting for confirmation of tx %v", err)
+			log.Infof("error waiting for confirmation of tx %v", err)
 			return
 		}
 
 		// get current block height
 		blockheight, err := l.GetBlockHeight()
 		if err != nil {
-			log.Printf("error getting blockheight %v", err)
+			log.Infof("error getting blockheight %v", err)
 			return
 		}
 		if blockheight-res.BlockHeight > onchain.BitcoinCsv-1 {
 			err = l.csvPassedCallback(swapId)
 			if err != nil {
-				log.Printf("error on callback %v", err)
+				log.Infof("error on callback %v", err)
 				return
 			}
 		} else {
 			reached, err := l.listenForBlockheight(startingHeight, res.BlockHeight+onchain.BitcoinCsv-1)
 			if err != nil {
-				log.Printf("error on listening for blockheight %v", err)
+				log.Infof("error on listening for blockheight %v", err)
 				return
 			}
 			if reached {
 				err = l.csvPassedCallback(swapId)
 				if err != nil {
-					log.Printf("error on callback %v", err)
+					log.Infof("error on callback %v", err)
 					return
 				}
 			}
@@ -97,21 +97,21 @@ func (l *LndTxWatcher) listenConfirmationsNtfn(swapId, txId string, startingHeig
 		NumConfs:   confirmations,
 		Script:     outputScript,
 	})
-	log.Printf("waiting for swap %s confirmations: starting height: %v, want confs %v", swapId, startingHeight, confirmations)
+
 	if err != nil {
 		return nil, err
 	}
 	for {
 		select {
 		case <-l.ctx.Done():
-			log.Printf("context done")
+			log.Infof("context done")
 			return nil, nil
 		default:
 			res, err := client.Recv()
 			if err != nil {
 				return nil, err
 			}
-			log.Printf("confirmed %s", res.GetConf().String())
+			log.Infof("confirmed %s", res.GetConf().String())
 			return res.GetConf(), nil
 
 		}

@@ -3,7 +3,7 @@ package txwatcher
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
 )
@@ -94,7 +94,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 				go func() {
 					err := s.HandleConfirmedTx(nb)
 					if err != nil {
-						log.Printf("HandleConfirmedTx: %v", err)
+						log.Debugf("HandleConfirmedTx: %v", err)
 					}
 				}()
 				// Todo: Maybe the same goes for the HandleCsvTx.
@@ -142,14 +142,14 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 		// todo does vout matter here?
 		res, err := s.blockchain.GetTxOut(v.TxId, v.TxVout)
 		if err != nil {
-			log.Printf("watchlist fetchtx err: %v", err)
+			log.Infof("Watchlist fetchtx err: %v", err)
 			continue
 		}
 		if res == nil {
 			continue
 		}
 		if !(res.Confirmations >= s.requiredConfs) {
-			log.Printf("tx does not have enough confirmations")
+			log.Debugf("tx does not have enough confirmations")
 			continue
 		}
 		if s.txCallback == nil {
@@ -161,7 +161,7 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 		}
 		err = s.txCallback(k, txHex)
 		if err != nil {
-			log.Printf("tx callback error %v", err)
+			log.Infof("tx callback error %v", err)
 			continue
 		}
 
@@ -179,7 +179,7 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	for k, v := range s.csvtxWatchList {
 		res, err := s.blockchain.GetTxOut(v.TxId, v.TxVout)
 		if err != nil {
-			log.Printf("watchlist fetchtx err: %v", err)
+			log.Infof("watchlist fetchtx err: %v", err)
 			continue
 		}
 		if res == nil {
@@ -188,13 +188,12 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 		if v.Csv > res.Confirmations {
 			continue
 		}
-		log.Printf("watchlist want to claim: csv %v confs %v vout %v txid %s", v.Csv, res.Confirmations, v.TxVout, v.TxId)
 		if s.csvPassedCallback == nil {
 			continue
 		}
 		err = s.csvPassedCallback(k)
 		if err != nil {
-			log.Printf("tx callback error %v", err)
+			log.Infof("tx callback error %v", err)
 			continue
 		}
 		toRemove = append(toRemove, k)
@@ -210,7 +209,7 @@ func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, v
 		go func() {
 			err := l.txCallback(swapId, hex)
 			if err != nil {
-				log.Printf("tx callback error %v", err)
+				log.Infof("tx callback error %v", err)
 				return
 			}
 		}()
@@ -229,14 +228,14 @@ func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, v
 func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vout uint32) string {
 	res, err := s.blockchain.GetTxOut(txId, vout)
 	if err != nil {
-		log.Printf("watchlist fetchtx err: %v", err)
+		log.Infof("watchlist fetchtx err: %v", err)
 		return ""
 	}
 	if res == nil {
 		return ""
 	}
 	if !(res.Confirmations >= s.requiredConfs) {
-		log.Printf("tx does not have enough confirmations")
+		log.Infof("tx does not have enough confirmations")
 		return ""
 	}
 	if s.txCallback == nil {
@@ -244,7 +243,7 @@ func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vo
 	}
 	txHex, err := s.TxHexFromId(res, txId)
 	if err != nil {
-		log.Printf("watchlist txfrom hex err: %v", err)
+		log.Infof("watchlist txfrom hex err: %v", err)
 		return ""
 	}
 

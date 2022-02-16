@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 
@@ -119,7 +118,6 @@ func (b *BigInvoice) Call() (jrpc2.Result, error) {
 	if b.SatAmt == 0 {
 		b.SatAmt = 50000000
 	}
-	log.Printf("satamt: %v", b.SatAmt)
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
 		return nil, err

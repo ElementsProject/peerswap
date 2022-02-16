@@ -1,7 +1,7 @@
 package messages
 
 import (
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
 )
@@ -30,7 +30,7 @@ func NewRedundantMessenger(messenger Messenger, retryTime time.Duration) *Redund
 }
 
 func (s *RedundantMessenger) SendMessage(peerId string, message []byte, messageType int) error {
-	log.Printf("[RedundantSender]\tstart sending messages of type %d to %s\n", messageType, peerId)
+	log.Debugf("[RedundantSender]\tstart sending messages of type %d to %s\n", messageType, peerId)
 
 	// Send one time before we go loop the send, so that we do not have to wait for the ticker.
 	err := s.messenger.SendMessage(peerId, message, messageType)
@@ -44,10 +44,10 @@ func (s *RedundantMessenger) SendMessage(peerId string, message []byte, messageT
 			case <-s.ticker.C:
 				err := s.messenger.SendMessage(peerId, message, messageType)
 				if err != nil {
-					log.Printf("[RedundantSender]\tSendMessageWithRetry: %v\n", err)
+					log.Debugf("[RedundantSender]\tSendMessageWithRetry: %v\n", err)
 				}
 			case <-s.stop:
-				log.Printf("[RedundantSender]\tstop sending messages of type %d to %s\n", messageType, peerId)
+				log.Debugf("[RedundantSender]\tstop sending messages of type %d to %s\n", messageType, peerId)
 				return
 			}
 		}

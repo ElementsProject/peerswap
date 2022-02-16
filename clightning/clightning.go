@@ -6,7 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
+	log2 "log"
 	"math/big"
 	"os"
 	"strconv"
@@ -48,7 +49,7 @@ const (
 // it handles rpc calls and messages
 type ClightningClient struct {
 	glightning *glightning.Lightning
-	plugin     *glightning.Plugin
+	Plugin     *glightning.Plugin
 
 	liquidWallet   wallet.Wallet
 	swaps          *swap.SwapService
@@ -78,7 +79,7 @@ func (cl *ClightningClient) AddPaymentCallback(f func(swapId string, invoiceType
 func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) bool {
 	res, err := cl.glightning.GetInvoice(getLabel(swapId, invoiceType))
 	if err != nil {
-		log.Printf("[Payment Notifier] Error %v", err)
+		log.Debugf("[Payment Notifier] Error %v", err)
 	}
 	if res.Status == "paid" {
 		return true
@@ -91,7 +92,7 @@ func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, inv
 			default:
 				res, err := cl.glightning.WaitInvoice(getLabel(swapId, invoiceType))
 				if err != nil {
-					log.Printf("[Payment Notifier] Error %v", err)
+					log.Debugf("[Payment Notifier] Error %v", err)
 				} else {
 					if res.Status == "paid" {
 						for _, v := range cl.paymentSubscriptions {
@@ -110,24 +111,24 @@ func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, inv
 	return false
 }
 
-// NewClightningClient returns a new clightning cl and channel which get closed when the plugin is initialized
+// NewClightningClient returns a new clightning cl and channel which get closed when the Plugin is initialized
 func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interface{}, error) {
 	cl := &ClightningClient{ctx: ctx}
-	cl.plugin = glightning.NewPlugin(cl.onInit)
-	err := cl.plugin.RegisterHooks(&glightning.Hooks{
+	cl.Plugin = glightning.NewPlugin(cl.onInit)
+	err := cl.Plugin.RegisterHooks(&glightning.Hooks{
 		CustomMsgReceived: cl.OnCustomMsg,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	cl.plugin.SubscribeConnect(cl.OnConnect)
+	cl.Plugin.SubscribeConnect(cl.OnConnect)
 
 	cl.glightning = glightning.NewLightning()
 
 	b := big.NewInt(0)
 	b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
-	cl.plugin.AddNodeFeatures(b.Bytes())
-	cl.plugin.SetDynamic(true)
+	cl.Plugin.AddNodeFeatures(b.Bytes())
+	cl.Plugin.SetDynamic(true)
 	cl.initChan = make(chan interface{})
 	cl.hexToIdMap = make(map[string]string)
 	return cl, cl.initChan, nil
@@ -197,9 +198,9 @@ func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {
 	return cl.glightning
 }
 
-// Start starts the plugin
+// Start starts the Plugin
 func (cl *ClightningClient) Start() error {
-	return cl.plugin.Start(os.Stdin, os.Stdout)
+	return cl.Plugin.Start(os.Stdin, os.Stdout)
 }
 
 // SendMessage sends a hexmessage to a peer
@@ -221,12 +222,14 @@ func (cl *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent
 	payload := event.Payload[4:]
 	payloadDecoded, err := hex.DecodeString(payload)
 	if err != nil {
-		log.Printf("[Messenger] error decoding payload %v", err)
+		log.Debugf("[Messenger] error decoding payload %v", err)
+		return event.Continue(), nil
 	}
 	for _, v := range cl.msgHandlers {
 		err := v(event.PeerId, typeString, payloadDecoded)
 		if err != nil {
-			log.Printf("\n msghandler err: %v", err)
+			log.Debugf("\n msghandler err: %v", err)
+			return event.Continue(), nil
 		}
 	}
 	return event.Continue(), nil
@@ -410,14 +413,14 @@ func (cl *ClightningClient) PeerRunsPeerSwap(peerid string) error {
 	return errors.New("peer is not connected")
 }
 
-// This is called after the plugin starts up successfully
+// This is called after the Plugin starts up successfully
 func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
-	log.Printf("successfully init'd! %s\n", config.RpcFile)
+	log.Debugf("successfully init'd! %s\n", config.RpcFile)
 	cl.glightning.StartUp(config.RpcFile, config.LightningDir)
 
 	getInfo, err := cl.glightning.GetInfo()
 	if err != nil {
-		log.Fatalf("getinfo err %v", err)
+		log2.Fatalf("getinfo err %v", err)
 	}
 	cl.nodeId = getInfo.Id
 	cl.initChan <- true
@@ -444,7 +447,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		cl: cl,
 	}, "swap In")
 	swapIn.Category = "peerswap"
-	err := cl.plugin.RegisterMethod(swapIn)
+	err := cl.Plugin.RegisterMethod(swapIn)
 	if err != nil {
 		return err
 	}
@@ -453,7 +456,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		cl: cl,
 	}, "swap out")
 	swapOut.Category = "peerswap"
-	err = cl.plugin.RegisterMethod(swapOut)
+	err = cl.Plugin.RegisterMethod(swapOut)
 	if err != nil {
 		return err
 	}
@@ -462,7 +465,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		cl: cl,
 	}, "list swaps")
 	listSwaps.Category = "peerswap"
-	err = cl.plugin.RegisterMethod(listSwaps)
+	err = cl.Plugin.RegisterMethod(listSwaps)
 	if err != nil {
 		return err
 	}
@@ -471,7 +474,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		cl: cl,
 	}, "get new liquid address")
 	getAddress.Category = "peerswap"
-	err = cl.plugin.RegisterMethod(getAddress)
+	err = cl.Plugin.RegisterMethod(getAddress)
 	if err != nil {
 		return err
 	}
@@ -480,7 +483,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		cl: cl,
 	}, "get liquid liquidWallet balance")
 	getBalance.Category = "peerswap"
-	err = cl.plugin.RegisterMethod(getBalance)
+	err = cl.Plugin.RegisterMethod(getBalance)
 	if err != nil {
 		return err
 	}
@@ -497,7 +500,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		LongDesc: long,
 		Category: "peerswap",
 	}
-	err = cl.plugin.RegisterMethod(reloadPolicyFile)
+	err = cl.Plugin.RegisterMethod(reloadPolicyFile)
 	if err != nil {
 		return err
 	}
@@ -512,7 +515,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		LongDesc: listRequestedSwapsMethod.LongDescription(),
 		Category: "peerswap",
 	}
-	err = cl.plugin.RegisterMethod(listRequestedSwaps)
+	err = cl.Plugin.RegisterMethod(listRequestedSwaps)
 	if err != nil {
 		return err
 	}
@@ -523,7 +526,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
-		err = cl.plugin.RegisterMethod(glightningMethod)
+		err = cl.Plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
@@ -534,7 +537,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
-		err = cl.plugin.RegisterMethod(glightningMethod)
+		err = cl.Plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
@@ -551,7 +554,7 @@ type peerswaprpcMethod interface {
 func (cl *ClightningClient) GetPeers() []string {
 	peers, err := cl.glightning.ListPeers()
 	if err != nil {
-		log.Printf("could not listpeers: %v", err)
+		log.Debugf("could not listpeers: %v", err)
 		return nil
 	}
 
@@ -560,4 +563,20 @@ func (cl *ClightningClient) GetPeers() []string {
 		peerlist = append(peerlist, peer.Id)
 	}
 	return peerlist
+}
+
+type Glightninglogger struct {
+	plugin *glightning.Plugin
+}
+
+func NewGlightninglogger(plugin *glightning.Plugin) *Glightninglogger {
+	return &Glightninglogger{plugin: plugin}
+}
+
+func (g *Glightninglogger) Infof(format string, v ...interface{}) {
+	g.plugin.Log(fmt.Sprintf(format, v...), glightning.Info)
+}
+
+func (g *Glightninglogger) Debugf(format string, v ...interface{}) {
+	g.plugin.Log(fmt.Sprintf(format, v...), glightning.Debug)
 }
