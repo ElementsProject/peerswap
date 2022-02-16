@@ -3,7 +3,7 @@ package swap
 import (
 	"errors"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"sync"
 )
 
@@ -143,7 +143,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		err = eventCtx.Validate(s.Data)
 		if err != nil {
 			s.mutex.Unlock()
-			log.Printf("Invalid Message error: %v", err)
+			log.Infof("Message validation error: %v", err)
 			res, err := s.SendEvent(Event_OnInvalid_Message, nil)
 			s.mutex.Lock()
 			return res, err
@@ -161,7 +161,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 	for {
 		// Determine the next state for the event given the machine's current state.
-		log.Printf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
+		log.Debugf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
 		nextState, err := s.getNextState(event)
 		if err != nil {
 			return false, ErrEventRejected
@@ -200,7 +200,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 			}
 		case Event_ActionFailed:
 			if s.Data.LastErr != nil {
-				log.Printf("[FSM] Action failure %v", s.Data.LastErr)
+				log.Infof("[FSM] Action failure %v", s.Data.LastErr)
 			}
 		}
 

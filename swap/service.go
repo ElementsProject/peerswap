@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"strings"
 	"sync"
 
@@ -30,7 +30,6 @@ func (s ErrUnknownSwapMessageType) Error() string {
 type PeerNotAllowedError string
 
 func (s PeerNotAllowedError) Error() string {
-	log.Printf("unalowed request from non-allowlist peer: %s", string(s))
 	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
 }
 
@@ -123,7 +122,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		return err
 	}
 	msgBytes := []byte(payload)
-	log.Printf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
+	log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	default:
 		// Do nothing here, as it will spam the cln log.
@@ -297,7 +296,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
-	log.Printf("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
+	log.Infof("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
@@ -524,7 +523,7 @@ func getPaymentLabel(description string) string {
 func (s *SwapService) OnPayment(swapIdStr string, invoiceType InvoiceType) {
 	swapId, err := ParseSwapIdFromString(swapIdStr)
 	if err != nil {
-		log.Printf("parse swapId error")
+		log.Infof("parse swapId error")
 		return
 	}
 
@@ -532,12 +531,12 @@ func (s *SwapService) OnPayment(swapIdStr string, invoiceType InvoiceType) {
 	switch invoiceType {
 	case INVOICE_FEE:
 		if err := s.OnFeeInvoiceNotification(swapId); err != nil {
-			log.Printf("[SwapService] Error OnFeeInvoiceNotification: %v", err)
+			log.Infof("[SwapService] Error OnFeeInvoiceNotification: %v", err)
 			return
 		}
 	case INVOICE_CLAIM:
 		if err := s.OnClaimInvoiceNotification(swapId); err != nil {
-			log.Printf("[SwapService] Error OnClaimInvoiceNotification: %v", err)
+			log.Infof("[SwapService] Error OnClaimInvoiceNotification: %v", err)
 			return
 		}
 	default:
@@ -663,7 +662,7 @@ func (s *SwapService) createTimeoutCallback(swapId string) func() {
 	return func() {
 		swap, err := s.GetActiveSwap(swapId)
 		if err != nil {
-			log.Printf("[SwapService]\ttimeout callback: %v", err)
+			log.Infof("[SwapService]\ttimeout callback: %v", err)
 			return
 		}
 
@@ -672,7 +671,7 @@ func (s *SwapService) createTimeoutCallback(swapId string) func() {
 
 		done, err := swap.SendEvent(Event_OnTimeout, nil)
 		if err != nil {
-			log.Printf("[SwapService]\tSendEvent(): %v", err)
+			log.Infof("[SwapService]\tSendEvent(): %v", err)
 			return
 		}
 

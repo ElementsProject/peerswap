@@ -50,7 +50,7 @@ func Test_MppPaymentsError1(t *testing.T) {
 	assert.Equal(t, "", preimage)
 	assert.Equal(t, 1, noErrorPayer.sendPayCall)
 	assert.Equal(t, 0, noErrorPayer.waitSendCalls)
-	assert.Equal(t, uint64(1000000 * 1000), noErrorPayer.totalPayed)
+	assert.Equal(t, uint64(1000000*1000), noErrorPayer.totalPayed)
 }
 
 func Test_MppPaymentsError2(t *testing.T) {

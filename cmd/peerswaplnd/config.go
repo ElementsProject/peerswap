@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcutil"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+type LogLevel uint8
+
+const (
+	LOGLEVEL_INFO = LogLevel(iota + 1)
+	LOGLEVEL_DEBUG
 )
 
 var (
@@ -21,14 +27,16 @@ var (
 	DefaultDatadir        = btcutil.AppDataDir("peerswap", false)
 	DefaultLiquidwallet   = "swap"
 	DefaultBitcoinEnabled = true
+	DefaultLogLevel       = LOGLEVEL_DEBUG
 
 	defaultLndDir = btcutil.AppDataDir("lnd", false)
 )
 
 type PeerSwapConfig struct {
-	Host       string `long:"host" description:"host to listen on for grpc connections"`
-	ConfigFile string `long:"configfile" description:"path to configfile"`
-	DataDir    string `long:"datadir" description:"peerswap datadir"`
+	Host       string   `long:"host" description:"host to listen on for grpc connections"`
+	ConfigFile string   `long:"configfile" description:"path to configfile"`
+	DataDir    string   `long:"datadir" description:"peerswap datadir"`
+	LogLevel   LogLevel `long:"loglevel" description:"loglevel (1=Info, 2=Debug)"`
 
 	Network      string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"signet"`
 	LndConfig    *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
@@ -77,7 +85,6 @@ func (o *OnchainConfig) Validate() error {
 		return errors.New("either rpcuser or cookie file must be set")
 	}
 	if o.RpcUser == "" {
-		log.Printf("looking for bitcoin cookie")
 		// look for cookie file
 		cookiePath := filepath.Join(o.RpcCookieFilePath)
 		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
@@ -99,7 +106,6 @@ func (o *OnchainConfig) Validate() error {
 		if o.RpcPasswordFile != "" {
 			passBytes, err := ioutil.ReadFile(o.RpcPasswordFile)
 			if err != nil {
-				log.Printf("error reading file: %v", err)
 				return err
 			}
 			passString := strings.TrimRight(string(passBytes), "\r\n")
@@ -128,6 +134,7 @@ func DefaultConfig() *PeerSwapConfig {
 		},
 		BitcoinEnabled: DefaultBitcoinEnabled,
 		LiquidConfig:   defaultLiquidConfig(),
+		LogLevel:       DefaultLogLevel,
 	}
 }
 

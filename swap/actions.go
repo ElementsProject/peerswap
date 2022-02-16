@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"os"
 	"strconv"
 	"time"
@@ -134,7 +134,6 @@ func (s *SwapData) HandleError(err error) EventType {
 	if s.CancelMessage == "" {
 		s.CancelMessage = s.LastErrString
 	}
-	log.Printf("swap error: %v", err)
 	return Event_ActionFailed
 }
 
@@ -151,7 +150,7 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 	if swap.ClaimTxId == "" {
 		txId, _, err := wallet.CreatePreimageSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
 		if err != nil {
-			log.Printf("error claiming tx with preimage %v", err)
+			log.Infof("Error claiming tx with preimage %v", err)
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
@@ -430,7 +429,7 @@ type SendCancelAction struct{}
 
 func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	if swap.LastErr != nil {
-		log.Printf("[FSM] Canceling because of %s", swap.LastErr.Error())
+		log.Debugf("[FSM] Canceling because of %s", swap.LastErr.Error())
 	}
 	messenger := services.messenger
 
@@ -528,7 +527,6 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	// policy := services.policy
 	_, msatAmt, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
 	if err != nil {
-		log.Printf("error decoding %v", err)
 		return swap.HandleError(err)
 	}
 	swap.OpeningTxFee = msatAmt / 1000
@@ -542,7 +540,6 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	*/
 	preimage, err := ll.PayInvoice(swap.SwapOutAgreement.Payreq)
 	if err != nil {
-		log.Printf("error paying out %v", err)
 		return swap.HandleError(err)
 	}
 	swap.FeePreimage = preimage
@@ -621,7 +618,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		if prtStr := os.Getenv("PAYMENT_RETRY_TIME"); prtStr != "" {
 			prtInt, err := strconv.Atoi(prtStr)
 			if err != nil {
-				log.Printf("could not read from PAYMENT_RETRY_TIME")
+				log.Debugf("could not read from PAYMENT_RETRY_TIME")
 			} else {
 				retryTime = time.Duration(prtInt) * time.Second
 			}
@@ -643,7 +640,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		case <-ticker.C:
 			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
 			if err != nil {
-				log.Printf("error trying to pay invoice: %v, retry...", err)
+				log.Infof("error trying to pay invoice: %v, retry...", err)
 				// Another round!
 				continue
 			}

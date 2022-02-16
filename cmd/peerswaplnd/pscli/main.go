@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	log2 "log"
 	"os"
 
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
@@ -32,7 +32,7 @@ func main() {
 	}
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		log2.Fatal(err)
 	}
 
 }

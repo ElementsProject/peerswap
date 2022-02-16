@@ -79,15 +79,10 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 func (p *PeerSwapd) Run(waitForReady bool) error {
 	p.DaemonProcess.Run()
 
-	err := p.WaitForLog("Listening on", testframework.TIMEOUT)
-	if err != nil {
-		return err
-	}
-
 	if waitForReady {
-		err = p.WaitForLog("serving", testframework.TIMEOUT)
+		err := p.WaitForLog("listening on", testframework.TIMEOUT)
 		if err != nil {
-			return fmt.Errorf("waitForReady %w", err)
+			return err
 		}
 	}
 

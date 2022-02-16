@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/log"
 	"io"
 	"io/ioutil"
-	"log"
+	log2 "log"
 	"net"
 	"os"
 	"os/signal"
@@ -48,7 +49,7 @@ const (
 func main() {
 	err := run()
 	if err != nil {
-		log.Fatal(err)
+		log2.Fatal(err)
 	}
 }
 
@@ -64,7 +65,7 @@ func run() error {
 
 		select {
 		case sig := <-sigChan:
-			log.Printf("received signal: %v, release shutdown", sig)
+			log.Infof("received signal: %v, release shutdown", sig)
 			shutdown <- struct{}{}
 		}
 	}()
@@ -82,12 +83,13 @@ func run() error {
 		return err
 	}
 
-	closeFunc, err := setupLogger(cfg)
+	logger, closeFunc, err := NewLndLogger(cfg)
 	if err != nil {
 		return err
 	}
 	defer closeFunc()
-	log.Printf("%s", cfg)
+	log.SetLogger(logger)
+	log.Debugf("%s", cfg)
 
 	// setup lnd connection
 	lndConn, err := getLndClientConnection(ctx, cfg)
@@ -124,12 +126,11 @@ func run() error {
 		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, chain)
 		bitcoinOnChainService = onchain.NewBitcoinOnChain(lndFeeEstimator, chain)
 
-		log.Printf("Bitcoin swaps enabled")
+		log.Infof("Bitcoin swaps enabled")
 	} else {
-		log.Printf("Bitcoin swaps disabled")
+		log.Infof("Bitcoin swaps disabled")
 	}
 
-	log.Printf("%v", bitcoinOnChainService.GetChain())
 	// setup liquid stuff
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
@@ -137,7 +138,7 @@ func run() error {
 	var liquidCli *gelements.Elements
 	if cfg.LiquidEnabled {
 		supportedAssets = append(supportedAssets, "l-btc")
-		log.Printf("Liquid swaps enabled")
+		log.Infof("Liquid swaps enabled")
 		// blockchaincli
 		liquidConfig := cfg.LiquidConfig
 		liquidCli = gelements.NewElements(liquidConfig.RpcUser, liquidConfig.RpcPassword)
@@ -166,7 +167,7 @@ func run() error {
 		}
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 	} else {
-		log.Printf("Liquid swaps disabled")
+		log.Infof("Liquid swaps disabled")
 	}
 
 	if !cfg.BitcoinEnabled && !cfg.LiquidEnabled {
@@ -191,7 +192,7 @@ func run() error {
 	}
 
 	// setup swap services
-	log.Printf("using policy:\n%s", pol)
+	log.Infof("using policy:\n%s", pol)
 	swapStore, err := swap.NewBboltStore(swapDb)
 	if err != nil {
 		return err
@@ -225,7 +226,7 @@ func run() error {
 		go func() {
 			err := liquidTxWatcher.StartWatchingTxs()
 			if err != nil {
-				log.Printf("%v", err)
+				log.Infof("%v", err)
 				os.Exit(1)
 			}
 		}()
@@ -268,12 +269,11 @@ func run() error {
 	go func() {
 		err := grpcSrv.Serve(lis)
 		if err != nil {
-			log.Fatal(err)
+			log2.Fatal(err)
 		}
 	}()
-	log.Println("serving")
 	defer grpcSrv.GracefulStop()
-	fmt.Printf("Listening on %v", cfg.Host)
+	log.Infof("peerswapd listening on %v", cfg.Host)
 	<-shutdown
 	return nil
 }
@@ -322,16 +322,6 @@ func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
 	default:
 		return &network.Testnet, nil
 	}
-}
-
-func setupLogger(cfg *peerswaplnd.PeerSwapConfig) (func() error, error) {
-	logFile, err := os.OpenFile(filepath.Join(cfg.DataDir, "log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	w := io.MultiWriter(os.Stdout, logFile)
-	log.SetOutput(w)
-	return logFile.Close, nil
 }
 
 func getLndClientConnection(ctx context.Context, cfg *peerswaplnd.PeerSwapConfig) (*grpc.ClientConn, error) {
@@ -428,4 +418,29 @@ func checkLndVersion(fullVersionString string) error {
 		return errors.New(fmt.Sprintf("Lnd version unsupported, requires %v", minLndVersion))
 	}
 	return nil
+}
+
+type LndLogger struct {
+	loglevel peerswaplnd.LogLevel
+}
+
+func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, func() error, error) {
+	logFile, err := os.OpenFile(filepath.Join(cfg.DataDir, "log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, nil, err
+	}
+	w := io.MultiWriter(os.Stdout, logFile)
+	log2.SetOutput(w)
+
+	return &LndLogger{loglevel: cfg.LogLevel}, logFile.Close, nil
+}
+
+func (l *LndLogger) Infof(format string, v ...interface{}) {
+	log2.Printf("[INFO] "+format, v...)
+}
+
+func (l *LndLogger) Debugf(format string, v ...interface{}) {
+	if l.loglevel == peerswaplnd.LOGLEVEL_DEBUG {
+		log2.Printf("[DEBUG] "+format, v...)
+	}
 }

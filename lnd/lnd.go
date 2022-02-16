@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/log"
 	"io/ioutil"
-	"log"
 	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -45,12 +45,12 @@ type Lnd struct {
 func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) (alreadyPaid bool) {
 	invoice, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
-		log.Printf("decode invoice error")
+		log.Infof("decode invoice error")
 		return false
 	}
 	rHash, err := hex.DecodeString(invoice.PaymentHash)
 	if err != nil {
-		log.Printf("decode rhash error")
+		log.Infof("decode rhash error")
 		return false
 	}
 	lookup, err := l.lndClient.LookupInvoice(l.ctx, &lnrpc.PaymentHash{RHash: rHash})
@@ -61,7 +61,7 @@ func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.
 		for {
 			select {
 			case <-l.ctx.Done():
-				log.Printf("context done")
+				log.Debugf("context done")
 				return
 			default:
 				stream, err := l.invoicesClient.SubscribeSingleInvoice(l.ctx, &invoicesrpc.SubscribeSingleInvoiceRequest{RHash: rHash})
@@ -183,7 +183,7 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 			case lnrpc.Payment_SUCCEEDED:
 				return res.PaymentPreimage, nil
 			case lnrpc.Payment_IN_FLIGHT:
-				log.Printf("payment in flight")
+				log.Debugf("payment in flight")
 			case lnrpc.Payment_FAILED:
 				return "", fmt.Errorf("payment failure %s", res.FailureReason)
 			default:
@@ -224,13 +224,13 @@ func (l *Lnd) StartListening() {
 	go func() {
 		err := l.listenMessages()
 		if err != nil {
-			log.Printf("error listening on messages %v", err)
+			log.Infof("error listening on messages %v", err)
 		}
 	}()
 	go func() {
 		err := l.listenPeerEvents()
 		if err != nil {
-			log.Printf("error listening on peer events %v", err)
+			log.Infof("error listening on peer events %v", err)
 		}
 	}()
 }
@@ -238,7 +238,7 @@ func (l *Lnd) StartListening() {
 func (l *Lnd) GetPeers() []string {
 	res, err := l.lndClient.ListPeers(l.ctx, &lnrpc.ListPeersRequest{})
 	if err != nil {
-		log.Printf("could not listpeers: %v", err)
+		log.Debugf("could not listpeers: %v", err)
 		return nil
 	}
 
@@ -266,7 +266,7 @@ func (l *Lnd) listenMessages() error {
 
 			err = l.handleCustomMessage(msg)
 			if err != nil {
-				log.Printf("Error handling msg %v", err)
+				log.Infof("Error handling msg %v", err)
 			}
 		}
 	}
@@ -300,7 +300,7 @@ func (l *Lnd) handleCustomMessage(msg *lnrpc.CustomMessage) error {
 	for _, v := range l.messageHandler {
 		err := v(peerId, messages.MessageTypeToHexString(messages.MessageType(msg.Type)), msg.Data)
 		if err != nil {
-			log.Printf("\n msghandler err: %v", err)
+			log.Infof("\n Custom Message Handler err: %v", err)
 		}
 	}
 	return nil

@@ -3,7 +3,7 @@ package poll
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
 
@@ -113,17 +113,16 @@ func (s *Service) Poll(peer string) {
 
 	msg, err := json.Marshal(poll)
 	if err != nil {
-		log.Printf("poll_service: could not marshal poll msg: %v", err)
+		log.Debugf("poll_service: could not marshal poll msg: %v", err)
 		return
 	}
 
 	if err := s.messenger.SendMessage(peer, msg, int(poll.MessageType())); err != nil {
-		log.Printf("poll_service: could not send poll msg: %v", err)
+		log.Debugf("poll_service: could not send poll msg: %v", err)
 	}
 }
 
 func (s *Service) PollAllPeers() {
-	log.Println("poll peers")
 	for _, peer := range s.peers.GetPeers() {
 		go s.Poll(peer)
 	}
@@ -140,12 +139,12 @@ func (s *Service) RequestPoll(peer string) {
 
 	msg, err := json.Marshal(request)
 	if err != nil {
-		log.Printf("poll_service: could not marshal request_poll msg: %v", err)
+		log.Debugf("poll_service: could not marshal request_poll msg: %v", err)
 		return
 	}
 
 	if err := s.messenger.SendMessage(peer, msg, int(request.MessageType())); err != nil {
-		log.Printf("poll_service: could not send request_poll msg: %v", err)
+		log.Debugf("poll_service: could not send request_poll msg: %v", err)
 	}
 }
 
@@ -173,7 +172,6 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 		if err != nil {
 			return err
 		}
-		log.Printf("got poll message %s", string(payload))
 		s.store.Update(peerId, PollInfo{
 			Assets:      msg.Assets,
 			PeerAllowed: msg.PeerAllowed,
@@ -186,7 +184,6 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 		if err != nil {
 			return err
 		}
-		log.Printf("got poll request %s", string(payload))
 		s.store.Update(peerId, PollInfo{
 			Assets:      msg.Assets,
 			PeerAllowed: msg.PeerAllowed,

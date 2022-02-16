@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/sputn1ck/peerswap/log"
 	"math/big"
 	"sort"
 	"strings"
@@ -47,7 +47,7 @@ func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[Wallet] Getting address %s", res)
+	log.Infof("[Wallet] Getting address %s", res)
 	return &GetAddressResponse{LiquidAddress: res}, nil
 }
 
@@ -122,7 +122,7 @@ func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
 	}
 	res, err := s.cl.liquidWallet.SendToAddress(s.Address, s.AmountSat)
 	if err != nil {
-		log.Printf("error %v", err)
+		log.Infof("Error sending to address %v", err)
 		return nil, err
 	}
 	return &SendToAddressResponse{TxId: res}, nil
@@ -411,7 +411,7 @@ func (l *ListNodes) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (l *ListNodes) Description() string {
-	return "lists nodes that support the peerswap plugin"
+	return "lists nodes that support the peerswap Plugin"
 }
 
 func (l *ListNodes) LongDescription() string {
@@ -463,7 +463,7 @@ func (l *ListPeers) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (l *ListPeers) Description() string {
-	return "lists peers supporting the peerswap plugin"
+	return "lists peers supporting the peerswap Plugin"
 }
 
 func (l *ListPeers) LongDescription() string {
@@ -676,7 +676,7 @@ func (c ReloadPolicyFile) New() interface{} {
 }
 
 func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
-	log.Println(c.cl.policy)
+	log.Debugf("reloading policy %v", c.cl.policy)
 	err := c.cl.policy.ReloadFile()
 	if err != nil {
 		return nil, err
@@ -751,7 +751,7 @@ type PeerSwapPeer struct {
 	PaidFee         uint64                 `json:"total_fee_paid"`
 }
 
-// checkFeatures checks if a node runs the peerswap plugin
+// checkFeatures checks if a node runs the peerswap Plugin
 func checkFeatures(features []byte, featureBit int64) bool {
 	featuresInt := big.NewInt(0)
 	featuresInt = featuresInt.SetBytes(features)

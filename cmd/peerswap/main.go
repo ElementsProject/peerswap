@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sputn1ck/peerswap/log"
 	"io/ioutil"
-	"log"
+	log2 "log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +40,7 @@ const (
 
 func main() {
 	if err := run(); err != nil {
-		log.Printf("plugin quitting, error: %s", err)
+		log.Debugf("plugin quitting, error: %s", err)
 		os.Exit(1)
 	}
 
@@ -68,12 +69,13 @@ func run() error {
 	go func() {
 		err := lightningPlugin.Start()
 		if err != nil {
-			log.Fatal(err)
+			log2.Fatal(err)
 		}
 		quitChan <- true
 	}()
 	<-initChan
-	log.Printf("waiting for init finished")
+	log.SetLogger(clightning.NewGlightninglogger(lightningPlugin.Plugin))
+	log.Debugf("waiting for init finished")
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {
 		return err
@@ -82,7 +84,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("PeerswapClightningConfig: Db:%s, Rpc: %s %s,", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser)
+	log.Debugf("PeerswapClightningConfig: Db:%s, Rpc: %s %s,", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser)
 	// setup services
 	nodeInfo, err := lightningPlugin.GetLightningRpc().GetInfo()
 	if err != nil {
@@ -99,7 +101,7 @@ func run() error {
 	var liquidCli *gelements.Elements
 	if config.LiquidEnabled {
 		supportedAssets = append(supportedAssets, "l-btc")
-		log.Printf("Liquid swaps enabled")
+		log.Infof("Liquid swaps enabled")
 		// blockchaincli
 		liquidCli = gelements.NewElements(config.LiquidRpcUser, config.LiquidRpcPassword)
 		liquidCli.SetTimeout(120)
@@ -128,7 +130,7 @@ func run() error {
 		}
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 	} else {
-		log.Printf("Liquid swaps disabled")
+		log.Infof("Liquid swaps disabled")
 	}
 
 	// bitcoin
@@ -145,12 +147,12 @@ func run() error {
 	var bitcoinEnabled bool
 	if bitcoinCli != nil {
 		supportedAssets = append(supportedAssets, "btc")
-		log.Printf("Bitcoin swaps enabled")
+		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
 		bitcoinOnChainService = onchain.NewBitcoinOnChain(lightningPlugin, chain)
 	} else {
-		log.Printf("Bitcoin swaps disabled")
+		log.Infof("Bitcoin swaps disabled")
 	}
 
 	if !bitcoinEnabled && !config.LiquidEnabled {
@@ -168,7 +170,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("using policy:\n%s", pol)
+	log.Infof("using policy:\n%s", pol)
 
 	// Swap store.
 	swapStore, err := swap.NewBboltStore(swapDb)
@@ -205,7 +207,7 @@ func run() error {
 		go func() {
 			err := liquidTxWatcher.StartWatchingTxs()
 			if err != nil {
-				log.Printf("%v", err)
+				log.Infof("%v", err)
 				os.Exit(1)
 			}
 		}()
@@ -215,7 +217,7 @@ func run() error {
 		go func() {
 			err := bitcoinTxWatcher.StartWatchingTxs()
 			if err != nil {
-				log.Printf("%v", err)
+				log.Infof("%v", err)
 				os.Exit(1)
 			}
 		}()
@@ -241,7 +243,7 @@ func run() error {
 		return err
 	}
 
-	log.Printf("peerswap initialized")
+	log.Infof("peerswap initialized")
 	<-quitChan
 	return nil
 }
@@ -256,7 +258,6 @@ func validateConfig(cfg *clightning.PeerswapClightningConfig) error {
 		if cfg.LiquidRpcPasswordFile != "" {
 			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
 			if err != nil {
-				log.Printf("error reading file: %v", err)
 				return err
 			}
 			passString := strings.TrimRight(string(passBytes), "\r\n")
@@ -324,11 +325,10 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 	var rpcPort int
 	if pluginConfig.BitcoinRpcUser != "" || pluginConfig.BitcoinCookieFilePath != "" {
 		if pluginConfig.BitcoinCookieFilePath != "" {
-			log.Printf("looking for bitcoin cookie")
 			// look for cookie file
 			cookiePath := filepath.Join(pluginConfig.BitcoinCookieFilePath)
 			if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
-				log.Printf("cannot find bitcoin cookie file at %s", cookiePath)
+				log.Infof("cannot find bitcoin cookie file at %s", cookiePath)
 				return nil, nil
 			}
 			cookieBytes, err := os.ReadFile(cookiePath)
@@ -367,17 +367,16 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 		}
 		bclirpcUser, ok := bcliConfig.Options["bitcoin-rpcuser"]
 		if bclirpcUser == nil || !ok {
-			log.Printf("looking for bitcoin cookie")
 			// look for cookie file
 			bitcoinDir, ok := bcliConfig.Options["bitcoin-datadir"].(string)
 			if !ok {
-				log.Printf("no `bitcoin-datadir` config set")
+				log.Infof("no `bitcoin-datadir` config set")
 				return nil, nil
 			}
 
 			cookiePath := filepath.Join(bitcoinDir, getNetworkFolder(gi.Network), ".cookie")
 			if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
-				log.Printf("cannot find bitcoin cookie file at %s", cookiePath)
+				log.Infof("cannot find bitcoin cookie file at %s", cookiePath)
 				return nil, nil
 			}
 			cookieBytes, err := os.ReadFile(cookiePath)
@@ -398,14 +397,14 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 			// assume auth authentication
 			rpcPassBcli, ok := bcliConfig.Options["bitcoin-rpcpassword"]
 			if !ok {
-				log.Printf("`bitcoin-rpcpassword` not set in lightning config")
+				log.Infof("`bitcoin-rpcpassword` not set in lightning config")
 				return nil, nil
 			}
 
 			rpcPassword = rpcPassBcli.(string)
 			rpcPortStr, ok := bcliConfig.Options["bitcoin-rpcport"]
 			if !ok {
-				log.Printf("`bitcoin-rpcport` not set in lightning config")
+				log.Infof("`bitcoin-rpcport` not set in lightning config")
 				return nil, nil
 			}
 
@@ -427,7 +426,7 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 		}
 	}
 
-	log.Printf("connecting with %s, %s to %s:%v", rpcUser, rpcPassword, rpcHost, rpcPort)
+	log.Debugf("connecting with %s, %s to %s:%v", rpcUser, rpcPassword, rpcHost, rpcPort)
 	bitcoin := gbitcoin.NewBitcoin(rpcUser, rpcPassword)
 	bitcoin.SetTimeout(10)
 	err = bitcoin.StartUp(rpcHost, "", uint(rpcPort))
