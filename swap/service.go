@@ -76,6 +76,19 @@ func (s *SwapService) Start() error {
 	return nil
 }
 
+func (s *SwapService) HasActiveSwaps() (bool, error) {
+	swaps, err := s.swapServices.swapStore.ListAll()
+	if err != nil {
+		return false, err
+	}
+	for _, swap := range swaps {
+		if !swap.IsFinished() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // RecoverSwaps tries to recover swaps that are not yet finished
 func (s *SwapService) RecoverSwaps() error {
 	swaps, err := s.swapServices.swapStore.ListAll()

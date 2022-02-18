@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sputn1ck/peerswap/log"
+	"github.com/sputn1ck/peerswap/version"
 	"io"
 	"io/ioutil"
 	log2 "log"
@@ -236,6 +237,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	// Try to upgrade version if needed
+	versionService, err := version.NewVersionService(swapDb)
+	if err != nil {
+		return err
+	}
+	err = versionService.SafeUpgrade(swapService)
+	if err != nil {
+		return err
+	}
+
 	err = swapService.RecoverSwaps()
 	if err != nil {
 		return err
