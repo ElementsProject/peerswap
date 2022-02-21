@@ -61,6 +61,10 @@ var (
 		Name:     "address",
 		Required: true,
 	}
+	rejectFlag = cli.BoolFlag{
+		Name:     "reject",
+		Required: true,
+	}
 
 	swapOutCommand = cli.Command{
 		Name:  "swapout",
@@ -149,6 +153,14 @@ var (
 		Name:   "listactiveswaps",
 		Usage:  "list active swaps",
 		Action: listActiveSwaps,
+	}
+	rejectSwapsCommand = cli.Command{
+		Name:  "rejectswaps",
+		Usage: "Sets peerswap to reject all incoming swap requests",
+		Flags: []cli.Flag{
+			rejectFlag,
+		},
+		Action: rejectSwaps,
 	}
 	stopCommand = cli.Command{
 		Name:   "stop",
@@ -346,6 +358,23 @@ func listActiveSwaps(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.ListActiveSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func rejectSwaps(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.RejectSwaps(context.Background(), &peerswaprpc.RejectSwapsRequest{
+		Reject: ctx.Bool(rejectFlag.Name),
+	})
 	if err != nil {
 		return err
 	}

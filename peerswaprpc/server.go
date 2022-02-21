@@ -500,6 +500,11 @@ func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwaps
 	return &ListSwapsResponse{Swaps: resSwaps}, nil
 }
 
+func (p *PeerswapServer) RejectSwaps(ctx context.Context, request *RejectSwapsRequest) (*RejectSwapsResponse, error) {
+	reject := p.swaps.SetRejectSwaps(request.Reject)
+	return &RejectSwapsResponse{Reject: reject}, nil
+}
+
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	timeStamp := time.Unix(swap.Data.CreatedAt, 0)
 	return &PrettyPrintSwap{

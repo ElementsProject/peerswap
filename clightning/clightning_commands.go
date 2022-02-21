@@ -762,6 +762,42 @@ func (c ListActiveSwaps) LongDescription() string {
 	return `This command can give you information if you are ready to upgrade your peerswap daemon.`
 }
 
+type RejectSwaps struct {
+	Reject bool `json:"reject"`
+	cl     *ClightningClient
+}
+
+func (g *RejectSwaps) Name() string {
+	return "peerswap-rejectsswaps"
+}
+
+func (g *RejectSwaps) New() interface{} {
+	return &RejectSwaps{
+		cl:     g.cl,
+		Reject: g.Reject,
+	}
+}
+
+func (g *RejectSwaps) Call() (jrpc2.Result, error) {
+	reject := g.cl.swaps.SetRejectSwaps(g.Reject)
+	return reject, nil
+}
+
+func (g *RejectSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &RejectSwaps{
+		cl:     client,
+		Reject: g.Reject,
+	}
+}
+
+func (c RejectSwaps) Description() string {
+	return "Sets peerswap to reject incoming swap requests"
+}
+
+func (c RejectSwaps) LongDescription() string {
+	return `This command can be used to wait for all swaps to complete, while not allowing new swaps. This is helps with upgrading`
+}
+
 type PeerSwapPeerChannel struct {
 	ChannelId     string  `json:"short_channel_id"`
 	LocalBalance  uint64  `json:"local_balance"`

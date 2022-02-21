@@ -44,7 +44,7 @@ type SwapService struct {
 	activeSwaps    map[string]*SwapStateMachine
 	BitcoinEnabled bool
 	LiquidEnabled  bool
-
+	rejectSwaps    bool
 	sync.RWMutex
 }
 
@@ -54,6 +54,7 @@ func NewSwapService(services *SwapServices) *SwapService {
 		activeSwaps:    map[string]*SwapStateMachine{},
 		LiquidEnabled:  services.liquidEnabled,
 		BitcoinEnabled: services.bitcoinEnabled,
+		rejectSwaps:    false,
 	}
 }
 
@@ -309,8 +310,10 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
+	if s.rejectSwaps {
+		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	}
 	log.Infof("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
-
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
 
@@ -348,6 +351,9 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
+	}
+	if s.rejectSwaps {
+		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
 
 	var bitcoinNetwork string
@@ -387,6 +393,9 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
+	if s.rejectSwaps {
+		return fmt.Errorf("rejecting all swaps")
+	}
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
 	s.AddActiveSwap(swapId.String(), swap)
 
@@ -404,6 +413,9 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
+	if s.rejectSwaps {
+		return fmt.Errorf("rejecting all swaps")
+	}
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
 
 	s.AddActiveSwap(swapId.String(), swap)
@@ -670,6 +682,11 @@ func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
 	}
 
 	return false
+}
+
+func (s *SwapService) SetRejectSwaps(reject bool) bool {
+	s.rejectSwaps = reject
+	return s.rejectSwaps
 }
 
 type WrongAssetError string
