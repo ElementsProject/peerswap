@@ -26,6 +26,7 @@ type PeerSwapClient interface {
 	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error)
 	ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*ReloadPolicyFileResponse, error)
 	ListRequestedSwaps(ctx context.Context, in *ListRequestedSwapsRequest, opts ...grpc.CallOption) (*ListRequestedSwapsResponse, error)
+	ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
 	// Liquid Stuff
 	LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	LiquidGetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
@@ -113,6 +114,15 @@ func (c *peerSwapClient) ListRequestedSwaps(ctx context.Context, in *ListRequest
 	return out, nil
 }
 
+func (c *peerSwapClient) ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error) {
+	out := new(ListSwapsResponse)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/ListActiveSwaps", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *peerSwapClient) LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error) {
 	out := new(GetAddressResponse)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/LiquidGetAddress", in, out, opts...)
@@ -161,6 +171,7 @@ type PeerSwapServer interface {
 	ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error)
 	ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error)
 	ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error)
+	ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
 	// Liquid Stuff
 	LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	LiquidGetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
@@ -196,6 +207,9 @@ func (UnimplementedPeerSwapServer) ReloadPolicyFile(context.Context, *ReloadPoli
 }
 func (UnimplementedPeerSwapServer) ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRequestedSwaps not implemented")
+}
+func (UnimplementedPeerSwapServer) ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListActiveSwaps not implemented")
 }
 func (UnimplementedPeerSwapServer) LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LiquidGetAddress not implemented")
@@ -366,6 +380,24 @@ func _PeerSwap_ListRequestedSwaps_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PeerSwap_ListActiveSwaps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSwapsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).ListActiveSwaps(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/ListActiveSwaps",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).ListActiveSwaps(ctx, req.(*ListSwapsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PeerSwap_LiquidGetAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAddressRequest)
 	if err := dec(in); err != nil {
@@ -476,6 +508,10 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRequestedSwaps",
 			Handler:    _PeerSwap_ListRequestedSwaps_Handler,
+		},
+		{
+			MethodName: "ListActiveSwaps",
+			Handler:    _PeerSwap_ListActiveSwaps_Handler,
 		},
 		{
 			MethodName: "LiquidGetAddress",

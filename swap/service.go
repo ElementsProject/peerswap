@@ -626,6 +626,23 @@ func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
 	s.activeSwaps[swapId] = swap
 }
 
+func (s *SwapService) ListActiveSwaps() ([]*SwapStateMachine, error) {
+	swaps, err := s.swapServices.swapStore.ListAll()
+	if err != nil {
+		return nil, err
+	}
+
+	activeSwaps := []*SwapStateMachine{}
+
+	for _, swap := range swaps {
+		if swap.IsFinished() {
+			continue
+		}
+		activeSwaps = append(activeSwaps, swap)
+	}
+	return activeSwaps, nil
+}
+
 // GetActiveSwap returns the active swap, or an error if it does not exist
 func (s *SwapService) GetActiveSwap(swapId string) (*SwapStateMachine, error) {
 	s.RLock()

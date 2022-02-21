@@ -35,6 +35,7 @@ var methods = []peerswaprpcMethod{
 	&LiquidSendToAddress{},
 	&GetSwap{},
 	&ResendLastMessage{},
+	&ListActiveSwaps{},
 }
 
 var devmethods = []peerswaprpcMethod{}

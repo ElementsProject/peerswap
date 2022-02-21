@@ -28,7 +28,7 @@ func main() {
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
 		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
-		stopCommand,
+		stopCommand, listActiveSwapsCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -144,6 +144,11 @@ var (
 			liquidAddressFlag,
 		},
 		Action: liquidSendToAddress,
+	}
+	listActiveSwapsCommand = cli.Command{
+		Name:   "listactiveswaps",
+		Usage:  "list active swaps",
+		Action: listActiveSwaps,
 	}
 	stopCommand = cli.Command{
 		Name:   "stop",
@@ -326,6 +331,21 @@ func liquidSendToAddress(ctx *cli.Context) error {
 		Address:   ctx.String(liquidAddressFlag.Name),
 		SatAmount: ctx.Uint64(satAmountFlag.Name),
 	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func listActiveSwaps(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.ListActiveSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{})
 	if err != nil {
 		return err
 	}

@@ -726,6 +726,42 @@ func (c GetRequestedSwaps) LongDescription() string {
 		been performed because either the peer is not in the allowlist or the asset is not set.`
 }
 
+type ListActiveSwaps struct {
+	cl *ClightningClient
+}
+
+func (g *ListActiveSwaps) Name() string {
+	return "peerswap-listactiveswaps"
+}
+
+func (g *ListActiveSwaps) New() interface{} {
+	return &ListActiveSwaps{
+		cl: g.cl,
+	}
+}
+
+func (g *ListActiveSwaps) Call() (jrpc2.Result, error) {
+	swaps, err := g.cl.swaps.ListActiveSwaps()
+	if err != nil {
+		return nil, err
+	}
+	return swaps, nil
+}
+
+func (g *ListActiveSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListActiveSwaps{
+		cl: client,
+	}
+}
+
+func (c ListActiveSwaps) Description() string {
+	return "Returns active swaps."
+}
+
+func (c ListActiveSwaps) LongDescription() string {
+	return `This command can give you information if you are ready to upgrade your peerswap daemon.`
+}
+
 type PeerSwapPeerChannel struct {
 	ChannelId     string  `json:"short_channel_id"`
 	LocalBalance  uint64  `json:"local_balance"`

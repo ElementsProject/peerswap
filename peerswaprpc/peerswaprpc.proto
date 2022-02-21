@@ -13,6 +13,7 @@ service PeerSwap {
     rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
+    rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
