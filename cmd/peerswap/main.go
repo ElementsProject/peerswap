@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sputn1ck/peerswap/log"
+	"github.com/sputn1ck/peerswap/version"
 	"io/ioutil"
 	log2 "log"
 	"os"
@@ -238,6 +239,19 @@ func run() error {
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
 	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
+
+	// Try to upgrade version if needed
+	versionService, err := version.NewVersionService(swapDb)
+	if err != nil {
+		return err
+	}
+	err = versionService.SafeUpgrade(swapService)
+	if err != nil {
+		return err
+	}
+
+	// Check for active swaps and compare with version
+
 	err = swapService.RecoverSwaps()
 	if err != nil {
 		return err

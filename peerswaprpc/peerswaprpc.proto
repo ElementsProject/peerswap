@@ -13,6 +13,8 @@ service PeerSwap {
     rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
+    rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
+    rpc RejectSwaps(RejectSwapsRequest) returns (RejectSwapsResponse);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
@@ -165,6 +167,14 @@ message Policy {
     uint64 reserve_onchain_msat = 1;
     bool accept_all_peers = 2;
     repeated string peer_allow_list = 3;
+}
+
+message RejectSwapsRequest {
+    bool reject = 1;
+}
+
+message RejectSwapsResponse {
+    bool reject = 1;
 }
 
 

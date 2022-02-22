@@ -482,6 +482,29 @@ func (p *PeerswapServer) LiquidSendToAddress(ctx context.Context, request *SendT
 	return &SendToAddressResponse{TxId: res}, nil
 }
 
+func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwapsRequest) (*ListSwapsResponse, error) {
+	swaps, err := p.swaps.ListActiveSwaps()
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(swaps, func(i, j int) bool {
+		if swaps[i].Data != nil && swaps[j].Data != nil {
+			return swaps[i].Data.CreatedAt < swaps[j].Data.CreatedAt
+		}
+		return false
+	})
+	var resSwaps []*PrettyPrintSwap
+	for _, v := range swaps {
+		resSwaps = append(resSwaps, PrettyprintFromServiceSwap(v))
+	}
+	return &ListSwapsResponse{Swaps: resSwaps}, nil
+}
+
+func (p *PeerswapServer) RejectSwaps(ctx context.Context, request *RejectSwapsRequest) (*RejectSwapsResponse, error) {
+	reject := p.swaps.SetRejectSwaps(request.Reject)
+	return &RejectSwapsResponse{Reject: reject}, nil
+}
+
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	timeStamp := time.Unix(swap.Data.CreatedAt, 0)
 	return &PrettyPrintSwap{

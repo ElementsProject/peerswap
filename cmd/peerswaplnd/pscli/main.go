@@ -28,7 +28,7 @@ func main() {
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
 		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
-		stopCommand,
+		stopCommand, listActiveSwapsCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -59,6 +59,10 @@ var (
 	}
 	liquidAddressFlag = cli.StringFlag{
 		Name:     "address",
+		Required: true,
+	}
+	rejectFlag = cli.BoolFlag{
+		Name:     "reject",
 		Required: true,
 	}
 
@@ -144,6 +148,19 @@ var (
 			liquidAddressFlag,
 		},
 		Action: liquidSendToAddress,
+	}
+	listActiveSwapsCommand = cli.Command{
+		Name:   "listactiveswaps",
+		Usage:  "list active swaps",
+		Action: listActiveSwaps,
+	}
+	rejectSwapsCommand = cli.Command{
+		Name:  "rejectswaps",
+		Usage: "Sets peerswap to reject all incoming swap requests",
+		Flags: []cli.Flag{
+			rejectFlag,
+		},
+		Action: rejectSwaps,
 	}
 	stopCommand = cli.Command{
 		Name:   "stop",
@@ -325,6 +342,38 @@ func liquidSendToAddress(ctx *cli.Context) error {
 	res, err := client.LiquidSendToAddress(context.Background(), &peerswaprpc.SendToAddressRequest{
 		Address:   ctx.String(liquidAddressFlag.Name),
 		SatAmount: ctx.Uint64(satAmountFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func listActiveSwaps(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.ListActiveSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func rejectSwaps(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.RejectSwaps(context.Background(), &peerswaprpc.RejectSwapsRequest{
+		Reject: ctx.Bool(rejectFlag.Name),
 	})
 	if err != nil {
 		return err

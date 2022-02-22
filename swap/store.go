@@ -10,6 +10,7 @@ import (
 
 var (
 	swapBuckets          = []byte("swaps")
+	versionBucket        = []byte("version")
 	requestedSwapsBucket = []byte("requested-swaps")
 
 	ErrDoesNotExist  = fmt.Errorf("does not exist")
