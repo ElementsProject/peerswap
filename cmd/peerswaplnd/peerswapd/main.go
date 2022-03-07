@@ -67,6 +67,7 @@ func run() error {
 		select {
 		case sig := <-sigChan:
 			log.Infof("received signal: %v, release shutdown", sig)
+			cancel()
 			shutdown <- struct{}{}
 		}
 	}()
@@ -90,7 +91,7 @@ func run() error {
 	}
 	defer closeFunc()
 	log.SetLogger(logger)
-	log.Debugf("%s", cfg)
+	log.Infof("Starting peerswap with cfg: %s", cfg)
 
 	// setup lnd connection
 	lndConn, err := getLndClientConnection(ctx, cfg)
@@ -100,10 +101,16 @@ func run() error {
 	defer lndConn.Close()
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
 
-	getInfo, err := lnrpcClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	timeOutCtx, timeoutCancel := context.WithTimeout(ctx, time.Minute)
+	defer timeoutCancel()
+
+	getInfo, err := lnrpcClient.GetInfo(timeOutCtx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
+
+	log.Infof("Running with lnd node: %s", getInfo.IdentityPubkey)
+
 	err = checkLndVersion(getInfo.Version)
 	if err != nil {
 		return err
@@ -127,7 +134,7 @@ func run() error {
 		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, chain)
 		bitcoinOnChainService = onchain.NewBitcoinOnChain(lndFeeEstimator, chain)
 
-		log.Infof("Bitcoin swaps enabled")
+		log.Infof("Bitcoin swaps enabled on network %s", chain.Name)
 	} else {
 		log.Infof("Bitcoin swaps disabled")
 	}

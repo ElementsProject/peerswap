@@ -13,7 +13,7 @@ require (
 	github.com/sputn1ck/glightning v0.8.3-0.20220215131235-d96eb4c98439
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.2-0.20191024042601-850de854cda0
-	github.com/vulpemventures/go-elements v0.3.4
+	github.com/vulpemventures/go-elements v0.3.7
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871 // indirect
