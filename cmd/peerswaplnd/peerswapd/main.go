@@ -311,6 +311,8 @@ func getBitcoinChain(ctx context.Context, li lnrpc.LightningClient) (*chaincfg.P
 		return &chaincfg.SigNetParams, nil
 	case "bitcoin":
 		return &chaincfg.MainNetParams, nil
+	case "mainnet":
+		return &chaincfg.MainNetParams, nil
 	default:
 		return nil, errors.New("unknown bitcoin network")
 	}

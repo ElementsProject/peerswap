@@ -38,7 +38,6 @@ type PeerSwapConfig struct {
 	DataDir    string   `long:"datadir" description:"peerswap datadir"`
 	LogLevel   LogLevel `long:"loglevel" description:"loglevel (1=Info, 2=Debug)"`
 
-	Network      string         `long:"network" description:"bitcoin network the component will run on" choice:"regtest" choice:"testnet" choice:"mainnet" choice:"signet"`
 	LndConfig    *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
 	LiquidConfig *OnchainConfig `group:"Liquid Rpc Config" namespace:"liquid"`
 
@@ -56,7 +55,7 @@ func (p *PeerSwapConfig) String() string {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
 
-	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, BitcoinNetwork %s Bitcoin enabled: %v, Lnd Config: %s, Liquid: %s", p.Host, p.ConfigFile, p.DataDir, p.Network, p.BitcoinEnabled, lndString, liquidString)
+	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, Liquid: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
 }
 
 func (p *PeerSwapConfig) Validate() error {
@@ -126,7 +125,6 @@ func DefaultConfig() *PeerSwapConfig {
 		Host:       DefaultPeerswapHost,
 		ConfigFile: DefaultConfigFile,
 		DataDir:    DefaultDatadir,
-		Network:    DefaultNetwork,
 		LndConfig: &LndConfig{
 			LndHost:      DefaultLndHost,
 			TlsCertPath:  DefaultTlsCertPath,
