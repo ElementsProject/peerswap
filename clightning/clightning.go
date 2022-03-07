@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/sputn1ck/peerswap/log"
 	log2 "log"
-	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -30,7 +29,7 @@ import (
 )
 
 var methods = []peerswaprpcMethod{
-	&ListNodes{},
+	//&ListNodes{}, we disable finding nodes with the featurebit for now, as you would only find clightning nodes
 	&ListPeers{},
 	&LiquidSendToAddress{},
 	&GetSwap{},
@@ -127,9 +126,10 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 
 	cl.glightning = glightning.NewLightning()
 
-	b := big.NewInt(0)
-	b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
-	cl.Plugin.AddNodeFeatures(b.Bytes())
+	// we disable feature bit for now as lnd does not support it anyway
+	//b := big.NewInt(0)
+	//b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
+	//cl.Plugin.AddNodeFeatures(b.Bytes())
 	cl.Plugin.SetDynamic(true)
 	cl.initChan = make(chan interface{})
 	cl.hexToIdMap = make(map[string]string)
