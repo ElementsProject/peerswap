@@ -41,7 +41,7 @@ const (
 
 func main() {
 	if err := run(); err != nil {
-		log.Debugf("plugin quitting, error: %s", err)
+		log.Infof("plugin quitting, error: %s", err)
 		os.Exit(1)
 	}
 
