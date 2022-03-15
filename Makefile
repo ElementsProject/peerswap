@@ -47,6 +47,10 @@ lnd-release:
 	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
 .PHONY: lnd-release
 
+lnd-install:
+	go install ./cmd/peerswaplnd/...
+.PHONY: lnd-install
+
 cln-release:
 	go build -o peerswap ./cmd/peerswap/main.go
 .PHONY: cln-release

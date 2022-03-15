@@ -123,7 +123,7 @@ var (
 		Action: reloadPolicyFile,
 	}
 	listRequestedSwapsCommand = cli.Command{
-		Name:   "listrequests",
+		Name:   "listswaprequests",
 		Usage:  "lists requested swaps by peers",
 		Flags:  []cli.Flag{},
 		Action: listRequestedSwaps,

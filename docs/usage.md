@@ -5,59 +5,43 @@ PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for
 - btc (bitcoin)
 - l-btc (liquid)
 
-### Build
 
-To build the peerswap plugin a [golang](https://golang.org/doc/install) installation is needed.
+## Notes on commands
 
-Clone the repository and build the plugin
+every command can be run with c-lightning plugins interface or using pscli.
 
-```bash
-git clone git@github.com:sputn1ck/peerswap.git && \
-cd peerswap && \
-make release
-```
+For the c-lightning plugin you need to prepend `lightning-cli peerswap-<command>`.
 
-### Policy
+For the standalone daemon you would run `pscli <command>`
 
-To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/.lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
+E.g. the `liquid-getaddress` command would look like this
 
 ```bash
-# ~/lightning/policy.conf
-allowlisted_peers=<trusted node1>
-allowlisted_peers=<trusted node2>
+lightning-cli peerswap-liquid-getaddress ## c-lightning plugin call
+pscli liquid-getaddress ## standalone daemon call
 ```
 
-__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.
+In order to list all peerswap calls run
+LND:
 
-### Run (Clightning)
+```pscli help```
 
-start the c-lightning daemon with the following config flags
+c-lightningplugin:
 
-```bash
-lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap \
-        --peerswap-policy-path=$HOME/.lightning/policy.conf
-```
+```lightning-cli help | grep -A 1 peerswap```
 
 ## Liquid Usage
 
-If you want to run peerswap with liquid integration you need to add the following flags to lightningd (replace as needed)
-```bash
---peerswap-liquid-rpchost=http://localhost \
---peerswap-liquid-rpcport=18884 \
---peerswap-liquid-rpcuser=admin1 \
---peerswap-liquid-rpcpassword=123 \
---peerswap-liquid-network=(liquid | testnet | regtest)
-```
+If you have set up your wallet with liquid swaps enabled you can swap with your peers using l-btc.
 
 In order to swap you need a minimum balance of liquid bitcoin in order to pay for transaction fees.
 
 The liquid wallet related commands are
 
 ```bash
-peerswap-liquid-getaddress ## generates a new liquid address
-peerswap-liquid-getbalance ## gets liquid bitcoin balance in sats
-peerswap-liquid-sendtoaddress ## sends lbtc sats to a provided address
+liquid-getaddress ## generates a new liquid address
+liquid-getbalance ## gets liquid bitcoin balance in sats
+liquid-sendtoaddress ## sends lbtc sats to a provided address
 ```
 
 The liquid wallet uses the elementsd integrated wallet
@@ -74,7 +58,7 @@ A swap out is when the initiator wants to pay a lightning payment in order to re
 To swap out call
 
 ```bash
-peerswap-swap-out [amount in sats] [short channel id] [asset: btc or l-brc]
+swap-out [amount in sats] [short channel id] [asset: btc or l-brc]
 ```
 
 
@@ -85,11 +69,11 @@ A swap out is when the initiator wants to spend onchain bitcoin in order to rece
 To swap in call
 
 ```bash
-peerswap-swap-in [amount in sats] [short channel id] [asset: btc or l-brc]
+swap-in [amount in sats] [short channel id] [asset: btc or l-brc]
 ```
 
 ## Misc
-`peerswap-listpeers` - command that returns peers that support the peerswap protocol. It also gives statistics about received and sent swaps to a peer.
+`listpeers` - command that returns peers that support the peerswap protocol. It also gives statistics about received and sent swaps to a peer.
 
 Example output:
 ```bash
@@ -121,13 +105,11 @@ Example output:
 ]
 ```
 
-`peerswap-listnodes` - command that returns nodes that support the peerswap plugin.
+`listswaps [pretty bool (optional)]` - command that lists all swaps. If _pretty_ is set the output is in a human readable format
 
-`peerswap-listswaps [pretty bool (optional)]` - command that lists all swaps. If _pretty_ is set the output is in a human readable format
+`listactiveswaps` - list all ongoing swaps, relevant for upgrading peerswap
 
-`peetswap-getswap [swapid]` - command that returns the swap with _swapid_
-
-`peerswap-listswaprequests` - lists rejected swaps requested by peer nodes.
+`listswaprequests` - lists rejected swaps requested by peer nodes.
 
 Example output:
 ```json
@@ -146,4 +128,8 @@ Example output:
 ]
 ```
 
-`peerswap-reload-policy` - updates the changes made to the policy file
+`getswap [swapid]` - command that returns the swap with _swapid_
+
+`reloadpolicy` - updates the changes made to the policy file
+
+`rejectswaps [bool]` reject incoming swaps 

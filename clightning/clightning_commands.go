@@ -668,7 +668,7 @@ type ReloadPolicyFile struct {
 }
 
 func (c ReloadPolicyFile) Name() string {
-	return "peerswap-reload-policy"
+	return "peerswap-reloadpolicy"
 }
 
 func (c ReloadPolicyFile) New() interface{} {

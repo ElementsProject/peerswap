@@ -1,67 +1,90 @@
-# 🔴 DO NOT USE ON MAINNET YET🔴 
+![peerswap logo](./docs/img/peerswap-logo.png)
+# PeerSwap
 
-## PeerSwap
+*Disclaimer: PeerSwap is beta-grade software.*
+
+*We currently only recommend using PeerSwap with small balances or on signet/testnet*
 
 PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
 
-It allows rebalancing of your channels using on-chain assets.
+It allows rebalancing of your channels using btc with your nodes wallet or using l-btc on the [Liquid sidechain](https://blockstream.com/liquid/) with an external Liquid installation.
 
-See [Spec](./docs/peer-protocol.md) for details
+* [Project Status](#project-status)
+* [Getting Started](#getting-started)
+    * [Installation](#installation)
+    * [Usage](#usage)
+    * [Upgrading](#upgrading)
+* [Further Information](#further-information)
+    * [FAQ](#faq)
+    * [Signet Testing](#signet-testing)
+	* [Development](#development)
 
-Features:
+## Project Status
 
-Assets:
+PeerSwap is beta-grade software that can be run as a [c-lightning](https://github.com/ElementsProject/lightning) plugin or as a standalone daemon/cli with [LND](https://github.com/lightningnetwork/lnd)
 
-- [x] Rebalancing of channels using l-btc
-- [x] Rebalancing of channels using btc
+As we don't have a proven fee model for swaps yet, we only allow swaps with allowlisted peers.
 
-Nodes:
-- [x] c-lightning
-- [X] lnd
+PeerSwap allows two different types of swaps:
+- [Swap-in:](./docs/peer-protocol.md#summary) trading an onchain-asset for lightning outbound liquidity
+- [Swap-out:](./docs/peer-protocol.md#summary-1) trading an onchain-asset for lightning inbound liquidity
+
+We have a detailed [Spec-draft](./docs/peer-protocol.md) available for review and reimplementation.
+
+
+Join our Discord to get support and give feedback
+
+![Peerswap Discord](https://discordapp.com/api/guilds/905126649224388629/widget.png?style=banner2)
+
+## Getting Started
+
+### Setup
+you can use peerswap with lnd and cln:
+
+To run peerswap as a c-lightning plugin see the [c-lightning setup guide](./docs/setup_cln.md)
+
+To run peerswap as a standalone daemon with lnd see the [lnd setup guide](./docs/setup_lnd.md)
+
 
 ### Usage
 
-
-#### clightning
-For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_clightning.md)
-
-Details on general usage can be found [here](./docs/usage.md)
-
-
-#### lnd
-For a bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
-
-Details on general usage to follow...
+See the [Usage guide](./docs/usage.md) for instructions on how to use PeerSwap.
 
 ### Upgrading
-
-In order to upgrade PeerSwap, no swaps should be unfinished.
-
-To check for active swaps run:
-
- - lnd: `pscli listactiveswaps`
- - c-lightning: `lightning-cli peerswap-listactiveswaps`
-
-If no swaps are returned, you can safely upgrade peerswap
-
-#### Reject new requests
-
-If you are an active node with frequent incoming swap request you can run the following conmand to stop accepting swap requests.
-
- - lnd: `pscli rejectswaps true`
- - c-lightning: `lightning-cli peerswap-rejectswaps true`
-
-To revert run: 
-
- - lnd: `pscli rejectswaps false`
- - c-lightning: `lightning-cli peerswap-rejectswaps false`
+See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade your PeerSwap binary.
 
 
-#### Upgrade failures
+## Further Information
+### FAQ
 
-If you have active swaps running and try to upgrade, peerswap will not start up. You should see an error message in your logs.
-You need to downgrade peerswap to the previous version in order to complete the swaps.
+* What is the difference between BTC and L-BTC Swaps?
+  * ![btc vs l-btc](./docs/img/btc_lbtc.png)
+* Why should use PeerSwap instead of [Loop](https://lightning.engineering/loop/), [Boltz](https://boltz.exchange/) or other centralized swap providers?
+  * Centralized swap providers rely on multi-hop payments in order to route the payment over the Lightning Network. This makes them less reliant (and more costly) than direct swaps with peers. PeerSwap is also the only swaping service that allows swaps with liquid bitcoin.
+
+* What is the difference between [splicing](https://github.com/lightning/bolts/pull/863) and PeerSwap?
+  * It is very simple and it already works today without changes to the LN protocol. Splicing also requires a change of the channel capacity. Also only peerswap allows swaps with liquid bitcoin.
+
+* What is the difference between [liquidity-ads](https://github.com/lightning/bolts/pull/878) and PeerSwap?
+  * Liquidity Ads are only for the initial channel creation. PeerSwap allows for rebalancing channels that are already active.
+
+* Why should I do a `swap-in` vs opening a new channel?
+  * If you want to leave the old channel open, opening a new channel is in fact cheaper than a `swap-in`. The advantage of a `swap-in` comes with using liquid, as it allows for new outbound liquidity in 2 minutes.
+
+* Running Liquid is a bit much for me, do you have anything planned?
+  * We will provide a light wallet using [Blockstream Green](https://github.com/Blockstream/green) in the future
+
+
+
+### Signet Testing
+
+#### c-lightning
+For a c-lightning bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_clightning.md)
+
+#### lnd
+For a lnd bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
+
 ### Development
 
 PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment
-In order to start hacking, install nix and run `nix-shell`. This will fetch all dependencies (bar golang).
+In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (bar golang).

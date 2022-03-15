@@ -6,13 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	log2 "log"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sputn1ck/peerswap/log"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/sputn1ck/glightning/gbitcoin"
@@ -417,7 +418,6 @@ func (cl *ClightningClient) PeerRunsPeerSwap(peerid string) error {
 
 // This is called after the Plugin starts up successfully
 func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
-	log.Debugf("successfully init'd! %s\n", config.RpcFile)
 	cl.glightning.StartUp(config.RpcFile, config.LightningDir)
 
 	getInfo, err := cl.glightning.GetInfo()
@@ -496,7 +496,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 	reloadPolicyFile := &glightning.RpcMethod{
 		Method: &ReloadPolicyFile{
 			cl:   cl,
-			name: "peerswap-reload-policy",
+			name: "peerswap-reloadpolicy",
 		},
 		Desc:     "Reload the policy file.",
 		LongDesc: long,
