@@ -47,29 +47,3 @@ jobs:
 
       - name: Run tests with integration
         run: make test-${{matrix.test-vector}}
-  docker:
-    name: Build and push Docker containers
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v2
-     
-      - name: Set env variables
-        run: |
-          echo "BRANCH=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//-/g')" >> $GITHUB_ENV
-          REPO_OWNER=${{ github.repository_owner }}
-          echo "IMAGE_NAME=${REPO_OWNER,,}/${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Setup Docker buildx action
-        uses: docker/setup-buildx-action@v1
-
-      - name: Build Docker container
-        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        run: |
-                docker buildx build \
-                --platform linux/amd64,linux/arm64 \
-                --tag $IMAGE_NAME:$BRANCH \
-                ./
