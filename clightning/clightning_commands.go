@@ -659,6 +659,8 @@ func (g *GetSwap) LongDescription() string {
 }
 
 type PolicyReloader interface {
+	AddToAllowlist(pubkey string) error
+	RemoveFromAllowlist(pubkey string) error
 	ReloadFile() error
 	Get() policy.Policy
 }
@@ -796,6 +798,84 @@ func (c RejectSwaps) Description() string {
 
 func (c RejectSwaps) LongDescription() string {
 	return `This command can be used to wait for all swaps to complete, while not allowing new swaps. This is helps with upgrading`
+}
+
+type AddPeer struct {
+	PeerPubkey string `json:"peer_pubkey"`
+	cl         *ClightningClient
+}
+
+func (g *AddPeer) Name() string {
+	return "peerswap-addpeer"
+}
+
+func (g *AddPeer) New() interface{} {
+	return &AddPeer{
+		cl:         g.cl,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (g *AddPeer) Call() (jrpc2.Result, error) {
+	err := g.cl.policy.AddToAllowlist(g.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	return g.cl.policy.Get(), nil
+}
+
+func (g *AddPeer) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &AddPeer{
+		cl:         client,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (c AddPeer) Description() string {
+	return "Add peer to allowlist"
+}
+
+func (c AddPeer) LongDescription() string {
+	return `This command can be used to add a peer to the allowlist`
+}
+
+type RemovePeer struct {
+	PeerPubkey string `json:"peer_pubkey"`
+	cl         *ClightningClient
+}
+
+func (g *RemovePeer) Name() string {
+	return "peerswap-removepeer"
+}
+
+func (g *RemovePeer) New() interface{} {
+	return &RemovePeer{
+		cl:         g.cl,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (g *RemovePeer) Call() (jrpc2.Result, error) {
+	err := g.cl.policy.RemoveFromAllowlist(g.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	return g.cl.policy.Get(), nil
+}
+
+func (g *RemovePeer) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &RemovePeer{
+		cl:         client,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (c RemovePeer) Description() string {
+	return "Remove peer from allowlist"
+}
+
+func (c RemovePeer) LongDescription() string {
+	return `This command can be used to remove a peer from the allowlist`
 }
 
 type PeerSwapPeerChannel struct {
