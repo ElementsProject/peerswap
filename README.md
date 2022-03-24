@@ -5,9 +5,17 @@
 
 *We currently only recommend using PeerSwap with small balances or on signet/testnet*
 
+*THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.*
+
 PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
 
-It allows rebalancing of your channels using btc with your nodes wallet or using l-btc on the [Liquid sidechain](https://blockstream.com/liquid/) with an external Liquid installation.
+It allows rebalancing of your channels using btc with your nodes wallet or using l-btc on the Liquid sidechain with an external Liquid installation.
 
 * [Project Status](#project-status)
 * [Getting Started](#getting-started)
