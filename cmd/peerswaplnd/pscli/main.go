@@ -28,7 +28,7 @@ func main() {
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
 		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
-		stopCommand, listActiveSwapsCommand,
+		stopCommand, listActiveSwapsCommand, rejectSwapsCommand, addPeerCommand, removePeerCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -63,6 +63,10 @@ var (
 	}
 	rejectFlag = cli.BoolFlag{
 		Name:     "reject",
+		Required: true,
+	}
+	pubkeyFlag = cli.StringFlag{
+		Name:     "peer_pubkey",
 		Required: true,
 	}
 
@@ -161,6 +165,22 @@ var (
 			rejectFlag,
 		},
 		Action: rejectSwaps,
+	}
+	addPeerCommand = cli.Command{
+		Name:  "addpeer",
+		Usage: "Adds a peer to the allowlist",
+		Flags: []cli.Flag{
+			pubkeyFlag,
+		},
+		Action: addPeer,
+	}
+	removePeerCommand = cli.Command{
+		Name:  "removePeer",
+		Usage: "Removes a peer from the allowlist",
+		Flags: []cli.Flag{
+			pubkeyFlag,
+		},
+		Action: removePeer,
 	}
 	stopCommand = cli.Command{
 		Name:   "stop",
@@ -374,6 +394,38 @@ func rejectSwaps(ctx *cli.Context) error {
 
 	res, err := client.RejectSwaps(context.Background(), &peerswaprpc.RejectSwapsRequest{
 		Reject: ctx.Bool(rejectFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func addPeer(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	res, err := client.AddPeer(context.Background(), &peerswaprpc.AddPeerRequest{
+		PeerPubkey: ctx.String(pubkeyFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func removePeer(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	res, err := client.RemovePeer(context.Background(), &peerswaprpc.RemovePeerRequest{
+		PeerPubkey: ctx.String(pubkeyFlag.Name),
 	})
 	if err != nil {
 		return err

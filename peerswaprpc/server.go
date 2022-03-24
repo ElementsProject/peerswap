@@ -29,7 +29,35 @@ type PeerswapServer struct {
 	lnd       lnrpc.LightningClient
 
 	sigchan chan os.Signal
+
 	UnimplementedPeerSwapServer
+}
+
+func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+	err := p.policy.AddToAllowlist(request.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	pol := p.policy.Get()
+	return &AddPeerResponse{Policy: &Policy{
+		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		AcceptAllPeers:     pol.AcceptAllPeers,
+		PeerAllowList:      pol.PeerAllowlist,
+	}}, nil
+
+}
+
+func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+	err := p.policy.RemoveFromAllowlist(request.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	pol := p.policy.Get()
+	return &RemovePeerResponse{Policy: &Policy{
+		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		AcceptAllPeers:     pol.AcceptAllPeers,
+		PeerAllowList:      pol.PeerAllowlist,
+	}}, nil
 }
 
 func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error) {
