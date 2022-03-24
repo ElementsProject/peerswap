@@ -175,7 +175,7 @@ var (
 		Action: addPeer,
 	}
 	removePeerCommand = cli.Command{
-		Name:  "removePeer",
+		Name:  "removepeer",
 		Usage: "Removes a peer from the allowlist",
 		Flags: []cli.Flag{
 			pubkeyFlag,

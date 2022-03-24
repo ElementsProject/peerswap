@@ -42,7 +42,7 @@ We have a detailed [Spec-draft](./docs/peer-protocol.md) available for review an
 
 Join our Discord to get support and give feedback
 
-![Peerswap Discord](https://discordapp.com/api/guilds/905126649224388629/widget.png?style=banner2)
+<a href="https://discord.gg/wpNv3PG8G2" rel="some text">![Peerswap Discord](https://discordapp.com/api/guilds/905126649224388629/widget.png?style=banner2)</a>
 
 ## Getting Started
 

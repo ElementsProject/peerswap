@@ -132,4 +132,8 @@ Example output:
 
 `reloadpolicy` - updates the changes made to the policy file
 
+`addpeer [peer_pubkey]` - adds a peer to the allowlist file
+
+`removepeer [peer_pubkey]` - remove a peer from the allowlist file
+
 `rejectswaps [bool]` reject incoming swaps 
