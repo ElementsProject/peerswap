@@ -2,6 +2,9 @@ package policy
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -101,6 +104,33 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 
 	// assert policy did not change
 	assert.EqualValues(t, oldPolicy, policy)
+}
+
+func Test_AddRemovePeer_Runtime(t *testing.T) {
+	policyFilePath := path.Join(t.TempDir(), "policy.conf")
+	file, err := os.Create(policyFilePath)
+	assert.NoError(t, err)
+
+	err = file.Close()
+	assert.NoError(t, err)
+
+	policy, err := CreateFromFile(policyFilePath)
+	assert.NoError(t, err)
+
+	err = policy.AddToAllowlist("foo")
+	assert.NoError(t, err)
+
+	policyFile, err := ioutil.ReadFile(policyFilePath)
+	assert.NoError(t, err)
+	assert.Equal(t, "allowlisted_peers=foo\n", string(policyFile))
+
+	err = policy.AddToAllowlist("bar")
+	assert.NoError(t, err)
+
+	err = policy.RemoveFromAllowlist("foo")
+	policyFile, err = ioutil.ReadFile(policyFilePath)
+	assert.NoError(t, err)
+	assert.Equal(t, "allowlisted_peers=bar\n", string(policyFile))
 }
 
 func Test_IsPeerAllowed_Allowlist(t *testing.T) {

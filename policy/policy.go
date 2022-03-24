@@ -1,6 +1,9 @@
 package policy
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -107,6 +110,92 @@ func (p *Policy) ReloadFile() error {
 	}
 
 	p.path = path
+	return nil
+}
+
+// AddToAllowlist adds a peer to the policy file in runtime
+func (p *Policy) AddToAllowlist(pubkey string) error {
+	for _, v := range p.PeerAllowlist {
+		if v == pubkey {
+			return errors.New("peer is already whitelisted")
+		}
+	}
+	if p.path == "" {
+		return ErrNoPolicyFile
+	}
+	err := addLineToFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+	if err != nil {
+		return err
+	}
+	return p.ReloadFile()
+}
+
+func addLineToFile(filePath, line string) error {
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0660)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(line + "\n")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Policy) RemoveFromAllowlist(pubkey string) error {
+	var peerPk string
+	for _, v := range p.PeerAllowlist {
+		if v == pubkey {
+			peerPk = v
+			break
+		}
+	}
+	if peerPk == "" {
+		return errors.New("peer is not in allowlist")
+	}
+	if p.path == "" {
+		return ErrNoPolicyFile
+	}
+	err := removeLineFromFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+	if err != nil {
+		return err
+	}
+	return p.ReloadFile()
+
+}
+
+func removeLineFromFile(filePath, line string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var bs []byte
+	buf := bytes.NewBuffer(bs)
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if scanner.Text() != line {
+			_, err := buf.Write(scanner.Bytes())
+			if err != nil {
+				return err
+			}
+			_, err = buf.WriteString("\n")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filePath, buf.Bytes(), 0660)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
