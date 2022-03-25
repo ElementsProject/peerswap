@@ -35,7 +35,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd]
+        test-vector: [bitcoin-lnd, liquid-lnd]
     steps:
       - uses: actions/checkout@v2
       
