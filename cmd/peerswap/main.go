@@ -410,16 +410,16 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 			rpcUser = bclirpcUser.(string)
 			// assume auth authentication
 			rpcPassBcli, ok := bcliConfig.Options["bitcoin-rpcpassword"]
-			if !ok {
+			if !ok || rpcPassBcli == nil{
 				log.Infof("`bitcoin-rpcpassword` not set in lightning config")
 				return nil, nil
 			}
 
 			rpcPassword = rpcPassBcli.(string)
 			rpcPortStr, ok := bcliConfig.Options["bitcoin-rpcport"]
-			if !ok {
-				log.Infof("`bitcoin-rpcport` not set in lightning config")
-				return nil, nil
+			if !ok  || rpcPortStr == nil {
+				log.Infof("`bitcoin-rpcport` not set in lightning config, assuming standard port")
+				rpcPortStr = "8332"
 			}
 
 			rpcPort, err = strconv.Atoi(rpcPortStr.(string))
@@ -431,7 +431,7 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 			var rpcConnStr string
 			/* We default to localhost */
 			if rpcConn == nil {
-				rpcConnStr = "localhost"
+				rpcConnStr = "127.0.0.1"
 			} else {
 				rpcConnStr = rpcConn.(string)
 			}
