@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
-	"github.com/sputn1ck/peerswap/version"
 	"io/ioutil"
 	log2 "log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/sputn1ck/peerswap/log"
+	"github.com/sputn1ck/peerswap/version"
 
 	"github.com/vulpemventures/go-elements/network"
 
@@ -384,8 +385,12 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 			// look for cookie file
 			bitcoinDir, ok := bcliConfig.Options["bitcoin-datadir"].(string)
 			if !ok {
-				log.Infof("no `bitcoin-datadir` config set")
-				return nil, nil
+				// if no bitcoin dir is set, default to $HOME/.bitcoin
+				homeDir, err := os.UserHomeDir()
+				if err != nil {
+					return nil, err
+				}
+				bitcoinDir = filepath.Join(homeDir, ".bitcoin")
 			}
 
 			cookiePath := filepath.Join(bitcoinDir, getNetworkFolder(gi.Network), ".cookie")
@@ -406,18 +411,17 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Peerswa
 			rpcHost = "http://127.0.0.1"
 			rpcPort = int(getNetworkPort(gi.Network))
 		} else {
-
 			rpcUser = bclirpcUser.(string)
 			// assume auth authentication
 			rpcPassBcli, ok := bcliConfig.Options["bitcoin-rpcpassword"]
-			if !ok || rpcPassBcli == nil{
+			if !ok || rpcPassBcli == nil {
 				log.Infof("`bitcoin-rpcpassword` not set in lightning config")
 				return nil, nil
 			}
 
 			rpcPassword = rpcPassBcli.(string)
 			rpcPortStr, ok := bcliConfig.Options["bitcoin-rpcport"]
-			if !ok  || rpcPortStr == nil {
+			if !ok || rpcPortStr == nil {
 				log.Infof("`bitcoin-rpcport` not set in lightning config, assuming standard port")
 				rpcPortStr = "8332"
 			}
