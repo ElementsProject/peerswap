@@ -126,9 +126,9 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		dbpath = filepath.Join(wd, "swaps")
+		dbpath = filepath.Join(wd, "peerswap")
 	}
-	err = os.MkdirAll(dbpath, 0700)
+	err = os.MkdirAll(dbpath, 0755)
 	if err != nil && err != os.ErrExist {
 		return nil, err
 	}
@@ -208,6 +208,14 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 	policyPath, err := cl.Plugin.GetOption(policyPathOption)
 	if err != nil {
 		return nil, err
+	}
+
+	if policyPath == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		policyPath = filepath.Join(wd, "peerswap", "policy.conf")
 	}
 
 	return &PeerswapClightningConfig{

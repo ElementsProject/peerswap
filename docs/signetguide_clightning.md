@@ -206,16 +206,6 @@ cd peerswap && \
 make cln-release
 ```
 
-### Policy
-
-To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (`~/lightning/policy.conf`) file in which the trusted nodes are specified. Change the following to your needs, replacing the _\<trusted node\>_ flag.
-For Signet testing we add accept_all_peers=1
-```bash
-cat <<EOF > ~/.lightning/policy.conf
-accept_all_peers=1
-EOF
-```
-
 ## Cleanup
 
 Remove all unneccessary files and folders
@@ -240,8 +230,7 @@ start the c-lightning daemon with the following config flags for bitcoin only:
 
 ```bash
 lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap \
-        --peerswap-policy-path=$HOME/.lightning/policy.conf
+        --plugin=$HOME/peerswap/peerswap 
 ```
 Or with liquid enabled
 ```bash
@@ -252,8 +241,7 @@ lightningd --daemon \
         --peerswap-liquid-rpcuser=admin1 \
         --peerswap-liquid-rpcpassword=123 \
         --peerswap-liquid-network=testnet \
-        --peerswap-liquid-rpcwallet=swap \
-        --peerswap-policy-path=$HOME/.lightning/policy.conf
+        --peerswap-liquid-rpcwallet=swap 
 ```
 
 Create a new signet address and receive some sats from https://signet.bc-2.jp/
@@ -277,13 +265,18 @@ lightning-cli connect 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d79671
 Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pubkey and amount to your needs)
 
 ```bash
-lightning-cli fundchannel 02d5ee248489d76b54015df2938318a58ee0e35e4746579bd170efc7f1dd62e799 [amt] 
+lightning-cli fundchannel 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4 [amt] 
 ```
 
 Get a new liquid address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
 
 ```bash
 lightning-cli peerswap-liquid-getaddress
+```
+
+Add the peer to the allowlist
+```bash
+lightning-cli peerswap-addpeer 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4
 ```
 
 After the channel has been funded and is in `CHANNELD_NORMAL` state get the short channel id per

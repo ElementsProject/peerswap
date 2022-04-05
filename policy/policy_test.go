@@ -5,10 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Create(t *testing.T) {
@@ -161,4 +163,19 @@ func Test_IsPeerAllowed_AcceptAll(t *testing.T) {
 
 	// accept all peers
 
+}
+
+func Test_CreateFile(t *testing.T) {
+	confPath := filepath.Join(t.TempDir(), "peerswap.conf")
+
+	policy, err := CreateFromFile(confPath)
+	require.NoError(t, err)
+
+	fileInfo, err := os.Stat(confPath)
+	require.NoError(t, err)
+
+	assert.Equal(t, "peerswap.conf", fileInfo.Name())
+
+	err = policy.AddToAllowlist("test123")
+	require.NoError(t, err)
 }

@@ -24,10 +24,10 @@ The `peerswap` binary is now located in the repo folder.
 
 ### Policy
 
-To ensure that only trusted nodes can send a peerswap request to your node it is necessary to create a policy in the lightning config dir (e.g. `~/.lightning/policy.conf`) file in which the trusted nodes are specified. For every peer you want to allow swaps with, add a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>`
+To ensure that only trusted nodes can send a peerswap request to your node it is optional to create a policy in the lightning config dir (default path: `~/.lightning/<network>/peerswap/policy.conf`) file in which the trusted nodes are specified. For every peer you want to allow swaps with, add a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>`
 
 ```bash
-cat <<EOF > ~/.lightning/policy.conf
+cat <<EOF > ~/.lightning/mainnet>/peerswap/policy.conf
 allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
 allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
 EOF
@@ -41,8 +41,7 @@ For bitcoin only:
 
 ```bash
 lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap \
-        --peerswap-policy-path=$HOME/.lightning/policy.conf
+        --plugin=$HOME/peerswap/peerswap 
 ```
 Or with liquid enabled
 
@@ -53,8 +52,7 @@ lightningd --daemon \
         --peerswap-liquid-rpcport=18884 \
         --peerswap-liquid-rpcuser=<REPLACE_ME> \
         --peerswap-liquid-rpcpassword=<REPLACE_ME> \
-        --peerswap-liquid-rpcwallet=swap \
-        --peerswap-policy-path=$HOME/.lightning/policy.conf
+        --peerswap-liquid-rpcwallet=swap 
 ```
 
 __WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.

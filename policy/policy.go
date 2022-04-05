@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -228,7 +229,12 @@ func CreateFromFile(path string) (*Policy, error) {
 		return DefaultPolicy(), nil
 	}
 
-	file, err := os.Open(path)
+	policyPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := os.OpenFile(policyPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, ErrCreatePolicy(err.Error())
 	}
@@ -239,7 +245,7 @@ func CreateFromFile(path string) (*Policy, error) {
 		return nil, err
 	}
 
-	policy.path = path
+	policy.path = policyPath
 	return policy, nil
 }
 

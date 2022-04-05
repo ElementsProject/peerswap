@@ -39,7 +39,7 @@ Bitcoin-swaps only config
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
-lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
 network=mainnet
 allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
 allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
@@ -51,8 +51,8 @@ Liquid-swaps Config. Replace the rpc parameters as needed
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
-lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
-network=signet
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
+network=mainnet
 bitcoinswaps=true
 liquid.rpcuser=<REPLACE_ME>
 liquid.rpcpass=<REPLACE_ME>
