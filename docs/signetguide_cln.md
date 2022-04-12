@@ -4,7 +4,7 @@ This guide walks through the steps necessary to run the peerswap plugin on bitco
 
 ## Install dependencies
 
-Peerswap requires _clightning_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+Peerswap requires _core-lightning_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
 
 ## Bitcoind (signet)
 
@@ -141,9 +141,9 @@ elements-cli getchaintips
 
 with the height of the last block on [liquid-testnet-explorer](https://liquidtestnet.com/explorer)
 
-## C-lightning
+## Core-lightning
 
-<!-- We need to build c-lightning ourselves to be able to be interoperable with lnd on signet -->
+<!-- We need to build cln ourselves to be able to be interoperable with lnd on signet -->
 
 get dependencies
 
@@ -226,7 +226,7 @@ rm SHA256SUMS.asc
 
 ### Run
 
-start the c-lightning daemon with the following config flags for bitcoin only:
+start the core-lightning daemon with the following config flags for bitcoin only:
 
 ```bash
 lightningd --daemon \

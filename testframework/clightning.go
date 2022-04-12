@@ -116,7 +116,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 	n.DaemonProcess.Run()
 	if waitForReady {
-		err := n.WaitForLog("Server started with public key", 60*time.Second)
+		err := n.WaitForLog("Server started with public key", TIMEOUT)
 		if err != nil {
 			return fmt.Errorf("CLightningNode.Run() %w", err)
 		}

@@ -3,8 +3,8 @@ PAYMENT_RETRY_TIME=10
 PEERSWAP_TEST_FILTER="peerswap"
 
 build:
-	go build -tags dev -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
-	chmod a+x $(OUTDIR)/peerswap
+	go build -tags dev -o $(OUTDIR)/peerswap-plugin ./cmd/peerswap-plugin/main.go
+	chmod a+x $(OUTDIR)/peerswap-plugin
 	go build -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
 	chmod a+x $(OUTDIR)/peerswapd
 	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
@@ -12,8 +12,8 @@ build:
 .PHONY: build
 
 build-with-fast-test:
-	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswap ./cmd/peerswap/main.go
-	chmod a+x $(OUTDIR)/peerswap
+	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswap-plugin ./cmd/peerswap-plugin/main.go
+	chmod a+x $(OUTDIR)/peerswap-plugin
 	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswapd ./cmd/peerswaplnd/peerswapd/main.go
 	chmod a+x $(OUTDIR)/peerswapd
 .PHONY: build-with-fast-test
@@ -52,7 +52,7 @@ lnd-install:
 .PHONY: lnd-install
 
 cln-release:
-	go build -o peerswap ./cmd/peerswap/main.go
+	go build -o peerswap-plugin ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
 
 proto:

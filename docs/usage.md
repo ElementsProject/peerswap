@@ -8,16 +8,16 @@ PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for
 
 ## Notes on commands
 
-every command can be run with c-lightning plugins interface or using pscli.
+every command can be run with core-lightning plugins interface or using pscli.
 
-For the c-lightning plugin you need to prepend `lightning-cli peerswap-<command>`.
+For the cln plugin you need to prepend `lightning-cli peerswap-<command>`.
 
 For the standalone daemon you would run `pscli <command>`
 
 E.g. the `liquid-getaddress` command would look like this
 
 ```bash
-lightning-cli peerswap-liquid-getaddress ## c-lightning plugin call
+lightning-cli peerswap-liquid-getaddress ## cln plugin call
 pscli liquid-getaddress ## standalone daemon call
 ```
 
@@ -26,7 +26,7 @@ LND:
 
 ```pscli help```
 
-c-lightningplugin:
+core-lightning plugin:
 
 ```lightning-cli help | grep -A 1 peerswap```
 
@@ -64,7 +64,7 @@ swap-out [amount in sats] [short channel id] [asset: btc or l-brc]
 
 ### Swap-In
 
-A swap out is when the initiator wants to spend onchain bitcoin in order to receive lightning-funds, in channel balancing terms increasing outbound liquidity. In order to swap in you need to 
+A swap in is when the initiator wants to spend onchain bitcoin in order to receive lightning-funds, in channel balancing terms increasing outbound liquidity. In order to swap in you need to 
 
 To swap in call
 

@@ -32,7 +32,7 @@ const (
 func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
@@ -49,6 +49,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 			t.Fatalf("could not create liquidd %v", err)
 		}
 		t.Cleanup(lightningd.Kill)
+		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
 		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
@@ -135,6 +136,7 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 			t.Fatalf("could not create peerswapd %v", err)
 		}
 		t.Cleanup(peerswapd.Kill)
+		defer printFailed(t, lightningd.DaemonProcess)
 
 		peerswapds = append(peerswapds, peerswapd)
 	}
@@ -179,7 +181,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 cln, 1 lnd, 1 peerswapd)
@@ -195,6 +197,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 		t.Fatalf("could not create cln %v", err)
 	}
 	t.Cleanup(cln.Kill)
+	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
 	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
@@ -226,6 +229,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 		t.Fatalf("could not create peerswapd %v", err)
 	}
 	t.Cleanup(peerswapd.Kill)
+	defer printFailed(t, peerswapd.DaemonProcess)
 
 	// Start nodes
 	err = bitcoind.Run(true)
@@ -279,7 +283,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
@@ -303,6 +307,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			t.Fatalf("could not create liquidd %v", err)
 		}
 		t.Cleanup(lightningd.Kill)
+		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
 		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
@@ -420,6 +425,7 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			t.Fatalf("could not create liquidd %v", err)
 		}
 		t.Cleanup(lightningd.Kill)
+		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		lightningds = append(lightningds, lightningd)
 	}
@@ -507,7 +513,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquid, 1 cln, 1 lnd, 1 peerswapd)
@@ -529,6 +535,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		t.Fatalf("could not create cln %v", err)
 	}
 	t.Cleanup(cln.Kill)
+	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
 	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
@@ -574,6 +581,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		t.Fatalf("could not create peerswapd %v", err)
 	}
 	t.Cleanup(peerswapd.Kill)
+	defer printFailed(t, peerswapd.DaemonProcess)
 
 	// Start nodes
 	err = bitcoind.Run(true)

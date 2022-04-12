@@ -17,19 +17,22 @@ PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes.
 
 It allows rebalancing of your channels using btc with your nodes wallet or using l-btc on the Liquid sidechain with an external Liquid installation.
 
-* [Project Status](#project-status)
-* [Getting Started](#getting-started)
-    * [Installation](#installation)
-    * [Usage](#usage)
-    * [Upgrading](#upgrading)
-* [Further Information](#further-information)
-    * [FAQ](#faq)
-    * [Signet Testing](#signet-testing)
-	* [Development](#development)
+- [PeerSwap](#peerswap)
+  - [Project Status](#project-status)
+  - [Getting Started](#getting-started)
+    - [Setup](#setup)
+    - [Usage](#usage)
+    - [Upgrading](#upgrading)
+  - [Further Information](#further-information)
+    - [FAQ](#faq)
+    - [Signet Testing](#signet-testing)
+      - [core-lightning](#core-lightning)
+      - [lnd](#lnd)
+    - [Development](#development)
 
 ## Project Status
 
-PeerSwap is beta-grade software that can be run as a [c-lightning](https://github.com/ElementsProject/lightning) plugin or as a standalone daemon/cli with [LND](https://github.com/lightningnetwork/lnd)
+PeerSwap is beta-grade software that can be run as a [core-lightning](https://github.com/ElementsProject/lightning) plugin or as a standalone daemon/cli with [LND](https://github.com/lightningnetwork/lnd)
 
 As we don't have a proven fee model for swaps yet, we only allow swaps with allowlisted peers.
 
@@ -47,9 +50,9 @@ Join our Discord to get support and give feedback
 ## Getting Started
 
 ### Setup
-you can use peerswap with lnd and cln:
+you can use peerswap with lnd and core-lighting:
 
-To run peerswap as a c-lightning plugin see the [c-lightning setup guide](./docs/setup_cln.md)
+To run peerswap as a core-lightning plugin see the [core-lightning setup guide](./docs/setup_cln.md)
 
 To run peerswap as a standalone daemon with lnd see the [lnd setup guide](./docs/setup_lnd.md)
 
@@ -79,15 +82,15 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
 * Why should I do a `swap-in` vs opening a new channel?
   * If you want to leave the old channel open, opening a new channel is in fact cheaper than a `swap-in`. The advantage of a `swap-in` comes with using liquid, as it allows for new outbound liquidity in 2 minutes.
 
-* Running Liquid is a bit much for me, do you have anything planned?
+* Will there be an easier way to run peerswap with a liquid wallet?
   * We will provide a light wallet using [Blockstream Green](https://github.com/Blockstream/green) in the future
 
 
 
 ### Signet Testing
 
-#### c-lightning
-For a c-lightning bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_clightning.md)
+#### core-lightning
+For a cpre-lightning bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_cln.md)
 
 #### lnd
 For a lnd bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
