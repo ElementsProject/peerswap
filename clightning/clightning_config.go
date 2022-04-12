@@ -17,6 +17,7 @@ const (
 	liquidRpcUserOption             = "peerswap-liquid-rpcuser"
 	liquidRpcPasswordOption         = "peerswap-liquid-rpcpassword"
 	liquidRpcPasswordFilepathOption = "peerswap-liquid-rpcpasswordfile"
+	liquidEnabledOption             = "peerswap-liquid-enabled"
 
 	bitcoinRpcHostOption     = "peerswap-bitcoin-rpchost"
 	bitcoinRpcPortOption     = "peerswap-bitcoin-rpcport"
@@ -46,10 +47,9 @@ type PeerswapClightningConfig struct {
 	LiquidRpcHost         string
 	LiquidRpcPort         uint
 	LiquidRpcWallet       string
+	LiquidEnabled         bool
 
 	PolicyPath string
-
-	LiquidEnabled bool
 }
 
 // RegisterOptions adds options to clightning
@@ -58,7 +58,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
+	err = cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "localhost")
 	if err != nil {
 		return err
 	}
@@ -78,11 +78,11 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "")
+	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "localhost")
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "")
+	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "18888")
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "swap")
+	err = cl.Plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "peerswap")
 	if err != nil {
 		return err
 	}
@@ -106,6 +106,12 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
+
+	err = cl.Plugin.RegisterNewBoolOption(liquidEnabledOption, "enable/disable liquid", true)
+	if err != nil {
+		return err
+	}
+
 	// register policy options
 	err = cl.Plugin.RegisterNewOption(policyPathOption, "Path to the policy file. If empty the default policy is used", "")
 	if err != nil {
@@ -169,9 +175,7 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if liquidRpcHost != "" && liquidRpcPortString == "" {
-		return nil, errors.New(fmt.Sprintf("%s need to be set", liquidRpcPortOption))
-	}
+
 	var liquidRpcPort int
 	if liquidRpcPortString != "" {
 		liquidRpcPort, err = strconv.Atoi(liquidRpcPortString)
@@ -183,17 +187,12 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if liquidRpcHost != "" && liquidRpcUser == "" {
-		return nil, errors.New(fmt.Sprintf("%s need to be set", liquidRpcUserOption))
-	}
+
 	liquidRpcPass, err := cl.Plugin.GetOption(liquidRpcPasswordOption)
 	if err != nil {
 		return nil, err
 	}
 	liquidRpcPassFile, err := cl.Plugin.GetOption(liquidRpcPasswordFilepathOption)
-	if liquidRpcHost != "" && liquidRpcPass == "" && liquidRpcPassFile == "" {
-		return nil, errors.New(fmt.Sprintf("%s or %s need to be set", liquidRpcPasswordOption, liquidRpcPasswordFilepathOption))
-	}
 	liquidRpcWallet, err := cl.Plugin.GetOption(rpcWalletOption)
 	if err != nil {
 		return nil, err
@@ -202,6 +201,11 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		idBytes := make([]byte, 8)
 		_, _ = rand.Read(idBytes[:])
 		liquidRpcWallet = hex.EncodeToString(idBytes)
+	}
+
+	liquidEnabled, err := cl.Plugin.GetBoolOption(liquidEnabledOption)
+	if err != nil {
+		return nil, err
 	}
 
 	// get policy path
@@ -226,6 +230,7 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		LiquidRpcPassword:     liquidRpcPass,
 		LiquidRpcPasswordFile: liquidRpcPassFile,
 		LiquidRpcWallet:       liquidRpcWallet,
+		LiquidEnabled:         liquidEnabled,
 		BitcoinRpcHost:        bitcoinRpcHost,
 		BitcoinRpcPort:        uint(bitcoinRpcPort),
 		BitcoinRpcUser:        bitcoinRpcUser,

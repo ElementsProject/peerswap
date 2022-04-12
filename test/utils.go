@@ -44,6 +44,32 @@ func pprintFail(fps ...tailableProcess) {
 	}
 }
 
+func printFailedFiltered(t *testing.T, process *testframework.DaemonProcess) {
+	if t.Failed() {
+		filter := os.Getenv("PEERSWAP_TEST_FILTER")
+		pprintFail(
+			tailableProcess{
+				p:      process,
+				filter: filter,
+				lines:  defaultLines,
+			},
+		)
+	}
+}
+
+func printFailed(t *testing.T, process *testframework.DaemonProcess) {
+	if t.Failed() {
+		filter := os.Getenv("PEERSWAP_TEST_FILTER")
+		pprintFail(
+			tailableProcess{
+				p:      process,
+				filter: filter,
+				lines:  defaultLines,
+			},
+		)
+	}
+}
+
 type ChainNode interface {
 	GenerateBlocks(b int) error
 }

@@ -275,7 +275,6 @@ func (d *dummyLightningClient) AddPaymentCallback(f func(string, InvoiceType)) {
 	d.paymentCallback = f
 }
 
-//todo implement
 func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expiry uint64) (string, error) {
 	if d.preimage == "err" {
 		return "", errors.New("err")
@@ -319,7 +318,6 @@ func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
 	return true
 }
 
-// todo implement
 func (d *dummyPolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error) {
 	return 1, nil
 }

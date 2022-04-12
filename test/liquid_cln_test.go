@@ -767,7 +767,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 						lines: defaultLines,
 					},
 					tailableProcess{
-						p:      lightningds[0].(*testframework.CLightningNode).DaemonProcess,
+						p:      lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
 						filter: filter,
 						lines:  defaultLines,
 					},
@@ -840,7 +840,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 						lines: defaultLines,
 					},
 					tailableProcess{
-						p:      lightningds[0].(*testframework.CLightningNode).DaemonProcess,
+						p:      lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
 						filter: filter,
 						lines:  defaultLines,
 					},
