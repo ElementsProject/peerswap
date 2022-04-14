@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
-	"github.com/sputn1ck/peerswap/version"
 	"io"
 	"io/ioutil"
 	log2 "log"
@@ -17,6 +15,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sputn1ck/peerswap/log"
+	"github.com/sputn1ck/peerswap/version"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/jessevdk/go-flags"
@@ -145,10 +146,10 @@ func run() error {
 	var liquidRpcWallet *wallet.ElementsRpcWallet
 	var liquidCli *gelements.Elements
 	if cfg.LiquidEnabled {
-		supportedAssets = append(supportedAssets, "l-btc")
+		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
 		// blockchaincli
-		liquidConfig := cfg.LiquidConfig
+		liquidConfig := cfg.ElementsConfig
 		liquidCli = gelements.NewElements(liquidConfig.RpcUser, liquidConfig.RpcPassword)
 		err = liquidCli.StartUp(liquidConfig.RpcHost, liquidConfig.RpcPort)
 		if err != nil {

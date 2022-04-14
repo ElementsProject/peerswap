@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	"math/big"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/sputn1ck/peerswap/log"
 
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
@@ -36,7 +37,7 @@ func (g *LiquidGetAddress) New() interface{} {
 }
 
 func (g *LiquidGetAddress) Name() string {
-	return "peerswap-liquid-getaddress"
+	return "peerswap-lbtc-getaddress"
 }
 
 func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
@@ -47,12 +48,12 @@ func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("[Wallet] Getting address %s", res)
+	log.Infof("[Wallet] Getting lbtc address %s", res)
 	return &GetAddressResponse{LiquidAddress: res}, nil
 }
 
 type GetAddressResponse struct {
-	LiquidAddress string `json:"liquid_address"`
+	LiquidAddress string `json:"lbtc_address"`
 }
 
 // GetBalance returns the liquid balance
@@ -61,7 +62,7 @@ type LiquidGetBalance struct {
 }
 
 func (g *LiquidGetBalance) Name() string {
-	return "peerswap-liquid-getbalance"
+	return "peerswap-lbtc-getbalance"
 }
 
 func (g *LiquidGetBalance) New() interface{} {
@@ -72,7 +73,7 @@ func (g *LiquidGetBalance) New() interface{} {
 
 func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 	if g.cl == nil {
-		return nil, errors.New("liquid swaps are not enabled")
+		return nil, errors.New("lbtc swaps are not enabled")
 	}
 	res, err := g.cl.liquidWallet.GetBalance()
 	if err != nil {
@@ -84,7 +85,7 @@ func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 }
 
 type GetBalanceResponse struct {
-	LiquidBalance uint64 `json:"liquid_balance_sat"`
+	LiquidBalance uint64 `json:"lbtc_balance_sat"`
 }
 
 // LiquidSendToAddress sends
@@ -95,7 +96,7 @@ type LiquidSendToAddress struct {
 }
 
 func (s *LiquidSendToAddress) Name() string {
-	return "peerswap-liquid-sendtoaddress"
+	return "peerswap-lbtc-sendtoaddress"
 }
 
 func (s *LiquidSendToAddress) New() interface{} {
@@ -112,7 +113,7 @@ func (s *LiquidSendToAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 
 func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
 	if s.cl == nil {
-		return nil, errors.New("liquid swaps are not enabled")
+		return nil, errors.New("lbtc swaps are not enabled")
 	}
 	if s.Address == "" {
 		return nil, errors.New("address must be set")
@@ -193,7 +194,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 
-	if strings.Compare(l.Asset, "l-btc") == 0 {
+	if strings.Compare(l.Asset, "lbtc") == 0 {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
@@ -206,7 +207,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
 	} else {
-		return nil, errors.New("invalid asset (btc or l-btc)")
+		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 
 	pk := l.cl.GetNodeId()
@@ -295,7 +296,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 
-	if l.Asset == "l-btc" {
+	if l.Asset == "lbtc" {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
@@ -326,7 +327,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 			return nil, errors.New("Not enough balance on c-lightning onchain liquidWallet")
 		}
 	} else {
-		return nil, errors.New("invalid asset (btc or l-btc)")
+		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 
 	pk := l.cl.GetNodeId()

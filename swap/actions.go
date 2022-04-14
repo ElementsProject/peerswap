@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/sputn1ck/peerswap/log"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/sputn1ck/peerswap/isdev"
@@ -22,8 +23,8 @@ type CheckRequestWrapperAction struct {
 
 func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	if swap.GetChain() == l_btc_chain && !services.liquidEnabled {
-		swap.LastErr = errors.New("l-btc swaps are not supported")
-		swap.CancelMessage = "l-btc swaps are not supported"
+		swap.LastErr = errors.New("lbtc swaps are not supported")
+		swap.CancelMessage = "lbtc swaps are not supported"
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),

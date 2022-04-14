@@ -3,7 +3,7 @@
 PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for channel rebalincing via atomic swaps with onchain coins. Supported blockchains:
 
 - btc (bitcoin)
-- l-btc (liquid)
+- lbtc (liquid)
 
 
 ## Notes on commands
@@ -32,16 +32,16 @@ core-lightning plugin:
 
 ## Liquid Usage
 
-If you have set up your wallet with liquid swaps enabled you can swap with your peers using l-btc.
+If you have set up your wallet with liquid swaps enabled you can swap with your peers using lbtc.
 
 In order to swap you need a minimum balance of liquid bitcoin in order to pay for transaction fees.
 
 The liquid wallet related commands are
 
 ```bash
-liquid-getaddress ## generates a new liquid address
-liquid-getbalance ## gets liquid bitcoin balance in sats
-liquid-sendtoaddress ## sends lbtc sats to a provided address
+lbtc-getaddress ## generates a new lbtc address
+lbtc-getbalance ## gets lbtc bitcoin balance in sats
+lbtc-sendtoaddress ## sends lbtc sats to a provided address
 ```
 
 The liquid wallet uses the elementsd integrated wallet
@@ -118,7 +118,7 @@ Example output:
       "node_id": "...",
       "requests": {
          "swap out": {
-            "l-btc": {
+            "lbtc": {
                "total_amount_sat": 3600,
                "n_requests": 3
             }

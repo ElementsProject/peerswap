@@ -11,7 +11,7 @@ func TestPrint(t *testing.T) {
 	want := map[string][]RequestedSwap{
 		"node1": {
 			{
-				Asset:           "l-btc",
+				Asset:           "lbtc",
 				AmountSat:       10000,
 				Type:            SWAPTYPE_IN,
 				RejectionReason: "asset not allowed",

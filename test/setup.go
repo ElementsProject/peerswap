@@ -328,12 +328,11 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			"--dev-fast-gossip",
 			fmt.Sprint("--plugin=", pathToPlugin),
 			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
-			"--peerswap-liquid-rpchost=http://127.0.0.1",
-			fmt.Sprintf("--peerswap-liquid-rpcport=%d", liquidd.RpcPort),
-			fmt.Sprintf("--peerswap-liquid-rpcuser=%s", liquidd.RpcUser),
-			fmt.Sprintf("--peerswap-liquid-rpcpassword=%s", liquidd.RpcPassword),
-			fmt.Sprintf("--peerswap-liquid-network=%s", liquidd.Network),
-			fmt.Sprintf("--peerswap-liquid-rpcwallet=%s", walletName),
+			"--peerswap-elementsd-rpchost=http://127.0.0.1",
+			fmt.Sprintf("--peerswap-elementsd-rpcport=%d", liquidd.RpcPort),
+			fmt.Sprintf("--peerswap-elementsd-rpcuser=%s", liquidd.RpcUser),
+			fmt.Sprintf("--peerswap-elementsd-rpcpassword=%s", liquidd.RpcPassword),
+			fmt.Sprintf("--peerswap-elementsd-rpcwallet=%s", walletName),
 		})
 
 		lightningds = append(lightningds, lightningd)
@@ -433,11 +432,11 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	var peerswapds []*PeerSwapd
 	for i, lightningd := range lightningds {
 		extraConfig := map[string]string{
-			"liquid.rpcuser":   liquidd.RpcUser,
-			"liquid.rpcpass":   liquidd.RpcPassword,
-			"liquid.rpchost":   "http://127.0.0.1",
-			"liquid.rpcport":   fmt.Sprintf("%d", liquidd.RpcPort),
-			"liquid.rpcwallet": fmt.Sprintf("swap-test-wallet-%d", i),
+			"elementsd.rpcuser":   liquidd.RpcUser,
+			"elementsd.rpcpass":   liquidd.RpcPassword,
+			"elementsd.rpchost":   "http://127.0.0.1",
+			"elementsd.rpcport":   fmt.Sprintf("%d", liquidd.RpcPort),
+			"elementsd.rpcwallet": fmt.Sprintf("swap-test-wallet-%d", i),
 		}
 
 		peerswapd, err := NewPeerSwapd(testDir, pathToPlugin, &LndConfig{LndHost: fmt.Sprintf("localhost:%d", lightningd.RpcPort), TlsPath: lightningd.TlsPath, MacaroonPath: lightningd.MacaroonPath}, extraConfig, i+1)
@@ -552,12 +551,11 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		"--dev-fast-gossip",
 		fmt.Sprint("--plugin=", peerswapPluginPath),
 		fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(cln.DataDir, "policy.conf")),
-		"--peerswap-liquid-rpchost=http://127.0.0.1",
-		fmt.Sprintf("--peerswap-liquid-rpcport=%d", liquidd.RpcPort),
-		fmt.Sprintf("--peerswap-liquid-rpcuser=%s", liquidd.RpcUser),
-		fmt.Sprintf("--peerswap-liquid-rpcpassword=%s", liquidd.RpcPassword),
-		fmt.Sprintf("--peerswap-liquid-network=%s", liquidd.Network),
-		fmt.Sprintf("--peerswap-liquid-rpcwallet=%s", "test-cln-wallet-1"),
+		"--peerswap-elementsd-rpchost=http://127.0.0.1",
+		fmt.Sprintf("--peerswap-elementsd-rpcport=%d", liquidd.RpcPort),
+		fmt.Sprintf("--peerswap-elementsd-rpcuser=%s", liquidd.RpcUser),
+		fmt.Sprintf("--peerswap-elementsd-rpcpassword=%s", liquidd.RpcPassword),
+		fmt.Sprintf("--peerswap-elementsd-rpcwallet=%s", "test-cln-wallet-1"),
 	})
 
 	// lnd
@@ -569,11 +567,11 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 
 	// peerswapd
 	extraConfig := map[string]string{
-		"liquid.rpcuser":   liquidd.RpcUser,
-		"liquid.rpcpass":   liquidd.RpcPassword,
-		"liquid.rpchost":   "http://127.0.0.1",
-		"liquid.rpcport":   fmt.Sprintf("%d", liquidd.RpcPort),
-		"liquid.rpcwallet": "swap-test-wallet-1",
+		"elementsd.rpcuser":   liquidd.RpcUser,
+		"elementsd.rpcpass":   liquidd.RpcPassword,
+		"elementsd.rpchost":   "http://127.0.0.1",
+		"elementsd.rpcport":   fmt.Sprintf("%d", liquidd.RpcPort),
+		"elementsd.rpcwallet": "swap-test-wallet-1",
 	}
 
 	peerswapd, err := NewPeerSwapd(testDir, peerswapdPath, &LndConfig{LndHost: fmt.Sprintf("localhost:%d", lnd.RpcPort), TlsPath: lnd.TlsPath, MacaroonPath: lnd.MacaroonPath}, extraConfig, 1)

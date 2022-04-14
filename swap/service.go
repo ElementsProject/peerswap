@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	"strings"
 	"sync"
+
+	"github.com/sputn1ck/peerswap/log"
 
 	"github.com/sputn1ck/peerswap/messages"
 )
@@ -17,7 +18,7 @@ const (
 )
 
 var (
-	AllowedAssets       = []string{"btc", "l-btc"}
+	AllowedAssets       = []string{"btc", "lbtc"}
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
 )
 

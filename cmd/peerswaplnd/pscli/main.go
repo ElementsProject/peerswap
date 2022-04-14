@@ -50,7 +50,7 @@ var (
 	}
 	assetFlag = cli.StringFlag{
 		Name:     "asset",
-		Usage:    "asset to swap with: 'btc' | 'l-btc'",
+		Usage:    "asset to swap with: 'btc' | 'lbtc'",
 		Required: true,
 	}
 	swapIdFlag = cli.StringFlag{
@@ -133,20 +133,20 @@ var (
 		Action: listRequestedSwaps,
 	}
 	liquidGetAddressCommand = cli.Command{
-		Name:   "liquid-getaddress",
-		Usage:  "gets a new liquid address",
+		Name:   "lbtc-getaddress",
+		Usage:  "gets a new lbtc address",
 		Flags:  []cli.Flag{},
 		Action: liquidGetAddress,
 	}
 	liquidGetBalanceCommand = cli.Command{
-		Name:   "liquid-getbalance",
-		Usage:  "gets the current liquid balance",
+		Name:   "lbtc-getbalance",
+		Usage:  "gets the current lbtc balance",
 		Flags:  []cli.Flag{},
 		Action: liquidGetBalance,
 	}
 	liquidSendToAddressCommand = cli.Command{
-		Name:  "liquid-sendtoaddress",
-		Usage: "sends the sat amount to a liquid address",
+		Name:  "lbtc-sendtoaddress",
+		Usage: "sends the sat amount to a lbtc address",
 		Flags: []cli.Flag{
 			satAmountFlag,
 			liquidAddressFlag,

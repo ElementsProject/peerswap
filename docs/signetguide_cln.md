@@ -268,10 +268,10 @@ Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pub
 lightning-cli fundchannel 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4 [amt] 
 ```
 
-Get a new liquid address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
+Get a new lbtc address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
 
 ```bash
-lightning-cli peerswap-liquid-getaddress
+lightning-cli peerswap-lbtc-getaddress
 ```
 
 Add the peer to the allowlist
@@ -288,7 +288,7 @@ lightning-cli listfunds | grep short_channel_id
 and try a swap-out
 
 ```bash
-lightning-cli peerswap-swap-out [amt] [short_channel_id] l-btc
+lightning-cli peerswap-swap-out [amt] [short_channel_id] lbtc
 ```
 
 Note: The asset could also be `btc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.

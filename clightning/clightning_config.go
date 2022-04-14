@@ -12,12 +12,13 @@ import (
 
 const (
 	dbOption                        = "peerswap-db-path"
-	liquidRpcHostOption             = "peerswap-liquid-rpchost"
-	liquidRpcPortOption             = "peerswap-liquid-rpcport"
-	liquidRpcUserOption             = "peerswap-liquid-rpcuser"
-	liquidRpcPasswordOption         = "peerswap-liquid-rpcpassword"
-	liquidRpcPasswordFilepathOption = "peerswap-liquid-rpcpasswordfile"
-	liquidEnabledOption             = "peerswap-liquid-enabled"
+	liquidRpcHostOption             = "peerswap-elementsd-rpchost"
+	liquidRpcPortOption             = "peerswap-elementsd-rpcport"
+	liquidRpcUserOption             = "peerswap-elementsd-rpcuser"
+	liquidRpcPasswordOption         = "peerswap-elementsd-rpcpassword"
+	liquidRpcPasswordFilepathOption = "peerswap-elementsd-rpcpasswordfile"
+	liquidEnabledOption             = "peerswap-elementsd-enabled"
+	rpcWalletOption                 = "peerswap-elementsd-rpcwallet"
 
 	bitcoinRpcHostOption     = "peerswap-bitcoin-rpchost"
 	bitcoinRpcPortOption     = "peerswap-bitcoin-rpcport"
@@ -25,9 +26,7 @@ const (
 	bitcoinRpcPasswordOption = "peerswap-bitcoin-rpcpassword"
 	bitcoinCookieFilePath    = "peerswap-bitcoin-cookiefilepath"
 
-	rpcWalletOption     = "peerswap-liquid-rpcwallet"
-	liquidNetworkOption = "peerswap-liquid-network"
-	policyPathOption    = "peerswap-policy-path"
+	policyPathOption = "peerswap-policy-path"
 )
 
 // PeerswapClightningConfig contains relevant config params for peerswap
@@ -91,10 +90,6 @@ func (cl *ClightningClient) RegisterOptions() error {
 		return err
 	}
 	err = cl.Plugin.RegisterNewOption(liquidRpcPasswordOption, "elementsd rpcpassword", "")
-	if err != nil {
-		return err
-	}
-	err = cl.Plugin.RegisterNewOption(liquidNetworkOption, "liquid-network", "regtest")
 	if err != nil {
 		return err
 	}

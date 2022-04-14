@@ -85,7 +85,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -169,7 +169,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -253,7 +253,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -344,7 +344,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			swapType:         swap.SWAPTYPE_OUT,
 		}
 
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -429,7 +429,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			swapType:         swap.SWAPTYPE_OUT,
 		}
 
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -514,7 +514,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			swapType:         swap.SWAPTYPE_OUT,
 		}
 
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -602,7 +602,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -684,7 +684,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -766,7 +766,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -854,7 +854,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -936,7 +936,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1018,7 +1018,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		ctx, cancel := context.WithCancel(context.Background())

@@ -41,7 +41,7 @@ func (e *ElementsBlockChainRpc) GetTxOut(txid string, vout uint32) (*TxOutResp, 
 }
 
 func (e *ElementsBlockChainRpc) String() string {
-	return "l-btc"
+	return "lbtc"
 }
 
 func (e *ElementsBlockChainRpc) GetBlockHash(height uint32) (string, error) {
