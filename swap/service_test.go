@@ -3,11 +3,12 @@ package swap
 import (
 	"context"
 	"encoding/hex"
-	"github.com/btcsuite/btcd/btcec"
 	"log"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/btcsuite/btcd/btcec"
 
 	"github.com/sputn1ck/peerswap/messages"
 	"github.com/stretchr/testify/assert"
@@ -220,12 +221,12 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 		failures: 0,
 	})
 
-	_, err := service.SwapOut("peer", "l-btc", "channelID", "alice", uint64(200))
+	_, err := service.SwapOut("peer", "lbtc", "channelID", "alice", uint64(200))
 	if assert.Error(t, err, "expected error") {
 		assert.Equal(t, "already has an active swap on channel", err.Error())
 	}
 
-	_, err = service.SwapIn("peer", "l-btc", "channelID", "alice", uint64(200))
+	_, err = service.SwapIn("peer", "lbtc", "channelID", "alice", uint64(200))
 	if assert.Error(t, err, "expected error") {
 		assert.Equal(t, "already has an active swap on channel", err.Error())
 	}

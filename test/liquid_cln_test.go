@@ -75,7 +75,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -145,7 +145,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -215,7 +215,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -291,7 +291,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -361,7 +361,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -431,7 +431,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -511,7 +511,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -585,7 +585,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -659,7 +659,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -739,7 +739,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -812,7 +812,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {
@@ -885,7 +885,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
 		}
-		asset := "l-btc"
+		asset := "lbtc"
 
 		// Do swap.
 		go func() {

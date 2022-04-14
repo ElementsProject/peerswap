@@ -349,12 +349,12 @@ and try a swap-out
 pscli swapout --sat_amt=[sat amount] --channel_id=[chan_id from above] --asset=btc
 ```
 
-Note: The asset could also be `l-btc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
+Note: The asset could also be `lbtc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
 
-Get a new liquid address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
+Get a new lbtc address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
 
 ```bash
-pscli liquid-getaddress
+pscli lbtc-getaddress
 ```
 
 

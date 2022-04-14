@@ -13,7 +13,7 @@ import (
 
 const (
 	btc_chain   = "btc"
-	l_btc_chain = "l-btc"
+	l_btc_chain = "lbtc"
 )
 
 type Messenger interface {

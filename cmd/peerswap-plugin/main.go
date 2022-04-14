@@ -246,7 +246,7 @@ func run() error {
 func setupLiquid(ctx context.Context, li *glightning.Lightning,
 	config *clightning.PeerswapClightningConfig) (*onchain.LiquidOnChain, *txwatcher.BlockchainRpcTxWatcher, *wallet.ElementsRpcWallet, *gelements.Elements, error) {
 	var err error
-	supportedAssets = append(supportedAssets, "l-btc")
+	supportedAssets = append(supportedAssets, "lbtc")
 
 	// blockchaincli
 	liquidCli, err := getElementsClient(li, config)

@@ -3,11 +3,12 @@ package peerswaplnd
 import (
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcutil"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/btcsuite/btcutil"
 )
 
 type LogLevel uint8
@@ -38,8 +39,8 @@ type PeerSwapConfig struct {
 	DataDir    string   `long:"datadir" description:"peerswap datadir"`
 	LogLevel   LogLevel `long:"loglevel" description:"loglevel (1=Info, 2=Debug)"`
 
-	LndConfig    *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
-	LiquidConfig *OnchainConfig `group:"Liquid Rpc Config" namespace:"liquid"`
+	LndConfig      *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
+	ElementsConfig *OnchainConfig `group:"Elements Rpc Config" namespace:"elementsd"`
 
 	LiquidEnabled  bool
 	BitcoinEnabled bool `long:"bitcoinswaps" description:"enable bitcoin peerswaps"`
@@ -47,20 +48,20 @@ type PeerSwapConfig struct {
 
 func (p *PeerSwapConfig) String() string {
 	var liquidString string
-	if p.LiquidConfig != nil {
-		liquidString = fmt.Sprintf("liquid: rpcuser: %s, rpchost: %s, rpcport %v, rpcwallet: %s", p.LiquidConfig.RpcUser, p.LiquidConfig.RpcHost, p.LiquidConfig.RpcPort, p.LiquidConfig.RpcWallet)
+	if p.ElementsConfig != nil {
+		liquidString = fmt.Sprintf("elements: rpcuser: %s, rpchost: %s, rpcport %v, rpcwallet: %s", p.ElementsConfig.RpcUser, p.ElementsConfig.RpcHost, p.ElementsConfig.RpcPort, p.ElementsConfig.RpcWallet)
 	}
 	var lndString string
 	if p.LndConfig != nil {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
 
-	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, Liquid: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
+	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
 }
 
 func (p *PeerSwapConfig) Validate() error {
-	if p.LiquidConfig.RpcHost != "" {
-		err := p.LiquidConfig.Validate()
+	if p.ElementsConfig.RpcHost != "" {
+		err := p.ElementsConfig.Validate()
 		if err != nil {
 			return err
 		}
@@ -76,7 +77,7 @@ type OnchainConfig struct {
 	RpcCookieFilePath string `long:"rpccookiefilepath" description:"path to rpc cookie file"`
 	RpcHost           string `long:"rpchost" description:"host to connect to"`
 	RpcPort           uint   `long:"rpcport" description:"port to connect to"`
-	RpcWallet         string `long:"rpcwallet" description:"wallet to use for swaps (liquid only)"`
+	RpcWallet         string `long:"rpcwallet" description:"wallet to use for swaps (elements only)"`
 }
 
 func (o *OnchainConfig) Validate() error {
@@ -131,7 +132,7 @@ func DefaultConfig() *PeerSwapConfig {
 			MacaroonPath: DefaultMacaroonPath,
 		},
 		BitcoinEnabled: DefaultBitcoinEnabled,
-		LiquidConfig:   defaultLiquidConfig(),
+		ElementsConfig: defaultLiquidConfig(),
 		LogLevel:       DefaultLogLevel,
 	}
 }

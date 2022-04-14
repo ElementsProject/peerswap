@@ -98,7 +98,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, errors.New("channel is not connected")
 	}
 
-	if strings.Compare(request.Asset, "l-btc") == 0 {
+	if strings.Compare(request.Asset, "lbtc") == 0 {
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
@@ -111,7 +111,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
 	} else {
-		return nil, errors.New("invalid asset (btc or l-btc)")
+		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 	gi, err := p.lnd.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -203,7 +203,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, errors.New("channel is not connected")
 	}
 
-	if request.Asset == "l-btc" {
+	if request.Asset == "lbtc" {
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
@@ -230,7 +230,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		}
 
 	} else {
-		return nil, errors.New("invalid asset (btc or l-btc)")
+		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 
 	gi, err := p.lnd.GetInfo(ctx, &lnrpc.GetInfoRequest{})

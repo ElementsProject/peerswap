@@ -548,6 +548,6 @@ This is the way to finish a swap if the invoice was not paid and the taker did n
   * txin[0] outpoint: `tx_id` and `script_output` from the `opening_tx_broadcasted` message
   * txin[0] sequence:
     * for `btc` as asset: 0x3F0 corresponding to the CSV of 1008
-    * for `l-btc` as asset: 0x3C corresponding to the CSV of 60
+    * for `lbtc` as asset: 0x3C corresponding to the CSV of 60
   * txin[0] script bytes: 0
   * txin[0] witness: `<signature_for_B> <redeem_script>`
