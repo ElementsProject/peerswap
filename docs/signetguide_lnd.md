@@ -234,7 +234,7 @@ export PATH=$PATH:/usr/local/go/bin
 Clone into the peerswap repository and build the peerswap plugin
 
 ```bash
-git clone git@github.com:sputn1ck/peerswap.git && \
+git clone git@github.com:elementsproject/peerswap.git && \
 cd peerswap && \
 make lnd-release
 ```
@@ -267,7 +267,7 @@ accept_all_peers=true
 EOF
 ```
 
-Liquid-swaps Config
+lbtc-swaps Config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -275,11 +275,11 @@ lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
 network=signet
 bitcoinswaps=true
-liquid.rpcuser=admin1
-liquid.rpcpass=123 
-liquid.rpchost=http://127.0.0.1
-liquid.rpcport=18884
-liquid.rpcwallet=swaplnd
+elementsd.rpcuser=admin1
+elementsd.rpcpass=123 
+elementsd.rpchost=http://127.0.0.1
+elementsd.rpcport=18884
+elementsd.rpcwallet=swaplnd
 accept_all_peers=true
 EOF
 ```

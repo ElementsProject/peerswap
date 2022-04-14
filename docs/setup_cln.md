@@ -47,13 +47,13 @@ peerswap-bitcoin-rpcuser ## User for bitcoind rpc
 peerswap-bitcoin-rpcpassword ## Password for bitcoind rpc
 peerswap-bitcoin-cookiefilepath ## Path to bitcoin cookie file 
 
-peerswap-liquid-enabled ## Override liquid enable (default: true)
-peerswap-liquid-rpchost ## Host of elementsd rpc (default: localhost)
-peerswap-liquid-rpcport ## Port of elementsd rpc (default: 18888)
-peerswap-liquid-rpcuser ## User for elementsd rpc
-peerswap-liquid-rpcpassword ## Password for elementsd rpc
-peerswap-liquid-rpcpasswordfile ## Path to passwordfile for elementsd rpc
-peerswap-liquid-rpcwallet ## Rpcwallet to use (default: peerswap)
+peerswap-elementsd-enabled ## Override liquid enable (default: true)
+peerswap-elementsd-rpchost ## Host of elementsd rpc (default: localhost)
+peerswap-elementsd-rpcport ## Port of elementsd rpc (default: 18888)
+peerswap-elementsd-rpcuser ## User for elementsd rpc
+peerswap-elementsd-rpcpassword ## Password for elementsd rpc
+peerswap-elementsd-rpcpasswordfile ## Path to passwordfile for elementsd rpc
+peerswap-elementsd-rpcwallet ## Rpcwallet to use (default: peerswap)
 ```
 
 In order to check if your daemon is setup correctly run

@@ -201,7 +201,7 @@ export PATH=$PATH:/usr/local/go/bin
 Clone into the peerswap repository and build the peerswap plugin
 
 ```bash
-git clone git@github.com:sputn1ck/peerswap.git && \
+git clone git@github.com:elementsproject/peerswap.git && \
 cd peerswap && \
 make cln-release
 ```
@@ -235,13 +235,13 @@ lightningd --daemon \
 Or with liquid enabled
 ```bash
 lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap \
-        --peerswap-liquid-rpchost=http://localhost \
-        --peerswap-liquid-rpcport=18884 \
-        --peerswap-liquid-rpcuser=admin1 \
-        --peerswap-liquid-rpcpassword=123 \
-        --peerswap-liquid-network=testnet \
-        --peerswap-liquid-rpcwallet=swap 
+        --plugin=$HOME/peerswap/peerswap-plugin \
+        --peerswap-elementsd-rpchost=http://localhost \
+        --peerswap-elementsd-rpcport=18884 \
+        --peerswap-elementsd-rpcuser=admin1 \
+        --peerswap-elementsd-rpcpassword=123 \
+        --peerswap-elementsd-network=testnet \
+        --peerswap-elementsd-rpcwallet=swap 
 ```
 
 Create a new signet address and receive some sats from https://signet.bc-2.jp/
