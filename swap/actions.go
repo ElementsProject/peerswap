@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sputn1ck/peerswap/log"
+	"github.com/elementsproject/peerswap/log"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/sputn1ck/peerswap/isdev"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/isdev"
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/messages"
 )
 
 type CheckRequestWrapperAction struct {
@@ -331,7 +331,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
-	// todo replace with premium estimation https://github.com/sputn1ck/peerswap/issues/109
+	// todo replace with premium estimation https://github.com/elementsproject/peerswap/issues/109
 	openingFee, err := wallet.EstimateTxFee(swap.SwapOutRequest.Amount)
 	if err != nil {
 		swap.LastErr = err

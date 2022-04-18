@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sputn1ck/peerswap/timer"
+	"github.com/elementsproject/peerswap/timer"
 )
 
 type callbackFactory func(string) func()

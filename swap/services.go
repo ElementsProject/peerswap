@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/messages"
 
 	"github.com/btcsuite/btcd/btcec"
 )

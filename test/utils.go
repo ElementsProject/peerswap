@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/peerswaprpc"
-	"github.com/sputn1ck/peerswap/testframework"
+	"github.com/elementsproject/peerswap/clightning"
+	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
 )
 

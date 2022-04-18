@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package peerswap;
 
-option go_package = "github.com/sputn1ck/peerswap/peerswaprpc";
+option go_package = "github.com/elementsproject/peerswap/peerswaprpc";
 
 service PeerSwap {
     rpc SwapOut(SwapOutRequest) returns (SwapResponse);

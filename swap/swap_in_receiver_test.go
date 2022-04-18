@@ -3,7 +3,7 @@ package swap
 import (
 	"testing"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 

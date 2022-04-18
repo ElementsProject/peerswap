@@ -2,6 +2,7 @@
 // +build misc
 
 package misc_tests
+
 //
 //import (
 //	"bytes"
@@ -10,7 +11,7 @@ package misc_tests
 //	"encoding/hex"
 //	"encoding/json"
 //	"errors"
-//	"github.com/sputn1ck/peerswap/swap"
+//	"github.com/elementsproject/peerswap/swap"
 //	"log"
 //	"strconv"
 //	"testing"
@@ -23,8 +24,8 @@ package misc_tests
 //	"github.com/btcsuite/btcutil/psbt"
 //	"github.com/sputn1ck/glightning/gbitcoin"
 //	"github.com/sputn1ck/glightning/glightning"
-//	"github.com/sputn1ck/peerswap/lightning"
-//	"github.com/sputn1ck/peerswap/onchain"
+//	"github.com/elementsproject/peerswap/lightning"
+//	"github.com/elementsproject/peerswap/onchain"
 //)
 //
 //// btc swap

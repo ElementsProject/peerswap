@@ -1,4 +1,4 @@
-module github.com/sputn1ck/peerswap
+module github.com/elementsproject/peerswap
 
 go 1.16
 

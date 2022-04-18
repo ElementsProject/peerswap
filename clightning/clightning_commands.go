@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sputn1ck/peerswap/log"
+	"github.com/elementsproject/peerswap/log"
 
+	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/swap"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/policy"
-	"github.com/sputn1ck/peerswap/swap"
 )
 
 type SwapCanceledError string

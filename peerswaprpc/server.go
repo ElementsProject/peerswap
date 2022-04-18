@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/wallet"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/peerswap/policy"
-	"github.com/sputn1ck/peerswap/poll"
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/wallet"
 )
 
 type PeerswapServer struct {

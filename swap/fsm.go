@@ -3,8 +3,9 @@ package swap
 import (
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	"sync"
+
+	"github.com/elementsproject/peerswap/log"
 )
 
 // ErrEventRejected is the error returned when the state machine cannot process

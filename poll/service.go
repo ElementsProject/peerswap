@@ -3,11 +3,12 @@ package poll
 import (
 	"context"
 	"encoding/json"
-	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/log"
+
+	"github.com/elementsproject/peerswap/messages"
 )
 
 const version uint64 = 0

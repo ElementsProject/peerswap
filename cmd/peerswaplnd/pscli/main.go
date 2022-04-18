@@ -6,9 +6,9 @@ import (
 	log2 "log"
 	"os"
 
+	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
 	"github.com/lightninglabs/protobuf-hex-display/proto"
-	"github.com/sputn1ck/peerswap/peerswaprpc"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
 )

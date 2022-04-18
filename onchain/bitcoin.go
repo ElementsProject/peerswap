@@ -10,7 +10,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/psbt"
-	"github.com/sputn1ck/peerswap/swap"
+	"github.com/elementsproject/peerswap/swap"
 )
 
 const (

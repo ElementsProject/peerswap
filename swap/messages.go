@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/messages"
 )
 
 var (

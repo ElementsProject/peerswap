@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/sputn1ck/peerswap/lightning"
+	"github.com/elementsproject/peerswap/lightning"
 )
 
 type SwapType int
