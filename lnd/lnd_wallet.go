@@ -8,11 +8,11 @@ import (
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil/psbt"
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/swap"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/swap"
 )
 
 func (l *Lnd) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {

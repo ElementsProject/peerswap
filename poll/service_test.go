@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 )

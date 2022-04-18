@@ -7,17 +7,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
+
+	"github.com/elementsproject/peerswap/log"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/vulpemventures/go-elements/confidential"
 	"github.com/vulpemventures/go-elements/pset"
 
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/wallet"
 	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/address"
 	address2 "github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"

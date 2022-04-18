@@ -1,9 +1,10 @@
 package onchain
 
 import (
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/vulpemventures/go-elements/network"
 	"testing"
+
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/vulpemventures/go-elements/network"
 )
 
 func Test_ScriptAddress(t *testing.T) {

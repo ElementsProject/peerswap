@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sputn1ck/peerswap/peerswaprpc"
-	"github.com/sputn1ck/peerswap/swap"
+	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/swap"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,6 +1,6 @@
 package poll
 
-import "github.com/sputn1ck/peerswap/messages"
+import "github.com/elementsproject/peerswap/messages"
 
 type PollMessage struct {
 	Version     uint64   `json:"version"`

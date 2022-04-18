@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/messages"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/elementsproject/peerswap/lightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/lightning"
 )
 
 var (

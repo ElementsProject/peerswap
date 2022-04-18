@@ -13,20 +13,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sputn1ck/peerswap/log"
+	"github.com/elementsproject/peerswap/log"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/peerswap/onchain"
 	"github.com/sputn1ck/glightning/gbitcoin"
-	"github.com/sputn1ck/peerswap/onchain"
 
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/wallet"
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
 	"github.com/sputn1ck/glightning/jrpc2"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/messages"
-	"github.com/sputn1ck/peerswap/poll"
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/wallet"
 )
 
 var methods = []peerswaprpcMethod{

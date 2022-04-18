@@ -3,8 +3,8 @@ package test
 import (
 	"testing"
 
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/testframework"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
 )
 

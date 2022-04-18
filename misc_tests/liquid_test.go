@@ -11,14 +11,14 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/swap"
+	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/swap"
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
 
+	"github.com/elementsproject/peerswap/lightning"
+	wallet "github.com/elementsproject/peerswap/wallet"
 	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/peerswap/lightning"
-	wallet "github.com/sputn1ck/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 )
@@ -1383,21 +1383,20 @@ func rand32ByteArray() []byte {
 	return randArr[:]
 }
 
-
 //
 //import (
 //	"crypto/rand"
 //	"encoding/hex"
 //	"fmt"
 //	"github.com/btcsuite/btcd/btcec"
-//	"github.com/sputn1ck/peerswap/onchain"
-//	"github.com/sputn1ck/peerswap/swap"
+//	"github.com/elementsproject/peerswap/onchain"
+//	"github.com/elementsproject/peerswap/swap"
 //	"log"
 //	"testing"
 //
 //	"github.com/sputn1ck/glightning/gelements"
-//	"github.com/sputn1ck/peerswap/lightning"
-//	wallet "github.com/sputn1ck/peerswap/wallet"
+//	"github.com/elementsproject/peerswap/lightning"
+//	wallet "github.com/elementsproject/peerswap/wallet"
 //	"github.com/vulpemventures/go-elements/elementsutil"
 //	"github.com/vulpemventures/go-elements/network"
 //)

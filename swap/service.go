@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sputn1ck/peerswap/log"
+	"github.com/elementsproject/peerswap/log"
 
-	"github.com/sputn1ck/peerswap/messages"
+	"github.com/elementsproject/peerswap/messages"
 )
 
 const (

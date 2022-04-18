@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sputn1ck/peerswap/peerswaprpc"
-	"github.com/sputn1ck/peerswap/testframework"
+	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/testframework"
 	"google.golang.org/grpc"
 )
 

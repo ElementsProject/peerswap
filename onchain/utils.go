@@ -2,8 +2,9 @@ package onchain
 
 import (
 	"encoding/hex"
+
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/sputn1ck/peerswap/swap"
+	"github.com/elementsproject/peerswap/swap"
 )
 
 func ParamsToTxScript(p *swap.OpeningParams, locktimeHeight uint32) ([]byte, error) {

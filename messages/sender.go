@@ -1,9 +1,10 @@
 package messages
 
 import (
-	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
+
+	"github.com/elementsproject/peerswap/log"
 )
 
 type Messenger interface {

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sputn1ck/peerswap/swap"
+	"github.com/elementsproject/peerswap/swap"
 )
 
 func main() {

@@ -3,11 +3,12 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
+
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/onchain"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
-	"github.com/sputn1ck/peerswap/log"
-	"github.com/sputn1ck/peerswap/onchain"
 )
 
 type LndTxWatcher struct {

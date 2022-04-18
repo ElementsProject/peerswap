@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
+	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/swap"
 	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap/lightning"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/swap"
 )
 
 func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {

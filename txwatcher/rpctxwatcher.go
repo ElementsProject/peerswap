@@ -3,9 +3,10 @@ package txwatcher
 import (
 	"context"
 	"fmt"
-	"github.com/sputn1ck/peerswap/log"
 	"sync"
 	"time"
+
+	"github.com/elementsproject/peerswap/log"
 )
 
 type BlockchainRpc interface {

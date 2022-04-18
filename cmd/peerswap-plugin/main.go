@@ -12,25 +12,25 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sputn1ck/peerswap/log"
-	"github.com/sputn1ck/peerswap/version"
+	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/version"
 
 	"github.com/vulpemventures/go-elements/network"
 
 	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/peerswap/clightning"
+	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/txwatcher"
+	"github.com/elementsproject/peerswap/wallet"
 	"github.com/sputn1ck/glightning/gbitcoin"
 	"github.com/sputn1ck/glightning/gelements"
 	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/peerswap/clightning"
-	"github.com/sputn1ck/peerswap/messages"
-	"github.com/sputn1ck/peerswap/onchain"
-	"github.com/sputn1ck/peerswap/policy"
-	"github.com/sputn1ck/peerswap/poll"
-	"github.com/sputn1ck/peerswap/swap"
-	"github.com/sputn1ck/peerswap/txwatcher"
-	"github.com/sputn1ck/peerswap/wallet"
 	"go.etcd.io/bbolt"
 )
 
