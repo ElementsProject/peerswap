@@ -51,7 +51,6 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 		"lnd.tlscertpath":  lndConfig.TlsPath,
 		"lnd.macaroonpath": lndConfig.MacaroonPath,
 		"lnd.host":         lndConfig.LndHost,
-		"accept_all_peers": "true",
 		"datadir":          dataDir,
 		"host":             fmt.Sprintf("localhost:%v", rpcPort),
 	}
@@ -64,9 +63,17 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 
 	testframework.WriteConfig(configFile, peerswapConfig, nil, "")
 
+	policyConfig := map[string]string{
+		"accept_all_peers": "true",
+	}
+
+	policyFile := filepath.Join(dataDir, "policy.conf")
+	testframework.WriteConfig(policyFile, policyConfig, nil, "")
+
 	cmdLine := []string{
 		pathToPeerswapPlugin,
 		fmt.Sprintf("--configfile=%s", configFile),
+		fmt.Sprintf("--policyfile=%s", policyFile),
 	}
 
 	return &PeerSwapd{

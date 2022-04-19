@@ -29,6 +29,7 @@ var (
 	DefaultLiquidwallet   = "swap"
 	DefaultBitcoinEnabled = true
 	DefaultLogLevel       = LOGLEVEL_DEBUG
+	DefaultPolicyFile     = filepath.Join(DefaultDatadir, "policy.conf")
 
 	defaultLndDir = btcutil.AppDataDir("lnd", false)
 )
@@ -36,6 +37,7 @@ var (
 type PeerSwapConfig struct {
 	Host       string   `long:"host" description:"host to listen on for grpc connections"`
 	ConfigFile string   `long:"configfile" description:"path to configfile"`
+	PolicyFile string   `long:"policyfile" description:"path to policyfile"`
 	DataDir    string   `long:"datadir" description:"peerswap datadir"`
 	LogLevel   LogLevel `long:"loglevel" description:"loglevel (1=Info, 2=Debug)"`
 
@@ -125,6 +127,7 @@ func DefaultConfig() *PeerSwapConfig {
 	return &PeerSwapConfig{
 		Host:       DefaultPeerswapHost,
 		ConfigFile: DefaultConfigFile,
+		PolicyFile: DefaultPolicyFile,
 		DataDir:    DefaultDatadir,
 		LndConfig: &LndConfig{
 			LndHost:      DefaultLndHost,
