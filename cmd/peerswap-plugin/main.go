@@ -96,11 +96,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var liquidRpcWallet *wallet.ElementsRpcWallet
 	var liquidCli *gelements.Elements
+	var liquidEnabled bool
 
 	if config.LiquidEnabled {
 		liquidOnChainService, liquidTxWatcher, liquidRpcWallet, liquidCli, err = setupLiquid(ctx, lightningPlugin.GetLightningRpc(), config)
@@ -108,13 +110,18 @@ func run() error {
 			return err
 		}
 		if err != nil {
-			log.Infof("Liquid swaps disabled")
-			config.LiquidEnabled = false
+			log.Infof("Error setting up liquid %v", err)
 		}
+		if err == nil {
+			liquidEnabled = true
+		}
+	}
+
+	if liquidEnabled {
+		log.Infof("Liquid swaps enabled")
 	} else {
 		log.Infof("Liquid swaps disabled")
 	}
-
 	// bitcoin
 	chain, err := getBitcoinChain(lightningPlugin.GetLightningRpc())
 	if err != nil {
@@ -137,7 +144,7 @@ func run() error {
 		log.Infof("Bitcoin swaps disabled")
 	}
 
-	if !bitcoinEnabled && !config.LiquidEnabled {
+	if !bitcoinEnabled && !liquidEnabled {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
 
@@ -178,14 +185,14 @@ func run() error {
 		lightningPlugin,
 		bitcoinOnChainService,
 		bitcoinTxWatcher,
-		config.LiquidEnabled,
+		liquidEnabled,
 		liquidOnChainService,
 		liquidOnChainService,
 		liquidTxWatcher,
 	)
 	swapService := swap.NewSwapService(swapServices)
 
-	if liquidTxWatcher != nil {
+	if liquidTxWatcher != nil && liquidEnabled {
 		go func() {
 			err := liquidTxWatcher.StartWatchingTxs()
 			if err != nil {
@@ -253,6 +260,7 @@ func setupLiquid(ctx context.Context, li *glightning.Lightning,
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+
 	// Wallet
 	liquidWalletCli, err := getElementsClient(li, config)
 	if err != nil {
@@ -272,7 +280,6 @@ func setupLiquid(ctx context.Context, li *glightning.Lightning,
 		return nil, nil, nil, nil, err
 	}
 	liquidOnChainService := onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
-	log.Infof("Liquid swaps enabled")
 	return liquidOnChainService, liquidTxWatcher, liquidRpcWallet, liquidCli, nil
 }
 
@@ -281,11 +288,6 @@ func liquidWanted(cfg *clightning.PeerswapClightningConfig) bool {
 }
 
 func validateConfig(cfg *clightning.PeerswapClightningConfig) error {
-	if cfg.LiquidRpcUser == "" {
-		cfg.LiquidEnabled = false
-	} else {
-		cfg.LiquidEnabled = true
-	}
 	if cfg.LiquidEnabled {
 		if cfg.LiquidRpcPasswordFile != "" {
 			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
@@ -376,7 +378,7 @@ func getElementsClient(li *glightning.Lightning, pluginConfig *clightning.Peersw
 		cookiePath := filepath.Join(homeDir, ".elements", liquidChain, ".cookie")
 		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
 			log.Infof("cannot find liquid cookie file at %s", cookiePath)
-			return nil, nil
+			return nil, err
 		}
 		cookieBytes, err := os.ReadFile(cookiePath)
 		if err != nil {
