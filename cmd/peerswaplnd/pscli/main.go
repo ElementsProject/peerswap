@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var GitCommit string
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "pscli"
@@ -30,6 +32,7 @@ func main() {
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, rejectSwapsCommand, addPeerCommand, removePeerCommand,
 	}
+	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
 	if err != nil {
 		log2.Fatal(err)

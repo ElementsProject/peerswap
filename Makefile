@@ -1,6 +1,7 @@
 OUTDIR=./out
 PAYMENT_RETRY_TIME=10
 PEERSWAP_TEST_FILTER="peerswap"
+GIT_COMMIT=$(shell git rev-list -1 HEAD)
 
 build:
 	go build -tags dev -o $(OUTDIR)/peerswap-plugin ./cmd/peerswap-plugin/main.go
@@ -10,6 +11,7 @@ build:
 	go build -o $(OUTDIR)/pscli ./cmd/peerswaplnd/pscli/main.go
 	chmod a+x $(OUTDIR)/pscli
 .PHONY: build
+
 
 build-with-fast-test:
 	go build -tags dev -tags fast_test -o $(OUTDIR)/peerswap-plugin ./cmd/peerswap-plugin/main.go
@@ -43,17 +45,14 @@ test-liquid-lnd: build-with-fast-test
 .PHONY: test-liquid-lnd
 
 lnd-release:
-	go build -o peerswapd ./cmd/peerswaplnd/peerswapd/main.go
-	go build -o pscli ./cmd/peerswaplnd/pscli/main.go
+	go build -o peerswapd -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/peerswapd/main.go
+	go build -o pscli -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/pscli/main.go
 .PHONY: lnd-release
 
-lnd-install:
-	clean
-	go install ./cmd/peerswaplnd/...
-.PHONY: lnd-install
+
 
 cln-release: clean
-	go build -o peerswap-plugin ./cmd/peerswap-plugin/main.go
+	go build -o peerswap-plugin -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
 
 clean:
