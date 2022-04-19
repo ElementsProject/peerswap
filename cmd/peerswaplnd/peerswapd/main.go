@@ -48,6 +48,8 @@ const (
 	minLndVersion = float64(14.1)
 )
 
+var GitCommit string
+
 func main() {
 	err := run()
 	if err != nil {
@@ -92,7 +94,7 @@ func run() error {
 	}
 	defer closeFunc()
 	log.SetLogger(logger)
-	log.Infof("Starting peerswap with cfg: %s", cfg)
+	log.Infof("Starting peerswap commit %s with cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
 	lndConn, err := getLndClientConnection(ctx, cfg)

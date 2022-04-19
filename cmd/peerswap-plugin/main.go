@@ -36,6 +36,8 @@ import (
 
 var supportedAssets = []string{}
 
+var GitCommit string
+
 const (
 	minClnVersion = float64(10.2)
 )
@@ -77,7 +79,7 @@ func run() error {
 	}()
 	<-initChan
 	log.SetLogger(clightning.NewGlightninglogger(lightningPlugin.Plugin))
-	log.Debugf("waiting for init finished")
+	log.Debugf("PeerSwap Initialized, running PeerSwap commit %s", GitCommit)
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {
 		return err
@@ -86,7 +88,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("PeerswapClightningConfig: Db:%s, Rpc: %s %s,", config.DbPath, config.LiquidRpcHost, config.LiquidRpcUser)
 	// setup services
 	nodeInfo, err := lightningPlugin.GetLightningRpc().GetInfo()
 	if err != nil {
