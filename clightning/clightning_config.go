@@ -77,11 +77,11 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "localhost")
+	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "http://localhost")
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "18888")
+	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "7041")
 	if err != nil {
 		return err
 	}

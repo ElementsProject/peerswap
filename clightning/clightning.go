@@ -55,7 +55,7 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	Plugin     *glightning.Plugin
 
-	liquidWallet   wallet.Wallet
+	liquidWallet   *wallet.ElementsRpcWallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
@@ -182,7 +182,7 @@ func (cl *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 }
 
 // SetupClients injects the required services
-func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
+func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
 	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service) {

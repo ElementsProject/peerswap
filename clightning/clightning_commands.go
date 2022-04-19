@@ -41,7 +41,7 @@ func (g *LiquidGetAddress) Name() string {
 }
 
 func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
-	if g.cl == nil {
+	if g.cl.liquidWallet == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
 	res, err := g.cl.liquidWallet.GetAddress()
@@ -72,7 +72,7 @@ func (g *LiquidGetBalance) New() interface{} {
 }
 
 func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
-	if g.cl == nil {
+	if g.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
 	res, err := g.cl.liquidWallet.GetBalance()
@@ -112,7 +112,7 @@ func (s *LiquidSendToAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
-	if s.cl == nil {
+	if s.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
 	if s.Address == "" {

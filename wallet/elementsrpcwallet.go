@@ -34,7 +34,10 @@ type ElementsRpcWallet struct {
 	rpcClient  RpcClient
 }
 
-func NewRpcWallet(rpcClient RpcClient, walletName string) (*ElementsRpcWallet, error) {
+func NewRpcWallet(rpcClient *gelements.Elements, walletName string) (*ElementsRpcWallet, error) {
+	if rpcClient == nil {
+		return nil, errors.New("liquid rpc client is nil")
+	}
 	rpcWallet := &ElementsRpcWallet{
 		walletName: walletName,
 		rpcClient:  rpcClient,

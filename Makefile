@@ -48,12 +48,19 @@ lnd-release:
 .PHONY: lnd-release
 
 lnd-install:
+	clean
 	go install ./cmd/peerswaplnd/...
 .PHONY: lnd-install
 
-cln-release:
+cln-release: clean
 	go build -o peerswap-plugin ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
+
+clean:
+	rm -f peerswap-plugin
+	rm -f peerswapd
+	rm -f pscli
+.PHONY: clean
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
