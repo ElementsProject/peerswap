@@ -197,7 +197,7 @@ func run() error {
 	}
 
 	// policy
-	pol, err := policy.CreateFromFile(cfg.ConfigFile)
+	pol, err := policy.CreateFromFile(cfg.PolicyFile)
 	if err != nil {
 		return err
 	}
