@@ -398,7 +398,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 }
 
 func (l *LiquidOnChain) getClaimTxSize() int {
-	return 4730
+	return 1346
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
