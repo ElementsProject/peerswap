@@ -45,6 +45,7 @@ func NewLiquidOnChain(elements *gelements.Elements, wallet wallet.Wallet, networ
 		[]byte{0x01},
 		elementsutil.ReverseBytes(h2b(network.AssetID))...,
 	)
+
 	return &LiquidOnChain{elements: elements, liquidWallet: wallet, network: network, asset: lbtc}
 }
 
@@ -398,7 +399,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 }
 
 func (l *LiquidOnChain) getClaimTxSize() int {
-	return 1346
+	return 1350
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
@@ -559,6 +560,7 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 	}
 	// assume largest witness
 	fee := satPerByte * float64(txSize)
+
 	return uint64(fee), nil
 }
 
