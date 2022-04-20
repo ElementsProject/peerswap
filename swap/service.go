@@ -709,16 +709,24 @@ func (s *SwapService) isMessageSenderExpectedPeer(senderId string, swapId *SwapI
 func (s *SwapService) createTimeoutCallback(swapId string) func() {
 	return func() {
 		swap, err := s.GetActiveSwap(swapId)
-		if err != nil && err != ErrSwapDoesNotExist {
+		if err == ErrSwapDoesNotExist {
+			return
+		}
+		if err != nil {
 			log.Debugf("[SwapService] timeout callback: %v", err)
 			return
 		}
 
 		// Reset cancel func
-		swap.Data.toCancel = nil
+		if swap != nil && swap.Data != nil {
+			swap.Data.toCancel = nil
+		}
 
 		done, err := swap.SendEvent(Event_OnTimeout, nil)
-		if err != nil && err != ErrEventRejected {
+		if err == ErrEventRejected {
+			return
+		}
+		if err != nil {
 			log.Debugf("[SwapService] SendEvent(): %v", err)
 			return
 		}
