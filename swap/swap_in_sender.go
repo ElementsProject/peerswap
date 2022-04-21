@@ -109,7 +109,7 @@ func getSwapInSenderStates() States {
 			Action: &CancelAction{},
 		},
 		State_ClaimedPreimage: {
-			Action: &NoOpDoneAction{},
+			Action: InfoLogWrapperAction{next: &NoOpDoneAction{}, msg: " claimed with preimage"},
 		},
 		State_ClaimedCsv: {
 			Action: &NoOpDoneAction{},
