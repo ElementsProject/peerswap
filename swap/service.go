@@ -314,7 +314,6 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	if s.rejectSwaps {
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
-	log.Infof("[SwapService] Start swapping out: peer: %s chanId: %s initiator: %s amount %v", peer, channelId, initiator, amount)
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
 

@@ -17,6 +17,19 @@ import (
 	"github.com/elementsproject/peerswap/messages"
 )
 
+// InfoLogWrapperAction is a wrapper to write to InfoLog before a message
+// This is useful for NoOpStates (States that don't have an options) such
+// as when receiving the payment for a swap
+type InfoLogWrapperAction struct {
+	msg  string
+	next Action
+}
+
+func (lw InfoLogWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	log.Infof("[Swap:%s] "+lw.msg, swap.Id)
+	return lw.next.Execute(services, swap)
+}
+
 type CheckRequestWrapperAction struct {
 	next Action
 }
@@ -120,6 +133,8 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
 
+	log.Infof("[Swap:%s] swap-in request received: peer: %s chanId: %s initiator: %s amount %v", swap.Id, swap.PeerNodeId, swap.GetScid(), swap.InitiatorNodeId, swap.GetAmount())
+
 	toCtx, cancel := context.WithCancel(context.Background())
 	swap.toCancel = cancel
 	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.Id.String())
@@ -156,6 +171,8 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 		}
 		swap.ClaimTxId = txId
 	}
+
+	log.Infof("[Swap:%s] Swap claimed with preimage", swap.Id, swap.GetPreimage())
 
 	return Event_ActionSucceeded
 }
@@ -331,6 +348,8 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
+	log.Infof("[Swap:%s] swap-out request received: peer: %s chanId: %s initiator: %s amount %v", swap.Id, swap.PeerNodeId, swap.GetScid(), swap.InitiatorNodeId, swap.GetAmount())
+
 	// todo replace with premium estimation https://github.com/elementsproject/peerswap/issues/109
 	openingFee, err := wallet.EstimateTxFee(swap.SwapOutRequest.Amount)
 	if err != nil {
@@ -397,6 +416,8 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 		swap.ClaimTxId = txId
 	}
 
+	log.Infof("[Swap:%s] Swap failed and claimed by CSV", swap.Id)
+
 	return Event_ActionSucceeded
 }
 
@@ -422,6 +443,9 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 		}
 		swap.ClaimTxId = txId
 	}
+
+	log.Infof("[Swap:%s] Swap failed and claimed cooperatively", swap.Id)
+
 	return Event_ActionSucceeded
 }
 
@@ -477,6 +501,8 @@ func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
+	log.Infof("[Swap:%s] Start new swap of type %s: peer: %s chanId: %s initiator: %s amount %v", swap.Id, swap.GetType(), swap.PeerNodeId, swap.GetScid(), swap.InitiatorNodeId, swap.GetAmount())
 
 	swap.NextMessage = nextMessage
 	swap.NextMessageType = nextMessageType
