@@ -331,7 +331,7 @@ func (s *SwapData) GetCancelMessage() string {
 		return s.CancelMessage
 	}
 
-	return "unkown"
+	return "unknown"
 }
 
 func (s *SwapData) cancelTimeout() {

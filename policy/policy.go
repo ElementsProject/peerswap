@@ -153,7 +153,7 @@ func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 		}
 	}
 	if peerPk == "" {
-		return errors.New("peer is not in allowlist")
+		return fmt.Errorf("peer %s is not in allowlist", pubkey)
 	}
 	if p.path == "" {
 		return ErrNoPolicyFile
