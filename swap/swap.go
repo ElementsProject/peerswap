@@ -311,6 +311,13 @@ func (s *SwapData) GetClaimParams() *ClaimParams {
 	return claimParams
 }
 
+func (s *SwapData) GetOpeningTxId() string {
+	if s.OpeningTxBroadcasted != nil {
+		return s.OpeningTxBroadcasted.TxId
+	}
+	return ""
+}
+
 func (s *SwapData) cancelTimeout() {
 	if s.toCancel != nil {
 		s.toCancel()

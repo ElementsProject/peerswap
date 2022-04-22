@@ -545,9 +545,8 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		PeerNodeId:      swap.Data.PeerNodeId,
 		Amount:          swap.Data.GetAmount(),
 		ChannelId:       swap.Data.GetScid(),
-		// todo this might panic
-		OpeningTxId:   swap.Data.OpeningTxBroadcasted.TxId,
-		ClaimTxId:     swap.Data.ClaimTxId,
-		CancelMessage: swap.Data.CancelMessage,
+		OpeningTxId:     swap.Data.GetOpeningTxId(),
+		ClaimTxId:       swap.Data.ClaimTxId,
+		CancelMessage:   swap.Data.CancelMessage,
 	}
 }
