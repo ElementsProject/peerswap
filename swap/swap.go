@@ -318,6 +318,22 @@ func (s *SwapData) GetOpeningTxId() string {
 	return ""
 }
 
+func (s *SwapData) GetCancelMessage() string {
+	if s.Cancel != nil {
+		return s.Cancel.Message
+	}
+
+	if s.LastErr != nil {
+		return s.LastErr.Error()
+	}
+
+	if s.CancelMessage != "" {
+		return s.CancelMessage
+	}
+
+	return "unkown"
+}
+
 func (s *SwapData) cancelTimeout() {
 	if s.toCancel != nil {
 		s.toCancel()

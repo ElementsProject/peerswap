@@ -3,7 +3,6 @@ package peerswaprpc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -140,13 +139,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 				continue
 			}
 			if swapOut.Current == swap.State_SwapCanceled {
-				if swapOut.Data.CancelMessage != "" {
-					return nil, errors.New(fmt.Sprintf("Swap canceled, cancel message: %s", swapOut.Data.CancelMessage))
-				}
-				if swapOut.Data.LastErr == nil {
-					return nil, errors.New("swap canceled")
-				}
-				return nil, errors.New(swapOut.Data.LastErrString)
+				return nil, errors.New(swapOut.Data.GetCancelMessage())
 
 			}
 			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
@@ -262,13 +255,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 				continue
 			}
 			if swapIn.Current == swap.State_SwapCanceled {
-				if swapIn.Data.CancelMessage != "" {
-					return nil, errors.New(fmt.Sprintf("Swap canceled, cancel message: %s", swapIn.Data.CancelMessage))
-				}
-				if swapIn.Data.LastErr == nil {
-					return nil, errors.New("swap canceled")
-				}
-				return nil, swapIn.Data.LastErr
+				return nil, errors.New(swapIn.Data.GetCancelMessage())
 
 			}
 			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
@@ -547,6 +534,6 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		ChannelId:       swap.Data.GetScid(),
 		OpeningTxId:     swap.Data.GetOpeningTxId(),
 		ClaimTxId:       swap.Data.ClaimTxId,
-		CancelMessage:   swap.Data.CancelMessage,
+		CancelMessage:   swap.Data.GetCancelMessage(),
 	}
 }

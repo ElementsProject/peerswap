@@ -226,13 +226,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 				continue
 			}
 			if swapOut.Current == swap.State_SwapCanceled {
-				if swapOut.Data.CancelMessage != "" {
-					return nil, SwapCanceledError(swapOut.Data.CancelMessage)
-				}
-				if swapOut.Data.LastErr == nil {
-					return nil, SwapCanceledError("unknown")
-				}
-				return nil, swapOut.Data.LastErr
+				return nil, SwapCanceledError(swapOut.Data.GetCancelMessage())
 
 			}
 			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
@@ -346,13 +340,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 				continue
 			}
 			if swapIn.Current == swap.State_SwapCanceled {
-				if swapIn.Data.CancelMessage != "" {
-					return nil, SwapCanceledError(swapIn.Data.CancelMessage)
-				}
-				if swapIn.Data.LastErr == nil {
-					return nil, SwapCanceledError("unknown")
-				}
-				return nil, swapIn.Data.LastErr
+				return nil, SwapCanceledError(swapIn.Data.GetCancelMessage())
 
 			}
 			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
