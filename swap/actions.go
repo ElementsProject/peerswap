@@ -98,7 +98,7 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 	}
 
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
-		swap.CancelMessage = "peer not allowed to request swaps"
+		swap.CancelMessage = fmt.Sprintf("peer %s not allowed to request swaps", swap.PeerNodeId)
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
@@ -728,5 +728,8 @@ func (c *CancelAction) Execute(services *SwapServices, swap *SwapData) EventType
 	if swap.LastErr != nil {
 		swap.LastErrString = swap.LastErr.Error()
 	}
+
+	log.Infof("[Swap:%s] Swap canceled. Reason: ", swap.Id, swap.GetCancelMessage())
+
 	return Event_Done
 }
