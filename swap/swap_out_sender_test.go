@@ -30,10 +30,11 @@ func Test_SwapMarshalling(t *testing.T) {
 	}
 	assert.Equal(t, swap.Data.GetId(), sm.Data.Id)
 }
+
 func Test_ValidSwap(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
-	FeeInvoice := "feeinv"
+	FeeInvoice := "fee"
 	txId := getRandom32ByteHexString()
 	msgChan := make(chan PeerMessage)
 
@@ -87,8 +88,9 @@ func Test_ValidSwap(t *testing.T) {
 
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Data.GetCurrentState())
 }
+
 func Test_Cancel2(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
@@ -114,8 +116,9 @@ func Test_Cancel2(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
 }
+
 func Test_Cancel1(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
@@ -144,10 +147,11 @@ func Test_Cancel1(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
 }
+
 func Test_AbortCsvClaim(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
-	FeeInvoice := "feeinv"
+	FeeInvoice := "fee"
 	msgChan := make(chan PeerMessage)
 
 	swapServices := getSwapServices(msgChan)
@@ -279,14 +283,20 @@ func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, swa
 	if d.preimage == "err" {
 		return "", errors.New("err")
 	}
-	return "", nil
+	if invoiceType == INVOICE_FEE {
+		return "fee", nil
+	}
+	return "claim", nil
 }
 
 func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, error) {
 	if payreq == "err" {
 		return "", 0, errors.New("error decoding")
 	}
-	return "foo", 100 * 1000, nil
+	if payreq == "fee" {
+		return "foo", 100 * 1000, nil
+	}
+	return "foo", 100000 * 1000, nil
 }
 
 func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) error {

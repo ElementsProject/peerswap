@@ -15,11 +15,13 @@ import (
 
 const (
 	PEERSWAP_PROTOCOL_VERSION = 2
+	MINIMUM_SWAP_SIZE         = uint64(100000)
 )
 
 var (
 	AllowedAssets       = []string{"btc", "lbtc"}
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
+	ErrMinimumSwapSize  = fmt.Errorf("requiring minimum swap size of %v", MINIMUM_SWAP_SIZE)
 )
 
 type ErrUnknownSwapMessageType string
@@ -314,6 +316,11 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	if s.rejectSwaps {
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
+
+	if amount < MINIMUM_SWAP_SIZE {
+		return nil, ErrMinimumSwapSize
+	}
+
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
 
@@ -354,6 +361,10 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	}
 	if s.rejectSwaps {
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	}
+
+	if amount < MINIMUM_SWAP_SIZE {
+		return nil, ErrMinimumSwapSize
 	}
 
 	var bitcoinNetwork string

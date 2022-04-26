@@ -17,7 +17,7 @@ import (
 
 func Test_GoodCase(t *testing.T) {
 
-	amount := uint64(100)
+	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
 	aliceSwapService := getTestSetup(initiator)
@@ -70,7 +70,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
-	amount := uint64(100)
+	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
 	aliceSwapService := getTestSetup(initiator)
@@ -115,7 +115,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	assert.Equal(t, State_SwapCanceled, bobSwap.Current)
 }
 func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
-	amount := uint64(100)
+	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
 	aliceSwapService := getTestSetup(initiator)
@@ -233,7 +233,7 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 }
 
 func TestMessageFromUnexpectedPeer(t *testing.T) {
-	amount := uint64(100)
+	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
 	aliceSwapService := getTestSetup(initiator)
