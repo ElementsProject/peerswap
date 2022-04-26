@@ -351,7 +351,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	log.Infof("[Swap:%s] swap-out request received: peer: %s chanId: %s initiator: %s amount %v", swap.Id, swap.PeerNodeId, swap.GetScid(), swap.InitiatorNodeId, swap.GetAmount())
 
 	// todo replace with premium estimation https://github.com/elementsproject/peerswap/issues/109
-	openingFee, err := wallet.EstimateTxFee(swap.SwapOutRequest.Amount)
+	openingFee, err := wallet.GetFlatSwapOutFee()
 	if err != nil {
 		swap.LastErr = err
 		return swap.HandleError(err)
@@ -550,6 +550,11 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 type PayFeeInvoiceAction struct{}
 
 func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	_, wallet, _, err := services.getOnChainServices(swap.GetChain())
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	ll := services.lightning
 	// policy := services.policy
 	_, msatAmt, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
@@ -557,14 +562,20 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 		return swap.HandleError(err)
 	}
 	swap.OpeningTxFee = msatAmt / 1000
-	// todo check peerId
-	/*
-		if !policy.ShouldPayFee(swap.Amount, invoice.Amount, swap.PeerNodeId, swap.ChannelId) {
 
-			log.Printf("won't pay fee %v", err)
-			return Event_ActionFailed
-		}
-	*/
+	expectedFee, err := wallet.GetFlatSwapOutFee()
+	if err != nil {
+		swap.LastErr = err
+		return swap.HandleError(err)
+	}
+
+	maxExpected := uint64((float64(expectedFee) * 3))
+
+	// if the fee invoice is larger than what we would expect, don't pay
+	if swap.OpeningTxFee > maxExpected {
+		return swap.HandleError(errors.New(fmt.Sprintf("Fee is too damn high. Max expected: %v Received %v", maxExpected, swap.OpeningTxFee)))
+	}
+
 	preimage, err := ll.PayInvoice(swap.SwapOutAgreement.Payreq)
 	if err != nil {
 		return swap.HandleError(err)

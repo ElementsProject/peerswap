@@ -386,6 +386,10 @@ func (d *dummyChain) GetRefundFee() (uint64, error) {
 	return 100, nil
 }
 
+func (d *dummyChain) GetFlatSwapOutFee() (uint64, error) {
+	return 100, nil
+}
+
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
 	return "txhex", 0, 0, nil
 }

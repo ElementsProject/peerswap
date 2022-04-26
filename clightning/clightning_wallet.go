@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
@@ -200,7 +201,16 @@ func (cl *ClightningClient) GetRefundFee() (uint64, error) {
 	return cl.bitcoinChain.GetFee(250)
 }
 
+// GetFlatSwapOutFee returns a fee that is the size of an opening transaction
+// with 2 inputs and 2 outputs (p2wsh, p2wpkg change): 218 bytes
+func (cl *ClightningClient) GetFlatSwapOutFee() (uint64, error) {
+	return cl.bitcoinChain.GetFee(218)
+}
+
 func (cl *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
+	if cl.bitcoinNetwork == &chaincfg.RegressionNetParams {
+		return 1, nil
+	}
 	feeRes, err := cl.gbitcoin.EstimateFee(targetblocks, "ECONOMICAL")
 	if err != nil {
 		return 0, err
@@ -208,8 +218,7 @@ func (cl *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
 
 	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
 	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 10
+		return 0, errors.New(fmt.Sprintf("cannot estimate fee: %s", feeRes.Errors[0]))
 	}
 	return satPerByte, nil
 }
@@ -220,8 +229,4 @@ func (cl *ClightningClient) GetAsset() string {
 
 func (cl *ClightningClient) GetNetwork() string {
 	return cl.bitcoinChain.GetChain().Name
-}
-
-func (cl *ClightningClient) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	return cl.bitcoinChain.GetFee(250)
 }
