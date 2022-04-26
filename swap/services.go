@@ -64,9 +64,9 @@ type Wallet interface {
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error)
 	CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error)
 	GetOutputScript(params *OpeningParams) ([]byte, error)
-	EstimateTxFee(txSize uint64) (uint64, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
+	GetFlatSwapOutFee() (uint64, error)
 	GetAsset() string
 	GetNetwork() string
 }

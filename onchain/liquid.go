@@ -565,13 +565,13 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 }
 
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
-	// todo get tx size
 	return l.getFee(l.getClaimTxSize())
 }
 
-// todo this needs to be really thought over / premium idea
-func (l *LiquidOnChain) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	return l.getFee(l.getClaimTxSize())
+// GetFlatSwapOutFee returns a fee that is the size of an opening transaction
+// with 2 inputs and 3 ouputs (blinded p2wpkh, blinded p2wsh, feeoutput): 2587 bytes
+func (l *LiquidOnChain) GetFlatSwapOutFee() (uint64, error) {
+	return l.getFee(2587)
 }
 
 func (l *LiquidOnChain) GetAsset() string {

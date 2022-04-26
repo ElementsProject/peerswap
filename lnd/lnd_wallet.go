@@ -222,6 +222,13 @@ func (l *Lnd) NewAddress() (string, error) {
 func (l *Lnd) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
 }
+
+// GetFlatSwapOutFee returns a fee that is the size of an opening transaction
+// with 2 inputs and 2 outputs (p2wsh, p2wpkg change): 218 bytes
+func (l *Lnd) GetFlatSwapOutFee() (uint64, error) {
+	return l.bitcoinOnChain.GetFee(218)
+}
+
 func (cl *Lnd) GetAsset() string {
 	return ""
 }
@@ -247,8 +254,4 @@ func (l *LndFeeEstimator) GetFeePerKw(targetBlocks uint32) (float64, error) {
 	}
 
 	return float64(res.SatPerKw / 4000), nil
-}
-
-func (l *Lnd) EstimateTxFee(swapAmount uint64) (uint64, error) {
-	return l.bitcoinOnChain.GetFee(250)
 }
