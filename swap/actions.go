@@ -729,7 +729,7 @@ func (c *CancelAction) Execute(services *SwapServices, swap *SwapData) EventType
 		swap.LastErrString = swap.LastErr.Error()
 	}
 
-	log.Infof("[Swap:%s] Swap canceled. Reason: ", swap.Id, swap.GetCancelMessage())
+	log.Infof("[Swap:%s] Swap canceled. Reason: %s", swap.Id, swap.GetCancelMessage())
 
 	return Event_Done
 }
