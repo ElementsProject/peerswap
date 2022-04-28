@@ -36,7 +36,7 @@ var methods = []peerswaprpcMethod{
 	&GetSwap{},
 	&ResendLastMessage{},
 	&ListActiveSwaps{},
-	&RejectSwaps{},
+	&AllowSwapRequests{},
 	&AddPeer{},
 	&RemovePeer{},
 }

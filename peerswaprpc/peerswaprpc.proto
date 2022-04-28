@@ -13,7 +13,7 @@ service PeerSwap {
     rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
     rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
-    rpc RejectSwaps(RejectSwapsRequest) returns (RejectSwapsResponse);
+    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (AllowSwapRequestsResponse);
 
     // policy
     rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
@@ -185,12 +185,12 @@ message Policy {
     repeated string peer_allow_list = 3;
 }
 
-message RejectSwapsRequest {
-    bool reject = 1;
+message AllowSwapRequestsRequest {
+    string allow = 1;
 }
 
-message RejectSwapsResponse {
-    bool reject = 1;
+message AllowSwapRequestsResponse {
+    bool allow = 1;
 }
 
 

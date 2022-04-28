@@ -515,9 +515,16 @@ func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwaps
 	return &ListSwapsResponse{Swaps: resSwaps}, nil
 }
 
-func (p *PeerswapServer) RejectSwaps(ctx context.Context, request *RejectSwapsRequest) (*RejectSwapsResponse, error) {
-	reject := p.swaps.SetRejectSwaps(request.Reject)
-	return &RejectSwapsResponse{Reject: reject}, nil
+func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
+	if request.Allow == "1" || strings.ToLower(request.Allow) == "true" {
+		p.swaps.SetAllowSwapRequests(true)
+	} else if request.Allow == "0" || strings.ToLower(request.Allow) == "false" {
+		p.swaps.SetAllowSwapRequests(false)
+	}
+
+	allow := p.swaps.GetAllowSwapRequests()
+
+	return &AllowSwapRequestsResponse{Allow: allow}, nil
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {

@@ -577,8 +577,6 @@ github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnIn
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
-github.com/sputn1ck/glightning v0.8.3-0.20220215131235-d96eb4c98439 h1:Cj/CE6ecAJd134WyiVvh5nrL0gr8z7tun21T8lJCD1M=
-github.com/sputn1ck/glightning v0.8.3-0.20220215131235-d96eb4c98439/go.mod h1:5H0LPmWqAtoDWSm8ZjK6KvyAA/P80XwGkzNHA3I3O0Y=
 github.com/sputn1ck/glightning v0.8.3-0.20220428063205-11fcc4827fa2 h1:2X51heMocdKQm+zYFTMkKratHtAVo/zSEvSNSVc+OyA=
 github.com/sputn1ck/glightning v0.8.3-0.20220428063205-11fcc4827fa2/go.mod h1:5H0LPmWqAtoDWSm8ZjK6KvyAA/P80XwGkzNHA3I3O0Y=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

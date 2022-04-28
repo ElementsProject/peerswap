@@ -30,7 +30,7 @@ func main() {
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
 		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
-		stopCommand, listActiveSwapsCommand, rejectSwapsCommand, addPeerCommand, removePeerCommand,
+		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
@@ -64,9 +64,9 @@ var (
 		Name:     "address",
 		Required: true,
 	}
-	rejectFlag = cli.BoolFlag{
-		Name:     "reject",
-		Required: true,
+	allowFlag = cli.StringFlag{
+		Name:     "allow_swaps",
+		Required: false,
 	}
 	pubkeyFlag = cli.StringFlag{
 		Name:     "peer_pubkey",
@@ -161,13 +161,13 @@ var (
 		Usage:  "list active swaps",
 		Action: listActiveSwaps,
 	}
-	rejectSwapsCommand = cli.Command{
-		Name:  "rejectswaps",
-		Usage: "Sets peerswap to reject all incoming swap requests",
+	allowSwapRequestsCommand = cli.Command{
+		Name:  "allowswaprequests",
+		Usage: "Sets peerswap to allow incoming swap requests (used for updating=",
 		Flags: []cli.Flag{
-			rejectFlag,
+			allowFlag,
 		},
-		Action: rejectSwaps,
+		Action: allowSwaps,
 	}
 	addPeerCommand = cli.Command{
 		Name:  "addpeer",
@@ -388,20 +388,29 @@ func listActiveSwaps(ctx *cli.Context) error {
 	return nil
 }
 
-func rejectSwaps(ctx *cli.Context) error {
+func allowSwaps(ctx *cli.Context) error {
 	client, cleanup, err := getClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	res, err := client.RejectSwaps(context.Background(), &peerswaprpc.RejectSwapsRequest{
-		Reject: ctx.Bool(rejectFlag.Name),
+	res, err := client.AllowSwapRequests(context.Background(), &peerswaprpc.AllowSwapRequestsRequest{
+		Allow: ctx.String(allowFlag.Name),
 	})
 	if err != nil {
 		return err
 	}
-	printRespJSON(res)
+
+	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
+
+	if res.Allow {
+		response += "enabled."
+	} else {
+		response += "disabled. Existing swaps are allowed to complete. See `pscli listactiveswaps`"
+	}
+
+	fmt.Println(response)
 	return nil
 }
 

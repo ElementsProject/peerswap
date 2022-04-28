@@ -94,6 +94,12 @@ func run() error {
 	}
 	defer closeFunc()
 	log.SetLogger(logger)
+
+	// make datadir
+	err = os.MkdirAll(cfg.DataDir, 0755)
+	if err != nil {
+		return err
+	}
 	log.Infof("Starting peerswap commit %s with cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
@@ -294,7 +300,7 @@ func run() error {
 			log2.Fatal(err)
 		}
 	}()
-	defer grpcSrv.GracefulStop()
+	defer grpcSrv.Stop()
 	log.Infof("peerswapd listening on %v", cfg.Host)
 	<-shutdown
 	return nil

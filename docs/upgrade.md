@@ -13,14 +13,18 @@ If no swaps are returned, you can safely upgrade peerswap
 
 If you are an active node with frequent incoming swap request you can run the following conmand to stop accepting swap requests.
 
- - lnd: `pscli rejectswaps true`
- - c-lightning: `lightning-cli peerswap-rejectswaps true`
+ - lnd: `pscli allowswaprequests false`
+ - c-lightning: `lightning-cli peerswap-allowswaprequests false`
 
 To revert run: 
 
- - lnd: `pscli rejectswaps false`
- - c-lightning: `lightning-cli peerswap-rejectswaps false`
+ - lnd: `pscli allowswaprequests true`
+ - c-lightning: `lightning-cli peerswap-allowswaprequests true`
 
+To display the current setting run:
+
+ - lnd: `pscli allowswaprequests`
+ - c-lightning: `lightning-cli peerswap-allowswaprequests`
 
 #### Upgrade failures
 
