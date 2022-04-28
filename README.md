@@ -89,8 +89,8 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
 
 ### Signet Testing
 
-#### core-lightning
-For a cpre-lightning bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_cln.md)
+#### Core Lightning
+For a Core Lightning bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_cln.md)
 
 #### lnd
 For a lnd bitcoin-signetnet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
