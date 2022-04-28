@@ -550,11 +550,11 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 			for _, channel := range peer.Channels {
 				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
 					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
-						ChannelId:     c.ShortChannelId,
-						LocalBalance:  c.ChannelSatoshi,
-						RemoteBalance: uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
-						Balance:       float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
-						State:         c.State,
+						ChannelId:       c.ShortChannelId,
+						LocalBalance:    c.ChannelSatoshi,
+						RemoteBalance:   uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
+						LocalPercentage: float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
+						State:           c.State,
 					})
 				}
 			}
@@ -868,11 +868,11 @@ func (c RemovePeer) LongDescription() string {
 }
 
 type PeerSwapPeerChannel struct {
-	ChannelId     string  `json:"short_channel_id"`
-	LocalBalance  uint64  `json:"local_balance"`
-	RemoteBalance uint64  `json:"remote_balance"`
-	Balance       float64 `json:"balance"`
-	State         string  `json:"state"`
+	ChannelId       string  `json:"short_channel_id"`
+	LocalBalance    uint64  `json:"local_balance"`
+	RemoteBalance   uint64  `json:"remote_balance"`
+	LocalPercentage float64 `json:"local_percentage"`
+	State           string  `json:"state"`
 }
 
 type SwapStats struct {

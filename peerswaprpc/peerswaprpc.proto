@@ -164,7 +164,7 @@ message PeerSwapPeerChannel {
     uint64 channel_id = 1;
     uint64 local_balance = 2;
     uint64 remote_balance = 3;
-    double balance_percentage = 4;
+    double local_percentage = 4;
     bool active = 5;
 }
 
