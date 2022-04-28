@@ -8,7 +8,7 @@ import (
 )
 
 func Test_SwapInSenderValidSwap(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 
 	initiator, peer, takerPubkeyHash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
@@ -52,8 +52,9 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, swap.Current)
 
 }
+
 func Test_SwapInSenderCancel1(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
@@ -80,9 +81,10 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	}
 	assert.Equal(t, State_SwapCanceled, swap.Current)
 }
+
 func Test_SwapInSenderCoopClose(t *testing.T) {
 
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, takerPubkeyHash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 

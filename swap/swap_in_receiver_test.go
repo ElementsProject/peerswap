@@ -10,7 +10,7 @@ import (
 func Test_SwapInReceiverValid(t *testing.T) {
 
 	swapId := NewSwapId()
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
@@ -51,10 +51,11 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, swap.Current)
 
 }
+
 func Test_SwapInReceiverCancel1(t *testing.T) {
 
 	swapId := NewSwapId()
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	//initiator := "ab123"
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
@@ -84,10 +85,11 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	assert.Equal(t, State_SwapCanceled, swap.Current)
 
 }
+
 func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	swapId := NewSwapId()
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 

@@ -8,7 +8,7 @@ import (
 )
 
 func Test_SwapOutReceiverValidSwap(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	swapId := NewSwapId()
 	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
@@ -44,8 +44,9 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	assert.Equal(t, State_ClaimedPreimage, swapFSM.Current)
 
 }
+
 func Test_SwapOutReceiverClaimCoop(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	swapId := NewSwapId()
 	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
@@ -84,7 +85,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 }
 
 func Test_SwapOutReceiverCancelReceived(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	swapId := NewSwapId()
 	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 
@@ -117,7 +118,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 }
 
 func Test_SwapOutReceiverCancelInternal(t *testing.T) {
-	swapAmount := uint64(100)
+	swapAmount := uint64(100000)
 	swapId := NewSwapId()
 	_, peer, takerPubkeyHash, _, chanId := getTestParams()
 	FeePreimage := "err"
