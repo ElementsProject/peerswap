@@ -18,7 +18,7 @@ type RpcClient interface {
 	GetNewAddress(addrType int) (string, error)
 	SendToAddress(address string, amount string) (string, error)
 	GetBalance() (uint64, error)
-	LoadWallet(filename string) (string, error)
+	LoadWallet(filename string, loadonstartup bool) (string, error)
 	CreateWallet(walletname string) (string, error)
 	SetRpcWallet(walletname string)
 	ListWallets() ([]string, error)
@@ -98,7 +98,7 @@ func (r *ElementsRpcWallet) setupWallet() error {
 		}
 	}
 	if !walletLoaded {
-		_, err = r.rpcClient.LoadWallet(r.walletName)
+		_, err = r.rpcClient.LoadWallet(r.walletName, true)
 		if err != nil && (strings.Contains(err.Error(), "Wallet file verification failed") || strings.Contains(err.Error(), "not found")) {
 			_, err = r.rpcClient.CreateWallet(r.walletName)
 			if err != nil {
