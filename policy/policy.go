@@ -234,6 +234,11 @@ func CreateFromFile(path string) (*Policy, error) {
 		return nil, err
 	}
 
+	err = os.MkdirAll(filepath.Dir(policyPath), 0755)
+	if err != nil {
+		return nil, ErrCreatePolicy(err.Error())
+	}
+
 	file, err := os.OpenFile(policyPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, ErrCreatePolicy(err.Error())

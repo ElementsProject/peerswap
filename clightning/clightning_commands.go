@@ -753,39 +753,61 @@ func (c ListActiveSwaps) LongDescription() string {
 	return `This command can give you information if you are ready to upgrade your peerswap daemon.`
 }
 
-type RejectSwaps struct {
-	Reject bool `json:"reject"`
-	cl     *ClightningClient
+type AllowSwapRequests struct {
+	AllowSwapRequestsString string `json:"allow_swap_requests"`
+
+	cl *ClightningClient
 }
 
-func (g *RejectSwaps) Name() string {
-	return "peerswap-rejectsswaps"
+func (g *AllowSwapRequests) Name() string {
+	return "peerswap-allowswaprequests"
 }
 
-func (g *RejectSwaps) New() interface{} {
-	return &RejectSwaps{
-		cl:     g.cl,
-		Reject: g.Reject,
+func (g *AllowSwapRequests) New() interface{} {
+	return &AllowSwapRequests{
+		cl:                      g.cl,
+		AllowSwapRequestsString: g.AllowSwapRequestsString,
 	}
 }
 
-func (g *RejectSwaps) Call() (jrpc2.Result, error) {
-	reject := g.cl.swaps.SetRejectSwaps(g.Reject)
-	return reject, nil
+func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
+	if g.AllowSwapRequestsString == "1" || strings.ToLower(g.AllowSwapRequestsString) == "true" {
+		g.cl.swaps.SetAllowSwapRequests(true)
+	} else if g.AllowSwapRequestsString == "0" || strings.ToLower(g.AllowSwapRequestsString) == "false" {
+		g.cl.swaps.SetAllowSwapRequests(false)
+	}
+
+	allowSwap := g.cl.swaps.GetAllowSwapRequests()
+
+	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
+
+	if allowSwap {
+		response += "enabled."
+	} else {
+		response += "disabled. Existing swaps are allowed to complete. See `peerswap-listactiveswaps`"
+	}
+
+	return response, nil
 }
 
-func (g *RejectSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &RejectSwaps{
-		cl:     client,
-		Reject: g.Reject,
+func boolToString(val bool) string {
+	if val {
+		return "enabled"
+	}
+	return "disabled"
+}
+func (g *AllowSwapRequests) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &AllowSwapRequests{
+		cl:                      client,
+		AllowSwapRequestsString: g.AllowSwapRequestsString,
 	}
 }
 
-func (c RejectSwaps) Description() string {
-	return "Sets peerswap to reject incoming swap requests"
+func (c AllowSwapRequests) Description() string {
+	return "Sets peerswap to allow incoming swap requests"
 }
 
-func (c RejectSwaps) LongDescription() string {
+func (c AllowSwapRequests) LongDescription() string {
 	return `This command can be used to wait for all swaps to complete, while not allowing new swaps. This is helps with upgrading`
 }
 

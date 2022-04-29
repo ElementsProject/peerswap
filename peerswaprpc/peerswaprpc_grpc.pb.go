@@ -26,7 +26,7 @@ type PeerSwapClient interface {
 	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error)
 	ListRequestedSwaps(ctx context.Context, in *ListRequestedSwapsRequest, opts ...grpc.CallOption) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
-	RejectSwaps(ctx context.Context, in *RejectSwapsRequest, opts ...grpc.CallOption) (*RejectSwapsResponse, error)
+	AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*AllowSwapRequestsResponse, error)
 	// policy
 	ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*ReloadPolicyFileResponse, error)
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
@@ -118,9 +118,9 @@ func (c *peerSwapClient) ListActiveSwaps(ctx context.Context, in *ListSwapsReque
 	return out, nil
 }
 
-func (c *peerSwapClient) RejectSwaps(ctx context.Context, in *RejectSwapsRequest, opts ...grpc.CallOption) (*RejectSwapsResponse, error) {
-	out := new(RejectSwapsResponse)
-	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/RejectSwaps", in, out, opts...)
+func (c *peerSwapClient) AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*AllowSwapRequestsResponse, error) {
+	out := new(AllowSwapRequestsResponse)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/AllowSwapRequests", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ type PeerSwapServer interface {
 	ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error)
 	ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
-	RejectSwaps(context.Context, *RejectSwapsRequest) (*RejectSwapsResponse, error)
+	AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error)
 	// policy
 	ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error)
 	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
@@ -243,8 +243,8 @@ func (UnimplementedPeerSwapServer) ListRequestedSwaps(context.Context, *ListRequ
 func (UnimplementedPeerSwapServer) ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListActiveSwaps not implemented")
 }
-func (UnimplementedPeerSwapServer) RejectSwaps(context.Context, *RejectSwapsRequest) (*RejectSwapsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RejectSwaps not implemented")
+func (UnimplementedPeerSwapServer) AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AllowSwapRequests not implemented")
 }
 func (UnimplementedPeerSwapServer) ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReloadPolicyFile not implemented")
@@ -424,20 +424,20 @@ func _PeerSwap_ListActiveSwaps_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PeerSwap_RejectSwaps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RejectSwapsRequest)
+func _PeerSwap_AllowSwapRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllowSwapRequestsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PeerSwapServer).RejectSwaps(ctx, in)
+		return srv.(PeerSwapServer).AllowSwapRequests(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/peerswap.PeerSwap/RejectSwaps",
+		FullMethod: "/peerswap.PeerSwap/AllowSwapRequests",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PeerSwapServer).RejectSwaps(ctx, req.(*RejectSwapsRequest))
+		return srv.(PeerSwapServer).AllowSwapRequests(ctx, req.(*AllowSwapRequestsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -608,8 +608,8 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PeerSwap_ListActiveSwaps_Handler,
 		},
 		{
-			MethodName: "RejectSwaps",
-			Handler:    _PeerSwap_RejectSwaps_Handler,
+			MethodName: "AllowSwapRequests",
+			Handler:    _PeerSwap_AllowSwapRequests_Handler,
 		},
 		{
 			MethodName: "ReloadPolicyFile",

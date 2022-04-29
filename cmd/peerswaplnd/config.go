@@ -58,6 +58,10 @@ func (p *PeerSwapConfig) String() string {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
 
+	if p.DataDir != DefaultDatadir && p.PolicyFile == DefaultPolicyFile {
+		p.PolicyFile = filepath.Join(p.DataDir, "policy.conf")
+	}
+
 	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
 }
 

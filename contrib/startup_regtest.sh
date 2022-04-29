@@ -132,9 +132,6 @@ start_nodes() {
   for i in $(seq $node_count); do
     socket=$((7070 + i * 101))
     liquidrpcPort=18884
-    if [ $i -le 2 ]; then
-      liquidrpcPort=$((18883 + i))
-    fi
     mkdir -p "/tmp/l$i-$network"
     # Node config
     cat <<-EOF >"/tmp/l$i-$network/config"
@@ -164,13 +161,12 @@ EOF
     # Start the lightning nodes
     test -f "/tmp/l$i-$network/lightningd-$network.pid" ||
       "$LIGHTNINGD" "--lightning-dir=/tmp/l$i-$network" --daemon \
-        "--plugin=$PWD/out/peerswap" \
-        --peerswap-liquid-rpchost=http://127.0.0.1 \
-        --peerswap-liquid-rpcport=$liquidrpcPort \
-        --peerswap-liquid-rpcuser=admin1 \
-        --peerswap-liquid-rpcpassword=123 \
-        --peerswap-liquid-network=regtest \
-        --peerswap-liquid-rpcwallet=swap-$i \
+        "--plugin=$PWD/out/peerswap-plugin" \
+        --peerswap-elementsd-rpchost=http://127.0.0.1 \
+        --peerswap-elementsd-rpcport=$liquidrpcPort \
+        --peerswap-elementsd-rpcuser=admin1 \
+        --peerswap-elementsd-rpcpassword=123 \
+        --peerswap-elementsd-rpcwallet=swap-$i \
         --peerswap-policy-path=/tmp/l$i-$network/policy.conf
     # shellcheck disable=SC2139 disable=SC2086
     alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
@@ -346,7 +342,6 @@ l_generate() {
   fi
   res=$(et-cli generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep)
   echo $res
-
 }
 
 generate() {
