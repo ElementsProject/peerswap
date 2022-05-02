@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sputn1ck/glightning/gelements"
+	"github.com/elementsproject/glightning/gelements"
 	"github.com/vulpemventures/go-elements/transaction"
 )
 

@@ -20,6 +20,8 @@ import (
 	"github.com/elementsproject/peerswap/version"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/glightning/gbitcoin"
+	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
 	lnd2 "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/messages"
@@ -35,8 +37,6 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/sputn1ck/glightning/gbitcoin"
-	"github.com/sputn1ck/glightning/gelements"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"

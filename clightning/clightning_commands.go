@@ -13,10 +13,10 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 
+	"github.com/elementsproject/glightning/glightning"
+	"github.com/elementsproject/glightning/jrpc2"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/sputn1ck/glightning/jrpc2"
 )
 
 type SwapCanceledError string

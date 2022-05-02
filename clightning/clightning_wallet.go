@@ -7,10 +7,10 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/sputn1ck/glightning/glightning"
 )
 
 func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {

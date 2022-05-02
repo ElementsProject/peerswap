@@ -1,8 +1,8 @@
 package txwatcher
 
 import (
-	"github.com/sputn1ck/glightning/gbitcoin"
-	"github.com/sputn1ck/glightning/gelements"
+	"github.com/elementsproject/glightning/gbitcoin"
+	"github.com/elementsproject/glightning/gelements"
 )
 
 type ElementsBlockChainRpc struct {

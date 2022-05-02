@@ -15,10 +15,10 @@ import (
 	"github.com/vulpemventures/go-elements/pset"
 
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
-	"github.com/sputn1ck/glightning/gelements"
 	"github.com/vulpemventures/go-elements/address"
 	address2 "github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"
