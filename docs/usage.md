@@ -136,4 +136,4 @@ Example output:
 
 `removepeer [peer_pubkey]` - remove a peer from the allowlist file
 
-`rejectswaps [bool]` reject incoming swaps 
+`allowswaprequests [bool]` - sets whether peerswap should allow new swap requests. if no bool provided, prints the current setting
