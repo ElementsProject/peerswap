@@ -210,6 +210,13 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	// Stop taker peer so that csv can trigger
 	params.takerPeerswap.Kill()
 
+	// if the taker is lnd kill it
+	switch params.takerNode.(type) {
+	case *testframework.LndNode:
+		params.takerNode.(*testframework.LndNode).Kill()
+
+	}
+
 	// Generate one less block than required for csv.
 	params.chaind.GenerateBlocks(params.csv - 1)
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
