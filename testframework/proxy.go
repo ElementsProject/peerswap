@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/elementsproject/glightning/glightning"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/sputn1ck/glightning/glightning"
 	"github.com/ybbus/jsonrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

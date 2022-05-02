@@ -22,8 +22,8 @@ package misc_tests
 //	"github.com/btcsuite/btcd/wire"
 //	"github.com/btcsuite/btcutil"
 //	"github.com/btcsuite/btcutil/psbt"
-//	"github.com/sputn1ck/glightning/gbitcoin"
-//	"github.com/sputn1ck/glightning/glightning"
+//	"github.com/elementsproject/glightning/gbitcoin"
+//	"github.com/elementsproject/glightning/glightning"
 //	"github.com/elementsproject/peerswap/lightning"
 //	"github.com/elementsproject/peerswap/onchain"
 //)

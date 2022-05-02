@@ -20,6 +20,9 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/elementsproject/glightning/gbitcoin"
+	"github.com/elementsproject/glightning/gelements"
+	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
@@ -28,9 +31,6 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/txwatcher"
 	"github.com/elementsproject/peerswap/wallet"
-	"github.com/sputn1ck/glightning/gbitcoin"
-	"github.com/sputn1ck/glightning/gelements"
-	"github.com/sputn1ck/glightning/glightning"
 	"go.etcd.io/bbolt"
 )
 

@@ -2,12 +2,13 @@ package clightning
 
 import (
 	"errors"
-	"github.com/sputn1ck/glightning/glightning"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/elementsproject/glightning/glightning"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_MppPayments(t *testing.T) {

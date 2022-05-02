@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sputn1ck/glightning/gelements"
+	"github.com/elementsproject/glightning/gelements"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

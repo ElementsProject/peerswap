@@ -16,9 +16,9 @@ import (
 	"github.com/vulpemventures/go-elements/pset"
 	"github.com/vulpemventures/go-elements/transaction"
 
+	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/lightning"
 	wallet "github.com/elementsproject/peerswap/wallet"
-	"github.com/sputn1ck/glightning/gelements"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 )
@@ -1394,7 +1394,7 @@ func rand32ByteArray() []byte {
 //	"log"
 //	"testing"
 //
-//	"github.com/sputn1ck/glightning/gelements"
+//	"github.com/elementsproject/glightning/gelements"
 //	"github.com/elementsproject/peerswap/lightning"
 //	wallet "github.com/elementsproject/peerswap/wallet"
 //	"github.com/vulpemventures/go-elements/elementsutil"

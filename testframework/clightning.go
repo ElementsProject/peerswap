@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/sputn1ck/glightning/glightning"
+	"github.com/elementsproject/glightning/glightning"
 )
 
 type CLightningNode struct {
