@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
@@ -43,6 +44,14 @@ const (
 )
 
 func main() {
+	// In order to receive panics, we write to stderr to a file
+	closeFileFunc, err := setPanicLogger()
+	if err != nil {
+		log.Infof("Error setting panic log file: %s", err)
+		os.Exit(1)
+	}
+	defer closeFileFunc()
+
 	if err := run(); err != nil {
 		log.Infof("plugin quitting, error: %s", err)
 		os.Exit(1)
@@ -591,4 +600,34 @@ func checkClnVersion(network string, fullVersionString string) error {
 		return errors.New(fmt.Sprintf("clightning version unsupported, requires %v", minClnVersion))
 	}
 	return nil
+}
+
+// setPanicLogger duplicates calls to Stderr to a file in the lightning peerswap directory
+func setPanicLogger() (func() error, error) {
+
+	// Get working directory ("default is ~/.lightning/<network>")
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Infof("Cannot get working directory, error: %s", err)
+		os.Exit(1)
+	}
+
+	newpath := filepath.Join(wd, "peerswap")
+
+	err = os.MkdirAll(newpath, os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	panicLogFile, err := os.OpenFile(filepath.Join(wd, "peerswap/peerswap-panic-log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	err = syscall.Dup2(int(panicLogFile.Fd()), int(os.Stderr.Fd()))
+	if err != nil {
+		return nil, err
+	}
+
+	return panicLogFile.Close, nil
 }

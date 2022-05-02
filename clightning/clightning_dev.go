@@ -20,7 +20,40 @@ var (
 )
 
 func init() {
-	devmethods = append(devmethods, &FaucetMethod{}, &GenerateMethod{}, &BigInvoice{}, &BigPay{})
+	devmethods = append(devmethods, &FaucetMethod{}, &GenerateMethod{}, &BigInvoice{}, &BigPay{}, &DebugCrashMethod{})
+}
+
+type DebugCrashMethod struct {
+	cl *ClightningClient `json:"-"`
+}
+
+func (g *DebugCrashMethod) Description() string {
+	return "crashes the plugin"
+}
+
+func (g *DebugCrashMethod) LongDescription() string {
+	return ""
+}
+
+func (g *DebugCrashMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &FaucetMethod{
+		cl: client,
+	}
+}
+
+func (g *DebugCrashMethod) Name() string {
+	return "dev-debugcrash"
+}
+
+func (g *DebugCrashMethod) New() interface{} {
+	return &FaucetMethod{
+		cl: g.cl,
+	}
+}
+
+func (g *DebugCrashMethod) Call() (jrpc2.Result, error) {
+	panic("debug")
+	return "", nil
 }
 
 type FaucetMethod struct {
