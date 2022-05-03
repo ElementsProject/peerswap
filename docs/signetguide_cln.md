@@ -158,9 +158,9 @@ gettext
 clone and install clightning
 
 ```bash
-git clone https://github.com/sputn1ck/lightning.git && \
+git clone https://github.com/elementsproject/lightning.git && \
 cd lightning && \
-git checkout origin/v0.10.2 && \
+git checkout origin/v0.11.0 && \
 ./configure
 ```
 ```

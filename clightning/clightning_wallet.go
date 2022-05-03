@@ -201,6 +201,19 @@ func (cl *ClightningClient) GetRefundFee() (uint64, error) {
 	return cl.bitcoinChain.GetFee(250)
 }
 
+func (cl *ClightningClient) GetOnchainBalance() (uint64, error) {
+	funds, err := cl.glightning.ListFunds()
+	if err != nil {
+		return 0, err
+	}
+
+	var totalBalance uint64
+	for _, output := range funds.Outputs {
+		totalBalance += output.Value
+	}
+	return totalBalance, nil
+}
+
 // GetFlatSwapOutFee returns a fee that is the size of an opening transaction
 // with 2 inputs and 2 outputs (p2wsh, p2wpkg change): 218 bytes
 func (cl *ClightningClient) GetFlatSwapOutFee() (uint64, error) {

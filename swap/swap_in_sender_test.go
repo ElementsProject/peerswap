@@ -132,6 +132,8 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	lc := &dummyLightningClient{preimage: "fee"}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
+	chain.SetBalance(1000000)
+
 	mmgr := &MessengerManagerStub{}
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
 	swapServices.toService = &timeOutDummy{}
