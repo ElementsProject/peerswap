@@ -36,17 +36,17 @@ func (g *DebugCrashMethod) LongDescription() string {
 }
 
 func (g *DebugCrashMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &FaucetMethod{
+	return &DebugCrashMethod{
 		cl: client,
 	}
 }
 
 func (g *DebugCrashMethod) Name() string {
-	return "dev-debugcrash"
+	return "peerswap-dev-debugcrash"
 }
 
 func (g *DebugCrashMethod) New() interface{} {
-	return &FaucetMethod{
+	return &DebugCrashMethod{
 		cl: g.cl,
 	}
 }
@@ -75,7 +75,7 @@ func (g *FaucetMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (g *FaucetMethod) Name() string {
-	return "dev-liquid-faucet"
+	return "peerswap-dev-liquid-faucet"
 }
 
 func (g *FaucetMethod) New() interface{} {
@@ -114,7 +114,7 @@ func (g *GenerateMethod) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (g *GenerateMethod) Name() string {
-	return "dev-liquid-generate"
+	return "peerswap-dev-liquid-generate"
 }
 
 func (g *GenerateMethod) New() interface{} {
@@ -137,7 +137,7 @@ type BigInvoice struct {
 }
 
 func (b *BigInvoice) Name() string {
-	return "biginvoice"
+	return "peerswap-biginvoice"
 }
 
 func (b *BigInvoice) New() interface{} {
@@ -195,7 +195,7 @@ func (b *BigPay) LongDescription() string {
 }
 
 func (b *BigPay) Name() string {
-	return "bigpay"
+	return "peerswap-bigpay"
 }
 
 func (b *BigPay) New() interface{} {
