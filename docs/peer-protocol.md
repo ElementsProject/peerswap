@@ -19,7 +19,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
   - [Swap Out](#swap-out)
     - [Summary](#summary-1)
     - [The Swap](#the-swap-1)
-    - [Negoatiation](#negotiation-1)
+    - [Negotiation](#negotiation-1)
       - [The `swap_out_request` message](#the-swap_out_request-message)
       - [The `swap_out_agreement` message](#the-swap_out_agreement-message)
   - [Doing the Swap](#doing-the-swap)
