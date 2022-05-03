@@ -75,7 +75,6 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		fmt.Sprintf("--lightning-dir=%s", dataDir),
 		fmt.Sprintf("--log-level=%s", "debug"),
 		fmt.Sprintf("--addr=127.0.0.1:%d", port),
-		fmt.Sprintf("--allow-deprecated-apis=%s", "true"),
 		fmt.Sprintf("--network=%s", "regtest"),
 		fmt.Sprintf("--ignore-fee-limits=%s", "true"),
 		fmt.Sprintf("--bitcoin-rpcuser=%s", bitcoinRpcUser),
