@@ -368,6 +368,19 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
+	// Check if onchain balance is sufficient for swap + fees + some safety net
+	walletBalance, err := wallet.GetOnchainBalance()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	// TODO: this should be looked at in the future
+	safetynet := uint64(20000)
+
+	if walletBalance < swap.GetAmount()+openingFee+safetynet {
+		return swap.HandleError(errors.New("insufficient walletbalance"))
+	}
+
 	/*
 		 feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
 		 if err != nil {

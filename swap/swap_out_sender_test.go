@@ -339,11 +339,19 @@ func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channel
 type dummyChain struct {
 	txConfirmedFunc func(swapId string, txHex string) error
 	csvPassedFunc   func(swapId string) error
+	balance         uint64
 
 	calledGetCSVHeight int64
 	returnGetCSVHeight uint32
 }
 
+func (d *dummyChain) SetBalance(balance uint64) {
+	d.balance = balance
+}
+
+func (d *dummyChain) GetOnchainBalance() (uint64, error) {
+	return d.balance, nil
+}
 func (d *dummyChain) GetCSVHeight() uint32 {
 	d.calledGetCSVHeight++
 	return d.returnGetCSVHeight

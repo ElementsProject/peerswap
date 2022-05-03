@@ -69,6 +69,7 @@ type Wallet interface {
 	GetFlatSwapOutFee() (uint64, error)
 	GetAsset() string
 	GetNetwork() string
+	GetOnchainBalance() (uint64, error)
 }
 
 type OpeningParams struct {

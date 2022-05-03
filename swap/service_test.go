@@ -363,6 +363,7 @@ func getTestSetup(name string) *SwapService {
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
+	chain.SetBalance(10000000)
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
 	swapService := NewSwapService(swapServices)
 	return swapService

@@ -207,6 +207,15 @@ func (l *Lnd) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, clai
 	return spendingTx.TxHash().String(), txHex, nil
 }
 
+func (l *Lnd) GetOnchainBalance() (uint64, error) {
+	res, err := l.lndClient.WalletBalance(l.ctx, &lnrpc.WalletBalanceRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(res.TotalBalance), nil
+}
+
 func (l *Lnd) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
 	return l.bitcoinOnChain.GetOutputScript(params)
 }
