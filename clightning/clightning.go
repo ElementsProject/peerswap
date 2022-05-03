@@ -535,6 +535,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 			return err
 		}
 	}
+	/*
 	for _, v := range devmethods {
 		method := v.Get(cl)
 		glightningMethod := glightning.NewRpcMethod(method, "dev")
@@ -546,6 +547,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 			return err
 		}
 	}
+	*/
 	return nil
 }
 
