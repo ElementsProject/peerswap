@@ -183,7 +183,7 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 		swap.ClaimTxId = txId
 	}
 
-	log.Infof("[Swap:%s] Swap claimed with preimage", swap.Id, swap.GetPreimage())
+	log.Infof("[Swap:%s] Swap claimed with preimage %s", swap.Id, swap.GetPreimage())
 
 	return Event_ActionSucceeded
 }
