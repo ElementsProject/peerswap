@@ -125,6 +125,8 @@ func validateNetwork(network string) error {
 		fallthrough
 	case "testnet":
 		fallthrough
+	case "testnet3":
+		fallthrough
 	case "signet":
 		fallthrough
 	case "regtest":
