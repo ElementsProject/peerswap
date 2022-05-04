@@ -180,6 +180,9 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		s.Current = nextState
 		s.Data.SetState(s.Current)
 
+		// Print Swap information
+		s.logSwapInfo()
+
 		// Execute the next state's action and loop over again if the event returned
 		// is not a no-op.
 		nextEvent := state.Action.Execute(s.swapServices, s.Data)
@@ -249,4 +252,56 @@ func (s *SwapStateMachine) IsFinished() bool {
 		return true
 	}
 	return false
+}
+
+// logSwapInfo give the user useful information depending on the swap statemachine
+func (s *SwapStateMachine) logSwapInfo() {
+
+	// Start Swap as Sender
+	if s.Current == State_SwapInSender_CreateSwap ||
+		s.Current == State_SwapOutSender_CreateSwap {
+		s.Infof("Start new %s: peer: %s chanId: %s initiator: %s amount %v",
+			s.Data.GetType(), s.Data.PeerNodeId, s.Data.GetScid(), s.Data.InitiatorNodeId, s.Data.GetAmount())
+	}
+
+	// Swap Request accepted
+	if s.Current == State_SwapInReceiver_SendAgreement ||
+		s.Current == State_SwapOutReceiver_SendFeeInvoice {
+		s.Infof("%s request received: peer: %s chanId: %s initiator: %s amount %v",
+			s.Data.GetType(), s.Data.PeerNodeId, s.Data.GetScid(), s.Data.InitiatorNodeId, s.Data.GetAmount())
+	}
+
+	// Swap Claimed with preimage
+	if s.Current == State_ClaimedPreimage {
+		s.Infof("Swap claimed with preimage %s", s.Data.GetPreimage())
+	}
+
+	// Swap Claimed by coop case
+	if s.Current == State_ClaimedCoop {
+		s.Infof("Swap claimed cooperatively")
+	}
+
+	// Swap Claimed by csv case
+	if s.Current == State_ClaimedCsv {
+		s.Infof("Swap claimed by csv cooperatively")
+	}
+
+	// Swap Canceled
+	if s.Current == State_SwapCanceled {
+		s.Infof("Swap canceled. Reason: %s", s.Data.GetCancelMessage())
+	}
+
+	// Special cases
+
+	// The swap was canceled after paying the fee invoice
+	if s.Current == State_SwapCanceled &&
+		s.Previous == State_SwapOutSender_AwaitTxBroadcastedMessage {
+		s.Infof("Warning: Paid swap-out prepayment, but swap canceled before receiving opening transaction")
+	}
+
+}
+
+func (s *SwapStateMachine) Infof(format string, v ...interface{}) {
+	idString := fmt.Sprintf("%s", s.Id)
+	log.Infof("[Swap:"+idString+"] "+format, v...)
 }

@@ -382,7 +382,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 		PeerNodeId:      s.PeerNodeId,
 		Amount:          amount,
 		ShortChannelId:  scid,
-		OpeningTxId:     s.OpeningTxBroadcasted.TxId,
+		OpeningTxId:     s.GetOpeningTxId(),
 		ClaimTxId:       s.ClaimTxId,
 		CreatedAt:       timeStamp.String(),
 		CancelMessage:   s.LastErrString,
