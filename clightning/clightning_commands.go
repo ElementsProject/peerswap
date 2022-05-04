@@ -257,11 +257,12 @@ func (l *SwapIn) Name() string {
 }
 
 func (l *SwapIn) Call() (jrpc2.Result, error) {
-	if l.ShortChannelId == "" {
-		return nil, errors.New("Missing required short_channel_id parameter")
-	}
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt_sat parameter")
+	}
+
+	if l.ShortChannelId == "" {
+		return nil, errors.New("Missing required short_channel_id parameter")
 	}
 
 	funds, err := l.cl.glightning.ListFunds()
