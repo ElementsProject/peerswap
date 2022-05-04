@@ -144,7 +144,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		err = eventCtx.Validate(s.Data)
 		if err != nil {
 			s.mutex.Unlock()
-			log.Infof("Message validation error: %v", err)
+			log.Infof("Message validation error: %v on msg %v", err, eventCtx)
 			res, err := s.SendEvent(Event_OnInvalid_Message, nil)
 			s.mutex.Lock()
 			return res, err
