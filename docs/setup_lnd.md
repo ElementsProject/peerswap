@@ -15,7 +15,7 @@ Install golang from https://golang.org/doc/install
 Clone the peerswap repository and build the peerswap plugin
 
 ```bash
-git clone git@github.com:sputn1ck/peerswap.git && \
+git clone git@github.com:elementsproject/peerswap.git && \
 cd peerswap && \
 make lnd-install
 ```
@@ -40,9 +40,6 @@ Bitcoin-swaps only config
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
-network=mainnet
-allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
-allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>
 EOF
 ```
 
@@ -52,18 +49,19 @@ Liquid-swaps Config. Replace the rpc parameters as needed
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
-network=mainnet
-bitcoinswaps=true
 elementsd.rpcuser=<REPLACE_ME>
 elementsd.rpcpass=<REPLACE_ME>
 elementsd.rpchost=http://127.0.0.1
 elementsd.rpcport=<REPLACE_ME>
-elementsd.rpcwallet=swaplnd
-accept_all_peers=true
-allowlisted_peers=REPLACE_WITH_PUBKEY_OF_PEER
-allowlisted_peers=REPLACE_WITH_PUBKEY_OF_PEER
+elementsd.rpcwallet=peerswap
 EOF
 ```
+### Policy
+
+On first startup of the plugin a policy file will be generated (default path: `~/.peerswap/policy.conf`) in which trusted nodes will be specified.
+This cann be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `pscli addpeer <PUBKEY>`. If you feel especially reckless you can add the line 
+`accept_all_peers=true` this will allow anyone with a direct channel to you do do a swap with you.
+
 
 __WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.
 

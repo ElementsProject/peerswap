@@ -262,8 +262,6 @@ Bitcoin-swaps only config
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
-network=signet
-accept_all_peers=true
 EOF
 ```
 
@@ -273,14 +271,11 @@ lbtc-swaps Config
 cat <<EOF > ~/.peerswap/peerswap.conf
 lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
-network=signet
-bitcoinswaps=true
 elementsd.rpcuser=admin1
 elementsd.rpcpass=123 
 elementsd.rpchost=http://127.0.0.1
 elementsd.rpcport=18884
 elementsd.rpcwallet=swaplnd
-accept_all_peers=true
 EOF
 ```
 
