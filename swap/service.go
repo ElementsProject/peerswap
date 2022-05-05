@@ -330,6 +330,8 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		elementsAsset = s.swapServices.liquidWallet.GetAsset()
 	} else if chain == btc_chain {
 		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+	} else {
+		return nil, errors.New("invalid chain")
 	}
 
 	request := &SwapOutRequestMessage{
@@ -373,6 +375,8 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		elementsAsset = s.swapServices.liquidWallet.GetAsset()
 	} else if chain == btc_chain {
 		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+	} else {
+		return nil, errors.New("invalid chain")
 	}
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
 	s.AddActiveSwap(swap.Id, swap)
