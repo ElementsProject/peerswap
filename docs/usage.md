@@ -1,4 +1,4 @@
-# Usage guide
+# Usage Guide
 
 PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for channel rebalincing via atomic swaps with onchain coins. Supported blockchains:
 
@@ -14,11 +14,11 @@ For the cln plugin you need to prepend `lightning-cli peerswap-<command>`.
 
 For the standalone daemon you would run `pscli <command>`
 
-E.g. the `liquid-getaddress` command would look like this
+E.g. the `lbtc-getaddress` command would look like this
 
 ```bash
-lightning-cli peerswap-liquid-getaddress ## cln plugin call
-pscli liquid-getaddress ## standalone daemon call
+lightning-cli peerswap-lbtc-getaddress ## cln plugin call
+pscli lbtc-getaddress                  ## lnd peerswap call
 ```
 
 In order to list all peerswap calls run
@@ -32,9 +32,7 @@ core-lightning plugin:
 
 ## Liquid Usage
 
-If you have set up your wallet with liquid swaps enabled you can swap with your peers using lbtc.
-
-In order to swap you need a minimum balance of liquid bitcoin in order to pay for transaction fees.
+PeerSwap automatically enables a Liquid L-BTC wallet (asset type `lbtc`) if it detects elementsd in default paths or is otherwise configured to connect to elementsd RPC.
 
 The liquid wallet related commands are
 
@@ -44,29 +42,25 @@ lbtc-getbalance ## gets lbtc bitcoin balance in sats
 lbtc-sendtoaddress ## sends lbtc sats to a provided address
 ```
 
-The liquid wallet uses the elementsd integrated wallet
+The liquid wallet uses an elementsd integrated wallet named `peerswap`. It creates a new wallet of that name if it does not already exist. The default location on disk for this wallet is `~/.elements/liquidv1/wallets/peerswap/wallet.dat`
 
 ## Swaps
 
-A swap is a atomic swap process between on-chain and lightning. A swap consists of two on-chain transaction and a lightning payment. The first transaction commits to the swap. Once confirmed the other party pays the lightning payment and spends the first transaction using the payment preimage.
-There are two types of swap possible.
+PeerSwap facilitates a trustless atomic swap between on-chain and lightning channel balance. Each atomic swap consists of two on-chain transactions and a lightning payment. The first onchain transaction commits to the swap then waits a minimum quantity of confirmations to guard against double-spending. Once confirmed the other party pays the lightning payment which reveals the preimage, thereby enabling the onchain commitment to be claimed and the atomic swap is complete.
+
+There are two types of swaps.
 
 ### Swap-Out
 
-A swap out is when the initiator wants to pay a lightning payment in order to receive on-chain funds, in channel balancing terms receiving inbound liquidity. In order to swap out you need a minimum balance of liquid bitcoin in order to pay for transaction fees.
-
-To swap out call
+A swap-out is when the initiator wants to pay a lightning payment in order to receive on-chain funds. From the perspective of channel balancing the initiator gains inbound liquidity.
 
 ```bash
-swap-out [amount in sats] [short channel id] [asset: btc or l-brc]
+swap-out [amount in sats] [short channel id] [asset: btc or lbtc]
 ```
-
 
 ### Swap-In
 
-A swap in is when the initiator wants to spend onchain bitcoin in order to receive lightning-funds, in channel balancing terms increasing outbound liquidity. In order to swap in you need to 
-
-To swap in call
+A swap-in is when the initiator wants to spend onchain bitcoin in order to receive lightning funds. From the perspective of balancing terms they gain outbound liquidity.
 
 ```bash
 swap-in [amount in sats] [short channel id] [asset: btc or l-brc]
