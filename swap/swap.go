@@ -83,8 +83,6 @@ func (i InvoiceType) String() string {
 
 // SwapData holds all the data needed for a swap
 type SwapData struct {
-	Id *SwapId `json:"id"`
-
 	// Swap In
 	SwapInRequest   *SwapInRequestMessage   `json:"swap_in_request"`
 	SwapInAgreement *SwapInAgreementMessage `json:"swap_in_agreement"`
@@ -135,7 +133,19 @@ type SwapData struct {
 }
 
 func (s *SwapData) GetId() *SwapId {
-	return s.Id
+	if s.SwapInRequest != nil {
+		return s.SwapInRequest.SwapId
+	}
+	if s.SwapOutRequest != nil {
+		return s.SwapOutRequest.SwapId
+	}
+	if s.SwapInAgreement != nil {
+		return s.SwapInAgreement.SwapId
+	}
+	if s.SwapOutAgreement != nil {
+		return s.SwapOutAgreement.SwapId
+	}
+	return nil
 }
 
 func (s *SwapData) GetProtocolVersion() uint8 {
@@ -374,7 +384,7 @@ func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 		amount = s.SwapOutRequest.Amount
 	}
 	return &PrettyPrintSwapData{
-		Id:              s.Id.String(),
+		Id:              s.GetId().String(),
 		Type:            s.GetType().String(),
 		Role:            s.Role.String(),
 		State:           string(s.FSMState),
@@ -397,7 +407,6 @@ func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 // NewSwapData returns a new swap with a random hex id and the given arguments
 func NewSwapData(swapId *SwapId, initiatorNodeId string, peerNodeId string) *SwapData {
 	return &SwapData{
-		Id:              swapId,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
@@ -409,7 +418,6 @@ func NewSwapData(swapId *SwapId, initiatorNodeId string, peerNodeId string) *Swa
 // NewSwapDataFromRequest returns a new swap created from a swap request
 func NewSwapDataFromRequest(swapId *SwapId, senderNodeId string) *SwapData {
 	return &SwapData{
-		Id:              swapId,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
 		CreatedAt:       time.Now().Unix(),
@@ -443,6 +451,9 @@ func NewSwapId() *SwapId {
 }
 
 func (s *SwapId) String() string {
+	if s == nil || len(s) == 0 {
+		return ""
+	}
 	return hex.EncodeToString(s[:])
 }
 

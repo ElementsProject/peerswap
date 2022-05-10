@@ -63,7 +63,7 @@ func (p *bboltStore) GetData(id string) (*SwapStateMachine, error) {
 }
 
 func (p *bboltStore) Create(swap *SwapStateMachine) error {
-	exists, err := p.idExists(swap.Id)
+	exists, err := p.idExists(swap.SwapId.String())
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (p *bboltStore) Create(swap *SwapStateMachine) error {
 		return err
 	}
 
-	if err := b.Put(h2b(swap.Id), jData); err != nil {
+	if err := b.Put(h2b(swap.SwapId.String()), jData); err != nil {
 		return err
 	}
 
@@ -95,7 +95,7 @@ func (p *bboltStore) Create(swap *SwapStateMachine) error {
 }
 
 func (p *bboltStore) Update(swap *SwapStateMachine) error {
-	exists, err := p.idExists(swap.Id)
+	exists, err := p.idExists(swap.SwapId.String())
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (p *bboltStore) Update(swap *SwapStateMachine) error {
 		return err
 	}
 
-	if err := b.Put(h2b(swap.Id), jData); err != nil {
+	if err := b.Put(h2b(swap.SwapId.String()), jData); err != nil {
 		return err
 	}
 	return tx.Commit()
