@@ -99,7 +99,7 @@ Example output:
 ]
 ```
 
-`listswaps [pretty bool (optional)]` - command that lists all swaps. If _pretty_ is set the output is in a human readable format
+`listswaps [detailed bool (optional)]` - command that lists all swaps. If _detailed_ is set the output shows the swap data as it is saved in the database
 
 `listactiveswaps` - list all ongoing swaps, relevant for upgrading peerswap
 

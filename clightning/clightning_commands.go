@@ -354,8 +354,8 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 
 // ListSwaps list all active and finished swaps
 type ListSwaps struct {
-	PrettyPrint bool              `json:"pretty_print,omitempty"`
-	cl          *ClightningClient `json:"-"`
+	DetailedPrint bool              `json:"detailed,omitempty"`
+	cl            *ClightningClient `json:"-"`
 }
 
 func (l *ListSwaps) New() interface{} {
@@ -379,7 +379,7 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		}
 		return false
 	})
-	if l.PrettyPrint {
+	if !l.DetailedPrint {
 		var pswasp []*swap.PrettyPrintSwapData
 		for _, v := range swaps {
 			if v.Data == nil {

@@ -341,7 +341,7 @@ func (s *SwapData) GetCancelMessage() string {
 		return s.CancelMessage
 	}
 
-	return "unknown"
+	return ""
 }
 
 func (s *SwapData) cancelTimeout() {
@@ -352,6 +352,7 @@ func (s *SwapData) cancelTimeout() {
 
 type PrettyPrintSwapData struct {
 	Id              string `json:"id"`
+	Asset           string `json:"asset"`
 	CreatedAt       string `json:"created_at"`
 	Type            string `json:"type"`
 	Role            string `json:"role"`
@@ -370,32 +371,21 @@ type PrettyPrintSwapData struct {
 
 func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	timeStamp := time.Unix(s.CreatedAt, 0)
-	if s.LastErr != nil {
-		s.LastErrString = s.LastErr.Error()
-	}
-	var scid string
-	var amount uint64
-	if s.SwapInRequest != nil {
-		scid = s.SwapInRequest.Scid
-		amount = s.SwapInRequest.Amount
-	}
-	if s.SwapOutRequest != nil {
-		scid = s.SwapOutRequest.Scid
-		amount = s.SwapOutRequest.Amount
-	}
+
 	return &PrettyPrintSwapData{
 		Id:              s.GetId().String(),
+		Asset:           s.GetChain(),
 		Type:            s.GetType().String(),
 		Role:            s.Role.String(),
 		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
-		Amount:          amount,
-		ShortChannelId:  scid,
+		Amount:          s.GetAmount(),
+		ShortChannelId:  s.GetScid(),
 		OpeningTxId:     s.GetOpeningTxId(),
 		ClaimTxId:       s.ClaimTxId,
 		CreatedAt:       timeStamp.String(),
-		CancelMessage:   s.LastErrString,
+		CancelMessage:   s.GetCancelMessage(),
 	}
 }
 
