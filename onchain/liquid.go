@@ -30,7 +30,7 @@ import (
 const (
 	LiquidCsv          = 60
 	LiquidConfs        = 2
-	LiquidTargetBlocks = 1
+	LiquidTargetBlocks = 7
 )
 
 type LiquidOnChain struct {
