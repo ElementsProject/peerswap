@@ -11,7 +11,6 @@ func swapOutSenderFromStore(smData *SwapStateMachine, services *SwapServices) *S
 func newSwapOutSenderFSM(services *SwapServices, initiatorNodeId, peerNodeId string) *SwapStateMachine {
 	swapId := NewSwapId()
 	return &SwapStateMachine{
-		Id:           swapId.String(),
 		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,

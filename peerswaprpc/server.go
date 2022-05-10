@@ -530,7 +530,7 @@ func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSw
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	timeStamp := time.Unix(swap.Data.CreatedAt, 0)
 	return &PrettyPrintSwap{
-		Id:              swap.Id,
+		Id:              swap.SwapId.String(),
 		CreatedAt:       timeStamp.String(),
 		Type:            swap.Type.String(),
 		Role:            swap.Role.String(),

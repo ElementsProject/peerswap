@@ -67,7 +67,6 @@ type States map[StateType]State
 // SwapStateMachine represents the state machine.
 type SwapStateMachine struct {
 	// Id holds the unique Id for the store
-	Id     string  `json:"id"`
 	SwapId *SwapId `json:"swap_id"`
 
 	// Data holds the statemachine metadata
@@ -162,7 +161,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 	for {
 		// Determine the next state for the event given the machine's current state.
-		log.Debugf("[FSM] event:id: %s, %s on %s", s.Id, event, s.Current)
+		log.Debugf("[FSM] event:id: %s, %s on %s", s.SwapId.String(), event, s.Current)
 		nextState, err := s.getNextState(event)
 		if err != nil {
 			return false, ErrEventRejected
@@ -214,10 +213,10 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() (bool, error) {
-	log.Infof("[Swap:%s]: Recovering from state %s", s.Id, s.Current)
+	log.Infof("[Swap:%s]: Recovering from state %s", s.SwapId.String(), s.Current)
 	state, ok := s.States[s.Current]
 	if !ok {
-		return false, fmt.Errorf("unknown state: %s for swap %s", s.Current, s.Id)
+		return false, fmt.Errorf("unknown state: %s for swap %s", s.Current, s.SwapId.String())
 	}
 
 	if !ok || state.Action == nil {
@@ -302,6 +301,6 @@ func (s *SwapStateMachine) logSwapInfo() {
 }
 
 func (s *SwapStateMachine) Infof(format string, v ...interface{}) {
-	idString := fmt.Sprintf("%s", s.Id)
+	idString := fmt.Sprintf("%s", s.SwapId.String())
 	log.Infof("[Swap:"+idString+"] "+format, v...)
 }

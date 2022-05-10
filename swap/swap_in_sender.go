@@ -11,7 +11,6 @@ func swapInSenderFromStore(smData *SwapStateMachine, services *SwapServices) *Sw
 func newSwapInSenderFSM(services *SwapServices, initiatorNodeId, peerNodeId string) *SwapStateMachine {
 	swapId := NewSwapId()
 	return &SwapStateMachine{
-		Id:           swapId.String(),
 		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,

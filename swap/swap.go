@@ -83,8 +83,6 @@ func (i InvoiceType) String() string {
 
 // SwapData holds all the data needed for a swap
 type SwapData struct {
-	Id *SwapId `json:"id"`
-
 	// Swap In
 	SwapInRequest   *SwapInRequestMessage   `json:"swap_in_request"`
 	SwapInAgreement *SwapInAgreementMessage `json:"swap_in_agreement"`
@@ -135,7 +133,19 @@ type SwapData struct {
 }
 
 func (s *SwapData) GetId() *SwapId {
-	return s.Id
+	if s.SwapInRequest != nil {
+		return s.SwapInRequest.SwapId
+	}
+	if s.SwapOutRequest != nil {
+		return s.SwapOutRequest.SwapId
+	}
+	if s.SwapInAgreement != nil {
+		return s.SwapInAgreement.SwapId
+	}
+	if s.SwapOutAgreement != nil {
+		return s.SwapOutAgreement.SwapId
+	}
+	return nil
 }
 
 func (s *SwapData) GetProtocolVersion() uint8 {
@@ -331,7 +341,7 @@ func (s *SwapData) GetCancelMessage() string {
 		return s.CancelMessage
 	}
 
-	return "unknown"
+	return ""
 }
 
 func (s *SwapData) cancelTimeout() {
@@ -342,6 +352,7 @@ func (s *SwapData) cancelTimeout() {
 
 type PrettyPrintSwapData struct {
 	Id              string `json:"id"`
+	Asset           string `json:"asset"`
 	CreatedAt       string `json:"created_at"`
 	Type            string `json:"type"`
 	Role            string `json:"role"`
@@ -360,32 +371,21 @@ type PrettyPrintSwapData struct {
 
 func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
 	timeStamp := time.Unix(s.CreatedAt, 0)
-	if s.LastErr != nil {
-		s.LastErrString = s.LastErr.Error()
-	}
-	var scid string
-	var amount uint64
-	if s.SwapInRequest != nil {
-		scid = s.SwapInRequest.Scid
-		amount = s.SwapInRequest.Amount
-	}
-	if s.SwapOutRequest != nil {
-		scid = s.SwapOutRequest.Scid
-		amount = s.SwapOutRequest.Amount
-	}
+
 	return &PrettyPrintSwapData{
-		Id:              s.Id.String(),
+		Id:              s.GetId().String(),
+		Asset:           s.GetChain(),
 		Type:            s.GetType().String(),
 		Role:            s.Role.String(),
 		State:           string(s.FSMState),
 		InitiatorNodeId: s.InitiatorNodeId,
 		PeerNodeId:      s.PeerNodeId,
-		Amount:          amount,
-		ShortChannelId:  scid,
+		Amount:          s.GetAmount(),
+		ShortChannelId:  s.GetScid(),
 		OpeningTxId:     s.GetOpeningTxId(),
 		ClaimTxId:       s.ClaimTxId,
 		CreatedAt:       timeStamp.String(),
-		CancelMessage:   s.LastErrString,
+		CancelMessage:   s.GetCancelMessage(),
 	}
 }
 
@@ -397,7 +397,6 @@ func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 // NewSwapData returns a new swap with a random hex id and the given arguments
 func NewSwapData(swapId *SwapId, initiatorNodeId string, peerNodeId string) *SwapData {
 	return &SwapData{
-		Id:              swapId,
 		PeerNodeId:      peerNodeId,
 		InitiatorNodeId: initiatorNodeId,
 		PrivkeyBytes:    getRandomPrivkey().Serialize(),
@@ -409,7 +408,6 @@ func NewSwapData(swapId *SwapId, initiatorNodeId string, peerNodeId string) *Swa
 // NewSwapDataFromRequest returns a new swap created from a swap request
 func NewSwapDataFromRequest(swapId *SwapId, senderNodeId string) *SwapData {
 	return &SwapData{
-		Id:              swapId,
 		PeerNodeId:      senderNodeId,
 		InitiatorNodeId: senderNodeId,
 		CreatedAt:       time.Now().Unix(),
@@ -443,6 +441,9 @@ func NewSwapId() *SwapId {
 }
 
 func (s *SwapId) String() string {
+	if s == nil || len(s) == 0 {
+		return ""
+	}
 	return hex.EncodeToString(s[:])
 }
 

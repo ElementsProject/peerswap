@@ -10,7 +10,6 @@ func swapInReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *
 // newSwapInReceiverFSM returns a new swap statemachine for a swap-in receiver
 func newSwapInReceiverFSM(swapId *SwapId, services *SwapServices, peer string) *SwapStateMachine {
 	return &SwapStateMachine{
-		Id:           swapId.String(),
 		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,

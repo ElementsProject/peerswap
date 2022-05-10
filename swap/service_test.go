@@ -46,27 +46,27 @@ func Test_GoodCase(t *testing.T) {
 
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
-	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+	bobSwap := bobSwapService.activeSwaps[aliceSwap.SwapId.String()]
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.SwapId.String(), INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id, aliceSwap.Data.OpeningTxHex)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, State_ClaimedPreimage, aliceSwap.Current)
 
 	// trigger bob payment received
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_CLAIM)
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.SwapId.String(), INVOICE_CLAIM)
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
 func Test_FeePaymentFailed(t *testing.T) {
@@ -143,7 +143,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	}
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
-	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+	bobSwap := bobSwapService.activeSwaps[aliceSwap.SwapId.String()]
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
@@ -151,7 +151,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.SwapId.String(), INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -159,7 +159,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.Id, aliceSwap.Data.OpeningTxHex)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,8 +177,9 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	service := getTestSetup("alice")
-	service.AddActiveSwap("swapid", &SwapStateMachine{
-		Id: "swapid",
+	swapId := NewSwapId()
+	service.AddActiveSwap(swapId.String(), &SwapStateMachine{
+		SwapId: swapId,
 		Data: &SwapData{
 			FSMState:         "",
 			Role:             0,
@@ -261,7 +262,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	}
 	bobReceivedMsg := <-bobMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, bobReceivedMsg)
-	bobSwap := bobSwapService.activeSwaps[aliceSwap.Id]
+	bobSwap := bobSwapService.activeSwaps[aliceSwap.SwapId.String()]
 
 	aliceReceivedMsg := <-aliceMsgChan
 	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTAGREEMENT, aliceReceivedMsg)
@@ -269,7 +270,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, aliceSwap.Current)
 	assert.Equal(t, State_SwapOutReceiver_AwaitFeeInvoicePayment, bobSwap.Current)
 
-	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.Id, INVOICE_FEE)
+	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.SwapId.String(), INVOICE_FEE)
 	assert.Equal(t, State_SwapOutReceiver_AwaitClaimInvoicePayment, bobSwap.Current)
 
 	aliceReceivedMsg = <-aliceMsgChan
@@ -329,10 +330,10 @@ func TestTimeout(t *testing.T) {
 	sws.Start()
 
 	fsm := newSwapInSenderFSM(sws.swapServices, "alice", "bob")
-	sws.AddActiveSwap(fsm.Id, fsm)
+	sws.AddActiveSwap(fsm.SwapId.String(), fsm)
 
 	fsm.Current = State_SwapInSender_AwaitAgreement
-	sws.swapServices.toService.addNewTimeOut(context.Background(), 10*time.Millisecond, fsm.Id)
+	sws.swapServices.toService.addNewTimeOut(context.Background(), 10*time.Millisecond, fsm.SwapId.String())
 
 	tm := time.NewTimer(1 * time.Second)
 

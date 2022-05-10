@@ -14,7 +14,7 @@ func Test_SwapMarshalling(t *testing.T) {
 	swap := newSwapOutSenderFSM(&SwapServices{}, "alice", "bob")
 
 	swap.Data = &SwapData{
-		Id: NewSwapId(),
+		SwapOutRequest: &SwapOutRequestMessage{SwapId: NewSwapId()},
 	}
 
 	swapBytes, err := json.Marshal(swap)
@@ -28,7 +28,7 @@ func Test_SwapMarshalling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, swap.Data.GetId(), sm.Data.Id)
+	assert.Equal(t, swap.Data.GetId(), sm.Data.GetId())
 }
 
 func Test_ValidSwap(t *testing.T) {
@@ -216,7 +216,7 @@ func (d *dummyStore) ListAllByPeer(peer string) ([]*SwapStateMachine, error) {
 }
 
 func (d *dummyStore) UpdateData(data *SwapStateMachine) error {
-	d.dataMap[data.Id] = data
+	d.dataMap[data.SwapId.String()] = data
 	return nil
 }
 

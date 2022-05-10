@@ -117,7 +117,7 @@ type SwapInReceiverInitAction struct{}
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	agreementMessage := &SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
-		SwapId:          swap.Id,
+		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		// todo: set premium
 		Premium: 0,
@@ -133,7 +133,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 
 	toCtx, cancel := context.WithCancel(context.Background())
 	swap.toCancel = cancel
-	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.Id.String())
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.GetId().String())
 
 	return Event_ActionSucceeded
 }
@@ -190,7 +190,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 	swap.ClaimPreimage = hex.EncodeToString(preimage[:])
 
-	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.Id.String(), INVOICE_CLAIM, swap.GetInvoiceExpiry())
+	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), INVOICE_CLAIM, swap.GetInvoiceExpiry())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -228,7 +228,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	swap.OpeningTxHex = txHex
 
 	message := &OpeningTxBroadcastedMessage{
-		SwapId:      swap.Id,
+		SwapId:      swap.GetId(),
 		Payreq:      payreq,
 		TxId:        txId,
 		ScriptOut:   vout,
@@ -254,7 +254,7 @@ type StopSendMessageWithRetryWrapperAction struct {
 
 func (a StopSendMessageWithRetryWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// Stop sending repeated messages
-	services.messengerManager.RemoveSender(swap.Id.String())
+	services.messengerManager.RemoveSender(swap.GetId().String())
 
 	// Call next Action
 	return a.next.Execute(services, swap)
@@ -271,7 +271,7 @@ func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData
 	}
 
 	// invoice payment part
-	alreadyPaid := services.lightning.AddPaymentNotifier(swap.Id.String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
+	alreadyPaid := services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
 	if alreadyPaid {
 		return Event_OnClaimInvoicePaid
 	}
@@ -282,7 +282,7 @@ func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -291,7 +291,7 @@ type AwaitFeeInvoicePayment struct{}
 
 func (w *AwaitFeeInvoicePayment) Execute(services *SwapServices, swap *SwapData) EventType {
 	// invoice payment part
-	alreadyPaid := services.lightning.AddPaymentNotifier(swap.Id.String(), swap.SwapOutAgreement.Payreq, INVOICE_FEE)
+	alreadyPaid := services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.SwapOutAgreement.Payreq, INVOICE_FEE)
 	if alreadyPaid {
 		return Event_OnFeeInvoicePaid
 	}
@@ -313,7 +313,7 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -375,14 +375,14 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.Id.String(), INVOICE_FEE, 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.GetId().String(), INVOICE_FEE, 600)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
 	message := &SwapOutAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
-		SwapId:          swap.Id,
+		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		Payreq:          feeInvoice,
 	}
@@ -397,7 +397,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 
 	toCtx, cancel := context.WithCancel(context.Background())
 	swap.toCancel = cancel
-	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.Id.String())
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.GetId().String())
 
 	return Event_ActionSucceeded
 }
@@ -460,7 +460,7 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 	messenger := services.messenger
 
 	msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-		SwapId:  swap.Id,
+		SwapId:  swap.GetId(),
 		Message: swap.CancelMessage,
 	})
 	if err != nil {
@@ -480,7 +480,7 @@ type TakerSendPrivkeyAction struct{}
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
-		SwapId:  swap.Id,
+		SwapId:  swap.GetId(),
 		Message: swap.CancelMessage,
 		Privkey: privkeystring,
 	})
@@ -508,7 +508,7 @@ func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData
 
 	toCtx, cancel := context.WithCancel(context.Background())
 	swap.toCancel = cancel
-	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.Id.String())
+	services.toService.addNewTimeOut(toCtx, 10*time.Minute, swap.GetId().String())
 
 	return Event_ActionSucceeded
 }
@@ -536,7 +536,7 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 
 	// Send message repeated as we really want the message to be received at some point!
 	rm := messages.NewRedundantMessenger(services.messenger, 10*time.Second)
-	err := services.messengerManager.AddSender(swap.Id.String(), rm)
+	err := services.messengerManager.AddSender(swap.GetId().String(), rm)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -624,7 +624,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		return swap.HandleError(err)
 	}
 
-	txWatcher.AddWaitForConfirmationTx(swap.Id.String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	return NoOp
 }
 
@@ -727,7 +727,7 @@ type NoOpDoneAction struct{}
 
 func (a *NoOpDoneAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// Remove possible message sender
-	services.messengerManager.RemoveSender(swap.Id.String())
+	services.messengerManager.RemoveSender(swap.GetId().String())
 
 	return Event_Done
 }

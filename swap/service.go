@@ -115,7 +115,7 @@ func (s *SwapService) RecoverSwaps() error {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
 
-		s.AddActiveSwap(swap.Id, swap)
+		s.AddActiveSwap(swap.SwapId.String(), swap)
 
 		done, err := swap.Recover()
 		if err != nil {
@@ -123,7 +123,7 @@ func (s *SwapService) RecoverSwaps() error {
 		}
 
 		if done {
-			s.RemoveActiveSwap(swap.Id)
+			s.RemoveActiveSwap(swap.SwapId.String())
 		}
 	}
 	return nil
@@ -283,7 +283,7 @@ func (s *SwapService) OnTxConfirmed(swapId string, txHex string) error {
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -301,7 +301,7 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -322,7 +322,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	}
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
-	s.AddActiveSwap(swap.Id, swap)
+	s.AddActiveSwap(swap.SwapId.String(), swap)
 
 	var bitcoinNetwork string
 	var elementsAsset string
@@ -349,7 +349,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 
 	return swap, nil
@@ -379,7 +379,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, errors.New("invalid chain")
 	}
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
-	s.AddActiveSwap(swap.Id, swap)
+	s.AddActiveSwap(swap.SwapId.String(), swap)
 
 	request := &SwapInRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
@@ -396,7 +396,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return swap, nil
 }
@@ -416,7 +416,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, message)
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return err
 }
@@ -440,7 +440,7 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -457,7 +457,7 @@ func (s *SwapService) OnSwapInAgreementReceived(msg *SwapInAgreementMessage) err
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -474,7 +474,7 @@ func (s *SwapService) OnSwapOutAgreementReceived(message *SwapOutAgreementMessag
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -492,7 +492,7 @@ func (s *SwapService) OnFeeInvoiceNotification(swapId *SwapId) error {
 	}
 
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -509,7 +509,7 @@ func (s *SwapService) OnClaimInvoiceNotification(swapId *SwapId) error {
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -526,7 +526,7 @@ func (s *SwapService) OnTxOpenedMessage(message *OpeningTxBroadcastedMessage) er
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -542,9 +542,9 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
-	s.RemoveActiveSwap(swap.Id)
+	s.RemoveActiveSwap(swap.SwapId.String())
 	return nil
 }
 
@@ -596,7 +596,7 @@ func (s *SwapService) OnCancelReceived(swapId *SwapId, cancelMsg *CancelMessage)
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -613,7 +613,7 @@ func (s *SwapService) OnCoopCloseReceived(swapId *SwapId, coopCloseMessage *Coop
 		return err
 	}
 	if done {
-		s.RemoveActiveSwap(swap.Id)
+		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return nil
 }
@@ -750,7 +750,7 @@ func (s *SwapService) createTimeoutCallback(swapId string) func() {
 		}
 
 		if done {
-			s.RemoveActiveSwap(swap.Id)
+			s.RemoveActiveSwap(swap.SwapId.String())
 		}
 	}
 }
