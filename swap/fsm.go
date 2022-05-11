@@ -298,6 +298,27 @@ func (s *SwapStateMachine) logSwapInfo() {
 		s.Infof("Warning: Paid swap-out prepayment, but swap canceled before receiving opening transaction")
 	}
 
+	// The fee invoice was paid
+	if s.Current == State_SwapOutSender_AwaitTxBroadcastedMessage &&
+		s.Previous == State_SwapOutSender_PayFeeInvoice {
+		s.printFeeInvoiceInfo()
+	}
+
+}
+
+func (s *SwapStateMachine) printFeeInvoiceInfo() {
+	if s.Data.SwapOutAgreement == nil {
+		return
+	}
+
+	ll := s.swapServices.lightning
+	_, msatAmt, err := ll.DecodePayreq(s.Data.SwapOutAgreement.Payreq)
+	if err != nil {
+		return
+	}
+	paidAmt := msatAmt / 1000
+
+	s.Infof("Paid Feeinvoice of %v sats", paidAmt)
 }
 
 func (s *SwapStateMachine) Infof(format string, v ...interface{}) {
