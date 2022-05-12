@@ -72,17 +72,21 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
 
 * What is the difference between BTC and L-BTC Swaps?
   * ![btc vs l-btc](./docs/img/btc_lbtc.png)
-* Why should use PeerSwap instead of [Loop](https://lightning.engineering/loop/), [Boltz](https://boltz.exchange/) or other centralized swap providers?
-  * PeerSwap is significantly more reliable and lower cost to swap because you are not reliant on unknown channel balances, and randomly degraded network conditions, and slow route scanning as often happens when multi-hop routes are utilized.
+* Why should use PeerSwap instead of centralized markets for submarine swaps?
+  * More Reliable - PeerSwap is significantly more reliable because you are not reliant on unknown channel balances, random network degredation, and slow routing attempts as often occur with multi-hop routes.
+  * Lower Cost - PeerSwap is the lowest cost because there is no 3rd party coordinator or intermediary nodes to collect rent.
+  * More Private - Swaps are entirely between two consenting nodes. Nobody else is able to record details like who swapped.
 * What is the difference between [splicing](https://github.com/lightning/bolts/pull/863) and PeerSwap?
-  * Splicing will be take a while to implement and become widely available across the LN. Meanwhile PeerSwap is very simple and already works today without changes to existing LN nodes.
+  * Splicing will take a long time to become code ready and widely available. Meanwhile PeerSwap is very simple and already works today without changes to existing LN nodes.
 * What is the difference between [liquidity-ads](https://github.com/lightning/bolts/pull/878) and PeerSwap?
-  * Liquidity Ads is a great way to lease new channels to be opened toward you for the purpose of gaining incoming capacity.
+  * Liquidity Ads is a great way to lease new channels to be opened toward you for the purpose of gaining incoming capacity. New channels add new capacity in a desired direction but only once.
   * PeerSwap lets you repeatedly refill your existing channels at a cost lower than opening, closing, and maintaining additional channels.
 * Why PeerSwap instead of opening more channels?
-  * PeerSwap can be more tolerant of onchain confirmation delay than LN channel open/close so BTC onchain fee rates could be lower. Large service providers like stores often close channels when they are depleted because it is capital inefficient to leave them open while unproductively unbalanced. Channel closing is often unexpectedly expensive so it is beneficial to reduce the frequency of channel closures.
+  * PeerSwap can be more tolerant of onchain confirmation delay than LN channel open/close so BTC onchain fee rates could be lower. Large service providers like stores often close channels when they are depleted because it is capital inefficient to leave them open while unbalanced. Channel closing is often unexpectedly expensive so it is beneficial to reduce the frequency of channel closures.
   * It is more capital efficient to refill channels that already exist rather than open yet more channels with the same peer in order to improve your routing capacity.
   * PeerSwap nodes have the option of alternate swap assets. For example Liquid L-BTC can be faster and with greater transaction privacy (with some trade offs). Additional optional swap methods can be added to PeerSwap for users who want them without affecting users who don't.
+* Why test with Signet instead of Testnet?
+  * PeerSwap supports Bitcoin testnet3 but we strongly recommend instead testing with [Bitcoin Signet](https://en.bitcoin.it/wiki/Signet). Testnet has significant reliability problems like often no blocks, or too many blocks, or sometimes 10,000 block reorgs. If your goal is to test software integrations dealing with chaotic situations like reorgs or for race conditions you should be using regtest where you have control of that chaos.
 
 ### Signet Testing
 
