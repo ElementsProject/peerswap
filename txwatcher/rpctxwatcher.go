@@ -104,7 +104,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 					return err
 				}
 			default:
-				time.Sleep(time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}()
