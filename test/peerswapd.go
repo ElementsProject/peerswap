@@ -53,6 +53,7 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 		"lnd.host":         lndConfig.LndHost,
 		"datadir":          dataDir,
 		"host":             fmt.Sprintf("localhost:%v", rpcPort),
+		"resthost":         "",
 	}
 
 	for k, v := range extraConfig {

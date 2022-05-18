@@ -1,0 +1,44 @@
+type: google.api.Service 
+config_version: 3 
+version: 1 
+http: 
+  rules: 
+    - selector: peerswap.PeerSwap.SwapOut 
+      post: "/v1/swaps/swapout" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.SwapIn 
+      post: "/v1/swaps/swapin" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.GetSwap 
+      get: "/v1/swaps/{swap_id}" 
+    - selector: peerswap.PeerSwap.ListSwaps 
+      get: "/v1/swaps" 
+    - selector: peerswap.PeerSwap.ListPeers 
+      get: "/v1/peers" 
+    - selector: peerswap.PeerSwap.ListNodes 
+      get: "/v1/nodes" 
+    - selector: peerswap.PeerSwap.ListRequestedSwaps 
+      get: "/v1/swaps/requests" 
+    - selector: peerswap.PeerSwap.ListActiveSwaps 
+      get: "/v1/swaps/active" 
+    - selector: peerswap.PeerSwap.AllowSwapRequests
+      post: "/v1/swaps/allowrequests" 
+      body: "*"  
+    - selector: peerswap.PeerSwap.ReloadPolicyFile 
+      get: "/v1/policy/reload" 
+    - selector: peerswap.PeerSwap.AddPeer 
+      post: "/v1/policy/peer/add" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.RemovePeer 
+      post: "/v1/policy/peer/remove" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.LiquidGetAddress 
+      get: "/v1/liquid/address" 
+    - selector: peerswap.PeerSwap.LiquidGetBalance 
+      get: "/v1/liquid/balance" 
+    - selector: peerswap.PeerSwap.LiquidSendToAddress 
+      post: "/v1/liquid/send" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.Stop 
+      post: "/v1/stop" 
+      body: "*"
