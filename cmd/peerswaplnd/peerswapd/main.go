@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	log2 "log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/version"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/gbitcoin"
@@ -41,6 +43,7 @@ import (
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/macaroon.v2"
 )
 
@@ -301,7 +304,23 @@ func run() error {
 		}
 	}()
 	defer grpcSrv.Stop()
-	log.Infof("peerswapd listening on %v", cfg.Host)
+	log.Infof("peerswapd grpc listening on %v", cfg.Host)
+	if cfg.RestHost != "" {
+		mux := runtime.NewServeMux()
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+		err := peerswaprpc.RegisterPeerSwapHandlerFromEndpoint(ctx, mux, cfg.Host, opts)
+		if err != nil {
+			return err
+		}
+		go func() {
+			err := http.ListenAndServe(cfg.RestHost, mux)
+			if err != nil {
+				log2.Fatal(err)
+			}
+		}()
+
+		log.Infof("peerswapd rest listening on %v", cfg.RestHost)
+	}
 	<-shutdown
 	return nil
 }

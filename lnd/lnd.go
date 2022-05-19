@@ -221,19 +221,24 @@ func (l *Lnd) PrepareOpeningTransaction(address string, amount uint64) (txId str
 }
 
 func (l *Lnd) StartListening() {
+	go l.startListenMessages()
+	go l.startListenPeerEvents()
+}
 
-	go func() {
-		err := l.listenMessages()
-		if err != nil {
-			log.Infof("error listening on messages %v", err)
-		}
-	}()
-	go func() {
-		err := l.listenPeerEvents()
-		if err != nil {
-			log.Infof("error listening on peer events %v", err)
-		}
-	}()
+func (l *Lnd) startListenMessages() {
+	err := l.listenMessages()
+	if err != nil {
+		log.Infof("error listening on messages %v, restarting", err)
+		l.startListenMessages()
+	}
+}
+
+func (l *Lnd) startListenPeerEvents() {
+	err := l.listenPeerEvents()
+	if err != nil {
+		log.Infof("error listening on peer events %v", err)
+		l.startListenPeerEvents()
+	}
 }
 
 func (l *Lnd) GetPeers() []string {
