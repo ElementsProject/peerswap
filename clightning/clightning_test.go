@@ -105,3 +105,11 @@ func (d *DummyPayerWaiter) SendPayChannel(payreq string, bolt11 *glightning.Deco
 	d.totalPayed += amountMsat
 	return "", d.sendPayError
 }
+
+func (d *DummyPayerWaiter) SendPart(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayFields, error) {
+	d.Lock()
+	defer d.Unlock()
+	d.sendPayCall++
+	d.totalPayed += amountMsat
+	return &glightning.SendPayFields{}, d.sendPayError
+}
