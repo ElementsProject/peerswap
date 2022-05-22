@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 	log2 "log"
+	"math"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,11 +43,13 @@ var methods = []peerswaprpcMethod{
 
 var devmethods = []peerswaprpcMethod{}
 
-const (
-	featureBit = 69
+const featureBit = 69
 
-	paymentSplitterMsat = 1000000000
-)
+var maxPaymentSizeMsat = uint64(math.Pow(2, 32))
+
+type SendPayPartWaiter interface {
+	SendPayPartAndWait(paymentRequest string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayFields, error)
+}
 
 // ClightningClient is the main driver behind c-lightnings plugins system
 // it handles rpc calls and messages
@@ -290,14 +292,17 @@ func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (pre
 	if err != nil {
 		return "", err
 	}
-	if Bolt11.MilliSatoshis > 4000000000 {
-		preimage, err = MppPayment(cl, cl.glightning, payreq, channel, Bolt11)
+
+	// If we exceed the maximum msat amount for a single payment we split them
+	// up and use MPPs.
+	if Bolt11.MilliSatoshis > maxPaymentSizeMsat {
+		preimage, err = MppPayment(cl, payreq, channel, Bolt11)
 		if err != nil {
 			return "", err
 		}
 	} else {
 		label := randomString()
-		_, err = cl.SendPayChannel(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
+		_, err = cl.SendPayPart(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
 		if err != nil {
 			return "", err
 		}
@@ -310,74 +315,57 @@ func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (pre
 	return preimage, nil
 }
 
-type MppPayer interface {
-	SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error)
-}
-type PayWaiter interface {
-	WaitSendPayPart(paymentHash string, timeout uint, partId uint64) (*glightning.SendPayFields, error)
-}
-
-// MppPayment splits the payment in parts and waits for the payments to finish
-func MppPayment(mppPayer MppPayer, payWaiter PayWaiter, payreq string, channel string, Bolt11 *glightning.DecodedBolt11) (string, error) {
-	label := randomString()
-
-	splits := Bolt11.MilliSatoshis / paymentSplitterMsat
-
-	var payments []uint64
-
-	var i uint64
-	for i = 1; i < splits+1; i++ {
-		payments = append(payments, paymentSplitterMsat)
+func (cl *ClightningClient) SendPayPartAndWait(paymentRequest string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayFields, error) {
+	_, err := cl.SendPayPart(paymentRequest, bolt11, amountMsat, channel, label, partId)
+	if err != nil {
+		return nil, err
 	}
-	remainingSats := Bolt11.MilliSatoshis - splits*paymentSplitterMsat
-	if remainingSats > 0 {
-		payments = append(payments, remainingSats)
-	}
-	resChan := make(chan *glightning.SendPayFields, len(payments))
-	errChan := make(chan error, len(payments))
-	wg := sync.WaitGroup{}
-	for j, v := range payments {
-		_, err := mppPayer.SendPayChannel(payreq, Bolt11, v, channel, fmt.Sprintf("%s%v", label, uint64(i+1)), uint64(i+1))
-		if err != nil {
-			return "", err
-		}
+	return cl.glightning.WaitSendPayPart(bolt11.PaymentHash, 0, partId)
+}
 
+// MppPayment splits the payment in parts and waits for the payments to finish.
+// We split in 10 parts as this will always result in a set of payments that
+// dont have a "rest" and are all of the exact same size. They match the total
+// amount that we want to transfer. As we only send over a direct channel to a
+// direct peer we also dont need to optimize on a small number of subpayments.
+func MppPayment(spw SendPayPartWaiter, payreq string, channel string, bolt11 *glightning.DecodedBolt11) (string, error) {
+	wg := new(sync.WaitGroup)
+
+	var numPayments uint64 = 10
+	var partId uint64
+	var res *glightning.SendPayFields
+	var err error
+	for partId = 1; partId < numPayments+1; partId++ {
 		wg.Add(1)
-		go func(paymentPart uint64, value uint64) {
+		go func(partId uint64) {
 			defer wg.Done()
-			res, err := payWaiter.WaitSendPayPart(Bolt11.PaymentHash, 30, paymentPart)
+			log.Debugf("Sending part %d/%d", partId, numPayments)
+			res, err = spw.SendPayPartAndWait(payreq, bolt11, bolt11.MilliSatoshis/numPayments, channel, randomString(), partId)
 			if err != nil {
-				errChan <- err
-				return
+				log.Debugf("Could not complete MPP: %v", err)
 			}
-			resChan <- res
-		}(uint64(j+1), v)
+		}(partId)
 	}
-
 	wg.Wait()
 
-	for {
-		select {
-		case res := <-resChan:
-			if res.PaymentPreimage != "" {
-				return res.PaymentPreimage, nil
-			}
-		case err := <-errChan:
-			return "", err
-		}
+	if err != nil {
+		return "", err
 	}
+
+	return res.PaymentPreimage, nil
 }
 
-// SendPayChannel sends a payment through a specific channel
-func (cl *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (string, error) {
-	satString := fmt.Sprintf("%smsat", strconv.FormatUint(amountMsat, 10))
+// SendPayPart sends a payment through a specific channel. If the partId is not 0
+// it sends only the part of the payment that is set on amountMsat. the final
+// amount is read from the bolt11.
+func (cl *ClightningClient) SendPayPart(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayResult, error) {
 	res, err := cl.glightning.SendPay(
 		[]glightning.RouteHop{
 			{
 				Id:             bolt11.Payee,
 				ShortChannelId: channel,
 				MilliSatoshi:   amountMsat,
-				AmountMsat:     satString,
+				AmountMsat:     fmt.Sprintf("%dmsat", amountMsat),
 				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
 				Direction:      0,
 			},
@@ -390,9 +378,9 @@ func (cl *ClightningClient) SendPayChannel(payreq string, bolt11 *glightning.Dec
 		partId,
 	)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return res.PaymentPreimage, nil
+	return res, nil
 }
 
 func (cl *ClightningClient) PeerRunsPeerSwap(peerid string) error {
