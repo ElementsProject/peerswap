@@ -75,6 +75,7 @@ start_nodes_lnd() {
     --logdir=/tmp/lnd-regtest-$i/logs \
     --externalip=127.0.0.1:$listenport \
     --listen=0.0.0.0:$listenport \
+    --protocol.wumbo-channels \
     --configfile=/tmp/lnd-regtest-$1/lnd.conf > /dev/null 2>&1 &
     # shellcheck disable=SC2139 disable=SC2086
     alias lncli-$i="$LNCLI --lnddir=/tmp/lnd-regtest-$i --network regtest --rpcserver=localhost:$rpcport"
@@ -143,6 +144,7 @@ bitcoin-rpcuser=admin1
 bitcoin-rpcpassword=123
 bitcoin-rpcconnect=127.0.0.1
 bitcoin-rpcport=18443
+large-channels
 EOF
     # If we've configured to use developer, add dev options
     if $LIGHTNINGD --help | grep -q dev-fast-gossip; then
