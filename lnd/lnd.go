@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
@@ -38,9 +39,12 @@ type Lnd struct {
 	cc  *grpc.ClientConn
 	ctx context.Context
 
-	messageHandler  []func(peerId string, msgType string, payload []byte) error
-	paymentCallback []func(swapId string, invoiceType swap.InvoiceType)
-	pubkey          string
+	messageHandler       []func(peerId string, msgType string, payload []byte) error
+	paymentCallback      []func(swapId string, invoiceType swap.InvoiceType)
+	invoiceSubscriptions map[string]interface{}
+	pubkey               string
+
+	sync.Mutex
 }
 
 func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) (alreadyPaid bool) {
@@ -58,7 +62,17 @@ func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.
 	if err != nil && (lookup.State == lnrpc.Invoice_SETTLED && lookup.AmtPaidSat == invoice.NumSatoshis) {
 		return true
 	}
+	// Check if service is already subscribed
+	if HasInvoiceSubscribtion(l.invoiceSubscriptions, invoice.PaymentHash) {
+		return false
+	}
+
 	go func() {
+
+		// add subscribtion
+		AddInvoiceSubscription(l, l.invoiceSubscriptions, invoice.PaymentHash)
+		defer RemoveInvoiceSubscribtion(l, l.invoiceSubscriptions, invoice.PaymentHash)
+
 		for {
 			select {
 			case <-l.ctx.Done():
@@ -312,6 +326,23 @@ func (l *Lnd) handleCustomMessage(msg *lnrpc.CustomMessage) error {
 	return nil
 }
 
+func AddInvoiceSubscription(lock sync.Locker, subMap map[string]interface{}, rHash string) {
+	lock.Lock()
+	defer lock.Unlock()
+	subMap[rHash] = ""
+}
+
+func RemoveInvoiceSubscribtion(lock sync.Locker, subMap map[string]interface{}, rHash string) {
+	lock.Lock()
+	defer lock.Unlock()
+	delete(subMap, rHash)
+}
+
+func HasInvoiceSubscribtion(subMap map[string]interface{}, rHash string) bool {
+	_, ok := subMap[rHash]
+	return ok
+}
+
 func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
 	cc, err := getClientConnection(ctx, tlsCertPath, macaroonPath, address)
 	if err != nil {
@@ -327,14 +358,15 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 		return nil, err
 	}
 	return &Lnd{
-		lndClient:      lndClient,
-		walletClient:   walletClient,
-		routerClient:   routerClient,
-		invoicesClient: invoicesClient,
-		bitcoinOnChain: chain,
-		cc:             cc,
-		ctx:            ctx,
-		pubkey:         gi.IdentityPubkey,
+		lndClient:            lndClient,
+		walletClient:         walletClient,
+		routerClient:         routerClient,
+		invoicesClient:       invoicesClient,
+		bitcoinOnChain:       chain,
+		cc:                   cc,
+		ctx:                  ctx,
+		pubkey:               gi.IdentityPubkey,
+		invoiceSubscriptions: make(map[string]interface{}),
 	}, nil
 }
 

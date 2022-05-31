@@ -3,6 +3,7 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
+	"sync"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/peerswap/log"
@@ -20,11 +21,22 @@ type LndTxWatcher struct {
 	txCallback        func(swapId string, txHex string) error
 	csvPassedCallback func(swapId string) error
 
+	txConfirmationSubscriptionMap map[string]interface{}
+	csvPassedSubscriptionMap      map[string]interface{}
+
 	ctx context.Context
+
+	sync.Mutex
 }
 
 func NewLndTxWatcher(ctx context.Context, chainNotifier chainrpc.ChainNotifierClient, lnrpc lnrpc.LightningClient, network *chaincfg.Params) *LndTxWatcher {
-	return &LndTxWatcher{chainNotifier: chainNotifier, lnrpc: lnrpc, network: network, ctx: ctx}
+	return &LndTxWatcher{
+		chainNotifier:                 chainNotifier,
+		lnrpc:                         lnrpc,
+		network:                       network,
+		txConfirmationSubscriptionMap: make(map[string]interface{}),
+		csvPassedSubscriptionMap:      make(map[string]interface{}),
+		ctx:                           ctx}
 }
 
 func (l *LndTxWatcher) GetBlockHeight() (uint32, error) {
@@ -36,7 +48,16 @@ func (l *LndTxWatcher) GetBlockHeight() (uint32, error) {
 }
 
 func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, outputScript []byte) {
+	// Check if service is already subscribed
+	if HasInvoiceSubscribtion(l.txConfirmationSubscriptionMap, swapId) {
+		return
+	}
+
 	go func() {
+		// add subscribtion
+		AddInvoiceSubscription(l, l.txConfirmationSubscriptionMap, swapId)
+		defer RemoveInvoiceSubscribtion(l, l.txConfirmationSubscriptionMap, swapId)
+
 		confDetails, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, onchain.BitcoinMinConfs, outputScript)
 		if err != nil {
 			log.Infof("error waiting for confirmation of tx %v", err)
@@ -52,7 +73,16 @@ func (l *LndTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, start
 }
 
 func (l *LndTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, outputScript []byte) {
+	// Check if service is already subscribed
+	if HasInvoiceSubscribtion(l.csvPassedSubscriptionMap, swapId) {
+		return
+	}
+
 	go func() {
+		// add subscribtion
+		AddInvoiceSubscription(l, l.csvPassedSubscriptionMap, swapId)
+		defer RemoveInvoiceSubscribtion(l, l.csvPassedSubscriptionMap, swapId)
+
 		// get confirmation height of tx
 
 		res, err := l.listenConfirmationsNtfn(swapId, txId, startingHeight, 1, outputScript)
