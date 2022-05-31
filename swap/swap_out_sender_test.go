@@ -253,8 +253,7 @@ type dummyLightningClient struct {
 	failpayment     bool
 }
 
-func (d *dummyLightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) (alreadyPaid bool) {
-	return false
+func (d *dummyLightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) {
 }
 
 func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {

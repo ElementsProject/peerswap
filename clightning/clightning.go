@@ -69,52 +69,42 @@ type ClightningClient struct {
 	bitcoinChain   *onchain.BitcoinOnChain
 	bitcoinNetwork *chaincfg.Params
 
-	msgHandlers          []func(peerId string, messageType string, payload []byte) error
-	paymentSubscriptions []func(swapId string, invoiceType swap.InvoiceType)
-	initChan             chan interface{}
-	nodeId               string
-	hexToIdMap           map[string]string
+	msgHandlers     []func(peerId string, messageType string, payload []byte) error
+	paymenthandlers []func(swapId string, invoiceType swap.InvoiceType)
+	initChan        chan interface{}
+	nodeId          string
+	hexToIdMap      map[string]string
 
 	ctx context.Context
 }
 
 func (cl *ClightningClient) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {
-	cl.paymentSubscriptions = append(cl.paymentSubscriptions, f)
+	cl.paymenthandlers = append(cl.paymenthandlers, f)
 }
 
-func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) bool {
-	res, err := cl.glightning.GetInvoice(getLabel(swapId, invoiceType))
-	if err != nil {
-		log.Debugf("[Payment Notifier] Error %v", err)
-	}
-	if res.Status == "paid" {
-		return true
-	}
+func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) {
 	go func() {
-		for {
-			select {
-			case <-cl.ctx.Done():
-				return
-			default:
-				res, err := cl.glightning.WaitInvoice(getLabel(swapId, invoiceType))
-				if err != nil {
-					log.Debugf("[Payment Notifier] Error %v", err)
-				} else {
-					if res.Status == "paid" {
-						for _, v := range cl.paymentSubscriptions {
-							go v(swapId, invoiceType)
-							return
-						}
-						// todo should that be done?payment receiver generally should not do that
-					} else if res.Status == "expired" {
-						return
-					}
-				}
-				time.Sleep(100 * time.Millisecond)
+		// WaitInvoice is a blocking call that returns as soon as an invoice is
+		// either paid or expired.
+		res, err := cl.glightning.WaitInvoice(getLabel(swapId, invoiceType))
+		if err != nil {
+			log.Debugf("[Payment Notifier] Error %v", err)
+			return
+		}
+
+		switch res.Status {
+		case "paid":
+			for _, handler := range cl.paymenthandlers {
+				go handler(swapId, invoiceType)
 			}
+			return
+		case "expired":
+			return
+		default:
+			log.Debugf("Payment notifier received an unexpected status: %v", res.Status)
+			return
 		}
 	}()
-	return false
 }
 
 // NewClightningClient returns a new clightning cl and channel which get closed when the Plugin is initialized

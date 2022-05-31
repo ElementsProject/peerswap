@@ -39,7 +39,7 @@ type LightningClient interface {
 	PayInvoice(payreq string) (preImage string, err error)
 	GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expirySeconds uint64) (string, error)
 	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
-	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) (alreadyPaid bool)
+	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType)
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 }
 
