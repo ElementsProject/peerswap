@@ -269,9 +269,19 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 		return "", fmt.Errorf("sendtoaddress %w", err)
 	}
 
-	txId, err := r.GetString()
+	var a struct {
+		TxId   string
+		Abc    error
+		Reason int
+	}
+
+	var txId string
+	err = r.GetObject(&a)
 	if err != nil {
-		return "", err
+		txId, err = r.GetString()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if mineBlock {
@@ -289,7 +299,7 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 }
 
 func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
-	_, err := n.FundWallet(10*capacity, true)
+	_, err := n.FundWallet(uint64(1.5*float64(capacity)), true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
 	}

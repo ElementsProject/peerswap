@@ -41,7 +41,7 @@ type LndNode struct {
 	bitcoin *BitcoinNode
 }
 
-func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) {
+func NewLndNode(testDir string, bitcoin *BitcoinNode, id int, extraConfig map[string]string) (*LndNode, error) {
 	listen, err := GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)
@@ -78,6 +78,10 @@ func NewLndNode(testDir string, bitcoin *BitcoinNode, id int) (*LndNode, error) 
 	regtestConfig["bitcoind.rpcpass"] = bitcoin.RpcPassword
 	regtestConfig["bitcoind.zmqpubrawblock"] = bitcoin.ZmqPubRawBlock
 	regtestConfig["bitcoind.zmqpubrawtx"] = bitcoin.ZmqPubRawTx
+
+	for k, v := range extraConfig {
+		regtestConfig[k] = v
+	}
 
 	configFile := filepath.Join(dataDir, "lnd.conf")
 	WriteConfig(configFile, regtestConfig, nil, "")
@@ -246,9 +250,19 @@ func (n *LndNode) FundWallet(sats uint64, mineBlock bool) (string, error) {
 		return "", fmt.Errorf("sendtoaddress %w", err)
 	}
 
-	txId, err := r.GetString()
+	var a struct {
+		TxId   string
+		Abc    error
+		Reason int
+	}
+
+	var txId string
+	err = r.GetObject(&a)
 	if err != nil {
-		return "", err
+		txId, err = r.GetString()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if mineBlock {
@@ -267,7 +281,7 @@ func (n *LndNode) FundWallet(sats uint64, mineBlock bool) (string, error) {
 
 func (n *LndNode) OpenChannel(peer LightningNode, capacity uint64, connect, confirm, waitForChannelActive bool) (string, error) {
 	// fund wallet 10*cap
-	_, err := n.FundWallet(10*capacity, true)
+	_, err := n.FundWallet(uint64(1.1*float64(capacity)), true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
 	}
