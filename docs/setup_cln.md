@@ -15,7 +15,7 @@ Install golang from https://golang.org/doc/install
 Clone into the peerswap repository and build the peerswap plugin
 
 ```bash
-git clone git@github.com:sputn1ck/peerswap.git && \
+git clone https://github.com/ElementsProject/peerswap.git && \
 cd peerswap && \
 make cln-release
 ```
