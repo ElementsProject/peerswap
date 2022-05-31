@@ -47,6 +47,33 @@ type Lnd struct {
 	sync.Mutex
 }
 
+func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
+	cc, err := getClientConnection(ctx, tlsCertPath, macaroonPath, address)
+	if err != nil {
+		return nil, err
+	}
+	lndClient := lnrpc.NewLightningClient(cc)
+	walletClient := walletrpc.NewWalletKitClient(cc)
+	routerClient := routerrpc.NewRouterClient(cc)
+	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
+
+	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return &Lnd{
+		lndClient:            lndClient,
+		walletClient:         walletClient,
+		routerClient:         routerClient,
+		invoicesClient:       invoicesClient,
+		bitcoinOnChain:       chain,
+		cc:                   cc,
+		ctx:                  ctx,
+		pubkey:               gi.IdentityPubkey,
+		invoiceSubscriptions: make(map[string]interface{}),
+	}, nil
+}
+
 func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) (alreadyPaid bool) {
 	invoice, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
@@ -341,33 +368,6 @@ func RemoveInvoiceSubscribtion(lock sync.Locker, subMap map[string]interface{}, 
 func HasInvoiceSubscribtion(subMap map[string]interface{}, rHash string) bool {
 	_, ok := subMap[rHash]
 	return ok
-}
-
-func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
-	cc, err := getClientConnection(ctx, tlsCertPath, macaroonPath, address)
-	if err != nil {
-		return nil, err
-	}
-	lndClient := lnrpc.NewLightningClient(cc)
-	walletClient := walletrpc.NewWalletKitClient(cc)
-	routerClient := routerrpc.NewRouterClient(cc)
-	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
-
-	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return &Lnd{
-		lndClient:            lndClient,
-		walletClient:         walletClient,
-		routerClient:         routerClient,
-		invoicesClient:       invoicesClient,
-		bitcoinOnChain:       chain,
-		cc:                   cc,
-		ctx:                  ctx,
-		pubkey:               gi.IdentityPubkey,
-		invoiceSubscriptions: make(map[string]interface{}),
-	}, nil
 }
 
 func getClientConnection(ctx context.Context, tlsCertPath, macaroonPath, address string) (*grpc.ClientConn, error) {
