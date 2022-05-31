@@ -80,22 +80,14 @@ func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.
 		log.Infof("decode invoice error")
 		return false
 	}
+
 	rHash, err := hex.DecodeString(invoice.PaymentHash)
 	if err != nil {
 		log.Infof("decode rhash error")
 		return false
 	}
-	lookup, err := l.lndClient.LookupInvoice(l.ctx, &lnrpc.PaymentHash{RHash: rHash})
-	if err != nil && (lookup.State == lnrpc.Invoice_SETTLED && lookup.AmtPaidSat == invoice.NumSatoshis) {
-		return true
-	}
-	// Check if service is already subscribed
-	if HasInvoiceSubscribtion(l.invoiceSubscriptions, invoice.PaymentHash) {
-		return false
-	}
 
 	go func() {
-
 		// add subscribtion
 		AddInvoiceSubscription(l, l.invoiceSubscriptions, invoice.PaymentHash)
 		defer RemoveInvoiceSubscribtion(l, l.invoiceSubscriptions, invoice.PaymentHash)
