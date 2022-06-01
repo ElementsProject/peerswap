@@ -15,8 +15,8 @@ Install golang from https://golang.org/doc/install
 Clone into the peerswap repository and build the peerswap plugin
 
 ```bash
-git clone https://github.com/ElementsProject/peerswap.git && \
-cd peerswap && \
+git clone https://github.com/ElementsProject/peerswap.git
+cd peerswap
 make cln-release
 ```
 
@@ -30,11 +30,16 @@ In order to run `peerswap` add following lines to your the core-lightning config
 
 
 ```bash
-plugin=<LOCATION_TO_PEERSWAP-PLUGIN>
+plugin=/PATH/TO/peerswap-plugin
+log-level=debug:plugin-peerswap-plugin
 ```
+
+Specify the full path to the `peerswap-plugin` binary. For now it is recommended to log all debug messages from peerswap.
+
 Peerswap will automatically try to connect to your bitcoind and (if available) elementsd
 
 The following optional configs can be specified:
+
 ```bash
 # General
 peerswap-db-path ## Path to swap db file (default: $HOME/.lightning/<network>/peerswap/swap)
@@ -57,6 +62,7 @@ peerswap-elementsd-rpcwallet ## Rpcwallet to use (default: peerswap)
 ```
 
 In order to check if your daemon is setup correctly run
+
 ```bash
 lightning-cli peerswap-reloadpolicy
 ```
