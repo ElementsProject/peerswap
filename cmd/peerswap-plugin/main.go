@@ -88,7 +88,7 @@ func run() error {
 	}()
 	<-initChan
 	log.SetLogger(clightning.NewGlightninglogger(lightningPlugin.Plugin))
-	log.Debugf("PeerSwap Initialized, running PeerSwap commit %s", GitCommit)
+	log.Infof("PeerSwap Initialized, running PeerSwap commit %s", GitCommit)
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {
 		return err
