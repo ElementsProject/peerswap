@@ -72,3 +72,15 @@ lightning-cli peerswap-reloadpolicy
 On first startup of the plugin a policy file will be generated (default path: `~/.lightning/<network>/peerswap/policy.conf`) in which trusted nodes will be specified.
 This cann be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `lightning-cli peerswap-addpeer <PUBKEY>`. If you feel especially reckless you can add the line 
 `accept_all_peers=true` this will allow anyone with a direct channel to you do do a swap with you.
+
+### Debugging peerswap-plugin crashes
+
+Currently if `peerswap-plugin` crashes looks like this in lightningd's log.
+
+```
+INFO    plugin-peerswap-plugin: Killing plugin: exited during normal operation
+```
+
+When this happens you can find the traceback in `~/.lightning/bitcoin/peerswap/peerswap-panic-log`. Look at the file timestap to confirm it corresponds to the current crash. When you report an issue please include your CLN version, PeerSwap githash, this crash traceback, peerswap log messages during the event, and any other relevant details of what led to the failure.
+
+We plan to improve this in [issue #6](https://github.com/ElementsProject/peerswap/issues/6) where glightning learns how to print the traceback via CLN's logging API.
