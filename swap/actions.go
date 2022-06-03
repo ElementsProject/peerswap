@@ -271,10 +271,7 @@ func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData
 	}
 
 	// invoice payment part
-	alreadyPaid := services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
-	if alreadyPaid {
-		return Event_OnClaimInvoicePaid
-	}
+	services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
 
 	// csv part
 	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
@@ -291,10 +288,7 @@ type AwaitFeeInvoicePayment struct{}
 
 func (w *AwaitFeeInvoicePayment) Execute(services *SwapServices, swap *SwapData) EventType {
 	// invoice payment part
-	alreadyPaid := services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.SwapOutAgreement.Payreq, INVOICE_FEE)
-	if alreadyPaid {
-		return Event_OnFeeInvoicePaid
-	}
+	services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.SwapOutAgreement.Payreq, INVOICE_FEE)
 	return NoOp
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -40,69 +41,98 @@ type Lnd struct {
 	ctx context.Context
 
 	messageHandler       []func(peerId string, msgType string, payload []byte) error
-	paymentCallback      []func(swapId string, invoiceType swap.InvoiceType)
+	paymentCallbacks     []func(swapId string, invoiceType swap.InvoiceType)
 	invoiceSubscriptions map[string]interface{}
 	pubkey               string
 
 	sync.Mutex
 }
 
-func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) (alreadyPaid bool) {
+func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
+	// TODO: Refactor this module so that it becomes testable. At the moment a
+	// LND client is always needed, so we can not provide mocked unit tests.
+
+	cc, err := getClientConnection(ctx, tlsCertPath, macaroonPath, address)
+	if err != nil {
+		return nil, err
+	}
+	lndClient := lnrpc.NewLightningClient(cc)
+	walletClient := walletrpc.NewWalletKitClient(cc)
+	routerClient := routerrpc.NewRouterClient(cc)
+	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
+
+	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return &Lnd{
+		lndClient:            lndClient,
+		walletClient:         walletClient,
+		routerClient:         routerClient,
+		invoicesClient:       invoicesClient,
+		bitcoinOnChain:       chain,
+		cc:                   cc,
+		ctx:                  ctx,
+		pubkey:               gi.IdentityPubkey,
+		invoiceSubscriptions: make(map[string]interface{}),
+	}, nil
+}
+
+func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) {
+	// OPTIMIZE: Think about what happens on reconnection to a restarted lnd node.
 	invoice, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
-		log.Infof("decode invoice error")
-		return false
+		log.Infof("decode invoice error: %v", err)
 	}
+
+	if HasInvoiceSubscribtion(l.invoiceSubscriptions, invoice.PaymentHash) {
+		log.Debugf("Already subscribed to invoice with payment hash: %s", invoice.PaymentHash)
+		return
+	}
+
 	rHash, err := hex.DecodeString(invoice.PaymentHash)
 	if err != nil {
-		log.Infof("decode rhash error")
-		return false
+		log.Infof("decode rhash error: %v", err)
 	}
-	lookup, err := l.lndClient.LookupInvoice(l.ctx, &lnrpc.PaymentHash{RHash: rHash})
-	if err != nil && (lookup.State == lnrpc.Invoice_SETTLED && lookup.AmtPaidSat == invoice.NumSatoshis) {
-		return true
-	}
-	// Check if service is already subscribed
-	if HasInvoiceSubscribtion(l.invoiceSubscriptions, invoice.PaymentHash) {
-		return false
+
+	AddInvoiceSubscription(l, l.invoiceSubscriptions, invoice.PaymentHash)
+	cctx, cancel := context.WithCancel(l.ctx)
+
+	// Subscribe to invoice stream. If the stream returns a status update that
+	// an invoice is settled we call the callbacks.
+	stream, err := l.invoicesClient.SubscribeSingleInvoice(cctx, &invoicesrpc.SubscribeSingleInvoiceRequest{RHash: rHash})
+	if err != nil {
+		log.Infof("Could not subscribe to single invoice: %v", err)
+		cancel()
 	}
 
 	go func() {
-
-		// add subscribtion
-		AddInvoiceSubscription(l, l.invoiceSubscriptions, invoice.PaymentHash)
 		defer RemoveInvoiceSubscribtion(l, l.invoiceSubscriptions, invoice.PaymentHash)
+		defer cancel()
 
 		for {
-			select {
-			case <-l.ctx.Done():
-				log.Debugf("context done")
+			res, err := stream.Recv()
+			if err == io.EOF {
 				return
-			default:
-				stream, err := l.invoicesClient.SubscribeSingleInvoice(l.ctx, &invoicesrpc.SubscribeSingleInvoiceRequest{RHash: rHash})
-				if err == nil {
-					inv, err := stream.Recv()
-					if err == nil {
-						switch inv.State {
-						case lnrpc.Invoice_SETTLED:
-							for _, v := range l.paymentCallback {
-								if inv.AmtPaidSat == invoice.NumSatoshis {
-									go v(swapId, invoiceType)
-								}
-							}
-							return
-						case lnrpc.Invoice_CANCELED:
-							return
-						}
-					}
+			}
 
+			if err != nil {
+				log.Debugf("LndPaymentNotifier: Could not read from stream: %v", err)
+				return
+			}
+
+			switch res.State {
+			case lnrpc.Invoice_SETTLED:
+				for _, handler := range l.paymentCallbacks {
+					go handler(swapId, invoiceType)
 				}
-				time.Sleep(100 * time.Millisecond)
+				return
 
+			case lnrpc.Invoice_CANCELED:
+				return
 			}
 		}
 	}()
-	return false
 }
 
 func (l *Lnd) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
@@ -165,7 +195,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string,
 }
 
 func (l *Lnd) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {
-	l.paymentCallback = append(l.paymentCallback, f)
+	l.paymentCallbacks = append(l.paymentCallbacks, f)
 }
 
 func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
@@ -341,33 +371,6 @@ func RemoveInvoiceSubscribtion(lock sync.Locker, subMap map[string]interface{}, 
 func HasInvoiceSubscribtion(subMap map[string]interface{}, rHash string) bool {
 	_, ok := subMap[rHash]
 	return ok
-}
-
-func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
-	cc, err := getClientConnection(ctx, tlsCertPath, macaroonPath, address)
-	if err != nil {
-		return nil, err
-	}
-	lndClient := lnrpc.NewLightningClient(cc)
-	walletClient := walletrpc.NewWalletKitClient(cc)
-	routerClient := routerrpc.NewRouterClient(cc)
-	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
-
-	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return &Lnd{
-		lndClient:            lndClient,
-		walletClient:         walletClient,
-		routerClient:         routerClient,
-		invoicesClient:       invoicesClient,
-		bitcoinOnChain:       chain,
-		cc:                   cc,
-		ctx:                  ctx,
-		pubkey:               gi.IdentityPubkey,
-		invoiceSubscriptions: make(map[string]interface{}),
-	}, nil
 }
 
 func getClientConnection(ctx context.Context, tlsCertPath, macaroonPath, address string) (*grpc.ClientConn, error) {

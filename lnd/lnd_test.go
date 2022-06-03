@@ -51,6 +51,10 @@ func (t *Testthing) callback(swapId string) error {
 }
 
 func Test_LndClightningPayments(t *testing.T) {
+	// NOTE: It seems that this tests a basic lightning
+	// invoice payment be a cln node to a lnd node. Is this really something
+	// we need to test?
+	// -> This should be removed I guess.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -244,6 +248,7 @@ loop:
 	log.Printf("spending txid: %s", spendingTxId)
 
 }
+
 func Test_LndSystemsCsv(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -350,6 +355,9 @@ loop:
 }
 
 func Test_Lnd(t *testing.T) {
+	// NOTE: Can we remove the comments from this function? If yes, please do
+	// so.
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -537,6 +545,7 @@ func Test_Lnd(t *testing.T) {
 	//spendingTxHex := hex.EncodeToString(bytesBuffer.Bytes())
 
 }
+
 func Test_FeeBump(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -563,7 +572,11 @@ func Test_FeeBump(t *testing.T) {
 	})
 	log.Printf("%v", bumpres)
 }
+
 func Test_BigPayment(t *testing.T) {
+	// NOTE: It seems that this test only performs a payment between two lnd
+	// nodes. Do we really need to test core lnd functionality?
+	// -> This should be removed I guess.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	lndConn1, err := getClientConnectenLocal(ctx, 2)
@@ -628,6 +641,11 @@ func Test_BigPayment(t *testing.T) {
 	log.Printf("payreq: %v", sendToRoute)
 }
 
+func Test_PaymentNotifierMaxCalledOnce(t *testing.T) {
+	lnd := lndconn
+}
+
+// NOTE: Please remove this part if not needed anymore!
 // No featurebit pr for now
 // func Test_Featurebits(t *testing.T) {
 // 	ctx, cancel := context.WithCancel(context.Background())
