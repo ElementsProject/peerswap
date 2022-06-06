@@ -17,7 +17,7 @@ Clone the peerswap repository and build the peerswap plugin
 ```bash
 git clone https://github.com/ElementsProject/peerswap.git && \
 cd peerswap && \
-make lnd-install
+make lnd-release
 ```
 
 This will install `peerswapd` and `pscli` to your go path
