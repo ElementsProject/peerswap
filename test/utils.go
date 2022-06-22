@@ -150,22 +150,6 @@ func waitForBlockheightSync(t *testing.T, timeout time.Duration, nodes ...testfr
 	}
 }
 
-func shiftBalance(t *testing.T, from testframework.LightningNode, to testframework.LightningNode,
-	scid string, amt uint64, batches int, timeout time.Duration) error {
-
-	// We have to do this in batches as it would fail on big amounts.
-	var inv string
-	var err error
-	for i := 0; i < batches; i++ {
-		inv, err = to.AddInvoice(amt/uint64(batches), "shift balance", "")
-		require.NoError(t, err)
-
-		err = from.PayInvoice(inv)
-		require.NoError(t, err)
-	}
-	return nil
-}
-
 func waitForTxInMempool(t *testing.T, chainRpc *testframework.RpcProxy, timeout time.Duration) (satFee uint64, err error) {
 	err = testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
