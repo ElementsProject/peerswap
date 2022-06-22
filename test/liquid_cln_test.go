@@ -19,7 +19,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -89,7 +89,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -159,7 +159,7 @@ func Test_ClnCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -235,7 +235,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -305,7 +305,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -375,7 +375,7 @@ func Test_ClnCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -451,7 +451,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -525,7 +525,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -599,7 +599,7 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -680,7 +680,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -694,12 +694,12 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 						lines: defaultLines,
 					},
 					tailableProcess{
-						p:      lightningds[0].(*testframework.CLightningNode).DaemonProcess,
+						p:      lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
 						filter: filter,
 						lines:  defaultLines,
 					},
 					tailableProcess{
-						p:     lightningds[1].(*testframework.LndNode).DaemonProcess,
+						p:     lightningds[1].(*LndNodeWithLiquid).DaemonProcess,
 						lines: defaultLines,
 					},
 					tailableProcess{
@@ -753,7 +753,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -826,7 +826,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")

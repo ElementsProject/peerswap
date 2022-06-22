@@ -64,6 +64,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		lightningd.AppendCmdLine([]string{
 			"--dev-bitcoind-poll=1",
 			"--dev-fast-gossip",
+			"--large-channels",
 			fmt.Sprint("--plugin=", pathToPlugin),
 			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
 		})
@@ -120,7 +121,8 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 
 	var lightningds []*testframework.LndNode
 	for i := 1; i <= 2; i++ {
-		lightningd, err := testframework.NewLndNode(testDir, bitcoind, i)
+		extraConfig := map[string]string{"protocol.wumbo-channels": "true"}
+		lightningd, err := testframework.NewLndNode(testDir, bitcoind, i, extraConfig)
 		if err != nil {
 			t.Fatalf("could not create liquidd %v", err)
 		}
@@ -212,12 +214,14 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	cln.AppendCmdLine([]string{
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
+		"--large-channels",
 		fmt.Sprint("--plugin=", peerswapPluginPath),
 		fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(cln.DataDir, "policy.conf")),
 	})
 
 	// lnd
-	lnd, err := testframework.NewLndNode(testDir, bitcoind, 1)
+	extraConfig := map[string]string{"protocol.wumbo-channels": "true"}
+	lnd, err := testframework.NewLndNode(testDir, bitcoind, 1, extraConfig)
 	if err != nil {
 		t.Fatalf("could not create lnd %v", err)
 	}
@@ -300,7 +304,6 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	t.Cleanup(liquidd.Kill)
 
 	var lightningds []*testframework.CLightningNode
-	var liquidWalletNames []string
 	for i := 1; i <= 2; i++ {
 		lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, i)
 		if err != nil {
@@ -317,7 +320,6 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 
 		// Set wallet name
 		walletName := fmt.Sprintf("swap%d", i)
-		liquidWalletNames = append(liquidWalletNames, walletName)
 
 		// Use lightningd with dev flags enabled
 		lightningd.WithCmd("lightningd-dev")
@@ -326,6 +328,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		lightningd.AppendCmdLine([]string{
 			"--dev-bitcoind-poll=1",
 			"--dev-fast-gossip",
+			"--large-channels",
 			fmt.Sprint("--plugin=", pathToPlugin),
 			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
 			"--peerswap-elementsd-rpchost=http://127.0.0.1",
@@ -364,8 +367,8 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	for _, lightningd := range lightningds {
 		var result clightning.GetAddressResponse
 		lightningd.Rpc.Request(&clightning.LiquidGetAddress{}, &result)
-
-		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 1., "", "", false, false, 1, "UNSET")
+		_ = liquidd.GenerateBlocks(20)
+		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 10., "", "", false, false, 1, "UNSET")
 		require.NoError(t, err)
 	}
 
@@ -419,7 +422,8 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 
 	var lightningds []*testframework.LndNode
 	for i := 1; i <= 2; i++ {
-		lightningd, err := testframework.NewLndNode(testDir, bitcoind, i)
+		extraConfig := map[string]string{"protocol.wumbo-channels": "true"}
+		lightningd, err := testframework.NewLndNode(testDir, bitcoind, i, extraConfig)
 		if err != nil {
 			t.Fatalf("could not create liquidd %v", err)
 		}
@@ -483,8 +487,8 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	for _, peerswapd := range peerswapds {
 		r, err := peerswapd.PeerswapClient.LiquidGetAddress(context.Background(), &peerswaprpc.GetAddressRequest{})
 		require.NoError(t, err)
-
-		_, err = liquidd.Rpc.Call("sendtoaddress", r.Address, 1., "", "", false, false, 1, "UNSET")
+		_ = liquidd.GenerateBlocks(20)
+		_, err = liquidd.Rpc.Call("sendtoaddress", r.Address, 10., "", "", false, false, 1, "UNSET")
 		require.NoError(t, err)
 	}
 
@@ -549,6 +553,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	cln.AppendCmdLine([]string{
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
+		"--large-channels",
 		fmt.Sprint("--plugin=", peerswapPluginPath),
 		fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(cln.DataDir, "policy.conf")),
 		"--peerswap-elementsd-rpchost=http://127.0.0.1",
@@ -559,7 +564,8 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	})
 
 	// lnd
-	lnd, err := testframework.NewLndNode(testDir, bitcoind, 1)
+	extraConfigLnd := map[string]string{"protocol.wumbo-channels": "true"}
+	lnd, err := testframework.NewLndNode(testDir, bitcoind, 1, extraConfigLnd)
 	if err != nil {
 		t.Fatalf("could not create lnd %v", err)
 	}
@@ -610,12 +616,14 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	// Give liquid funds to nodes to have something to swap.
 	var lar clightning.GetAddressResponse
 	cln.Rpc.Request(&clightning.LiquidGetAddress{}, &lar)
-	_, err = liquidd.Rpc.Call("sendtoaddress", lar.LiquidAddress, 1., "", "", false, false, 1, "UNSET")
+	_ = liquidd.GenerateBlocks(20)
+	_, err = liquidd.Rpc.Call("sendtoaddress", lar.LiquidAddress, 10., "", "", false, false, 1, "UNSET")
 	require.NoError(t, err)
 
 	r, err := peerswapd.PeerswapClient.LiquidGetAddress(context.Background(), &peerswaprpc.GetAddressRequest{})
 	require.NoError(t, err)
-	_, err = liquidd.Rpc.Call("sendtoaddress", r.Address, 1., "", "", false, false, 1, "UNSET")
+	_ = liquidd.GenerateBlocks(20)
+	_, err = liquidd.Rpc.Call("sendtoaddress", r.Address, 10., "", "", false, false, 1, "UNSET")
 	require.NoError(t, err)
 
 	// Lock txs.

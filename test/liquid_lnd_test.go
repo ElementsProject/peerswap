@@ -19,7 +19,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -103,7 +103,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -187,7 +187,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -277,7 +277,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -362,7 +362,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -447,7 +447,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(6)))
+		bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				pprintFail(
@@ -538,7 +538,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -620,7 +620,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -702,7 +702,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -790,7 +790,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -872,7 +872,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -954,7 +954,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
