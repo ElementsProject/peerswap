@@ -453,6 +453,32 @@ func (n *CLightningNode) PayInvoice(payreq string) error {
 	return err
 }
 
+func (n *CLightningNode) SendPay(bolt11, scid string) error {
+	decodedBolt11, err := n.Rpc.DecodeBolt11(bolt11)
+	if err != nil {
+		return err
+	}
+
+	_, err = n.Rpc.SendPay([]glightning.RouteHop{
+		{
+			Id:             decodedBolt11.Payee,
+			ShortChannelId: scid,
+			MilliSatoshi:   decodedBolt11.MilliSatoshis,
+			AmountMsat:     decodedBolt11.AmountMsat,
+			Delay:          uint(decodedBolt11.MinFinalCltvExpiry + 1),
+			Direction:      0,
+		},
+	},
+		decodedBolt11.PaymentHash,
+		"",
+		&decodedBolt11.MilliSatoshis,
+		bolt11,
+		decodedBolt11.PaymentSecret,
+		0,
+	)
+	return err
+}
+
 func (n *CLightningNode) GetDataDir() string {
 	return n.dataDir
 }

@@ -479,6 +479,10 @@ func (n *LndNode) PayInvoice(payreq string) error {
 	return nil
 }
 
+func (n *LndNode) SendPay(bolt11, _ string) error {
+	return n.PayInvoice(bolt11)
+}
+
 func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)
