@@ -220,7 +220,7 @@ func (cl *ClightningClient) GetFlatSwapOutFee() (uint64, error) {
 	return cl.bitcoinChain.GetFee(218)
 }
 
-func (cl *ClightningClient) GetFeePerKw(targetblocks uint32) (float64, error) {
+func (cl *ClightningClient) GetSatsPerVByte(targetblocks uint32) (float64, error) {
 	if cl.bitcoinNetwork == &chaincfg.RegressionNetParams {
 		return 1, nil
 	}

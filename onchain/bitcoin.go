@@ -25,7 +25,7 @@ type BitcoinOnChain struct {
 }
 
 type FeeEstimator interface {
-	GetFeePerKw(targetBlocks uint32) (float64, error)
+	GetSatsPerVByte(targetBlocks uint32) (float64, error)
 }
 
 func NewBitcoinOnChain(estimator FeeEstimator, chain *chaincfg.Params) *BitcoinOnChain {
@@ -255,7 +255,7 @@ func (b *BitcoinOnChain) GetFeeSatsFromTx(psbtString, txHex string) (uint64, err
 }
 
 func (b *BitcoinOnChain) GetFee(txSize int) (uint64, error) {
-	satPerByte, err := b.estimator.GetFeePerKw(BitcoinFeeTargetBlocks)
+	satPerByte, err := b.estimator.GetSatsPerVByte(BitcoinFeeTargetBlocks)
 	if err != nil {
 		return 0, err
 	}
