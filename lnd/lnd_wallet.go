@@ -256,11 +256,11 @@ func NewLndFeeEstimator(ctx context.Context, walletkit walletrpc.WalletKitClient
 	return &LndFeeEstimator{ctx: ctx, walletkit: walletkit}
 }
 
-func (l *LndFeeEstimator) GetFeePerKw(targetBlocks uint32) (float64, error) {
+func (l *LndFeeEstimator) GetSatsPerVByte(targetBlocks uint32) (float64, error) {
 	res, err := l.walletkit.EstimateFee(l.ctx, &walletrpc.EstimateFeeRequest{ConfTarget: int32(targetBlocks)})
 	if err != nil {
 		return 0, err
 	}
 
-	return float64(res.SatPerKw / 4000), nil
+	return float64(res.SatPerKw / 250), nil
 }
