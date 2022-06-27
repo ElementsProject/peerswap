@@ -269,9 +269,19 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 		return "", fmt.Errorf("sendtoaddress %w", err)
 	}
 
-	txId, err := r.GetString()
+	var a struct {
+		TxId   string
+		Abc    error
+		Reason int
+	}
+
+	var txId string
+	err = r.GetObject(&a)
 	if err != nil {
-		return "", err
+		txId, err = r.GetString()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if mineBlock {
@@ -289,7 +299,7 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 }
 
 func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
-	_, err := n.FundWallet(10*capacity, true)
+	_, err := n.FundWallet(uint64(1.5*float64(capacity)), true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
 	}
@@ -440,6 +450,32 @@ func (n *CLightningNode) AddInvoice(amtSat uint64, desc, label string) (payreq s
 
 func (n *CLightningNode) PayInvoice(payreq string) error {
 	_, err := n.Rpc.PayBolt(payreq)
+	return err
+}
+
+func (n *CLightningNode) SendPay(bolt11, scid string) error {
+	decodedBolt11, err := n.Rpc.DecodeBolt11(bolt11)
+	if err != nil {
+		return err
+	}
+
+	_, err = n.Rpc.SendPay([]glightning.RouteHop{
+		{
+			Id:             decodedBolt11.Payee,
+			ShortChannelId: scid,
+			MilliSatoshi:   decodedBolt11.MilliSatoshis,
+			AmountMsat:     decodedBolt11.AmountMsat,
+			Delay:          uint(decodedBolt11.MinFinalCltvExpiry + 1),
+			Direction:      0,
+		},
+	},
+		decodedBolt11.PaymentHash,
+		"",
+		&decodedBolt11.MilliSatoshis,
+		bolt11,
+		decodedBolt11.PaymentSecret,
+		0,
+	)
 	return err
 }
 

@@ -24,4 +24,5 @@ type LightningNode interface {
 
 	AddInvoice(amtSat uint64, desc, label string) (payreq string, err error)
 	PayInvoice(payreq string) error
+	SendPay(bolt11, scid string) error
 }

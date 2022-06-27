@@ -43,8 +43,11 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	// Move local balance from taker to maker so that the taker does not
 	// have enough balance to pay the invoice and cancels the swap coop.
 	moveAmt := (params.origTakerBalance - params.swapAmt) + 100
-	batches := 2
-	shiftBalance(t, params.takerNode, params.makerNode, params.scid, moveAmt, batches, testframework.TIMEOUT)
+	inv, err := params.makerNode.AddInvoice(moveAmt, "shift balance", "")
+	require.NoError(err)
+
+	err = params.takerNode.SendPay(inv, params.scid)
+	require.NoError(err)
 
 	// Check channel taker balance is less than the swapAmt.
 	var setTakerFunds uint64

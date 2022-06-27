@@ -19,7 +19,7 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -85,7 +85,7 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -151,7 +151,7 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -223,7 +223,7 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -289,7 +289,7 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -355,7 +355,7 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -427,7 +427,7 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -496,7 +496,7 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -565,7 +565,7 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_LND)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -641,7 +641,7 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -710,7 +710,7 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -779,7 +779,7 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(6)), FUNDER_CLN)
+		bitcoind, lightningds, peerswapd, scid := mixedSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
 		defer func() {
 			if t.Failed() {
 				filter := os.Getenv("PEERSWAP_TEST_FILTER")
