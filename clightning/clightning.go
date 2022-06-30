@@ -268,6 +268,28 @@ func (cl *ClightningClient) PayInvoice(payreq string) (preimage string, err erro
 	return res.PaymentPreimage, nil
 }
 
+// PayInvoiceViaChannel ensures that the invoice is payed via the direct
+// channel to the peer.
+func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (preimage string, err error) {
+	bolt11, err := cl.glightning.DecodeBolt11(payreq)
+	if err != nil {
+		return "", err
+	}
+
+	label := randomString()
+	_, err = cl.SendPayPart(payreq, bolt11, bolt11.MilliSatoshis, scid, label, 0)
+	if err != nil {
+		return "", err
+	}
+	res, err := cl.glightning.WaitSendPay(bolt11.PaymentHash, 0)
+	if err != nil {
+		return "", err
+	}
+
+	preimage = res.PaymentPreimage
+	return preimage, nil
+}
+
 // RebalancePayment handles the lightning payment that should rebalance the channel
 // if the payment is larger than 4mm sats it forces a mpp payment through the channel
 func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
@@ -291,16 +313,10 @@ func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (pre
 			return "", err
 		}
 	} else {
-		label := randomString()
-		_, err = cl.SendPayPart(payreq, Bolt11, Bolt11.MilliSatoshis, channel, label, 0)
+		preimage, err = cl.PayInvoiceViaChannel(payreq, channel)
 		if err != nil {
 			return "", err
 		}
-		res, err := cl.glightning.WaitSendPay(Bolt11.PaymentHash, 30)
-		if err != nil {
-			return "", err
-		}
-		preimage = res.PaymentPreimage
 	}
 	return preimage, nil
 }
