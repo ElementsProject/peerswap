@@ -259,6 +259,10 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 		MaxParts:        30,
 	})
 
+	if err != nil {
+		return "", err
+	}
+
 	for {
 		select {
 		case <-l.ctx.Done():
