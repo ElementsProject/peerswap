@@ -614,8 +614,8 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
 	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
 	return NoOp
 }
 

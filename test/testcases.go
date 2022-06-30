@@ -137,6 +137,7 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	require.NoError(err)
 
 	// Confirm opening tx.
+	require.NoError(params.takerPeerswap.WaitForLog("Await confirmation for tx", testframework.TIMEOUT))
 	params.chaind.GenerateBlocks(params.confirms)
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode, params.makerNode)
 
