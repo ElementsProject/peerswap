@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,6 +22,17 @@ func IsIntegrationTest(t *testing.T) {
 	}
 }
 
+func OverrideLinesFromEnvVar(lines int) int {
+	if slines, ok := os.LookupEnv("PS_LOG_LINES"); ok {
+		n, err := strconv.Atoi(slines)
+		if err != nil {
+			return lines
+		}
+		return n
+	}
+	return lines
+}
+
 type tailableProcess struct {
 	p      *testframework.DaemonProcess
 	lines  int
@@ -34,7 +46,7 @@ func pprintFail(fps ...tailableProcess) {
 			continue
 		}
 		fmt.Printf("+++++++++++++++++++++++++++++ %s (StdOut) +++++++++++++++++++++++++++++\n", fp.p.Prefix())
-		fmt.Printf("%s\n", fp.p.StdOut.Tail(fp.lines, fp.filter))
+		fmt.Printf("%s\n", fp.p.StdOut.Tail(OverrideLinesFromEnvVar(fp.lines), fp.filter))
 		if fp.p.StdErr.String() != "" {
 			fmt.Printf("+++++++++++++++++++++++++++++ %s (StdErr) +++++++++++++++++++++++++++++\n", fp.p.Prefix())
 			fmt.Printf("%s\n", fp.p.StdErr.String())
