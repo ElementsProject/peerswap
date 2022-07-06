@@ -17,7 +17,7 @@ Clone the peerswap repository and build the peerswap plugin
 ```bash
 git clone https://github.com/ElementsProject/peerswap.git && \
 cd peerswap && \
-make lnd-install
+make lnd-release
 ```
 
 This will install `peerswapd` and `pscli` to your go path
@@ -59,11 +59,9 @@ EOF
 ### Policy
 
 On first startup of the plugin a policy file will be generated (default path: `~/.peerswap/policy.conf`) in which trusted nodes will be specified.
-This cann be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `pscli addpeer <PUBKEY>`. If you feel especially reckless you can add the line 
-`accept_all_peers=true` this will allow anyone with a direct channel to you do do a swap with you.
+This can be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `pscli addpeer <PUBKEY>`.
 
-
-__WARNING__: One could also set the `accept_all_peers=1` policy to ignore the allowlist and allow for all peers to send swap requests.
+__WARNING__: One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
 
 ### Run
 

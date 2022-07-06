@@ -20,7 +20,7 @@ cd peerswap
 make cln-release
 ```
 
-The `peerswap` binary is now located in the repo folder.
+The `peerswap-plugin` binary is now located in the repo folder.
 
 
 
@@ -70,8 +70,9 @@ lightning-cli peerswap-reloadpolicy
 ### Policy
 
 On first startup of the plugin a policy file will be generated (default path: `~/.lightning/<network>/peerswap/policy.conf`) in which trusted nodes will be specified.
-This cann be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `lightning-cli peerswap-addpeer <PUBKEY>`. If you feel especially reckless you can add the line 
-`accept_all_peers=true` this will allow anyone with a direct channel to you do do a swap with you.
+This can be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `lightning-cli peerswap-addpeer <PUBKEY>`.
+
+__WARNING__: One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
 
 ### Debugging peerswap-plugin crashes
 
