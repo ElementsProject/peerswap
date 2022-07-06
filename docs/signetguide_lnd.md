@@ -59,7 +59,7 @@ zmqpubrawtx=tcp://127.0.0.1:28333
 EOF
 ```
 
-Start the bitoin daemon in signet mode
+Start the bitcoin daemon in signet mode
 
 ```bash
 bitcoind
@@ -161,6 +161,8 @@ elements-cli getchaintips
 with the height of the last block on [liquid-testnet-explorer](https://liquidtestnet.com/explorer)
 
 ## Lnd
+
+_Note: If building from source, be sure to build with the required tags: `make install tags="signrpc walletrpc routerrpc invoicesrpc"` otherwise Peerswap will not work._
 
 Download the following files
 ```bash
