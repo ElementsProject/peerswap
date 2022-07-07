@@ -1,6 +1,7 @@
 let
-# Pinning to version 21.11 unstable to get elementsd 0.21.0.
-rev = "9345a203f0f8ea021c9ed1dba7c3ba78a96baeb1";
+# Pinning to revision e0361a947ed3eb692e43786f78e86075395ef3af for cln v0.11.1 
+# and lnd v0.15.0-beta.
+rev = "e0361a947ed3eb692e43786f78e86075395ef3af";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
