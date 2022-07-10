@@ -624,7 +624,7 @@ func setPanicLogger() (func() error, error) {
 		return nil, err
 	}
 
-	err = syscall.Dup2(int(panicLogFile.Fd()), int(os.Stderr.Fd()))
+	err = syscall.Dup3(int(panicLogFile.Fd()), int(os.Stderr.Fd()), 0)
 	if err != nil {
 		return nil, err
 	}
