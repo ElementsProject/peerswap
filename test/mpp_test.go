@@ -20,6 +20,9 @@ const maxPaymentSize uint64 = 4294967
 // to only test on Bitcoin Regtest and only test for swap in cases, as all other
 // ways share the same MPP splitter.
 func Test_ClnCln_MPP(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
 	tests := []struct {
 		description   string
 		swapAmountSat uint64
@@ -108,6 +111,9 @@ func Test_ClnCln_MPP(t *testing.T) {
 // sufficcient to only test on Bitcoin Regtest and only test for swap in cases,
 // as all other ways share the same MPP splitter.
 func Test_ClnLnd_MPP(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
 	tests := []struct {
 		description   string
 		swapAmountSat uint64
