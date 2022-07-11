@@ -482,3 +482,25 @@ func (n *CLightningNode) SendPay(bolt11, scid string) error {
 func (n *CLightningNode) GetDataDir() string {
 	return n.dataDir
 }
+
+func (n *CLightningNode) GetLatestInvoice() (string, error) {
+	r, err := n.Rpc.ListInvoices()
+	if err != nil {
+		return "", err
+	}
+
+	if len(r) > 0 {
+		return r[len(r)-1].Bolt11, nil
+	}
+
+	return "", nil
+}
+
+func (n *CLightningNode) GetMemoFromPayreq(bolt11 string) (string, error) {
+	r, err := n.Rpc.DecodeBolt11(bolt11)
+	if err != nil {
+		return "", err
+	}
+
+	return r.Description, nil
+}

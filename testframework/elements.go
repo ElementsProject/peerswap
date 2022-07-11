@@ -204,6 +204,10 @@ func (n *BitcoinNode) GenerateBlocks(b int) error {
 	return nil
 }
 
+func (n *BitcoinNode) ReturnAsset() string {
+	return "btc"
+}
+
 type LiquidNode struct {
 	*DaemonProcess
 	*RpcProxy
@@ -331,6 +335,10 @@ func (n *LiquidNode) GenerateBlocks(b int) error {
 		return fmt.Errorf("Call(\"generate\") %w", err)
 	}
 	return nil
+}
+
+func (n *LiquidNode) ReturnAsset() string {
+	return "lbtc"
 }
 
 func (n *LiquidNode) SwitchWallet(wallet string) error {
