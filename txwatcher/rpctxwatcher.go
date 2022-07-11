@@ -252,6 +252,21 @@ func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vo
 }
 
 func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight uint32, _ []byte) {
+	// Before we add the tx to the watcher we check if the tx is already
+	// above the csv limit.
+	res, err := l.blockchain.GetTxOut(txId, vout)
+	if err != nil {
+		log.Infof("watchlist fetchtx err: %v", err)
+	}
+	if res.Confirmations >= l.csv {
+		err = l.csvPassedCallback(swapId)
+		if err == nil {
+			log.Infof("Swap %s already past CSV limit", swapId)
+			return
+		}
+		log.Infof("csv passed callback error: %v", err)
+	}
+
 	l.Lock()
 	defer l.Unlock()
 	l.csvtxWatchList[swapId] = &SwapTxInfo{
