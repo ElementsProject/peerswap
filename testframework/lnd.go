@@ -159,6 +159,14 @@ func (n *LndNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 	return nil
 }
 
+func (n *LndNode) Stop() error {
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	defer cancel()
+
+	_, err := n.Rpc.StopDaemon(ctx, &lnrpc.StopRequest{})
+	return err
+}
+
 func (n *LndNode) Address() string {
 	return fmt.Sprintf("%s@127.0.0.1:%d", n.Info.IdentityPubkey, n.ListenPort)
 }
