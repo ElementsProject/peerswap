@@ -175,7 +175,7 @@ func (l *Lnd) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Chan
 	return channel, nil
 }
 
-func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
+func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string, memo string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
 	preimage, err := lightning.MakePreimageFromStr(preimageString)
 	if err != nil {
 		return "", err
@@ -183,7 +183,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string,
 
 	payreq, err := l.lndClient.AddInvoice(l.ctx, &lnrpc.Invoice{
 		ValueMsat:  int64(msatAmount),
-		Memo:       fmt.Sprintf("%s_%s", swapId, invoiceType),
+		Memo:       memo,
 		RPreimage:  preimage[:],
 		Expiry:     int64(expiry),
 		CltvExpiry: 144,

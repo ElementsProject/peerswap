@@ -190,7 +190,9 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 	swap.ClaimPreimage = hex.EncodeToString(preimage[:])
 
-	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), INVOICE_CLAIM, swap.GetInvoiceExpiry())
+	// Construct memo
+	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_CLAIM, swap.GetScidInBoltFormat(), swap.GetId())
+	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -356,20 +358,15 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(errors.New("insufficient walletbalance"))
 	}
 
-	/*
-		 feeSat, err := services.policy.GetMakerFee(swap.Amount, swap.OpeningTxFee)
-		 if err != nil {
-
-		return Event_ActionFailed
-		}
-	*/
+	// Construct memo
+	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_FEE, swap.GetScidInBoltFormat(), swap.GetId())
 
 	// Generate Preimage
 	feepreimage, err := lightning.GetPreimage()
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.GetId().String(), INVOICE_FEE, 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.GetId().String(), memo, INVOICE_FEE, 600)
 	if err != nil {
 		return swap.HandleError(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -17,9 +18,9 @@ type SwapType int
 func (s SwapType) String() string {
 	switch s {
 	case SWAPTYPE_OUT:
-		return "swap out"
+		return "swap-out"
 	case SWAPTYPE_IN:
-		return "swap in"
+		return "swap-in"
 	}
 	return ""
 }
@@ -180,6 +181,16 @@ func (s *SwapData) GetScid() string {
 	}
 	if s.SwapOutRequest != nil {
 		return s.SwapOutRequest.Scid
+	}
+	return ""
+}
+
+func (s *SwapData) GetScidInBoltFormat() string {
+	if s.SwapInRequest != nil {
+		return strings.ReplaceAll(s.SwapInRequest.Scid, ":", "x")
+	}
+	if s.SwapOutRequest != nil {
+		return strings.ReplaceAll(s.SwapOutRequest.Scid, ":", "x")
 	}
 	return ""
 }
