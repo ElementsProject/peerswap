@@ -72,6 +72,7 @@ func printFailed(t *testing.T, process *testframework.DaemonProcess) {
 
 type ChainNode interface {
 	GenerateBlocks(b int) error
+	ReturnAsset() string
 }
 
 type pollableNode interface {
