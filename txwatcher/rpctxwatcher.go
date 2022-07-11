@@ -52,6 +52,10 @@ type BlockchainRpcTxWatcher struct {
 }
 
 func (s *BlockchainRpcTxWatcher) GetBlockHeight() (uint32, error) {
+	if s.blockchain == nil {
+		return 0, fmt.Errorf("missing blockchain rpc client")
+	}
+
 	blockheight, err := s.blockchain.GetBlockHeight()
 	if err != nil {
 		return 0, err
