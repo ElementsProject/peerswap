@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/utils"
 	"github.com/elementsproject/peerswap/version"
 
 	"github.com/vulpemventures/go-elements/network"
@@ -107,6 +108,22 @@ func run() error {
 		return err
 	}
 
+	// We want to make sure that cln is synced and ready to use before we
+	// continue to start services.
+	log.Infof("Waiting for cln to be synced")
+	err = utils.WaitFor(func() bool {
+		info, err := lightningPlugin.GetLightningRpc().GetInfo()
+		if err != nil {
+			log.Infof("rpc.GetInfo() %v", err)
+			return false
+		}
+
+		return info.IsBitcoindSync() && info.IsLightningdSync()
+	}, 10*time.Second, 10*time.Minute)
+	if err != nil {
+		return err
+	}
+
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
@@ -141,6 +158,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
@@ -249,7 +267,6 @@ func run() error {
 	}
 
 	// Check for active swaps and compare with version
-
 	err = swapService.RecoverSwaps()
 	if err != nil {
 		return err

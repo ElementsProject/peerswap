@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/utils"
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
@@ -113,17 +114,28 @@ func run() error {
 	defer lndConn.Close()
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
 
-	timeOutCtx, timeoutCancel := context.WithTimeout(ctx, time.Minute)
-	defer timeoutCancel()
+	// We want to make sure that lnd is synced and ready to use before we
+	// continue to start services.
+	log.Infof("Waiting for lnd to be synced")
+	var info *lnrpc.GetInfoResponse
+	err = utils.WaitFor(func() bool {
+		timeOutCtx, timeoutCancel := context.WithTimeout(ctx, time.Minute)
+		defer timeoutCancel()
 
-	getInfo, err := lnrpcClient.GetInfo(timeOutCtx, &lnrpc.GetInfoRequest{})
+		info, err = lnrpcClient.GetInfo(timeOutCtx, &lnrpc.GetInfoRequest{})
+		if err != nil {
+			log.Infof("Error on GetInfo: %v", err)
+			return false
+		}
+
+		return info.SyncedToChain
+	}, 10*time.Second, 10*time.Minute)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Running with lnd node: %s", getInfo.IdentityPubkey)
-
-	err = checkLndVersion(getInfo.Version)
+	log.Infof("Running with lnd node: %s", info.IdentityPubkey)
+	err = checkLndVersion(info.Version)
 	if err != nil {
 		return err
 	}
