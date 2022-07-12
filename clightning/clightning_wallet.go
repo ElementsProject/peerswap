@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/glightning"
@@ -233,7 +234,7 @@ func (cl *ClightningClient) GetSatsPerVByte(targetblocks uint32) (float64, error
 	if len(feeRes.Errors) > 0 {
 		return 0, errors.New(fmt.Sprintf("cannot estimate fee: %s", feeRes.Errors[0]))
 	}
-	return satPerByte, nil
+	return math.Max(satPerByte, 1.1), nil
 }
 
 func (cl *ClightningClient) GetAsset() string {

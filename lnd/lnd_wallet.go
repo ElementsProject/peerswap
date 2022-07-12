@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"math"
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil/psbt"
@@ -262,5 +263,5 @@ func (l *LndFeeEstimator) GetSatsPerVByte(targetBlocks uint32) (float64, error) 
 		return 0, err
 	}
 
-	return float64(res.SatPerKw / 250), nil
+	return math.Max(float64(res.SatPerKw / 250), 1.1), nil
 }
