@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil"
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/glightning/glightning"
@@ -149,7 +150,31 @@ func run() error {
 		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(lightningPlugin, chain)
+
+		// Start the GBitcoinEstimator with the "CONSERVATIVE" estimation rule
+		// and a fallback fee rate of 253 sat/kw.
+		bitcoinEstimator, err := onchain.NewGBitcoindEstimator(
+			bitcoinCli,
+			"CONSERVATIVE",
+			btcutil.Amount(253),
+		)
+		if err != nil {
+			return err
+		}
+		if err = bitcoinEstimator.Start(); err != nil {
+			return err
+		}
+
+		// Create the bitcoin onchain service with a fallback fee rate of
+		// 253 sat/kw.
+		// TODO: This fee rate does not matter right now but we might want to
+		// add a config flag to set this higher than the assumed floor fee rate
+		// of 275 sat/kw (1.1 sat/vb).
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(
+			bitcoinEstimator,
+			btcutil.Amount(253),
+			chain,
+		)
 	} else {
 		log.Infof("Bitcoin swaps disabled")
 	}
