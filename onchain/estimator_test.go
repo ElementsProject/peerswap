@@ -42,6 +42,19 @@ func TestGBitcoin_Estimator(t *testing.T) {
 	fee, err := feeEstimator.EstimateFeePerKW(10)
 	require.NoError(t, err)
 	require.Equal(t, FeePerKwFloor, fee)
+
+	// Check that fee is converted correctly
+	feeRateBTCPerKb := 0.00023
+	feeRateSatPerKb, _ := btcutil.NewAmount(feeRateBTCPerKb)
+	feeRateSatPerKw := feeRateSatPerKb / 4
+	gbitcoinBackend.EstimateFeeError = nil
+	gbitcoinBackend.EstimateFeeReturn = &gbitcoin.FeeResponse{
+		FeeRate: feeRateBTCPerKb,
+	}
+
+	fee, err = feeEstimator.EstimateFeePerKW(10)
+	require.NoError(t, err)
+	require.Equal(t, feeRateSatPerKw, fee)
 }
 
 // GBitcoinBackendMock is a mock for the GBitcoinBackend interface that is the
