@@ -22,3 +22,5 @@ require (
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/macaroon.v2 v2.1.0
 )
+
+replace github.com/elementsproject/glightning => github.com/nepet/glightning v0.0.0-20220712170505-692129949f10

@@ -23,6 +23,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil"
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
@@ -153,11 +154,29 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndFeeEstimator := lnd2.NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
-
 		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, chain)
-		bitcoinOnChainService = onchain.NewBitcoinOnChain(lndFeeEstimator, chain)
 
+		// Start the LndEstimator.
+		lndEstimator, err := onchain.NewLndEstimator(
+			walletrpc.NewWalletKitClient(lndConn),
+		)
+		if err != nil {
+			return err
+		}
+		if err = lndEstimator.Start(); err != nil {
+			return err
+		}
+
+		// Create the bitcoin onchain service with a fallback fee rate of
+		// 253 sat/kw.
+		// TODO: This fee rate does not matter right now but we might want to
+		// add a config flag to set this higher than the assumed floor fee rate
+		// of 275 sat/kw (1.1 sat/vb).
+		bitcoinOnChainService = onchain.NewBitcoinOnChain(
+			lndEstimator,
+			btcutil.Amount(253),
+			chain,
+		)
 		log.Infof("Bitcoin swaps enabled on network %s", chain.Name)
 	} else {
 		log.Infof("Bitcoin swaps disabled")
