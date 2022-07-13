@@ -1,12 +1,14 @@
 package onchain
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/btcsuite/btcutil"
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 )
 
 const (
@@ -155,6 +157,53 @@ func (g *GBitcoindEstimator) estimateFee(targetBlocks uint32) (btcutil.Amount, e
 	}
 
 	return satPerKw, nil
+}
+
+// LndEstimator uses the WalletKitClient to estimate the fee.
+type LndEstimator struct {
+	walletkit walletrpc.WalletKitClient
+
+	// timeout is used as a context timeout on the walletrpc call for
+	// EstimateFee.
+	timeout time.Duration
+
+	// fallbackFeeRate is returned in case that the estimator has an error or not
+	// enough information to calculate a fee. This value is in sat/kw.
+	fallbackFeeRate btcutil.Amount
+}
+
+func NewLndEstimator(walletkit walletrpc.WalletKitClient) (*LndEstimator, error) {
+	return &LndEstimator{walletkit: walletkit}, nil
+}
+
+// EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
+// that should be confirmed in targetBlocks. It uses lnds internal fee
+// estimation.
+func (l *LndEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
+	defer cancel()
+
+	res, err := l.walletkit.EstimateFee(
+		ctx,
+		&walletrpc.EstimateFeeRequest{ConfTarget: int32(targetBlocks)},
+	)
+
+	switch {
+	case err != nil:
+		log.Infof("Could not fetch on-chain fee from lnd: %v", err)
+		fallthrough
+	case res == nil || res.SatPerKw == 0:
+		log.Debugf("Estimated fee is 0, using fallback fee %d", l.fallbackFeeRate)
+		return l.fallbackFeeRate, nil
+	}
+
+	return btcutil.Amount(res.SatPerKw), nil
+}
+
+// Start is necessary to implement the Estimator interface but is noop for the
+// LndEstimator.
+func (l *LndEstimator) Start() error {
+	return nil
 }
 
 // minFeeManager is used to store and update the minimum fee that is required
