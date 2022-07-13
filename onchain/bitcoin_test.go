@@ -27,7 +27,7 @@ func TestBitcoinOnChain_GetFee_UseFallbackFeeRate(t *testing.T) {
 	require.Equal(
 		t,
 		int64(1.6*float64(txSize)),
-		fee,
+		int64(fee),
 	)
 
 	// Set estimator returned fee rate to 0 sat/kw and check that the
@@ -38,7 +38,7 @@ func TestBitcoinOnChain_GetFee_UseFallbackFeeRate(t *testing.T) {
 	require.Equal(
 		t,
 		int64(1.2*float64(txSize)),
-		fee,
+		int64(fee),
 	)
 }
 
@@ -62,7 +62,7 @@ func TestBitcoinOnChain_GetFee_UseFloorFeeRate(t *testing.T) {
 	require.Equal(
 		t,
 		int64(1.6*float64(txSize)),
-		fee,
+		int64(fee),
 	)
 
 	// Set estimator returned fee rate below the floor and check that the
@@ -73,7 +73,7 @@ func TestBitcoinOnChain_GetFee_UseFloorFeeRate(t *testing.T) {
 	require.Equal(
 		t,
 		int64(1.1*float64(txSize)),
-		fee,
+		int64(fee),
 	)
 }
 

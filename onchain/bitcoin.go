@@ -286,7 +286,7 @@ func (b *BitcoinOnChain) GetFee(txSize int64) (uint64, error) {
 
 	// Ensure that the fee rate is at least as big as our fee floor.
 	if satPerKw < floorFeeRateSatPerKw {
-		log.Infof("Estimated fee rate is below floor of %d sat/kw, take floor"+
+		log.Infof("Estimated fee rate is below floor of %d sat/kw, take floor "+
 			"instead", floorFeeRateSatPerKw)
 		satPerKw = floorFeeRateSatPerKw
 	}
@@ -299,6 +299,6 @@ func (b *BitcoinOnChain) GetFee(txSize int64) (uint64, error) {
 
 	// assume largest witness
 	fee := uint64(satPerVb * float64(txSize))
-	log.Debugf("Using a fee rate of %d sat/vb for a total fee of %d", satPerVb, fee)
+	log.Debugf("Using a fee rate of %.2f sat/vb for a total fee of %d", satPerVb, fee)
 	return fee, nil
 }
