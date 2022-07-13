@@ -36,7 +36,7 @@ test-integration: build-with-fast-test
 .PHONY: test-integration
 
 test-bitcoin-cln: build-with-fast-test
-	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_ClnCln_Bitcoin_SwapOut|Test_ClnCln_Bitcoin_SwapIn|Test_ClnLnd_Bitcoin_SwapOut|Test_ClnLnd_Bitcoin_SwapIn)$'' github.com/elementsproject/peerswap/test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_RestoreFromPassedCSV|Test_ClnCln_Bitcoin_SwapOut|Test_ClnCln_Bitcoin_SwapIn|Test_ClnLnd_Bitcoin_SwapOut|Test_ClnLnd_Bitcoin_SwapIn)$'' github.com/elementsproject/peerswap/test
 .PHONY: test-bitcoin-cln
 
 test-bitcoin-lnd: build-with-fast-test

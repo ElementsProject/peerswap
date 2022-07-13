@@ -30,4 +30,7 @@ type LightningNode interface {
 	// invoices.
 	GetLatestInvoice() (payreq string, err error)
 	GetMemoFromPayreq(payreq string) (memo string, err error)
+
+	Run(waitForReady, swaitForBitcoinSynced bool) error
+	Stop() error
 }

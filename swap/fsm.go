@@ -282,7 +282,7 @@ func (s *SwapStateMachine) logSwapInfo() {
 
 	// Swap Claimed by csv case
 	if s.Current == State_ClaimedCsv {
-		s.Infof("Swap claimed by csv cooperatively")
+		s.Infof("Swap claimed by csv")
 	}
 
 	// Swap Canceled

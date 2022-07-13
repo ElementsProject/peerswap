@@ -171,6 +171,11 @@ func (w *lockedWriter) Tail(n int, regex string) string {
 		}
 	}
 
+	// We want to have the possibility to print out the whole log.
+	if n < 1 || n > len(lines) {
+		n = len(lines)
+	}
+
 	if n > 0 && n <= len(lines) {
 		return strings.Join(lines[len(lines)-n:], "\n")
 	}

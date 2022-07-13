@@ -161,6 +161,10 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		if err != nil {
 			t.Fatalf("peerswapd.Run() got err %v", err)
 		}
+		err = peerswapd.WaitForLog("peerswapd grpc listening on", testframework.TIMEOUT)
+		if err != nil {
+			t.Fatalf("peerswapd.WaitForLog() got err %v", err)
+		}
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
@@ -245,6 +249,10 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	if err != nil {
 		t.Fatalf("cln.Run() got err %v", err)
 	}
+	err = cln.WaitForLog("peerswap initialized", testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("cln.WaitForLog() got err %v", err)
+	}
 
 	err = lnd.Run(true, true)
 	if err != nil {
@@ -254,6 +262,10 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	err = peerswapd.Run(true)
 	if err != nil {
 		t.Fatalf("peerswapd.Run() got err %v", err)
+	}
+	err = peerswapd.WaitForLog("peerswapd grpc listening on", testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("perrswapd.WaitForLog() got err %v", err)
 	}
 
 	var lightningds []testframework.LightningNode
@@ -481,6 +493,10 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		if err != nil {
 			t.Fatalf("peerswapd.Run() got err %v", err)
 		}
+		err = peerswapd.WaitForLog("peerswapd grpc listening on", testframework.TIMEOUT)
+		if err != nil {
+			t.Fatalf("peerswapd.WaitForLog() got err %v", err)
+		}
 	}
 
 	// Give liquid funds to nodes to have something to swap.
@@ -602,6 +618,10 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	if err != nil {
 		t.Fatalf("cln.Run() got err %v", err)
 	}
+	err = cln.WaitForLog("peerswap initialized", testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("cln.WaitForLog() got err %v", err)
+	}
 
 	err = lnd.Run(true, true)
 	if err != nil {
@@ -611,6 +631,10 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	err = peerswapd.Run(true)
 	if err != nil {
 		t.Fatalf("peerswapd.Run() got err %v", err)
+	}
+	err = peerswapd.WaitForLog("peerswapd grpc listening on", testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("peerswapd.WaitForLog() got err %v", err)
 	}
 
 	// Give liquid funds to nodes to have something to swap.
