@@ -483,6 +483,26 @@ func (n *LndNode) SendPay(bolt11, _ string) error {
 	return n.PayInvoice(bolt11)
 }
 
+func (n *LndNode) GetLatestInvoice() (payreq string, err error) {
+	r, err := n.Rpc.ListInvoices(context.Background(), &lnrpc.ListInvoiceRequest{})
+	if err != nil {
+		return "", err
+	}
+
+	if r.Invoices != nil {
+		return r.Invoices[len(r.Invoices)-1].PaymentRequest, nil
+	}
+	return "", fmt.Errorf("Invioces list is nil")
+}
+
+func (n *LndNode) GetMemoFromPayreq(bolt11 string) (string, error) {
+	r, err := n.Rpc.DecodePayReq(context.Background(), &lnrpc.PayReqString{PayReq: bolt11})
+	if err != nil {
+		return "", err
+	}
+	return r.Description, nil
+}
+
 func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)

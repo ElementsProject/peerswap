@@ -278,7 +278,7 @@ func (d *dummyLightningClient) AddPaymentCallback(f func(string, InvoiceType)) {
 	d.paymentCallback = f
 }
 
-func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, swapId string, invoiceType InvoiceType, expiry uint64) (string, error) {
+func (d *dummyLightningClient) GetPayreq(msatAmount uint64, preimage string, swapId string, memo string, invoiceType InvoiceType, expiry uint64) (string, error) {
 	if d.preimage == "err" {
 		return "", errors.New("err")
 	}

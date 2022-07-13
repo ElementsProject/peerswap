@@ -238,8 +238,8 @@ func (cl *ClightningClient) AddMessageHandler(f func(peerId string, msgType stri
 }
 
 // GetPayreq returns a Bolt11 Invoice
-func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, swapId string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
-	res, err := cl.glightning.CreateInvoice(amountMsat, getLabel(swapId, invoiceType), "liquid swap", uint32(expiry), []string{}, preImage, false)
+func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, swapId string, memo string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
+	res, err := cl.glightning.CreateInvoice(amountMsat, getLabel(swapId, invoiceType), memo, uint32(expiry), []string{}, preImage, false)
 	if err != nil {
 		return "", err
 	}

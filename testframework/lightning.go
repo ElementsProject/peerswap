@@ -25,4 +25,9 @@ type LightningNode interface {
 	AddInvoice(amtSat uint64, desc, label string) (payreq string, err error)
 	PayInvoice(payreq string) error
 	SendPay(bolt11, scid string) error
+
+	// GetLatestInvoice returns the latest invoice from the stack of created
+	// invoices.
+	GetLatestInvoice() (payreq string, err error)
+	GetMemoFromPayreq(payreq string) (memo string, err error)
 }

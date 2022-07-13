@@ -1,6 +1,8 @@
 package test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/elementsproject/peerswap/swap"
@@ -188,6 +190,20 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	require.NoError(err)
 	require.InDelta((params.origMakerWallet - commitFee - params.swapAmt), float64(balance), 1., "expected %d, got %d",
 		(params.origMakerWallet - commitFee - params.swapAmt), balance)
+
+	// Check latest invoice memo should be of the form "swap-in btc claim <swap_id>"
+	bolt11, err := params.makerNode.GetLatestInvoice()
+	require.NoError(err)
+
+	memo, err := params.makerNode.GetMemoFromPayreq(bolt11)
+	require.NoError(err)
+	expectedMemo := fmt.Sprintf("peerswap %s claim %s", params.chaind.ReturnAsset(), params.scid)
+	require.True(
+		strings.Contains(memo, expectedMemo),
+		"Expected memo to contain: %s, got: %s",
+		expectedMemo,
+		memo,
+	)
 }
 
 func csvClaimTest(t *testing.T, params *testParams) {
