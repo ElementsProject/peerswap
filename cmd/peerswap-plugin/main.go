@@ -120,7 +120,7 @@ func run() error {
 		}
 
 		return info.IsBitcoindSync() && info.IsLightningdSync()
-	}, 10*time.Second, 10*time.Minute)
+	}, 10*time.Second, 1000*time.Minute)
 	if err != nil {
 		return err
 	}
