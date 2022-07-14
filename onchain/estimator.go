@@ -172,8 +172,16 @@ type LndEstimator struct {
 	fallbackFeeRate btcutil.Amount
 }
 
-func NewLndEstimator(walletkit walletrpc.WalletKitClient) (*LndEstimator, error) {
-	return &LndEstimator{walletkit: walletkit}, nil
+func NewLndEstimator(
+	walletkit walletrpc.WalletKitClient,
+	fallbackFeeRate btcutil.Amount,
+	timeout time.Duration,
+) (*LndEstimator, error) {
+	return &LndEstimator{
+		walletkit:       walletkit,
+		fallbackFeeRate: fallbackFeeRate,
+		timeout:         timeout,
+	}, nil
 }
 
 // EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
