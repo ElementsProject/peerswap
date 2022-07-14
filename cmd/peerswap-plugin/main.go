@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/utils"
 	"github.com/elementsproject/peerswap/version"
 
 	"github.com/vulpemventures/go-elements/network"
@@ -110,19 +109,12 @@ func run() error {
 
 	// We want to make sure that cln is synced and ready to use before we
 	// continue to start services.
-	log.Infof("Waiting for cln to be synced")
-	err = utils.WaitFor(func() bool {
-		info, err := lightningPlugin.GetLightningRpc().GetInfo()
-		if err != nil {
-			log.Infof("rpc.GetInfo() %v", err)
-			return false
-		}
-
-		return info.IsBitcoindSync() && info.IsLightningdSync()
-	}, 10*time.Second, 10*time.Minute)
+	log.Infof("Waiting for cln to be synced...")
+	err = waitForClnSynced(lightningPlugin.GetLightningRpc(), 10*time.Second)
 	if err != nil {
 		return err
 	}
+	log.Infof("Cln synced, continue...")
 
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
@@ -647,4 +639,24 @@ func setPanicLogger() (func() error, error) {
 	}
 
 	return panicLogFile.Close, nil
+}
+
+// waitForClnSynced waits until cln is synced to the blockchain and the network.
+// This call is blocking.
+func waitForClnSynced(cln *glightning.Lightning, tick time.Duration) error {
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			info, err := cln.GetInfo()
+			if err != nil {
+				return err
+			}
+			if info.IsBitcoindSync() && info.IsLightningdSync() {
+				return nil
+			}
+		}
+	}
 }
