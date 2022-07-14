@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/utils"
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
@@ -115,31 +114,24 @@ func run() error {
 	defer lndConn.Close()
 	lnrpcClient := lnrpc.NewLightningClient(lndConn)
 
-	// We want to make sure that lnd is synced and ready to use before we
-	// continue to start services.
-	log.Infof("Waiting for lnd to be synced")
-	var info *lnrpc.GetInfoResponse
-	err = utils.WaitFor(func() bool {
-		timeOutCtx, timeoutCancel := context.WithTimeout(ctx, time.Minute)
-		defer timeoutCancel()
-
-		info, err = lnrpcClient.GetInfo(timeOutCtx, &lnrpc.GetInfoRequest{})
-		if err != nil {
-			log.Infof("Error on GetInfo: %v", err)
-			return false
-		}
-
-		return info.SyncedToChain
-	}, 10*time.Second, 10*time.Minute)
+	info, err := lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
-
 	log.Infof("Running with lnd node: %s", info.IdentityPubkey)
 	err = checkLndVersion(info.Version)
 	if err != nil {
 		return err
 	}
+
+	// We want to make sure that lnd is synced and ready to use before we
+	// continue to start services.
+	log.Infof("Waiting for lnd to be synced...")
+	err = waitForLndSynced(lnrpcClient, 10*time.Second)
+	if err != nil {
+		return err
+	}
+	log.Infof("Lnd synced, continue...")
 
 	var supportedAssets = []string{}
 
@@ -522,5 +514,26 @@ func (l *LndLogger) Infof(format string, v ...interface{}) {
 func (l *LndLogger) Debugf(format string, v ...interface{}) {
 	if l.loglevel == peerswaplnd.LOGLEVEL_DEBUG {
 		log2.Printf("[DEBUG] "+format, v...)
+	}
+}
+
+// waitForLndSynced waits until cln is synced to the blockchain and the network.
+// This call is blocking.
+func waitForLndSynced(lnd lnrpc.LightningClient, tick time.Duration) error {
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			info, err := lnd.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
+			if err != nil {
+				return err
+			}
+
+			if info.SyncedToChain {
+				return nil
+			}
+		}
 	}
 }
