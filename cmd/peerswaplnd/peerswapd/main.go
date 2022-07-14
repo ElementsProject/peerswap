@@ -151,6 +151,8 @@ func run() error {
 		// Start the LndEstimator.
 		lndEstimator, err := onchain.NewLndEstimator(
 			walletrpc.NewWalletKitClient(lndConn),
+			btcutil.Amount(253),
+			10*time.Minute,
 		)
 		if err != nil {
 			return err
@@ -308,7 +310,16 @@ func run() error {
 
 	// setup grpc server
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	peerswaprpcServer := peerswaprpc.NewPeerswapServer(liquidRpcWallet, swapService, sp, pollService, pol, liquidCli, lnrpc.NewLightningClient(lndConn), sigChan)
+	peerswaprpcServer := peerswaprpc.NewPeerswapServer(
+		liquidRpcWallet,
+		swapService,
+		sp,
+		pollService,
+		pol,
+		liquidCli,
+		lnrpc.NewLightningClient(lndConn),
+		sigChan,
+	)
 
 	lis, err := net.Listen("tcp", cfg.Host)
 	if err != nil {
