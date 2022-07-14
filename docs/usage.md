@@ -54,17 +54,30 @@ There are two types of swaps.
 
 A swap-out is when the initiator wants to pay a lightning payment in order to receive on-chain funds. From the perspective of channel balancing the initiator gains inbound liquidity.
 
+For CLN:
 ```bash
 swap-out [amount in sats] [short channel id] [asset: btc or lbtc]
+```
+
+For LND:
+```bash
+swapout --sat_amt [amount in sats] --channel-id [chan_id] --asset [btc or lbtc]
 ```
 
 ### Swap-In
 
 A swap-in is when the initiator wants to spend onchain bitcoin in order to receive lightning funds. From the perspective of balancing terms they gain outbound liquidity.
 
+For CLN:
 ```bash
-swap-in [amount in sats] [short channel id] [asset: btc or l-brc]
+swap-in [amount in sats] [short channel id] [asset: btc or lbtc]
 ```
+
+For LND:
+```bash
+swapin --sat_amt [amount in sats] --channel_id [chan_id] --asset [btc or lbtc]
+```
+
 
 ## Misc
 `listpeers` - command that returns peers that support the peerswap protocol. It also gives statistics about received and sent swaps to a peer.
