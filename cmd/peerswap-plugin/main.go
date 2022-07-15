@@ -566,7 +566,7 @@ func getNetworkFolder(network string) string {
 func getNetworkPort(network string) uint {
 	switch network {
 	case "regtest":
-		return 18332
+		return 18443
 	case "testnet":
 		return 18332
 	case "signet":
