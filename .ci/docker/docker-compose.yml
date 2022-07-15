@@ -1,0 +1,188 @@
+version: '3'
+services:
+  # RPC daemons
+  bitcoin:
+    image: ghcr.io/vulpemventures/bitcoin:latest
+    networks:
+      local:
+        ipv4_address: 10.10.1.10
+    ports:
+      - 18443:19001
+      - 29000:29000
+      - 29001:29001
+    volumes:
+      - ./config/:/home/bitcoin/.bitcoin/
+    restart: unless-stopped
+  liquid:
+    image: ghcr.io/vulpemventures/elements:latest
+    networks:
+      local:
+        ipv4_address: 10.10.1.11
+    ports:
+      - 18884:18884
+      - 18886:18886
+    volumes:
+      - ./liquid-config/:/home/elements/.elements/
+    restart: unless-stopped
+  liquid2:
+    image: ghcr.io/vulpemventures/elements:latest
+    networks:
+      local:
+        ipv4_address: 10.10.1.18
+    ports:
+      - 18885:18884
+      - 18887:18886
+    volumes:
+      - ./liquid-config2/:/home/elements/.elements/
+    restart: unless-stopped
+  # Block explorer REST servers
+  electrs:
+    image: ghcr.io/vulpemventures/electrs:latest
+    entrypoint:
+      - /build/electrs
+    command:
+      - -vvvv
+      - --network
+      - regtest
+      - --daemon-dir
+      - /config
+      - --daemon-rpc-addr
+      - 10.10.1.10:19001
+      - --cookie
+      - admin1:123
+      - --http-addr
+      - 0.0.0.0:3002
+      - --electrum-rpc-addr
+      - 0.0.0.0:60401
+      - --cors
+      - "*"
+    networks:
+      local:
+        ipv4_address: 10.10.1.12
+    links:
+      - bitcoin
+    depends_on:
+      - bitcoin
+    ports:
+      - 60401:60401
+      - 3002:3002
+    volumes:
+      - ./config/:/config
+    restart: unless-stopped
+  electrs-liquid:
+    image: ghcr.io/vulpemventures/electrs-liquid:latest
+    entrypoint:
+      - /build/electrs
+    command:
+      - -vvvv
+      - --parent-network
+      - regtest
+      - --network
+      - liquidregtest
+      - --daemon-dir
+      - /config
+      - --daemon-rpc-addr
+      - 10.10.1.11:18884
+      - --cookie
+      - admin1:123
+      - --http-addr
+      - 0.0.0.0:3002
+      - --electrum-rpc-addr
+      - 0.0.0.0:60401
+      - --cors
+      - "*"
+    networks:
+      local:
+        ipv4_address: 10.10.1.13
+    links:
+      - liquid
+    depends_on:
+      - liquid
+    ports:
+      - 20401:60401
+      - 2932:3002
+    volumes:
+      - ./liquid-config/:/config
+    restart: unless-stopped
+  # Chopsticks
+  chopsticks:
+    image: ghcr.io/vulpemventures/nigiri-chopsticks:latest
+    command:
+      - --use-faucet
+      - --use-mining
+      - --use-logger
+      - --rpc-addr
+      - 10.10.1.10:19001
+      - --electrs-addr
+      - 10.10.1.12:3002
+      - --addr
+      - 0.0.0.0:3000
+    links:
+      - electrs
+      - bitcoin
+    depends_on:
+      - electrs
+    ports:
+      - 3000:3000
+    networks:
+      local:
+        ipv4_address: 10.10.1.16
+    restart: unless-stopped
+  chopsticks-liquid:
+    image: ghcr.io/vulpemventures/nigiri-chopsticks:latest
+    command:
+      - --use-faucet
+      - --use-mining
+      - --use-logger
+      - --rpc-addr
+      - 10.10.1.11:18884
+      - --electrs-addr
+      - 10.10.1.13:3002
+      - --addr
+      - 0.0.0.0:3000
+      - --chain
+      - liquid
+    links:
+      - electrs-liquid
+      - liquid
+    depends_on:
+      - electrs-liquid
+    ports:
+      - 3001:3000
+    networks:
+      local:
+        ipv4_address: 10.10.1.17
+    restart: unless-stopped
+  esplora:
+    image: ghcr.io/vulpemventures/esplora:latest
+    container_name: esplora
+    networks:
+      local:
+        ipv4_address: 10.10.1.28
+    depends_on:
+      - chopsticks
+    environment:
+      API_URL: http://localhost:3000
+    ports:
+      - 5000:5000
+    restart: unless-stopped
+  esplora-liquid:
+    image: ghcr.io/vulpemventures/esplora:latest
+    container_name: esplora-liquid
+    networks:
+      local:
+        ipv4_address: 10.10.1.29
+    depends_on:
+      - chopsticks-liquid
+    environment:
+      API_URL: http://localhost:3001
+    ports:
+      - 5001:5000
+    restart: unless-stopped
+
+networks:
+  local:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.1.0/24

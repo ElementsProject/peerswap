@@ -1,0 +1,199 @@
+syntax = "proto3";
+
+package peerswap;
+
+option go_package = "github.com/elementsproject/peerswap/peerswaprpc";
+
+service PeerSwap {
+    rpc SwapOut(SwapOutRequest) returns (SwapResponse);
+    rpc SwapIn(SwapInRequest) returns (SwapResponse);
+    rpc GetSwap(GetSwapRequest) returns (SwapResponse);
+    rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
+    rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
+    rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+    rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
+    rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
+    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (AllowSwapRequestsResponse);
+
+    // policy
+    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
+    rpc AddPeer(AddPeerRequest) returns (AddPeerResponse);
+    rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
+
+    // Liquid Stuff
+    rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
+    rpc LiquidGetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+    rpc LiquidSendToAddress(SendToAddressRequest) returns (SendToAddressResponse);
+
+    rpc Stop(Empty) returns (Empty);
+}
+
+
+
+message GetAddressRequest {}
+
+message GetAddressResponse {
+    string address = 1;
+}
+
+message GetBalanceRequest {}
+
+message GetBalanceResponse {
+    uint64 sat_amount = 1;
+}
+
+message SendToAddressRequest {
+    string address = 1;
+    uint64 sat_amount = 2;
+}
+
+message SendToAddressResponse {
+    string tx_id = 1;
+}
+
+message SwapOutRequest {
+    uint64 channel_id = 1;
+    uint64 swap_amount = 2;
+    string asset = 3;
+}
+
+message SwapOutResponse {
+    PrettyPrintSwap swap = 1;
+}
+
+message SwapInRequest {
+    uint64 channel_id = 1;
+    uint64 swap_amount = 2;
+    string asset = 3;
+}
+
+message SwapResponse {
+    PrettyPrintSwap swap = 1;
+}
+
+message GetSwapRequest {
+    string swap_id = 1;
+}
+
+message ListSwapsRequest {}
+
+message ListSwapsResponse {
+    repeated PrettyPrintSwap swaps = 1;
+}
+
+message ListPeersRequest {}
+
+message ListPeersResponse {
+    repeated PeerSwapPeer peers = 1;
+}
+
+message ListNodesRequest {}
+
+message ListNodesResponse{
+    repeated PeerSwapNodes nodes = 1;
+}
+
+message ReloadPolicyFileRequest {}
+
+message ReloadPolicyFileResponse {
+    Policy policy = 1;
+}
+
+message AddPeerRequest {
+    string peer_pubkey = 1;
+}
+message AddPeerResponse {
+    Policy policy = 1;
+}
+message RemovePeerRequest {
+    string peer_pubkey = 1;
+}
+message RemovePeerResponse {
+    Policy policy = 1;
+}
+message ListRequestedSwapsRequest {}
+
+message ListRequestedSwapsResponse {
+    map<string, RequestSwapList> requested_swaps = 1;
+}
+
+message RequestSwapList {
+    repeated RequestedSwap requested_swaps = 1;
+}
+
+message RequestedSwap {
+    string asset = 1;
+    uint64 amount_sat = 2;
+    SwapType swap_type = 3;
+    string rejection_reason = 4;
+
+    enum SwapType {
+        SWAP_IN = 0;
+        SWAP_OUT = 1;
+    }
+}
+
+
+
+message PrettyPrintSwap {
+    string id = 1;
+    string created_at = 2;
+    string type = 3;
+    string role = 4;
+    string state = 5;
+    string initiator_node_id = 6;
+    string peer_node_id = 7;
+    uint64 amount = 8;
+    string channel_id = 9;
+    string opening_tx_id = 10;
+    string claim_tx_id = 11;
+    string cancel_message = 12;
+}
+
+message PeerSwapPeer {
+    string node_id = 1;
+    bool swaps_allowed = 2;
+    repeated string supported_assets = 3;
+    repeated PeerSwapPeerChannel channels = 4;
+    SwapStats as_sender = 5;
+    SwapStats as_receiver = 6;
+    uint64 paid_fee = 7;
+}
+
+message PeerSwapPeerChannel {
+    uint64 channel_id = 1;
+    uint64 local_balance = 2;
+    uint64 remote_balance = 3;
+    double local_percentage = 4;
+    bool active = 5;
+}
+
+message SwapStats {
+    uint64 swaps_out = 1;
+    uint64 swaps_in = 2;
+    uint64 sats_out = 3;
+    uint64 sats_in = 4;
+}
+
+message PeerSwapNodes {
+    string node_id = 1;
+}
+
+message Policy {
+    uint64 reserve_onchain_msat = 1;
+    bool accept_all_peers = 2;
+    repeated string peer_allow_list = 3;
+}
+
+message AllowSwapRequestsRequest {
+    string allow = 1;
+}
+
+message AllowSwapRequestsResponse {
+    bool allow = 1;
+}
+
+
+message Empty {
+
+}

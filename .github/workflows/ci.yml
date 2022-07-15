@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: [master]
+
+env:
+  SLOW_MACHINE: 1
+
+jobs:
+  buildandtest:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Cache install Nix packages
+        uses: rikhuijzer/cache-install@v1.0.8        
+        with:
+          key: nix-${{ hashFiles('packages.nix') }}
+          nix_file: 'ci.nix'
+      
+      - name: Build peerswap
+        run: make build
+
+      - name: Run go tests
+        run: make test
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [buildandtest]
+    strategy:
+      max-parallel: 4
+      matrix:
+        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd]
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Cache install Nix packages
+        uses: rikhuijzer/cache-install@v1.0.8        
+        with:
+          key: nix-${{ hashFiles('packages.nix') }}
+          nix_file: 'ci.nix'
+
+      - name: Run tests with integration
+        run: make test-${{matrix.test-vector}}

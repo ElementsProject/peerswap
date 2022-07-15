@@ -1,0 +1,33 @@
+*.pyc
+__pycache__/
+
+.idea/
+
+_build/
+
+cluster/volumes/liquidregtest/config/regtest/
+
+cluster/volumes/liquidregtest/liquid-config/liquidregtest/
+
+cluster/volumes/signet/config/regtest/
+
+cluster/volumes/signet/liquid-config/liquidregtest/
+
+liquid-swap-plugin
+
+db
+dist/
+
+.ci/docker/config/**
+
+# the vscode workspace config dir
+.vscode
+
+# generated dev liquid nodes
+.ci/docker/liquid-config/**
+.ci/docker/liquid-config2/**
+
+# build output
+out/
+
+./peerswap-plugin
