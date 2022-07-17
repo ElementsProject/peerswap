@@ -151,22 +151,36 @@ func run() error {
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
 
-		// Start the GBitcoinEstimator with the "CONSERVATIVE" estimation rule
-		// and a fallback fee rate of 253 sat/kw.
-		bitcoinEstimator, err := onchain.NewGBitcoindEstimator(
-			bitcoinCli,
-			"CONSERVATIVE",
-			btcutil.Amount(253),
-		)
-		if err != nil {
-			return err
+		// We set the default Estimator to the static regtest estimator.
+		var bitcoinEstimator onchain.Estimator
+		bitcoinEstimator, _ = onchain.NewRegtestFeeEstimator()
+
+		// If we use a network different than regtest we override the Estimator
+		// with the useful GBitcoindEstimator.
+		if chain.Name != "regtest" {
+			log.Infof("Using gbitcoind estimator")
+
+			// Initiate the GBitcoinEstimator with the "ECONOMICAL" estimation
+			// rule and a fallback fee rate of 6250 sat/kw which converts to
+			// 25 sat/vbyte as this is the hardcoded fallback fee that lnd uses.
+			// See https://github.com/lightningnetwork/lnd/blob/5c36d96c9cbe8b27c29f9682dcbdab7928ae870f/chainreg/chainregistry.go#L481
+			fallbackFeeRateSatPerKw := btcutil.Amount(6250)
+			bitcoinEstimator, err = onchain.NewGBitcoindEstimator(
+				bitcoinCli,
+				"ECONOMICAL",
+				fallbackFeeRateSatPerKw,
+			)
+			if err != nil {
+				return err
+			}
 		}
+
 		if err = bitcoinEstimator.Start(); err != nil {
 			return err
 		}
 
 		// Create the bitcoin onchain service with a fallback fee rate of
-		// 253 sat/kw.
+		// 253 sat/kw. (This should be useless in this case).
 		// TODO: This fee rate does not matter right now but we might want to
 		// add a config flag to set this higher than the assumed floor fee rate
 		// of 275 sat/kw (1.1 sat/vb).
