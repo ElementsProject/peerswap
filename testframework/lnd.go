@@ -23,6 +23,7 @@ func getLndConfig() map[string]string {
 		"norest":                   "true",
 		"debuglevel":               "debug",
 		"trickledelay":             "1800",
+		"bitcoind.estimatemode":    "ECONOMICAL",
 	}
 }
 
