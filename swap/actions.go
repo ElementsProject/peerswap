@@ -566,7 +566,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 		return swap.HandleError(errors.New(fmt.Sprintf("Fee is too damn high. Max expected: %v Received %v", maxExpected, swap.OpeningTxFee)))
 	}
 
-	preimage, err := ll.PayInvoice(swap.SwapOutAgreement.Payreq)
+	preimage, err := ll.PayInvoiceViaChannel(swap.SwapOutAgreement.Payreq, swap.GetScid())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -614,8 +614,8 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
 	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
 	return NoOp
 }
 

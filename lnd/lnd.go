@@ -198,6 +198,49 @@ func (l *Lnd) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceT
 	l.paymentCallbacks = append(l.paymentCallbacks, f)
 }
 
+func (l *Lnd) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
+	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
+	if err != nil {
+		return "", err
+	}
+
+	channel, err := l.CheckChannel(scid, uint64(decoded.NumSatoshis))
+	if err != nil {
+		return "", err
+	}
+
+	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
+		PaymentRequest:  payreq,
+		TimeoutSeconds:  30,
+		OutgoingChanIds: []uint64{channel.ChanId},
+		MaxParts:        1,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		res, err := paymentStream.Recv()
+		if err != nil {
+			return "", err
+		}
+		switch res.Status {
+		case lnrpc.Payment_UNKNOWN:
+			log.Debugf("PayInvoiceViaChannel: payment is unknown")
+		case lnrpc.Payment_SUCCEEDED:
+			return res.PaymentPreimage, nil
+		case lnrpc.Payment_IN_FLIGHT:
+			log.Debugf("PayInvoiceViaChannel: payment still in flight")
+		case lnrpc.Payment_FAILED:
+			return "", fmt.Errorf("payment failure %s", res.FailureReason)
+		default:
+			log.Debugf("PayInvoiceViaChannel: got unexpected payment status %d", res.Status)
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
+}
+
 func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
@@ -215,6 +258,11 @@ func (l *Lnd) RebalancePayment(payreq string, channelId string) (preimage string
 		OutgoingChanIds: []uint64{channel.ChanId},
 		MaxParts:        30,
 	})
+
+	if err != nil {
+		return "", err
+	}
+
 	for {
 		select {
 		case <-l.ctx.Done():

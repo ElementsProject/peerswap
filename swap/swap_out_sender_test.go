@@ -316,6 +316,20 @@ func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err e
 	return pi.String(), nil
 }
 
+func (d *dummyLightningClient) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
+	if d.failpayment {
+		return "", errors.New("payment failed")
+	}
+	if payreq == "err" {
+		return "", errors.New("error paying invoice")
+	}
+	pi, err := lightning.GetPreimage()
+	if err != nil {
+		return "", err
+	}
+	return pi.String(), nil
+}
+
 type dummyPolicy struct {
 }
 
