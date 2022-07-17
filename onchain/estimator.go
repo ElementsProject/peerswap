@@ -22,6 +22,10 @@ const (
 	// defaultUpdateInterval is the interval in which the minFeeManager collects
 	// new data from the bitcoin backend.
 	defaultUpdateInterval = 10 * time.Minute
+
+	// DefaultBitcoinStaticFeePerKW is the default fee rate of 50 sat/vb
+	// expressed in sat/kw
+	DefaultBitcoinStaticFeePerKW = btcutil.Amount(12500)
 )
 
 // Estimator is used to estimate on-chain fees for transactions.
@@ -211,6 +215,29 @@ func (l *LndEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, er
 // Start is necessary to implement the Estimator interface but is noop for the
 // LndEstimator.
 func (l *LndEstimator) Start() error {
+	return nil
+}
+
+// RegtestFeeEstimator is used as the Estimator when the bitcoin network is set
+// to "regtest". We need this fee estimator for cln as lnd uses a static fee
+// estimator on regtest that uses a constant fee rate of 12500 sat/kw. See
+// "DefaultBitcoinStaticFeePerKW" on chainregistry:
+// https://github.com/lightningnetwork/lnd/blob/5c36d96c9cbe8b27c29f9682dcbdab7928ae870f/chainreg/chainregistry.go
+type RegtestFeeEstimator struct{}
+
+func NewRegtestFeeEstimator() (*RegtestFeeEstimator, error) {
+	return &RegtestFeeEstimator{}, nil
+}
+
+// EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
+// that should be confirmed in targetBlocks. RegtestFeeEstimator uses the
+// DefaultBitcoindStaticFeePerKw.
+func (r *RegtestFeeEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, error) {
+	return DefaultBitcoinStaticFeePerKW, nil
+}
+
+// Start returns nil as we only need it to implement Estimator interface.
+func (r *RegtestFeeEstimator) Start() error {
 	return nil
 }
 
