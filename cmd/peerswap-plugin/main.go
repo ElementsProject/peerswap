@@ -107,6 +107,15 @@ func run() error {
 		return err
 	}
 
+	// We want to make sure that cln is synced and ready to use before we
+	// continue to start services.
+	log.Infof("Waiting for cln to be synced...")
+	err = waitForClnSynced(lightningPlugin.GetLightningRpc(), 10*time.Second)
+	if err != nil {
+		return err
+	}
+	log.Infof("Cln synced, continue...")
+
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
 	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
@@ -141,6 +150,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
 	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
@@ -249,7 +259,6 @@ func run() error {
 	}
 
 	// Check for active swaps and compare with version
-
 	err = swapService.RecoverSwaps()
 	if err != nil {
 		return err
@@ -630,4 +639,24 @@ func setPanicLogger() (func() error, error) {
 	}
 
 	return panicLogFile.Close, nil
+}
+
+// waitForClnSynced waits until cln is synced to the blockchain and the network.
+// This call is blocking.
+func waitForClnSynced(cln *glightning.Lightning, tick time.Duration) error {
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			info, err := cln.GetInfo()
+			if err != nil {
+				return err
+			}
+			if info.IsBitcoindSync() && info.IsLightningdSync() {
+				return nil
+			}
+		}
+	}
 }
