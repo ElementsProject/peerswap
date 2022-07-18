@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/psbt"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
 )
 
@@ -17,19 +18,32 @@ const (
 	BitcoinCsv             = 1008
 	BitcoinMinConfs        = 3
 	BitcoinFeeTargetBlocks = 6
+
+	// This defines the absolute floor of the feerate. This will be the minimum
+	// feerate that will be used. The floor is set to 275 sat/kw so that we
+	// always have a minimum fee rate of 1.1 sat/vb.
+	floorFeeRateSatPerKw = 275
 )
 
 type BitcoinOnChain struct {
-	chain     *chaincfg.Params
-	estimator FeeEstimator
+	chain *chaincfg.Params
+
+	// estimator is an fee estimator that implements the Estimator interface.
+	// This can be e.g. a GBitcoinEstimator or a LndEstimator. The Estimator
+	// should already be running.
+	estimator Estimator
+
+	// fallbackFeeRateSatPerVb is the fee rate that is used to calculate the
+	// fee of a transaction if the Estimator returned an error.
+	fallbackFeeRateSatPerKw btcutil.Amount
 }
 
-type FeeEstimator interface {
-	GetFeePerKw(targetBlocks uint32) (float64, error)
-}
-
-func NewBitcoinOnChain(estimator FeeEstimator, chain *chaincfg.Params) *BitcoinOnChain {
-	return &BitcoinOnChain{chain: chain, estimator: estimator}
+func NewBitcoinOnChain(estimator Estimator, fallbackFeeRateSatPerKw btcutil.Amount, chain *chaincfg.Params) *BitcoinOnChain {
+	return &BitcoinOnChain{
+		chain:                   chain,
+		estimator:               estimator,
+		fallbackFeeRateSatPerKw: fallbackFeeRateSatPerKw,
+	}
 }
 
 func (b *BitcoinOnChain) GetCSVHeight() uint32 {
@@ -197,7 +211,7 @@ func (b *BitcoinOnChain) PrepareSpendingTransaction(swapParams *swap.OpeningPara
 	// assume largest witness
 	fee := preparedFee
 	if preparedFee == 0 {
-		fee, err = b.GetFee(spendingTx.SerializeSizeStripped() + 74)
+		fee, err = b.GetFee(int64(spendingTx.SerializeSizeStripped()) + 74)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -254,12 +268,37 @@ func (b *BitcoinOnChain) GetFeeSatsFromTx(psbtString, txHex string) (uint64, err
 	return uint64(inputSats - outputSats), nil
 }
 
-func (b *BitcoinOnChain) GetFee(txSize int) (uint64, error) {
-	satPerByte, err := b.estimator.GetFeePerKw(BitcoinFeeTargetBlocks)
-	if err != nil {
-		return 0, err
+// GetFee returns the estimated fee in sat for a transaction of size txSize. It
+// fetches the fee estimation from the Estimator in sat/kw and converts the
+// returned fee estimation into sat/vb. The return value is in sat.
+func (b *BitcoinOnChain) GetFee(txSize int64) (uint64, error) {
+	// EstimateFeePerKw returns an btcutil.Amount that is in sat/kw.
+	satPerKw, err := b.estimator.EstimateFeePerKW(BitcoinFeeTargetBlocks)
+	switch {
+	case err != nil:
+		log.Debugf("Error fetching fee from estimator: %v", err)
+		fallthrough
+	case satPerKw == 0:
+		// If we got no fee rate return we set the fee rate to the fallback
+		// fee.
+		satPerKw = btcutil.Amount(b.fallbackFeeRateSatPerKw)
 	}
+
+	// Ensure that the fee rate is at least as big as our fee floor.
+	if satPerKw < floorFeeRateSatPerKw {
+		log.Infof("Estimated fee rate is below floor of %d sat/kw, take floor "+
+			"instead", floorFeeRateSatPerKw)
+		satPerKw = floorFeeRateSatPerKw
+	}
+
+	// Convert to sat/vb. This operation is rounding down but should never be
+	// below 1.0 sat/vb if we set the fallback fee above 250 sat/kw. We can set
+	// this fallback fee in the fee estimator.
+	satPerKb := satPerKw * witnessScaleFactor
+	satPerVb := float64(satPerKb) / 1000
+
 	// assume largest witness
-	fee := satPerByte * float64(txSize)
-	return uint64(fee), nil
+	fee := uint64(satPerVb * float64(txSize))
+	log.Debugf("Using a fee rate of %.2f sat/vb for a total fee of %d", satPerVb, fee)
+	return fee, nil
 }
