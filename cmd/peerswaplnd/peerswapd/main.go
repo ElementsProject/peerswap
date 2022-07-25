@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	log2 "log"
 	"net"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -39,13 +39,10 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
-	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"gopkg.in/macaroon.v2"
 )
 
 const (
@@ -107,12 +104,12 @@ func run() error {
 	log.Infof("Starting peerswap commit %s with cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
-	lndConn, err := getLndClientConnection(ctx, cfg)
+	cc, err := lnd.GetLndClientConnection(ctx, cfg.LndConfig)
 	if err != nil {
 		return err
 	}
-	defer lndConn.Close()
-	lnrpcClient := lnrpc.NewLightningClient(lndConn)
+	defer cc.Close()
+	lnrpcClient := lnrpc.NewLightningClient(cc)
 
 	info, err := lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -146,11 +143,11 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(lndConn), lnrpcClient, chain)
+		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(cc), lnrpcClient, chain)
 
 		// Start the LndEstimator.
 		lndEstimator, err := onchain.NewLndEstimator(
-			walletrpc.NewWalletKitClient(lndConn),
+			walletrpc.NewWalletKitClient(cc),
 			btcutil.Amount(253),
 			10*time.Minute,
 		)
@@ -317,7 +314,7 @@ func run() error {
 		pollService,
 		pol,
 		liquidCli,
-		lnrpc.NewLightningClient(lndConn),
+		lnrpc.NewLightningClient(cc),
 		sigChan,
 	)
 
@@ -405,37 +402,6 @@ func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
 	default:
 		return &network.Testnet, nil
 	}
-}
-
-func getLndClientConnection(ctx context.Context, cfg *peerswaplnd.PeerSwapConfig) (*grpc.ClientConn, error) {
-	creds, err := credentials.NewClientTLSFromFile(cfg.LndConfig.TlsCertPath, "")
-	if err != nil {
-		return nil, err
-	}
-	macBytes, err := ioutil.ReadFile(cfg.LndConfig.MacaroonPath)
-	if err != nil {
-		return nil, err
-	}
-	mac := &macaroon.Macaroon{}
-	if err := mac.UnmarshalBinary(macBytes); err != nil {
-		return nil, err
-	}
-	cred, err := macaroons.NewMacaroonCredential(mac)
-	if err != nil {
-		return nil, err
-	}
-	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithBlock(),
-		grpc.WithPerRPCCredentials(cred),
-		grpc.WithDefaultCallOptions(maxMsgRecvSize),
-	}
-	conn, err := grpc.DialContext(ctx, cfg.LndConfig.LndHost, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
 }
 
 func loadConfig() (*peerswaplnd.PeerSwapConfig, error) {
