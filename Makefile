@@ -51,6 +51,10 @@ test-liquid-lnd: build-with-fast-test
 	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_LndLnd_Liquid_SwapOut|Test_LndLnd_Liquid_SwapIn|Test_LndCln_Liquid_SwapOut|Test_LndCln_Liquid_SwapIn)$'' github.com/elementsproject/peerswap/test
 .PHONY: test-liquid-lnd
 
+test-misc-integration: build-with-fast-test
+	RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER) go test -tags dev -tags fast_test -timeout=30m -v -run '^(Test_GrpcReconnectStream|Test_GrpcRetryRequest)$'' github.com/elementsproject/peerswap/test
+.PHONY: test-misc-integration
+
 lnd-release:
 	go build -o peerswapd -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/peerswapd/main.go
 	go build -o pscli -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/pscli/main.go
