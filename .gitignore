@@ -13,8 +13,6 @@ cluster/volumes/signet/config/regtest/
 
 cluster/volumes/signet/liquid-config/liquidregtest/
 
-liquid-swap-plugin
-
 db
 dist/
 
