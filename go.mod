@@ -7,6 +7,7 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20210527170813-e2ba6805a890
 	github.com/btcsuite/btcutil/psbt v1.0.3-0.20210527170813-e2ba6805a890
 	github.com/elementsproject/glightning v0.0.0-20220713160855-49a9a8ec3e4d
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/lightninglabs/protobuf-hex-display v1.4.3-hex-display
@@ -25,3 +26,7 @@ require (
 
 // Temporary: this server is dead, LND 0.15 no longer refers to this old server address
 replace git.schwanenlied.me/yawning/bsaes.git => github.com/Yawning/bsaes v0.0.0-20180720073208-c0276d75487e
+
+// replace github.com/grpc-ecosystem/go-grpc-middleware => ../go-grpc-middleware
+replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220724185904-d87620a32fc7
+
