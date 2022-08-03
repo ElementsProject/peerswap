@@ -37,7 +37,6 @@ import (
 	"github.com/elementsproject/peerswap/wallet"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
@@ -133,7 +132,7 @@ func run() error {
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
-	var lndTxWatcher *lnd2.LndTxWatcher
+	var lndTxWatcher *lnd2.TxWatcher
 	// setup bitcoin stuff
 	if cfg.BitcoinEnabled {
 		// bitcoin
@@ -143,7 +142,16 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(cc), lnrpcClient, chain)
+		lndTxWatcher, err = lnd2.NewTxWatcher(
+			ctx,
+			cc,
+			chain,
+			onchain.BitcoinMinConfs,
+			onchain.BitcoinCsv,
+		)
+		if err != nil {
+			return err
+		}
 
 		// Start the LndEstimator.
 		lndEstimator, err := onchain.NewLndEstimator(

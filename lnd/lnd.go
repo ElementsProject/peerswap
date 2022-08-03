@@ -49,7 +49,7 @@ var (
 	// error, on which we retry our call (and server side stream) to the lnd
 	// node. The codes represent:
 	// - Unavailable:	The service is currently unavailable. This is most
-	//					likely a transient condition, which can be corrected by
+	//					likely a transient condition, which can be correctesd by
 	//					retrying with a backoff. Note that it is not always safe
 	//					to retry non-idempotent operations.
 	//
@@ -72,6 +72,10 @@ var (
 		{
 			Code: codes.Unknown,
 			Msg:  "the RPC server is in the process of starting up, but not yet ready to accept calls",
+		},
+		{
+			Code: codes.Unknown,
+			Msg:  "chain notifier RPC is still in the process of starting",
 		},
 	}
 )
@@ -450,23 +454,6 @@ func (l *Lnd) handleCustomMessage(msg *lnrpc.CustomMessage) error {
 		}
 	}
 	return nil
-}
-
-func AddInvoiceSubscription(lock sync.Locker, subMap map[string]interface{}, rHash string) {
-	lock.Lock()
-	defer lock.Unlock()
-	subMap[rHash] = ""
-}
-
-func RemoveInvoiceSubscribtion(lock sync.Locker, subMap map[string]interface{}, rHash string) {
-	lock.Lock()
-	defer lock.Unlock()
-	delete(subMap, rHash)
-}
-
-func HasInvoiceSubscribtion(subMap map[string]interface{}, rHash string) bool {
-	_, ok := subMap[rHash]
-	return ok
 }
 
 func getClientConnection(ctx context.Context, tlsCertPath, macaroonPath, address string) (*grpc.ClientConn, error) {
