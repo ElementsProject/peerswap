@@ -15,7 +15,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 )
 
-func (l *Lnd) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+func (l *Client) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
 	addr, err := l.bitcoinOnChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
 	if err != nil {
 		return "", 0, 0, err
@@ -64,7 +64,7 @@ func (l *Lnd) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unprepar
 	return rawTxHex, fee, vout, nil
 }
 
-func (l *Lnd) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
+func (l *Client) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
 	txBytes, err := hex.DecodeString(unpreparedTxHex)
 	if err != nil {
 		return "", "", err
@@ -82,7 +82,7 @@ func (l *Lnd) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, er
 	return openingTx.TxHash().String(), unpreparedTxHex, nil
 }
 
-func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+func (l *Client) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
 		return "", "", err
@@ -125,7 +125,7 @@ func (l *Lnd) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, 
 	return tx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+func (l *Client) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
 	newAddr, err := l.NewAddress()
 	if err != nil {
 		return "", "", err
@@ -162,7 +162,7 @@ func (l *Lnd) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claim
 	return tx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+func (l *Client) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
 	refundAddr, err := l.NewAddress()
 	if err != nil {
 		return "", "", err
@@ -207,7 +207,7 @@ func (l *Lnd) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, clai
 	return spendingTx.TxHash().String(), txHex, nil
 }
 
-func (l *Lnd) GetOnchainBalance() (uint64, error) {
+func (l *Client) GetOnchainBalance() (uint64, error) {
 	res, err := l.lndClient.WalletBalance(l.ctx, &lnrpc.WalletBalanceRequest{})
 	if err != nil {
 		return 0, err
@@ -216,11 +216,11 @@ func (l *Lnd) GetOnchainBalance() (uint64, error) {
 	return uint64(res.TotalBalance), nil
 }
 
-func (l *Lnd) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
+func (l *Client) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
 	return l.bitcoinOnChain.GetOutputScript(params)
 }
 
-func (l *Lnd) NewAddress() (string, error) {
+func (l *Client) NewAddress() (string, error) {
 	res, err := l.lndClient.NewAddress(l.ctx, &lnrpc.NewAddressRequest{Type: lnrpc.AddressType_WITNESS_PUBKEY_HASH})
 	if err != nil {
 		return "", err
@@ -228,21 +228,21 @@ func (l *Lnd) NewAddress() (string, error) {
 	return res.Address, nil
 }
 
-func (l *Lnd) GetRefundFee() (uint64, error) {
+func (l *Client) GetRefundFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(250)
 }
 
 // GetFlatSwapOutFee returns a fee that is the size of an opening transaction
 // with 2 inputs and 2 outputs (p2wsh, p2wpkg change): 218 bytes
-func (l *Lnd) GetFlatSwapOutFee() (uint64, error) {
+func (l *Client) GetFlatSwapOutFee() (uint64, error) {
 	return l.bitcoinOnChain.GetFee(218)
 }
 
-func (cl *Lnd) GetAsset() string {
+func (cl *Client) GetAsset() string {
 	return ""
 }
 
-func (cl *Lnd) GetNetwork() string {
+func (cl *Client) GetNetwork() string {
 	return cl.bitcoinOnChain.GetChain().Name
 }
 

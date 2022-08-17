@@ -601,7 +601,7 @@ func txwatcherNodeSetup(t *testing.T, dir string) (bitcoind *testframework.Bitco
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err = GetLndClientConnection(
+	cc, err = GetClientConnection(
 		context.Background(),
 		&peerswaplnd.LndConfig{
 			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),

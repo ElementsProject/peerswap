@@ -26,7 +26,7 @@ import (
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
-	lnd2 "github.com/elementsproject/peerswap/lnd"
+	lnd_internal "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/peerswaprpc"
@@ -103,7 +103,7 @@ func run() error {
 	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
-	cc, err := lnd.GetLndClientConnection(ctx, cfg.LndConfig)
+	cc, err := lnd.GetClientConnection(ctx, cfg.LndConfig)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func run() error {
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
-	var lndTxWatcher *lnd2.TxWatcher
+	var lndTxWatcher *lnd_internal.TxWatcher
 	// setup bitcoin stuff
 	if cfg.BitcoinEnabled {
 		// bitcoin
@@ -142,7 +142,7 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndTxWatcher, err = lnd2.NewTxWatcher(
+		lndTxWatcher, err = lnd_internal.NewTxWatcher(
 			ctx,
 			cc,
 			chain,
@@ -224,15 +224,13 @@ func run() error {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
 	// setup lnd
-	paymentWatcher, err := lnd2.NewPaymentWatcher(ctx, cc)
+	paymentWatcher, err := lnd_internal.NewPaymentWatcher(ctx, cc)
 	if err != nil {
 		return err
 	}
-	lnd, err := lnd2.NewLnd(
+	lnd, err := lnd_internal.NewClient(
 		ctx,
-		cfg.LndConfig.TlsCertPath,
-		cfg.LndConfig.MacaroonPath,
-		cfg.LndConfig.LndHost,
+		cc,
 		paymentWatcher,
 		bitcoinOnChainService,
 	)
