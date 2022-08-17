@@ -224,14 +224,21 @@ func run() error {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
 	// setup lnd
+	messageListener, err := lnd_internal.NewMessageListener(ctx, cc)
+	if err != nil {
+		return err
+	}
+
 	paymentWatcher, err := lnd_internal.NewPaymentWatcher(ctx, cc)
 	if err != nil {
 		return err
 	}
+
 	lnd, err := lnd_internal.NewClient(
 		ctx,
 		cc,
 		paymentWatcher,
+		messageListener,
 		bitcoinOnChainService,
 	)
 	if err != nil {

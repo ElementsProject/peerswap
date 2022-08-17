@@ -11,7 +11,6 @@ import (
 	"github.com/elementsproject/peerswap/log"
 
 	"github.com/elementsproject/peerswap/lightning"
-	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
@@ -83,21 +82,27 @@ type Client struct {
 	walletClient walletrpc.WalletKitClient
 	routerClient routerrpc.RouterClient
 
-	PollService    *poll.Service
-	bitcoinOnChain *onchain.BitcoinOnChain
-	paymentWatcher *PaymentWatcher
+	PollService     *poll.Service
+	bitcoinOnChain  *onchain.BitcoinOnChain
+	paymentWatcher  *PaymentWatcher
+	messageListener *MessageListener
 
 	cc  *grpc.ClientConn
 	ctx context.Context
 
-	messageHandler       []func(peerId string, msgType string, payload []byte) error
 	invoiceSubscriptions map[string]interface{}
 	pubkey               string
 
 	sync.Mutex
 }
 
-func NewClient(ctx context.Context, cc *grpc.ClientConn, paymentWatcher *PaymentWatcher, chain *onchain.BitcoinOnChain) (*Client, error) {
+func NewClient(
+	ctx context.Context,
+	cc *grpc.ClientConn,
+	paymentWatcher *PaymentWatcher,
+	messageListener *MessageListener,
+	chain *onchain.BitcoinOnChain,
+) (*Client, error) {
 	// TODO: Refactor this module so that it becomes testable. At the moment a
 	// LND client is always needed, so we can not provide mocked unit tests.
 
@@ -114,6 +119,7 @@ func NewClient(ctx context.Context, cc *grpc.ClientConn, paymentWatcher *Payment
 		walletClient:         walletClient,
 		routerClient:         routerClient,
 		paymentWatcher:       paymentWatcher,
+		messageListener:      messageListener,
 		bitcoinOnChain:       chain,
 		cc:                   cc,
 		ctx:                  ctx,
@@ -123,7 +129,14 @@ func NewClient(ctx context.Context, cc *grpc.ClientConn, paymentWatcher *Payment
 }
 
 func (l *Client) Stop() {
+	log.Infof("[LndClient]: Stop watchers")
+	l.messageListener.Stop()
 	l.paymentWatcher.Stop()
+}
+
+func (l *Client) StartListening() error {
+	go l.startListenPeerEvents()
+	return l.messageListener.Start()
 }
 
 func (l *Client) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) {
@@ -300,24 +313,11 @@ func (l *Client) SendMessage(peerId string, message []byte, messageType int) err
 }
 
 func (l *Client) AddMessageHandler(f func(peerId string, msgType string, payload []byte) error) {
-	l.messageHandler = append(l.messageHandler, f)
+	l.messageListener.AddMessageHandler(f)
 }
 
 func (l *Client) PrepareOpeningTransaction(address string, amount uint64) (txId string, txHex string, err error) {
 	return "", "", nil
-}
-
-func (l *Client) StartListening() {
-	go l.startListenMessages()
-	go l.startListenPeerEvents()
-}
-
-func (l *Client) startListenMessages() {
-	err := l.listenMessages()
-	if err != nil {
-		log.Infof("error listening on messages %v, restarting", err)
-		l.startListenMessages()
-	}
 }
 
 func (l *Client) startListenPeerEvents() {
@@ -342,29 +342,6 @@ func (l *Client) GetPeers() []string {
 	return peerlist
 }
 
-func (l *Client) listenMessages() error {
-	client, err := l.lndClient.SubscribeCustomMessages(l.ctx, &lnrpc.SubscribeCustomMessagesRequest{})
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-l.ctx.Done():
-			return client.CloseSend()
-		default:
-			msg, err := client.Recv()
-			if err != nil {
-				return err
-			}
-
-			err = l.handleCustomMessage(msg)
-			if err != nil {
-				log.Infof("Error handling msg %v", err)
-			}
-		}
-	}
-}
-
 func (l *Client) listenPeerEvents() error {
 	client, err := l.lndClient.SubscribePeerEvents(l.ctx, &lnrpc.PeerEventSubscription{})
 	if err != nil {
@@ -386,17 +363,6 @@ func (l *Client) listenPeerEvents() error {
 			}
 		}
 	}
-}
-
-func (l *Client) handleCustomMessage(msg *lnrpc.CustomMessage) error {
-	peerId := hex.EncodeToString(msg.Peer)
-	for _, v := range l.messageHandler {
-		err := v(peerId, messages.MessageTypeToHexString(messages.MessageType(msg.Type)), msg.Data)
-		if err != nil {
-			log.Infof("\n Custom Message Handler err: %v", err)
-		}
-	}
-	return nil
 }
 
 func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {
