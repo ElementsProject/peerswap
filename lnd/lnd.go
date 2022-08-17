@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -20,7 +19,6 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -81,26 +79,25 @@ var (
 )
 
 type Lnd struct {
-	lndClient      lnrpc.LightningClient
-	walletClient   walletrpc.WalletKitClient
-	routerClient   routerrpc.RouterClient
-	invoicesClient invoicesrpc.InvoicesClient
+	lndClient    lnrpc.LightningClient
+	walletClient walletrpc.WalletKitClient
+	routerClient routerrpc.RouterClient
 
 	PollService    *poll.Service
 	bitcoinOnChain *onchain.BitcoinOnChain
+	paymentWatcher *PaymentWatcher
 
 	cc  *grpc.ClientConn
 	ctx context.Context
 
 	messageHandler       []func(peerId string, msgType string, payload []byte) error
-	paymentCallbacks     []func(swapId string, invoiceType swap.InvoiceType)
 	invoiceSubscriptions map[string]interface{}
 	pubkey               string
 
 	sync.Mutex
 }
 
-func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chain *onchain.BitcoinOnChain) (*Lnd, error) {
+func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, paymentWatcher *PaymentWatcher, chain *onchain.BitcoinOnChain) (*Lnd, error) {
 	// TODO: Refactor this module so that it becomes testable. At the moment a
 	// LND client is always needed, so we can not provide mocked unit tests.
 
@@ -111,7 +108,6 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 	lndClient := lnrpc.NewLightningClient(cc)
 	walletClient := walletrpc.NewWalletKitClient(cc)
 	routerClient := routerrpc.NewRouterClient(cc)
-	invoicesClient := invoicesrpc.NewInvoicesClient(cc)
 
 	gi, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -121,7 +117,7 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 		lndClient:            lndClient,
 		walletClient:         walletClient,
 		routerClient:         routerClient,
-		invoicesClient:       invoicesClient,
+		paymentWatcher:       paymentWatcher,
 		bitcoinOnChain:       chain,
 		cc:                   cc,
 		ctx:                  ctx,
@@ -130,61 +126,12 @@ func NewLnd(ctx context.Context, tlsCertPath, macaroonPath, address string, chai
 	}, nil
 }
 
+func (l *Lnd) Stop() {
+	l.paymentWatcher.Stop()
+}
+
 func (l *Lnd) AddPaymentNotifier(swapId string, payreq string, invoiceType swap.InvoiceType) {
-	// OPTIMIZE: Think about what happens on reconnection to a restarted lnd node.
-	invoice, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
-	if err != nil {
-		log.Infof("decode invoice error: %v", err)
-	}
-
-	if HasInvoiceSubscribtion(l.invoiceSubscriptions, invoice.PaymentHash) {
-		log.Debugf("Already subscribed to invoice with payment hash: %s", invoice.PaymentHash)
-		return
-	}
-
-	rHash, err := hex.DecodeString(invoice.PaymentHash)
-	if err != nil {
-		log.Infof("decode rhash error: %v", err)
-	}
-
-	AddInvoiceSubscription(l, l.invoiceSubscriptions, invoice.PaymentHash)
-	cctx, cancel := context.WithCancel(l.ctx)
-
-	// Subscribe to invoice stream. If the stream returns a status update that
-	// an invoice is settled we call the callbacks.
-	stream, err := l.invoicesClient.SubscribeSingleInvoice(cctx, &invoicesrpc.SubscribeSingleInvoiceRequest{RHash: rHash})
-	if err != nil {
-		log.Infof("Could not subscribe to single invoice: %v", err)
-		cancel()
-	}
-
-	go func() {
-		defer RemoveInvoiceSubscribtion(l, l.invoiceSubscriptions, invoice.PaymentHash)
-		defer cancel()
-
-		for {
-			res, err := stream.Recv()
-			if err == io.EOF {
-				return
-			}
-
-			if err != nil {
-				log.Debugf("LndPaymentNotifier: Could not read from stream: %v", err)
-				return
-			}
-
-			switch res.State {
-			case lnrpc.Invoice_SETTLED:
-				for _, handler := range l.paymentCallbacks {
-					go handler(swapId, invoiceType)
-				}
-				return
-
-			case lnrpc.Invoice_CANCELED:
-				return
-			}
-		}
-	}()
+	l.paymentWatcher.AddWaitForPayment(swapId, payreq, invoiceType)
 }
 
 func (l *Lnd) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
@@ -247,7 +194,7 @@ func (l *Lnd) GetPayreq(msatAmount uint64, preimageString string, swapId string,
 }
 
 func (l *Lnd) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {
-	l.paymentCallbacks = append(l.paymentCallbacks, f)
+	l.paymentWatcher.AddPaymentCallback(f)
 }
 
 func (l *Lnd) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {

@@ -224,7 +224,18 @@ func run() error {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
 	// setup lnd
-	lnd, err := lnd2.NewLnd(ctx, cfg.LndConfig.TlsCertPath, cfg.LndConfig.MacaroonPath, cfg.LndConfig.LndHost, bitcoinOnChainService)
+	paymentWatcher, err := lnd2.NewPaymentWatcher(ctx, cc)
+	if err != nil {
+		return err
+	}
+	lnd, err := lnd2.NewLnd(
+		ctx,
+		cfg.LndConfig.TlsCertPath,
+		cfg.LndConfig.MacaroonPath,
+		cfg.LndConfig.LndHost,
+		paymentWatcher,
+		bitcoinOnChainService,
+	)
 	if err != nil {
 		return err
 	}
