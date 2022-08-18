@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elementsproject/peerswap/test"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,9 @@ import (
 // disconnects and reconnects. We expect to have a handler called for both
 // events.
 func TestPeerListener(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
 	// Setup bitcoind and lnd.
 	tmpDir := t.TempDir()
 	_, peer, node, cc, err := messageListenerNodeSetup(t, tmpDir)

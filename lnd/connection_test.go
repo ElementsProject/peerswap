@@ -15,6 +15,8 @@ import (
 )
 
 func TestWaitForReady_OnStop(t *testing.T) {
+	t.Parallel()
+
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("net.Listen() failed: %v", err)
@@ -67,6 +69,8 @@ func TestWaitForReady_OnStop(t *testing.T) {
 }
 
 func TestWaitForReady_OnGracefulStop(t *testing.T) {
+	t.Parallel()
+
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("net.Listen() failed: %v", err)
@@ -119,6 +123,8 @@ func TestWaitForReady_OnGracefulStop(t *testing.T) {
 }
 
 func TestResubscribeToStream(t *testing.T) {
+	t.Parallel()
+
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("net.Listen() failed: %v", err)

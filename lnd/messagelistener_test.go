@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
+	"github.com/elementsproject/peerswap/test"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,9 @@ import (
 // is added and a message is sent to the node that the listener is subscribed
 // to. We expect the handler to be called.
 func TestMessageListener(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
 	// Setup bitcoind and lnd.
 	tmpDir := t.TempDir()
 	_, sender, receiver, cc, err := messageListenerNodeSetup(t, tmpDir)
@@ -72,6 +76,9 @@ func TestMessageListener(t *testing.T) {
 // the node is restarted and a custom message is sent to the node. We expect the
 // handler to be called.
 func TestMessageListener_Reconnect(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
 	// Setup bitcoind and lnd.
 	tmpDir := t.TempDir()
 	_, sender, receiver, cc, err := messageListenerNodeSetup(t, tmpDir)
