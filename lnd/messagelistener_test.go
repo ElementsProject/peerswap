@@ -57,11 +57,16 @@ func TestMessageListener(t *testing.T) {
 	var typ uint32 = 42069
 	data := "mydata"
 
-	sender.Rpc.SendCustomMessage(context.Background(), &lnrpc.SendCustomMessageRequest{
-		Peer: peer,
-		Type: typ,
-		Data: []byte(data),
-	})
+	go func() {
+		for {
+			sender.Rpc.SendCustomMessage(context.Background(), &lnrpc.SendCustomMessageRequest{
+				Peer: peer,
+				Type: typ,
+				Data: []byte(data),
+			})
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 
 	err = testframework.WaitFor(func() bool {
 		return gotMessage
@@ -138,13 +143,13 @@ func TestMessageListener_Reconnect(t *testing.T) {
 				Type: typ,
 				Data: []byte(data),
 			})
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
 	err = testframework.WaitFor(func() bool {
 		return gotMessage
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }
 

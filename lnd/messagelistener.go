@@ -68,6 +68,8 @@ func (m *MessageListener) Start() error {
 			}
 
 			peerId := hex.EncodeToString(msg.Peer)
+			log.Debugf("[MsgListener]: Received custom message type %s from %s", messages.MessageTypeToHexString(messages.MessageType(msg.Type)), peerId)
+
 			m.Lock()
 			for _, handler := range m.handlers {
 				err := handler(peerId, messages.MessageTypeToHexString(messages.MessageType(msg.Type)), msg.Data)
