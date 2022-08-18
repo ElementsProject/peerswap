@@ -62,6 +62,7 @@ test-bitcoin-lnd: build-with-fast-test
 	'Test_LndCln_Bitcoin_SwapOut|'\
 	'Test_LndCln_Bitcoin_SwapIn)'\
 	 ./test
+	${INTEGRATION_TEST_ENV} go test $(INTEGRATION_TEST_OPTS) ./lnd
 .PHONY: test-liquid-lnd
 
 test-liquid-cln: build-with-fast-test
@@ -89,7 +90,7 @@ test-misc-integration: build-with-fast-test
 	-run '^('\
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
-	'Test_ClnCln_MPP|'
+	'Test_ClnCln_MPP|'\
 	'Test_ClnLnd_MPP)'\
 	 ./test
 .PHONY: test-misc-integration
@@ -99,13 +100,10 @@ lnd-release: clean-lnd
 	go install -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/pscli
 .PHONY: lnd-release
 
-<<<<<<< HEAD
+
 cln-release: clean-cln
 	# peerswap-plugin binary is not installed in GOPATH because it must be called by full pathname as a CLN plugin.
 	# You may choose to install it to any location you wish.
-=======
-cln-release: 
->>>>>>> aeb0a84 (make: Add lnd package to the integration test command.)
 	go build -o peerswap-plugin -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
 
