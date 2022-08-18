@@ -12,7 +12,6 @@ import (
 
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
-	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -82,7 +81,6 @@ type Client struct {
 	walletClient walletrpc.WalletKitClient
 	routerClient routerrpc.RouterClient
 
-	PollService     *poll.Service
 	bitcoinOnChain  *onchain.BitcoinOnChain
 	paymentWatcher  *PaymentWatcher
 	messageListener *MessageListener
@@ -103,9 +101,6 @@ func NewClient(
 	messageListener *MessageListener,
 	chain *onchain.BitcoinOnChain,
 ) (*Client, error) {
-	// TODO: Refactor this module so that it becomes testable. At the moment a
-	// LND client is always needed, so we can not provide mocked unit tests.
-
 	lndClient := lnrpc.NewLightningClient(cc)
 	walletClient := walletrpc.NewWalletKitClient(cc)
 	routerClient := routerrpc.NewRouterClient(cc)
@@ -128,14 +123,7 @@ func NewClient(
 	}, nil
 }
 
-func (l *Client) Stop() {
-	log.Infof("[LndClient]: Stop watchers")
-	l.messageListener.Stop()
-	l.paymentWatcher.Stop()
-}
-
 func (l *Client) StartListening() error {
-	go l.startListenPeerEvents()
 	return l.messageListener.Start()
 }
 
@@ -320,14 +308,6 @@ func (l *Client) PrepareOpeningTransaction(address string, amount uint64) (txId 
 	return "", "", nil
 }
 
-func (l *Client) startListenPeerEvents() {
-	err := l.listenPeerEvents()
-	if err != nil {
-		log.Infof("error listening on peer events %v", err)
-		l.startListenPeerEvents()
-	}
-}
-
 func (l *Client) GetPeers() []string {
 	res, err := l.lndClient.ListPeers(l.ctx, &lnrpc.ListPeersRequest{})
 	if err != nil {
@@ -340,29 +320,6 @@ func (l *Client) GetPeers() []string {
 		peerlist = append(peerlist, peer.PubKey)
 	}
 	return peerlist
-}
-
-func (l *Client) listenPeerEvents() error {
-	client, err := l.lndClient.SubscribePeerEvents(l.ctx, &lnrpc.PeerEventSubscription{})
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-l.ctx.Done():
-			return client.CloseSend()
-		default:
-			msg, err := client.Recv()
-			if err != nil {
-				return err
-			}
-			if msg.Type == lnrpc.PeerEvent_PEER_ONLINE {
-				if l.PollService != nil {
-					l.PollService.Poll(msg.PubKey)
-				}
-			}
-		}
-	}
 }
 
 func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {

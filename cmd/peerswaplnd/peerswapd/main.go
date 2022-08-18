@@ -108,12 +108,14 @@ func run() error {
 		return err
 	}
 	defer cc.Close()
+
 	lnrpcClient := lnrpc.NewLightningClient(cc)
 
 	info, err := lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
+
 	log.Infof("Running with lnd node: %s", info.IdentityPubkey)
 	err = checkLndVersion(info.Version)
 	if err != nil {
@@ -223,17 +225,26 @@ func run() error {
 	if !cfg.BitcoinEnabled && !cfg.LiquidEnabled {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
-	// setup lnd
+	// Start lnd listeners and watchers.
 	messageListener, err := lnd_internal.NewMessageListener(ctx, cc)
 	if err != nil {
 		return err
 	}
+	defer messageListener.Stop()
 
 	paymentWatcher, err := lnd_internal.NewPaymentWatcher(ctx, cc)
 	if err != nil {
 		return err
 	}
+	defer paymentWatcher.Stop()
 
+	peerListener, err := lnd_internal.NewPeerListener(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer peerListener.Stop()
+
+	// Setup lnd client.
 	lnd, err := lnd_internal.NewClient(
 		ctx,
 		cc,
@@ -326,7 +337,13 @@ func run() error {
 	pollService.Start()
 	defer pollService.Stop()
 
-	lnd.PollService = pollService
+	// Add poll handler to peer event listener.
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.Poll)
+	if err != nil {
+		return err
+	}
+
+	// Start internal lnd listener.
 	lnd.StartListening()
 
 	// setup grpc server
