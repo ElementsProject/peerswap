@@ -24,9 +24,8 @@ require (
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
+// This fork contains some options we need to reconnect to lnd.
+replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220822181403-4e92f196d5ba
+
 // Temporary: this server is dead, LND 0.15 no longer refers to this old server address
 replace git.schwanenlied.me/yawning/bsaes.git => github.com/Yawning/bsaes v0.0.0-20180720073208-c0276d75487e
-
-// replace github.com/grpc-ecosystem/go-grpc-middleware => ../go-grpc-middleware
-replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220724185904-d87620a32fc7
-
