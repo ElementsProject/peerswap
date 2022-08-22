@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/onchain"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"google.golang.org/grpc"
@@ -100,6 +101,7 @@ func (t *TxWatcher) addTxWatcher(ctx context.Context, swapId string, txId string
 			NumConfs:   numConfs,
 			HeightHint: heightHint,
 		},
+		grpc_retry.WithIgnoreEOF(),
 	)
 	if err != nil {
 		return nil, nil, err
@@ -294,9 +296,13 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 				// as lnd does not allow to track for more confirmations.
 				// Instead we listen for new blocks here and calculate the
 				// confirmations by the difference of the block heights.
-				stream, err := t.chainrpcClient.RegisterBlockEpochNtfn(ctx, &chainrpc.BlockEpoch{
-					Height: conf.blockHeight,
-				})
+				stream, err := t.chainrpcClient.RegisterBlockEpochNtfn(
+					ctx,
+					&chainrpc.BlockEpoch{
+						Height: conf.blockHeight,
+					},
+					grpc_retry.WithIgnoreEOF(),
+				)
 				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else this
 					// could lead to stale swaps that might not resolve.

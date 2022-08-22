@@ -64,6 +64,10 @@ var (
 			Code: codes.Unknown,
 			Msg:  "chain notifier RPC is still in the process of starting",
 		},
+		{
+			Code: codes.Unknown,
+			Msg:  "chain notifier shutting down",
+		},
 	}
 )
 

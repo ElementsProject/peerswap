@@ -153,6 +153,82 @@ func TestMessageListener_Reconnect(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestMessageListener_Reconnect_OnGracefulStop tests that the listener is able
+// to receive messages after the node that the listener is subscribed to
+// gracefully shutdown and restarted. After a handler was added to the listener
+// the node that the listener is subscribed to is killed. After a random time
+// between 1s and 5s the node is restarted and a custom message is sent to the
+// node. We expect the handler to be called.
+func TestMessageListener_Reconnect_OnGracefulStop(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
+	// Setup bitcoind and lnd.
+	tmpDir := t.TempDir()
+	_, sender, receiver, cc, err := messageListenerNodeSetup(t, tmpDir)
+	if err != nil {
+		t.Fatalf("Could not create lnd client connection: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Create new message listener.
+	messageListener, err := NewMessageListener(ctx, cc)
+	if err != nil {
+		t.Fatalf("Could not create tx watcher: %v", err)
+	}
+	defer messageListener.Stop()
+
+	// Start message listener.
+	messageListener.Start()
+
+	// Add a handler.
+	var gotMessage bool
+	messageListener.AddMessageHandler(func(peerId, msgType string, payload []byte) error {
+		gotMessage = true
+		return nil
+	})
+
+	_, err = receiver.Rpc.StopDaemon(context.Background(), &lnrpc.StopRequest{})
+	if err != nil {
+		t.Fatalf("Failed StopDaemon(): %v", err)
+	}
+	// Restart lnd
+	n := rand.Intn(5) + 1
+	time.Sleep(time.Duration(n) * time.Second)
+	err = receiver.Run(true, true)
+	if err != nil {
+		t.Fatalf("Failed Run(): %v", err)
+	}
+
+	// We still assert the callback was not called by now.
+	assert.False(t, gotMessage)
+
+	// We have to reconnect in order to send the message.
+	err = sender.Connect(receiver, true)
+	if err != nil {
+		t.Fatalf("Failed Connect(): %v", err)
+	}
+
+	// Prepare message params.
+	peer, err := hex.DecodeString(receiver.Info.IdentityPubkey)
+	if err != nil {
+		t.Fatalf("Failed DecodeString(): %v", err)
+	}
+	var typ uint32 = 42069
+	data := "mydata"
+
+	err = testframework.WaitFor(func() bool {
+		sender.Rpc.SendCustomMessage(context.Background(), &lnrpc.SendCustomMessageRequest{
+			Peer: peer,
+			Type: typ,
+			Data: []byte(data),
+		})
+		return gotMessage
+	}, 20*time.Second)
+	assert.NoError(t, err)
+}
+
 func messageListenerNodeSetup(t *testing.T, dir string) (
 	bitcoind *testframework.BitcoinNode,
 	sender *testframework.LndNode,

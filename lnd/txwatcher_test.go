@@ -334,6 +334,97 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 	}
 }
 
+// TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop tests that
+// the watcher continues on the correct height after the node that the watcher
+// subscribed to was gracefully shutdown and restarted. In the time that the
+// node is shutdown we generate the blocks necessary for confirmation. We expect
+// the watcher to call the callback after the node that the watcher is
+// subscribed to is restarted.
+func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
+	// Setup bitcoind and lnd.
+	tmpDir := t.TempDir()
+	bitcoind, lnd, cc, err := txwatcherNodeSetup(t, tmpDir)
+	if err != nil {
+		t.Fatalf("Could not create lnd client connection: %v", err)
+	}
+
+	ctx := context.Background()
+	ln := lnrpc.NewLightningClient(cc)
+	network, err := GetBitcoinChain(ctx, ln)
+	if err != nil {
+		t.Fatalf("Failed GetBitcoinChain(): %v", err)
+	}
+
+	// Create new tx watcher
+	txwatcher, err := NewTxWatcher(ctx, cc, network, testTargetConf, testCsvLimit)
+	if err != nil {
+		t.Fatalf("Could not create tx watcher: %v", err)
+	}
+
+	res, err := bitcoind.Rpc.Call("sendtoaddress", testframework.BTC_BURN, 0.001)
+	if err != nil {
+		t.Fatalf("Failed sendtoaddress(): %v", err)
+	}
+
+	txid, err := res.GetString()
+	if err != nil {
+		t.Fatalf("Failed GetString(): %v", err)
+	}
+
+	res, err = bitcoind.Call("getrawtransaction", txid, true)
+	if err != nil {
+		t.Fatalf("Failed getrawtransaction(): %v", err)
+	}
+
+	var rawtx = struct {
+		VOut []struct {
+			ScriptPubkey struct {
+				Hex string `json:"hex"`
+			} `json:"scriptPubkey"`
+		} `json:"vout"`
+	}{}
+
+	err = res.GetObject(&rawtx)
+	if err != nil {
+		t.Fatalf("Failed GetString(): %v", err)
+	}
+
+	script, err := hex.DecodeString(rawtx.VOut[0].ScriptPubkey.Hex)
+	if err != nil {
+		t.Fatalf("Failed DecodeString(): %v", err)
+	}
+
+	// Add a confirmation callback.
+	var gotCallback bool
+	txwatcher.AddConfirmationCallback(func(swapId, txHex string) error {
+		gotCallback = true
+		return nil
+	})
+
+	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, script)
+
+	_, err = lnd.Rpc.StopDaemon(context.Background(), &lnrpc.StopRequest{})
+	if err != nil {
+		t.Fatalf("Failed StopDaemon(): %v", err)
+	}
+	bitcoind.GenerateBlocks(int(testTargetConf))
+
+	// Restart lnd
+	n := rand.Intn(5) + 1
+	time.Sleep(time.Duration(n) * time.Second)
+	lnd.Run(true, true)
+
+	err = testframework.WaitFor(func() bool {
+		return gotCallback
+	}, 20*time.Second)
+	if err != nil {
+		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
+	}
+}
+
 // TestTxWatcher_AddWaitForCsvTx tests the basic functionality of the "await csv
 // is reached tx watcher". We add a callback to the watcher and watch for a tx.
 // We expect the callback to be called after the blocks necessary for csv have

@@ -3,10 +3,10 @@ package lnd
 import (
 	"context"
 	"fmt"
-	"io"
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
@@ -51,7 +51,11 @@ func NewPeerListener(ctx context.Context, cc *grpc.ClientConn) (*PeerListener, e
 }
 
 func (p *PeerListener) start() error {
-	stream, err := p.lnrpcClient.SubscribePeerEvents(p.ctx, &lnrpc.PeerEventSubscription{})
+	stream, err := p.lnrpcClient.SubscribePeerEvents(
+		p.ctx,
+		&lnrpc.PeerEventSubscription{},
+		grpc_retry.WithIgnoreEOF(),
+	)
 	if err != nil {
 		return err
 	}
@@ -64,10 +68,10 @@ func (p *PeerListener) start() error {
 
 		for {
 			evt, err := stream.Recv()
-			if err == io.EOF {
-				log.Infof("[PeerListener]: Stream closed")
-				return
-			}
+			// if err == io.EOF {
+			// log.Infof("[PeerListener]: Stream closed")
+			// return
+			// }
 			if err != nil {
 				log.Infof("[PeerListener]: Stream closed with err: %v", err)
 				return

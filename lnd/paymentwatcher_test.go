@@ -12,6 +12,7 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/test"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
@@ -112,6 +113,78 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 	// payee side (the one with the payment watcher) and restart it in 1s to 5s.
 	assert.False(t, gotCallback)
 	payee.Kill()
+	// Restart lnd
+	n := rand.Intn(5) + 1
+	time.Sleep(time.Duration(n) * time.Second)
+	err = payee.Run(true, true)
+	if err != nil {
+		t.Fatalf("Failed Run(): %v", err)
+	}
+
+	// We still assert the callback was not called by now.
+	assert.False(t, gotCallback)
+
+	// We have to reconnect in order to pay the invoice.
+	payer.Connect(payee, true)
+
+	// Now we pay the invoice and check if the watcher is still active. If the
+	// watcher is still active, the callback should be called.
+	err = payer.PayInvoice(payreq)
+	if err != nil {
+		t.Fatalf("Failed PayInvoice(): %v", err)
+	}
+	err = testframework.WaitFor(func() bool {
+		return gotCallback
+	}, 20*time.Second)
+	if err != nil {
+		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
+	}
+}
+
+// TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop tests that the
+// payment watcher is still receiving payments after the node that the payment
+// watcher is subscribed to was gracefully shutdown and restarted after 1s to
+// 5s. We expect the callback to be called after the payment request was payed
+// for.
+func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
+	test.IsIntegrationTest(t)
+	t.Parallel()
+
+	// Setup bitcoind and lnd.
+	tmpDir := t.TempDir()
+	_, payer, payee, cc, err := paymentwatcherNodeSetup(t, tmpDir)
+	if err != nil {
+		t.Fatalf("Could not create lnd client connection: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Create new payment watcher
+	paymentwatcher, err := NewPaymentWatcher(ctx, cc)
+	if err != nil {
+		t.Fatalf("Could not create tx watcher: %v", err)
+	}
+
+	payreq, err := payee.AddInvoice(100000, "testpaymentwatcher_payinvoice", "")
+	if err != nil {
+		t.Fatalf("Could not add invoice: %v", err)
+	}
+
+	// Add a payment callback.
+	var gotCallback bool
+	paymentwatcher.AddPaymentCallback(func(swapId string, invoiceType swap.InvoiceType) {
+		gotCallback = true
+	})
+
+	paymentwatcher.AddWaitForPayment("myswap", payreq, swap.INVOICE_FEE)
+
+	// We expect that the callback was not called at this point. Then we kill the
+	// payee side (the one with the payment watcher) and restart it in 1s to 5s.
+	assert.False(t, gotCallback)
+	_, err = payee.Rpc.StopDaemon(context.Background(), &lnrpc.StopRequest{})
+	if err != nil {
+		t.Fatalf("Failed StopDaemon(): %v", err)
+	}
 	// Restart lnd
 	n := rand.Intn(5) + 1
 	time.Sleep(time.Duration(n) * time.Second)
