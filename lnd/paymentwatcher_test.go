@@ -177,7 +177,7 @@ func paymentwatcherNodeSetup(t *testing.T, dir string) (
 	t.Cleanup(payee.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err = GetClientConnection(
+	cc, err = getClientConnectionForTests(
 		context.Background(),
 		&peerswaplnd.LndConfig{
 			LndHost:      fmt.Sprintf("localhost:%d", payee.RpcPort),

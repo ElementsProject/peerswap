@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	// defaultGrpcBackoffTime is the linear backoff time between failing grpc
+	// defaultGrpcBackoffTime is the linear back off time between failing grpc
 	// calls (also server side stream) to the lnd node.
-	defaultGrpcBackoffTime   = 1 * time.Second
+	defaultGrpcBackoffTime   = 5 * time.Second
 	defaultGrpcBackoffJitter = 0.1
 
 	// defaultMaxGrpcRetries is the amount of retries we take if the grpc
 	// connection to the lnd node drops for some reason or if the resource is
-	// exhausted. With the defaultGrpcBackoffTime and a linear backoff stratefgy
-	// this leads to roughly 5h of retry time.
-	defaultMaxGrpcRetries = 5
+	// exhausted. With the defaultGrpcBackoffTime and a exponential back off
+	// strategy this leads to roughly 14h of retry time.
+	defaultMaxGrpcRetries = 12
 )
 
 var (
@@ -96,6 +96,54 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 		grpc_retry.WithCodes(defaultGrpcRetryCodes...),
 		grpc_retry.WithCodesAndMatchingMessage(defaultGrpcRetryCodesWithMsg...),
 		grpc_retry.WithMax(defaultMaxGrpcRetries),
+	}
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
+		grpc.WithBlock(),
+		grpc.WithPerRPCCredentials(cred),
+		grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(
+			retryOptions...,
+		)),
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(
+			retryOptions...,
+		)),
+	}
+	conn, err := grpc.DialContext(ctx, cfg.LndHost, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {
+	creds, err := credentials.NewClientTLSFromFile(cfg.TlsCertPath, "")
+	if err != nil {
+		return nil, err
+	}
+	macBytes, err := ioutil.ReadFile(cfg.MacaroonPath)
+	if err != nil {
+		return nil, err
+	}
+	mac := &macaroon.Macaroon{}
+	if err := mac.UnmarshalBinary(macBytes); err != nil {
+		return nil, err
+	}
+	cred, err := macaroons.NewMacaroonCredential(mac)
+	if err != nil {
+		return nil, err
+	}
+	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
+
+	retryOptions := []grpc_retry.CallOption{
+		grpc_retry.WithBackoff(
+			grpc_retry.BackoffLinear(
+				100 * time.Millisecond,
+			),
+		),
+		grpc_retry.WithCodes(defaultGrpcRetryCodes...),
+		grpc_retry.WithCodesAndMatchingMessage(defaultGrpcRetryCodesWithMsg...),
+		grpc_retry.WithMax(1000),
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
