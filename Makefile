@@ -56,8 +56,8 @@ test-misc-integration: build-with-fast-test
 .PHONY: test-misc-integration
 
 lnd-release:
-	go build -o peerswapd -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/peerswapd/main.go
-	go build -o pscli -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/pscli/main.go
+	go install -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/peerswapd
+	go install -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/pscli
 .PHONY: lnd-release
 
 
