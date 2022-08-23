@@ -22,6 +22,7 @@ func Test_Create(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      defaultPeerAllowlist,
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 
@@ -33,13 +34,25 @@ func Test_Create(t *testing.T) {
 		acceptInt = 1
 	}
 
-	conf := fmt.Sprintf("accept_all_peers=%d\nallowlisted_peers=%s\nallowlisted_peers=%s", acceptInt, peer1, peer2)
+	conf := fmt.Sprintf(
+		"accept_all_peers=%d\n"+
+			"allowlisted_peers=%s\n"+
+			"allowlisted_peers=%s\n"+
+			"suspicious_peers=%s\n"+
+			"suspicious_peers=%s",
+		acceptInt,
+		peer1,
+		peer2,
+		peer1,
+		peer2,
+	)
 
 	policy2, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 	}, policy2)
 }
@@ -60,17 +73,19 @@ func Test_Reload(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 	}, policy)
 
 	newPeer := "new_peer"
-	newConf := fmt.Sprintf("allowlisted_peers=%s", newPeer)
+	newConf := fmt.Sprintf("allowlisted_peers=%s\nsuspicious_peers=%s", newPeer, newPeer)
 
 	err = policy.reload(strings.NewReader(newConf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{newPeer},
+		SuspiciousPeerList: []string{newPeer},
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 }
@@ -91,6 +106,7 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 	}, policy)
 
@@ -121,18 +137,26 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 
 	err = policy.AddToAllowlist("foo")
 	assert.NoError(t, err)
+	err = policy.AddToSuspiciousPeerList("bar")
+	assert.NoError(t, err)
 
 	policyFile, err := ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=foo\n", string(policyFile))
+	assert.Equal(t, "allowlisted_peers=foo\nsuspicious_peers=bar\n", string(policyFile))
 
-	err = policy.AddToAllowlist("bar")
+	err = policy.AddToAllowlist("foo2")
+	assert.NoError(t, err)
+	err = policy.RemoveFromAllowlist("foo")
 	assert.NoError(t, err)
 
-	err = policy.RemoveFromAllowlist("foo")
+	err = policy.AddToSuspiciousPeerList("bar2")
+	assert.NoError(t, err)
+	err = policy.RemoveFromSuspiciousPeerList("bar")
+	assert.NoError(t, err)
+
 	policyFile, err = ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=bar\n", string(policyFile))
+	assert.Equal(t, "allowlisted_peers=foo2\nsuspicious_peers=bar2\n", string(policyFile))
 }
 
 func Test_IsPeerAllowed_Allowlist(t *testing.T) {
