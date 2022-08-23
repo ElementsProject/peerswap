@@ -40,6 +40,7 @@ var methods = []peerswaprpcMethod{
 	&AddPeer{},
 	&RemovePeer{},
 	&AddSuspiciousPeer{},
+	&RemoveSuspiciousPeer{},
 }
 
 var devmethods = []peerswaprpcMethod{}
