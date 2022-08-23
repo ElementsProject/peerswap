@@ -50,7 +50,7 @@ func TestTxWatcher_GetBlockHeight(t *testing.T) {
 			t.Fatalf("Failed GetBlockHeight(): %v", err)
 		}
 		return bh == 101
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for block height of 101: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestTxWatcher_GetBlockHeight(t *testing.T) {
 			t.Fatalf("Failed GetBlockHeight(): %v", err)
 		}
 		return bh == 102
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for block height of 102: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestTxWatcher_AddWaitForConfirmationTx(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -419,7 +419,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop(t *testing.
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -603,7 +603,7 @@ func TestTxWatcher_AddWaitForCsvTx_Reconnect(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}

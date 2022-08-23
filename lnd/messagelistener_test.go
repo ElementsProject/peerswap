@@ -70,7 +70,7 @@ func TestMessageListener(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotMessage
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }
 
@@ -225,7 +225,7 @@ func TestMessageListener_Reconnect_OnGracefulStop(t *testing.T) {
 			Data: []byte(data),
 		})
 		return gotMessage
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }
 

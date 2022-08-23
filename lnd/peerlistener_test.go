@@ -50,7 +50,7 @@ func TestPeerListener(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotOfflineEvent
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 
 	err = peer.Run(true, true)
@@ -65,7 +65,7 @@ func TestPeerListener(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotOnlineEvent
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }
 
@@ -119,7 +119,7 @@ func TestPeerListener_Reconnect(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotOnlineEvent
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }
 
@@ -176,6 +176,6 @@ func TestPeerListener_Reconnect_OnGracefulStop(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotOnlineEvent
-	}, 20*time.Second)
+	}, 50*time.Second)
 	assert.NoError(t, err)
 }

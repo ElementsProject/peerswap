@@ -67,7 +67,7 @@ func TestPaymentWatcher_WatchPayment(t *testing.T) {
 
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 	}
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 	}
 	err = testframework.WaitFor(func() bool {
 		return gotCallback
-	}, 20*time.Second)
+	}, 50*time.Second)
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
