@@ -19,6 +19,7 @@ service PeerSwap {
     rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
     rpc AddPeer(AddPeerRequest) returns (AddPeerResponse);
     rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
+    rpc AddSusPeer(AddPeerRequest) returns (AddPeerResponse);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
@@ -183,6 +184,7 @@ message Policy {
     uint64 reserve_onchain_msat = 1;
     bool accept_all_peers = 2;
     repeated string peer_allow_list = 3;
+    repeated string suspicious_peer_list = 4;
 }
 
 message AllowSwapRequestsRequest {
