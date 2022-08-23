@@ -20,6 +20,7 @@ service PeerSwap {
     rpc AddPeer(AddPeerRequest) returns (AddPeerResponse);
     rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
     rpc AddSusPeer(AddPeerRequest) returns (AddPeerResponse);
+    rpc RemoveSusPeer(RemovePeerRequest) returns (RemovePeerResponse);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);

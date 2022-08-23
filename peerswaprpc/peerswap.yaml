@@ -35,6 +35,9 @@ http:
     - selector: peerswap.PeerSwap.RemovePeer 
       post: "/v1/policy/peer/remove" 
       body: "*" 
+    - selector: peerswap.PeerSwap.RemoveSusPeer 
+      post: "/v1/policy/peer/removesus" 
+      body: "*" 
     - selector: peerswap.PeerSwap.LiquidGetAddress 
       get: "/v1/liquid/address" 
     - selector: peerswap.PeerSwap.LiquidGetBalance 

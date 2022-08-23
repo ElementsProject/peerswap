@@ -36,6 +36,7 @@ type PeerSwapClient interface {
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
 	RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error)
 	AddSusPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
+	RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error)
 	// Liquid Stuff
 	LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	LiquidGetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
@@ -168,6 +169,15 @@ func (c *peerSwapClient) AddSusPeer(ctx context.Context, in *AddPeerRequest, opt
 	return out, nil
 }
 
+func (c *peerSwapClient) RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error) {
+	out := new(RemovePeerResponse)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/RemoveSusPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *peerSwapClient) LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error) {
 	out := new(GetAddressResponse)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/LiquidGetAddress", in, out, opts...)
@@ -222,6 +232,7 @@ type PeerSwapServer interface {
 	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
 	RemovePeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error)
 	AddSusPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
+	RemoveSusPeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error)
 	// Liquid Stuff
 	LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	LiquidGetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
@@ -272,6 +283,9 @@ func (UnimplementedPeerSwapServer) RemovePeer(context.Context, *RemovePeerReques
 }
 func (UnimplementedPeerSwapServer) AddSusPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddSusPeer not implemented")
+}
+func (UnimplementedPeerSwapServer) RemoveSusPeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveSusPeer not implemented")
 }
 func (UnimplementedPeerSwapServer) LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LiquidGetAddress not implemented")
@@ -532,6 +546,24 @@ func _PeerSwap_AddSusPeer_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PeerSwap_RemoveSusPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemovePeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).RemoveSusPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/RemoveSusPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).RemoveSusPeer(ctx, req.(*RemovePeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PeerSwap_LiquidGetAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAddressRequest)
 	if err := dec(in); err != nil {
@@ -662,6 +694,10 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddSusPeer",
 			Handler:    _PeerSwap_AddSusPeer_Handler,
+		},
+		{
+			MethodName: "RemoveSusPeer",
+			Handler:    _PeerSwap_RemoveSusPeer_Handler,
 		},
 		{
 			MethodName: "LiquidGetAddress",

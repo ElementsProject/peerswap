@@ -76,6 +76,20 @@ func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequ
 	}}, nil
 }
 
+func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+	err := p.policy.RemoveFromSuspiciousPeerList(request.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	pol := p.policy.Get()
+	return &RemovePeerResponse{Policy: &Policy{
+		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		AcceptAllPeers:     pol.AcceptAllPeers,
+		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
+	}}, nil
+}
+
 func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error) {
 	p.sigchan <- os.Interrupt
 	return &Empty{}, nil
