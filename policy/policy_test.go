@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -157,6 +158,51 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 	policyFile, err = ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, "allowlisted_peers=foo2\nsuspicious_peers=bar2\n", string(policyFile))
+}
+
+func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
+	const N_CONC_W = 1000
+
+	policyFilePath := path.Join(t.TempDir(), "policy.conf")
+	file, err := os.Create(policyFilePath)
+	if err != nil {
+		t.Fatalf("Failed Create(): %v", err)
+	}
+
+	err = file.Close()
+	if err != nil {
+		t.Fatalf("Failed Close(): %v", err)
+	}
+
+	policy, err := CreateFromFile(policyFilePath)
+	assert.NoError(t, err)
+
+	var expectedPeers []string
+	for i := 0; i < N_CONC_W; i++ {
+		expectedPeers = append(expectedPeers, fmt.Sprintf("foo%d", i))
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2 * N_CONC_W)
+	for i := 0; i < N_CONC_W; i++ {
+		go func(n int) {
+			ierr := policy.AddToSuspiciousPeerList(fmt.Sprintf("foo%d", n))
+			assert.NoError(t, ierr)
+			wg.Done()
+		}(i)
+		go func(n int) {
+			ierr := policy.AddToAllowlist(fmt.Sprintf("foo%d", n))
+			assert.NoError(t, ierr)
+			wg.Done()
+		}(i)
+
+	}
+
+	wg.Wait()
+
+	assert.ElementsMatch(t, expectedPeers, policy.PeerAllowlist)
+	assert.ElementsMatch(t, expectedPeers, policy.SuspiciousPeerList)
+
 }
 
 func Test_IsPeerAllowed_Allowlist(t *testing.T) {
