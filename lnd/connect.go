@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
+	"github.com/elementsproject/peerswap/log"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+
+	internal_log "log"
 )
 
 const (
@@ -44,12 +47,14 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 	}
 	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
 
+	debugLogger := internal_log.New(log.NewDebugLogger(), "[grpc_conn]: ", 0)
 	retryOptions := []grpc_retry.CallOption{
 		grpc_retry.WithBackoff(func(_ uint) time.Duration {
 			return defaultGrpcBackoffTime
 		}),
 		grpc_retry.WithAlwaysRetry(),
 		grpc_retry.WithMax(defaultMaxGrpcRetries),
+		grpc_retry.WithLogger(debugLogger),
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
@@ -93,12 +98,14 @@ func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig
 	}
 	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
 
+	debugLogger := internal_log.New(log.NewDebugLogger(), "[grpc_conn]: ", 0)
 	retryOptions := []grpc_retry.CallOption{
 		grpc_retry.WithBackoff(func(_ uint) time.Duration {
 			return testGrpcBackoffTime
 		}),
 		grpc_retry.WithAlwaysRetry(),
 		grpc_retry.WithMax(uint(testMaxGrpcRetries)),
+		grpc_retry.WithLogger(debugLogger),
 	}
 
 	opts := []grpc.DialOption{
