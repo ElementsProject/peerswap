@@ -17,14 +17,13 @@ import (
 const (
 	// defaultGrpcBackoffTime is the linear back off time between failing grpc
 	// calls (also server side stream) to the lnd node.
-	defaultGrpcBackoffTime   = 5 * time.Second
-	defaultGrpcBackoffJitter = 0.1
+	defaultGrpcBackoffTime = 30 * time.Second
 
 	// defaultMaxGrpcRetries is the amount of retries we take if the grpc
 	// connection to the lnd node drops for some reason or if the resource is
-	// exhausted. With the defaultGrpcBackoffTime and a exponential back off
-	// strategy this leads to roughly 14h of retry time.
-	defaultMaxGrpcRetries = 12
+	// exhausted. With the defaultGrpcBackoffTime and a constant back off
+	// strategy this leads to 10 hours of retry.
+	defaultMaxGrpcRetries = 1200
 )
 
 var (
@@ -91,12 +90,9 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
 
 	retryOptions := []grpc_retry.CallOption{
-		grpc_retry.WithBackoff(
-			grpc_retry.BackoffExponentialWithJitter(
-				defaultGrpcBackoffTime,
-				defaultGrpcBackoffJitter,
-			),
-		),
+		grpc_retry.WithBackoff(func(_ uint) time.Duration {
+			return defaultGrpcBackoffTime
+		}),
 		grpc_retry.WithCodes(defaultGrpcRetryCodes...),
 		grpc_retry.WithCodesAndMatchingMessage(defaultGrpcRetryCodesWithMsg...),
 		grpc_retry.WithMax(defaultMaxGrpcRetries),
@@ -121,6 +117,10 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 }
 
 func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {
+	// testGrpcBackoffTime is used for the test
+	testGrpcBackoffTime := 100 * time.Millisecond
+	testMaxGrpcRetries := 1000
+
 	creds, err := credentials.NewClientTLSFromFile(cfg.TlsCertPath, "")
 	if err != nil {
 		return nil, err
@@ -140,14 +140,12 @@ func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig
 	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 500)
 
 	retryOptions := []grpc_retry.CallOption{
-		grpc_retry.WithBackoff(
-			grpc_retry.BackoffLinear(
-				100 * time.Millisecond,
-			),
-		),
+		grpc_retry.WithBackoff(func(_ uint) time.Duration {
+			return testGrpcBackoffTime
+		}),
 		grpc_retry.WithCodes(defaultGrpcRetryCodes...),
 		grpc_retry.WithCodesAndMatchingMessage(defaultGrpcRetryCodesWithMsg...),
-		grpc_retry.WithMax(1000),
+		grpc_retry.WithMax(uint(testMaxGrpcRetries)),
 	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds),
