@@ -14,6 +14,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type confirmationEvent struct {
@@ -200,7 +201,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else
 					// this could lead to stale swaps that might not resolve.
-					log.Infof("[TxWatcher] Swap: %s, Failed on GetBlockHeight() %v", swapId, err)
+					log.Infof("[TxWatcher] Wait for confirmation on swap: %s, Failed on GetBlockHeight() %v", swapId, err)
 					return
 				}
 
@@ -212,7 +213,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 					// unsafe to pay for the invoice now.
 					// TODO: Check if this is handled correctly by the swap state
 					// machine.
-					log.Infof("[TxWatcher] Swap %s: Confirmations already above csv limit for tx %s", swapId, txId)
+					log.Infof("[TxWatcher] Wait for confirmation on swap %s: Confirmations already above csv limit for tx %s", swapId, txId)
 					_ = t.csvPassedCallback(swapId)
 					return
 				}
@@ -220,22 +221,27 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 				// Why should a callback have a return? Let the receiving part of
 				// the software decide what to do!
 				// TODO: rework callbacks.
-				log.Infof("[TxWatcher] Swap %s: Got %d confirmations call callback", swapId, confs)
+				log.Infof("[TxWatcher] Wait for confirmation on swap %s: Got %d confirmations call callback", swapId, confs)
 				if t.confirmationCallback == nil {
-					log.Infof("[TxWatcher] Swap %s: confirmationCallback is nil", swapId)
+					log.Infof("[TxWatcher] Wait for confirmation on swap %s: confirmationCallback is nil", swapId)
 					return
 				}
 				_ = t.confirmationCallback(swapId, hex.EncodeToString(conf.rawTx))
 				return
 			case err := <-errChan:
 				if err == io.EOF {
-					// EOF means the stream was closed and returned.
+					log.Infof("[TxWatcher] Wait for confirmation on swap %s: Stream closed by server: %s", swapId)
 					return
-				} else if err != nil {
+				}
+				if IsContextError(err) {
+					s := status.Convert(err)
+					log.Infof("[TxWatcher] Wait for confirmation on swap %s: Stream closed by client: %s", swapId, s.Message())
+					return
+				}
+				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else
 					// this could lead to stale swaps that might not resolve.
-					// BEWARE OF CONTEXT ERRORS.
-					log.Infof("[TxWatcher] Swap: %s: Failed waiting for tx watcher for tx %s, %v", swapId, txId, err)
+					log.Infof("[TxWatcher] Wait for confirmation on swap: %s: Stream closed with err: %v", swapId, err)
 					return
 				}
 			}
@@ -303,20 +309,25 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else this
 					// could lead to stale swaps that might not resolve.
-					log.Infof("[TxWatcher] Swap: %s: Could not subscribe to block stream, %v", swapId, err)
+					log.Infof("[TxWatcher] Wait for csv limit on swap %s: Could not subscribe to block stream, %v", swapId, err)
 					return
 				}
 
 				for {
 					be, err := stream.Recv()
 					if err == io.EOF {
-						log.Debugf("[TxWatcher] Swap: %s: Block stream closed")
+						log.Infof("[TxWatcher] Wait for csv limit on swap %s: Block stream closed by server: %s", swapId)
+						return
+					}
+					if IsContextError(err) {
+						s := status.Convert(err)
+						log.Infof("[TxWatcher] Wait for csv limit on swap %s: Block stream closed by client: %s", swapId, s.Message())
 						return
 					}
 					if err != nil {
-						// TODO: Add error return to somehow handle error in swap. Else this
-						// could lead to stale swaps that might not resolve.
-						log.Infof("[TxWatcher] Swap: %s: Block stream error, %v", swapId, err)
+						// TODO: Add error return to somehow handle error in swap. Else
+						// this could lead to stale swaps that might not resolve.
+						log.Infof("[TxWatcher] Wait for csv limit on swap: %s: Block stream closed with err: %v", swapId, err)
 						return
 					}
 
@@ -324,9 +335,9 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 					// first confirmation. If the current confirmations are past the
 					// csv limit we call back.
 					if be.Height-conf.blockHeight+1 >= onchain.BitcoinCsv {
-						log.Infof("[TxWatcher] Swap %s: Csv passed limit, call csvPassedCallback", swapId)
+						log.Infof("[TxWatcher] Wait for csv limit on swap %s: Csv passed limit, call csvPassedCallback", swapId)
 						if t.csvPassedCallback == nil {
-							log.Infof("[TxWatcher] Swap %s: confirmationCallback is nil", swapId)
+							log.Infof("[TxWatcher] Wait for csv limit on swap %s: confirmationCallback is nil", swapId)
 							return
 						}
 						_ = t.csvPassedCallback(swapId)
@@ -335,13 +346,18 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 				}
 			case err := <-errChan:
 				if err == io.EOF {
-					// EOF means the stream was closed and returned.
+					log.Infof("[TxWatcher] Wait for csv limit on swap %s: Stream closed by server: %s", swapId)
 					return
-				} else if err != nil {
+				}
+				if IsContextError(err) {
+					s := status.Convert(err)
+					log.Infof("[TxWatcher] Wait for csv limit on swap %s: Stream closed by client: %s", swapId, s.Message())
+					return
+				}
+				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else
-					// this could lead to stale swaps that misght not resolve.
-					// BEWARE OF CONTEXT ERRORS.
-					log.Infof("[TxWatcher] Swap: %s: Failed waiting for tx watcher for tx %s, %v", swapId, txId, err)
+					// this could lead to stale swaps that might not resolve.
+					log.Infof("[TxWatcher] Wait for csv limit on swap: %s: Stream closed with err: %v", swapId, err)
 					return
 				}
 			}

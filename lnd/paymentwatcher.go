@@ -12,6 +12,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type PaymentWatcher struct {
@@ -110,11 +111,19 @@ func (p *PaymentWatcher) AddWaitForPayment(swapId string, payreq string, invoice
 			res, err := stream.Recv()
 			if err == io.EOF {
 				// Stream was closed by the server.
+				log.Infof("[PaymentWatcher] Swap: %s: Stream closed by server", swapId)
+				return
+			}
+			if IsContextError(err) {
+				s := status.Convert(err)
+				log.Infof("[PaymentWatcher] Swap: %s: Stream closed by client: %s",
+					swapId,
+					s.Message())
 				return
 			}
 			if err != nil {
 				// TODO: better error handling.
-				log.Infof("[PaymentWatcher] Swap: %s: Could not read from stream: %v", swapId, err)
+				log.Infof("[PaymentWatcher] Swap: %s: Stream closed with err: %v", swapId, err)
 				return
 			}
 
@@ -147,5 +156,3 @@ func (p *PaymentWatcher) AddPaymentCallback(f func(swapId string, invoiceType sw
 	defer p.Unlock()
 	p.paymentCallback = f
 }
-
-// func (p *PaymentWatcher)

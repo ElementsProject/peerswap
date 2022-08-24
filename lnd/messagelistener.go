@@ -11,6 +11,7 @@ import (
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type MessageListener struct {
@@ -62,7 +63,12 @@ func (m *MessageListener) Start() error {
 		for {
 			msg, err := stream.Recv()
 			if err == io.EOF {
-				log.Infof("[MsgListener]: Stream closed")
+				log.Infof("[MsgListener]: Stream closed by server")
+				return
+			}
+			if IsContextError(err) {
+				s := status.Convert(err)
+				log.Infof("[MsgListener]: Stream closed by client: %s", s.Message())
 				return
 			}
 			if err != nil {

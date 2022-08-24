@@ -7,7 +7,9 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/status"
 )
 
 // WaitForReady checks on the status of a grpc client connection. We wait until
@@ -35,4 +37,12 @@ func WaitForReady(conn *grpc.ClientConn, timeout time.Duration) error {
 			return nil
 		}
 	}
+}
+
+// IsContextError returns true if the error is of grpc error type Canceled or
+// DeadlineExceeded. A ContextError always indicates that a grpc stream was
+// closed by the client side.
+func IsContextError(err error) bool {
+	code := status.Code(err)
+	return code == codes.DeadlineExceeded || code == codes.Canceled
 }
