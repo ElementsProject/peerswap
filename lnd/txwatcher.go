@@ -11,7 +11,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/onchain"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"google.golang.org/grpc"
@@ -101,7 +100,6 @@ func (t *TxWatcher) addTxWatcher(ctx context.Context, swapId string, txId string
 			NumConfs:   numConfs,
 			HeightHint: heightHint,
 		},
-		grpc_retry.WithIgnoreEOF(),
 	)
 	if err != nil {
 		return nil, nil, err
@@ -301,7 +299,6 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 					&chainrpc.BlockEpoch{
 						Height: conf.blockHeight,
 					},
-					grpc_retry.WithIgnoreEOF(),
 				)
 				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else this
@@ -311,7 +308,6 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 				}
 
 				for {
-
 					be, err := stream.Recv()
 					if err == io.EOF {
 						log.Debugf("[TxWatcher] Swap: %s: Block stream closed")

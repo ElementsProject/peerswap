@@ -9,7 +9,6 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/messages"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 )
@@ -49,7 +48,6 @@ func (m *MessageListener) Start() error {
 	stream, err := m.lnrpcClient.SubscribeCustomMessages(
 		m.ctx,
 		&lnrpc.SubscribeCustomMessagesRequest{},
-		grpc_retry.WithIgnoreEOF(),
 	)
 	if err != nil {
 		return err

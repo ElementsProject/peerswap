@@ -9,7 +9,6 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/invoicesrpc"
 	"google.golang.org/grpc"
@@ -90,7 +89,6 @@ func (p *PaymentWatcher) AddWaitForPayment(swapId string, payreq string, invoice
 		&invoicesrpc.SubscribeSingleInvoiceRequest{
 			RHash: rHash,
 		},
-		grpc_retry.WithIgnoreEOF(),
 	)
 	if err != nil {
 		log.Infof("[PaymentWatcher] Swap: %s: Could not subscribe to invoice: %v", swapId, err)

@@ -54,7 +54,7 @@ func (p *PeerListener) start() error {
 	stream, err := p.lnrpcClient.SubscribePeerEvents(
 		p.ctx,
 		&lnrpc.PeerEventSubscription{},
-		grpc_retry.WithIgnoreEOF(),
+		grpc_retry.WithAlwaysRetry(),
 	)
 	if err != nil {
 		return err
