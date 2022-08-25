@@ -88,9 +88,6 @@ func (p *Policy) GetReserveOnchainMsat() uint64 {
 // IsPeerAllowed returns if a peer or node is part of
 // the allowlist.
 func (p *Policy) IsPeerAllowed(peer string) bool {
-	if p.IsPeerSuspicious(peer) {
-		return false
-	}
 	if p.AcceptAllPeers {
 		return true
 	}
