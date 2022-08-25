@@ -4,15 +4,15 @@ This guide walks through the steps necessary to run the peerswap plugin on bitco
 
 ## Install dependencies
 
-Peerswap requires _core-lightning_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+Peerswap requires _core-lightning_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
 
 ## Bitcoind (signet)
 
 Download the following files to install bitcoin-core.
 
 ```bash
-wget https://bitcoin.org/bin/bitcoin-core-0.21.1/bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-wget https://bitcoin.org/bin/bitcoin-core-0.21.1/SHA256SUMS.asc && \
+wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
+wget https://bitcoincore.org/bin/bitcoin-core-23.0/SHA256SUMS.asc && \
 wget https://bitcoin.org/laanwj-releases.asc
 ```
 
@@ -21,23 +21,24 @@ Verify the downloaded data
 ```bash
 gpg --import laanwj-releases.asc && \
 gpg --verify SHA256SUMS.asc && \
-sha256sum -c SHA256SUMS.asc 2>&1 | grep bitcoin-0.21.1-x86_64-linux-gnu.tar.gz
+grep bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
+sha256sum -c SHA256SUMS.asc 2>&1 
 ```
 
 If the shasums match this command will return
 
-`bitcoin-0.21.1-x86_64-linux-gnu.tar.gz: OK`
+`bitcoin-0.23.0-x86_64-linux-gnu.tar.gz: OK`
 
 Extract the binaries
 
 ```bash
-tar -zvxf bitcoin-0.21.1-x86_64-linux-gnu.tar.gz
+tar -zvxf bitcoin-23.0-x86_64-linux-gnu.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR bitcoin-0.21.1/* /usr/
+sudo cp -vnR bitcoin-23.0/* /usr/
 ```
 
 Start the bitoin daemon in signet mode
@@ -51,8 +52,8 @@ bitcoind --signet --daemon
 Download the following files to install elementsd.
 
 ```bash
-wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
-wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/SHA256SUMS.asc
+wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
+wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/SHA256SUMS.asc
 ```
 
 Verify the downloaded data
@@ -65,18 +66,18 @@ sha256sum -c ELEMENTS-SHA256SUMS.asc 2>&1 | grep OK
 
 If the shasums match this command will return
 
-`elements-elements-0.21.0-x86_64-linux-gnu.tar.gz: OK`
+`elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz: OK`
 
 Extract the binaries
 
 ```bash
-tar -zvxf elements-elements-0.21.0-x86_64-linux-gnu.tar.gz
+tar -zvxf elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR elements-elements-0.21.0/* /usr/
+sudo cp -vnR elements-elements-0.21.0.2/* /usr/
 ```
 
 Create config dir in home
@@ -122,6 +123,8 @@ rpcuser=admin1
 rpcpassword=123
 rpcbind=127.0.0.1
 addnode=95.217.184.148:18444
+evbparams=dynafed:0:::
+multi_data_permitted=1
 EOF
 ```
 
@@ -145,28 +148,7 @@ with the height of the last block on [liquid-testnet-explorer](https://liquidtes
 
 <!-- We need to build cln ourselves to be able to be interoperable with lnd on signet -->
 
-get dependencies
-
-```bash
-sudo apt-get update && \
-sudo apt-get install -y \
-autoconf automake build-essential git libtool libgmp-dev \
-libsqlite3-dev python3 python3-mako net-tools zlib1g-dev libsodium-dev jq \
-gettext
-```
-
-clone and install clightning
-
-```bash
-git clone https://github.com/elementsproject/lightning.git && \
-cd lightning && \
-git checkout origin/v0.11.0 && \
-./configure
-```
-```
-sudo make && \
-sudo make install
-```
+Follow the build instructions [here](https://github.com/ElementsProject/lightning/blob/master/doc/INSTALL.md#to-build-on-ubuntu).
 
 Create config dir in home
 
@@ -192,9 +174,9 @@ EOF
 
 Install golang from https://golang.org/doc/install
 ```bash
-wget https://go.dev/dl/go1.17.3.linux-amd64.tar.gz && \
+wget https://go.dev/dl/go1.19.linux-amd64.tar.gz && \
 sudo rm -rf /usr/local/go && \
-sudo tar -C /usr/local -xzf go1.17.3.linux-amd64.tar.gz && \
+sudo tar -C /usr/local -xzf go1.19.linux-amd64.tar.gz && \
 export PATH=$PATH:/usr/local/go/bin
 ```
 
@@ -208,17 +190,14 @@ make cln-release
 
 ## Cleanup
 
-Remove all unneccessary files and folders
+Remove all unnecessary files and folders
 ```bash
 rm go1.17.3.linux-amd64.tar.gz && \
-rm clightning-v0.10.2-Ubuntu-20.04.tar.xz && \
-rm -r usr/ && \
-rm LIGHTNING-SHA256SUMS.asc && \
 rm SHA256SUMS && \
-rm -r bitcoin-0.21.1/ && \
+rm -r bitcoin-0.21.1 && \
 rm -r elements-elements-0.21.0/ && \
 rm bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-rm elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
+rm elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
 rm ELEMENTS-SHA256SUMS.asc && \
 rm laanwj-releases.asc && \
 rm SHA256SUMS.asc

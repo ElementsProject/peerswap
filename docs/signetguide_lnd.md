@@ -1,18 +1,18 @@
 # Signet Guide
 
-This guide walks through the steps necessary to run the peerswap plugin on bitcoin signet and liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different linux distributions.
+This guide walks through the steps necessary to run the peerswap daemon on bitcoin signet and liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different linux distributions.
 
 ## Install dependencies
 
-Peerswap requires _lnd_, _bitcoind_ and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+Peerswap requires _lnd_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the peerswap daemon.
 
 ## Bitcoind (signet)
 
 Download the following files to install bitcoin-core.
 
 ```bash
-wget https://bitcoin.org/bin/bitcoin-core-0.21.1/bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-wget https://bitcoin.org/bin/bitcoin-core-0.21.1/SHA256SUMS.asc && \
+wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
+wget https://bitcoincore.org/bin/bitcoin-core-23.0/SHA256SUMS.asc && \
 wget https://bitcoin.org/laanwj-releases.asc
 ```
 
@@ -21,24 +21,24 @@ Verify the downloaded data
 ```bash
 gpg --import laanwj-releases.asc && \
 gpg --verify SHA256SUMS.asc && \
-grep bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
+grep bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
 sha256sum -c SHA256SUMS.asc 2>&1 
 ```
 
 If the shasums match this command will return
 
-`bitcoin-0.21.1-x86_64-linux-gnu.tar.gz: OK`
+`bitcoin-0.23.0-x86_64-linux-gnu.tar.gz: OK`
 
 Extract the binaries
 
 ```bash
-tar -zvxf bitcoin-0.21.1-x86_64-linux-gnu.tar.gz
+tar -zvxf bitcoin-23.0-x86_64-linux-gnu.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR bitcoin-0.21.1/* /usr/
+sudo cp -vnR bitcoin-23.0/* /usr/
 ```
 
 Create config dir in home
@@ -70,8 +70,8 @@ bitcoind
 Download the following files to install elementsd.
 
 ```bash
-wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
-wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.21.0/SHA256SUMS.asc
+wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
+wget -O ELEMENTS-SHA256SUMS.asc https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/SHA256SUMS.asc
 ```
 
 Verify the downloaded data
@@ -84,18 +84,18 @@ sha256sum -c ELEMENTS-SHA256SUMS.asc 2>&1 | grep OK
 
 If the shasums match this command will return
 
-`elements-elements-0.21.0-x86_64-linux-gnu.tar.gz: OK`
+`elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz: OK`
 
 Extract the binaries
 
 ```bash
-tar -zvxf elements-elements-0.21.0-x86_64-linux-gnu.tar.gz
+tar -zvxf elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR elements-elements-0.21.0/* /usr/
+sudo cp -vnR elements-elements-0.21.0.2/* /usr/
 ```
 
 Create config dir in home
@@ -141,6 +141,8 @@ rpcuser=admin1
 rpcpassword=123
 rpcbind=127.0.0.1
 addnode=95.217.184.148:18444
+evbparams=dynafed:0:::
+multi_data_permitted=1
 EOF
 ```
 
@@ -166,31 +168,31 @@ _Note: If building from source, be sure to build with the required tags: `make i
 
 Download the following files
 ```bash
-curl https://raw.githubusercontent.com/lightningnetwork/lnd/master/scripts/keys/guggero.asc | gpg --import && \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.14.1-beta/manifest-guggero-v0.14.1-beta.sig && \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.14.1-beta/manifest-v0.14.1-beta.txt && \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.14.1-beta/lnd-linux-amd64-v0.14.1-beta.tar.gz
+curl https://raw.githubusercontent.com/lightningnetwork/lnd/master/scripts/keys/roasbeef.asc | gpg --import \
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/manifest-roasbeef-v0.15.0-beta.sig && \
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/manifest-v0.15.0-beta.txt && \
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/lnd-linux-amd64-v0.15.0-beta.tar.gz
 ```
 
 Verify the release
 ```bash
-gpg --verify manifest-guggero-v0.14.1-beta.sig manifest-v0.14.1-beta.txt
+gpg --verify manifest-roasbeef-v0.15.0-beta.sig manifest-v0.15.0-beta.txt
 ```
 
 If the shasums match this command will return
 
-`gpg: Good signature from "Oliver Gugger <gugger@gmail.com>" [unknown]`
+`gpg: Good signature from "Olaoluwa Osuntokun <laolu32@gmail.com>" [ultimate]`
 
 Extract the binaries 
 
 ```bash
-tar -zvxf lnd-linux-amd64-v0.14.1-beta.tar.gz
+tar -zvxf lnd-linux-amd64-v0.15.0-beta.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR lnd-linux-amd64-v0.14.1-beta/* /usr/bin/
+sudo cp -vnR lnd-linux-amd64-v0.15.0-beta/* /usr/bin/
 ```
 
 Create config dir in home
@@ -227,9 +229,9 @@ lncli -n=signet create
 
 Install golang from https://golang.org/doc/install
 ```bash
-wget https://go.dev/dl/go1.17.3.linux-amd64.tar.gz && \
+wget https://go.dev/dl/go1.19.linux-amd64.tar.gz && \
 sudo rm -rf /usr/local/go && \
-sudo tar -C /usr/local -xzf go1.17.3.linux-amd64.tar.gz && \
+sudo tar -C /usr/local -xzf go1.19.linux-amd64.tar.gz && \
 export PATH=$PATH:/usr/local/go/bin
 ```
 
@@ -285,17 +287,16 @@ EOF
 
 Remove all unneccessary files and folders
 ```bash
-rm go1.17.3.linux-amd64.tar.gz && \
-rm lnd-linux-amd64-v0.14.1-beta.tar.gz && \
-rm -r lnd-linux-amd64-v0.14.1-beta && \
-rm manifest-guggero-v0.14.1-beta.sig && \
-rm manifest-v0.14.1-beta.txt && \
-rm -r usr/ && \
+rm go1.19.linux-amd64.tar.gz && \
+rm lnd-linux-amd64-v0.15.0-beta.tar.gz && \
+rm -r lnd-linux-amd64-v0.15.0-beta && \
+rm manifest-roasbeef-v0.15.0-beta.sig && \
+rm manifest-v0.15.0-beta.txt && \
 rm SHA256SUMS && \
 rm -r bitcoin-0.21.1/ && \
-rm -r elements-elements-0.21.0/ && \
-rm bitcoin-0.21.1-x86_64-linux-gnu.tar.gz && \
-rm elements-elements-0.21.0-x86_64-linux-gnu.tar.gz && \
+rm -r elements-elements-0.21.0.2/ && \
+rm bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
+rm elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
 rm ELEMENTS-SHA256SUMS.asc && \
 rm laanwj-releases.asc && \
 rm SHA256SUMS.asc
