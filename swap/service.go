@@ -323,6 +323,10 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
 
+	if s.swapServices.policy.IsPeerSuspicious(peer) {
+		return nil, PeerIsSuspiciousError(peer)
+	}
+
 	if amount < MINIMUM_SWAP_SIZE {
 		return nil, ErrMinimumSwapSize
 	}
@@ -369,6 +373,10 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	}
 	if !s.allowSwapRequests {
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	}
+
+	if s.swapServices.policy.IsPeerSuspicious(peer) {
+		return nil, PeerIsSuspiciousError(peer)
 	}
 
 	if amount < MINIMUM_SWAP_SIZE {

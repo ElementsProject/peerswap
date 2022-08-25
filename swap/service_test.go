@@ -354,6 +354,36 @@ func TestTimeout(t *testing.T) {
 	}
 }
 
+// Test_SwapIn_PeerIsSuspicious checks that no swap is requested if the peer is
+// suspicious.
+func Test_SwapIn_PeerIsSuspicious(t *testing.T) {
+	const node = "alice"
+	const peer = "bob"
+
+	swapService := getTestSetup(node)
+	// Setup peer to be suspicious
+	swapService.swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+
+	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, PeerIsSuspiciousError(peer))
+}
+
+// Test_SwapOut_PeerIsSuspicious checks that no swap is requested if the peer is
+// suspicious.
+func Test_SwapOut_PeerIsSuspicious(t *testing.T) {
+	const node = "alice"
+	const peer = "bob"
+
+	swapService := getTestSetup(node)
+	// Setup peer to be suspicious
+	swapService.swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+
+	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, PeerIsSuspiciousError(peer))
+}
+
 func getTestSetup(name string) *SwapService {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
