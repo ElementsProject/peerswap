@@ -331,6 +331,8 @@ func (d *dummyLightningClient) PayInvoiceViaChannel(payreq, scid string) (preima
 }
 
 type dummyPolicy struct {
+	isPeerSuspiciousReturn bool
+	isPeerSuspiciousParam  string
 }
 
 func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
@@ -339,6 +341,11 @@ func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
 
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
 	return true
+}
+
+func (d *dummyPolicy) IsPeerSuspicious(peer string) bool {
+	d.isPeerSuspiciousParam = peer
+	return d.isPeerSuspiciousReturn
 }
 
 func (d *dummyPolicy) GetMakerFee(swapValue uint64, swapFee uint64) (uint64, error) {

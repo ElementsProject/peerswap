@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/elementsproject/peerswap/messages"
@@ -128,4 +129,38 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	}
 	assert.Equal(t, State_ClaimedCoop, swap.Current)
 
+}
+
+// Test_SwapInReceiver_PeerIsSuspicious checks that a swap request is rejected
+// if the peer is on the suspicious peer list.
+func Test_SwapInReceiver_PeerIsSuspicious(t *testing.T) {
+	swapAmount := uint64(100000)
+	swapId := NewSwapId()
+	_, initiator, _, _, chanId := getTestParams()
+
+	msgChan := make(chan PeerMessage)
+
+	swapServices := getSwapServices(msgChan)
+	// Setup the peer to be suspicious.
+	swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+
+	swap := newSwapInReceiverFSM(swapId, swapServices, initiator)
+
+	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swapId,
+		Network:         "mainnet",
+		Asset:           "",
+		Scid:            chanId,
+		Amount:          swapAmount,
+		Pubkey:          initiator,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := <-msgChan
+	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
+	assert.Equal(t, State_SwapCanceled, swap.Data.GetCurrentState())
+	assert.Equal(t, fmt.Sprintf("peer %s not allowed to request swaps", initiator), swap.Data.CancelMessage)
 }

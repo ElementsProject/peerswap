@@ -33,7 +33,13 @@ func (s ErrUnknownSwapMessageType) Error() string {
 type PeerNotAllowedError string
 
 func (s PeerNotAllowedError) Error() string {
-	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
+	return fmt.Sprintf("peer %s is not on allowlist", string(s))
+}
+
+type PeerIsSuspiciousError string
+
+func (s PeerIsSuspiciousError) Error() string {
+	return fmt.Sprintf("peer %s is on suspicious peer list", string(s))
 }
 
 func ErrReceivedMessageFromUnexpectedPeer(peerId string, swapId *SwapId) error {
