@@ -39,6 +39,8 @@ var methods = []peerswaprpcMethod{
 	&AllowSwapRequests{},
 	&AddPeer{},
 	&RemovePeer{},
+	&AddSuspiciousPeer{},
+	&RemoveSuspiciousPeer{},
 }
 
 var devmethods = []peerswaprpcMethod{}

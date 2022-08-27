@@ -28,9 +28,15 @@ http:
       get: "/v1/policy/reload" 
     - selector: peerswap.PeerSwap.AddPeer 
       post: "/v1/policy/peer/add" 
-      body: "*" 
+      body: "*"
+    - selector: peerswap.PeerSwap.AddSusPeer 
+      post: "/v1/policy/peer/addsus" 
+      body: "*"  
     - selector: peerswap.PeerSwap.RemovePeer 
       post: "/v1/policy/peer/remove" 
+      body: "*" 
+    - selector: peerswap.PeerSwap.RemoveSusPeer 
+      post: "/v1/policy/peer/removesus" 
       body: "*" 
     - selector: peerswap.PeerSwap.LiquidGetAddress 
       get: "/v1/liquid/address" 

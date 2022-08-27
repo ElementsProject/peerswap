@@ -31,6 +31,7 @@ type PeerMessage interface {
 
 type Policy interface {
 	IsPeerAllowed(peer string) bool
+	IsPeerSuspicious(peer string) bool
 	GetReserveOnchainMsat() uint64
 }
 

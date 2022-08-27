@@ -31,6 +31,7 @@ func main() {
 		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
+		addSusPeerCommand, removeSusPeerCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
@@ -184,6 +185,22 @@ var (
 			pubkeyFlag,
 		},
 		Action: removePeer,
+	}
+	addSusPeerCommand = cli.Command{
+		Name:  "addsuspeer",
+		Usage: "Adds a peer to the suspicious peer list",
+		Flags: []cli.Flag{
+			pubkeyFlag,
+		},
+		Action: addSusPeer,
+	}
+	removeSusPeerCommand = cli.Command{
+		Name:  "removesuspeer",
+		Usage: "Removes a peer from the suspicious peer list",
+		Flags: []cli.Flag{
+			pubkeyFlag,
+		},
+		Action: removeSusPeer,
 	}
 	stopCommand = cli.Command{
 		Name:   "stop",
@@ -437,6 +454,38 @@ func removePeer(ctx *cli.Context) error {
 	}
 	defer cleanup()
 	res, err := client.RemovePeer(context.Background(), &peerswaprpc.RemovePeerRequest{
+		PeerPubkey: ctx.String(pubkeyFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func addSusPeer(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	res, err := client.AddSusPeer(context.Background(), &peerswaprpc.AddPeerRequest{
+		PeerPubkey: ctx.String(pubkeyFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func removeSusPeer(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	res, err := client.RemoveSusPeer(context.Background(), &peerswaprpc.RemovePeerRequest{
 		PeerPubkey: ctx.String(pubkeyFlag.Name),
 	})
 	if err != nil {

@@ -103,7 +103,18 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 			Type:            swap.GetType(),
 			RejectionReason: swap.CancelMessage,
 		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
+		return swap.HandleError(PeerNotAllowedError(swap.PeerNodeId))
+	}
+
+	if services.policy.IsPeerSuspicious(swap.PeerNodeId) {
+		swap.CancelMessage = fmt.Sprintf("peer %s not allowed to request swaps", swap.PeerNodeId)
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.GetChain(),
+			AmountSat:       swap.GetAmount(),
+			Type:            swap.GetType(),
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(PeerIsSuspiciousError(swap.PeerNodeId))
 	}
 
 	// Call next Action

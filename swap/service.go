@@ -33,7 +33,13 @@ func (s ErrUnknownSwapMessageType) Error() string {
 type PeerNotAllowedError string
 
 func (s PeerNotAllowedError) Error() string {
-	return fmt.Sprintf("requests from peer %s are not allowed", string(s))
+	return fmt.Sprintf("peer %s is not on allowlist", string(s))
+}
+
+type PeerIsSuspiciousError string
+
+func (s PeerIsSuspiciousError) Error() string {
+	return fmt.Sprintf("peer %s is on suspicious peer list", string(s))
 }
 
 func ErrReceivedMessageFromUnexpectedPeer(peerId string, swapId *SwapId) error {
@@ -317,6 +323,10 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
 
+	if s.swapServices.policy.IsPeerSuspicious(peer) {
+		return nil, PeerIsSuspiciousError(peer)
+	}
+
 	if amount < MINIMUM_SWAP_SIZE {
 		return nil, ErrMinimumSwapSize
 	}
@@ -363,6 +373,10 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	}
 	if !s.allowSwapRequests {
 		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	}
+
+	if s.swapServices.policy.IsPeerSuspicious(peer) {
+		return nil, PeerIsSuspiciousError(peer)
 	}
 
 	if amount < MINIMUM_SWAP_SIZE {

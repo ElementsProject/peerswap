@@ -651,6 +651,8 @@ func (g *GetSwap) LongDescription() string {
 type PolicyReloader interface {
 	AddToAllowlist(pubkey string) error
 	RemoveFromAllowlist(pubkey string) error
+	AddToSuspiciousPeerList(pubkey string) error
+	RemoveFromSuspiciousPeerList(pubkey string) error
 	ReloadFile() error
 	Get() policy.Policy
 }
@@ -888,6 +890,87 @@ func (c RemovePeer) Description() string {
 
 func (c RemovePeer) LongDescription() string {
 	return `This command can be used to remove a peer from the allowlist`
+}
+
+type AddSuspiciousPeer struct {
+	PeerPubkey string `json:"peer_pubkey"`
+	cl         *ClightningClient
+}
+
+func (g *AddSuspiciousPeer) Name() string {
+	return "peerswap-addsuspeer"
+}
+
+func (g *AddSuspiciousPeer) New() interface{} {
+	return &AddSuspiciousPeer{
+		cl:         g.cl,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (g *AddSuspiciousPeer) Call() (jrpc2.Result, error) {
+	err := g.cl.policy.AddToSuspiciousPeerList(g.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	return g.cl.policy.Get(), nil
+}
+
+func (g *AddSuspiciousPeer) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &AddSuspiciousPeer{
+		cl:         client,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (c AddSuspiciousPeer) Description() string {
+	return "Add peer to suspicious peer list"
+}
+
+func (c AddSuspiciousPeer) LongDescription() string {
+	return `This command can be used to add a peer to the list of suspicious` +
+		`peers. Peers on this list are not allowed to request swaps with this node`
+}
+
+type RemoveSuspiciousPeer struct {
+	PeerPubkey string `json:"peer_pubkey"`
+	cl         *ClightningClient
+}
+
+func (g *RemoveSuspiciousPeer) Name() string {
+	return "peerswap-removesuspeer"
+}
+
+func (g *RemoveSuspiciousPeer) New() interface{} {
+	return &RemoveSuspiciousPeer{
+		cl:         g.cl,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (g *RemoveSuspiciousPeer) Call() (jrpc2.Result, error) {
+	err := g.cl.policy.RemoveFromSuspiciousPeerList(g.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	return g.cl.policy.Get(), nil
+}
+
+func (g *RemoveSuspiciousPeer) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &RemoveSuspiciousPeer{
+		cl:         client,
+		PeerPubkey: g.PeerPubkey,
+	}
+}
+
+func (c RemoveSuspiciousPeer) Description() string {
+	return "Remove peer from suspicious peer list"
+}
+
+func (c RemoveSuspiciousPeer) LongDescription() string {
+	return `This command can be used to remove  a peer to the list of` +
+		`suspicious peers. Peers on this list are not allowed to request swaps` +
+		`with this node`
 }
 
 type PeerSwapPeerChannel struct {

@@ -22,6 +22,9 @@ const (
 
 var (
 	defaultPeerAllowlist = []string{}
+
+	// defaultSuspiciousPeerList is the default set of suspicious peers.
+	defaultSuspiciousPeerList = []string{}
 )
 
 // Error definitions
@@ -49,11 +52,17 @@ type Policy struct {
 
 	ReserveOnchainMsat uint64   `long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
 	PeerAllowlist      []string `long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
-	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incomming swap requests are allowed"`
+	SuspiciousPeerList []string `long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
+	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
 }
 
 func (p *Policy) String() string {
-	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\n", p.ReserveOnchainMsat, p.PeerAllowlist, p.AcceptAllPeers)
+	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\nsuspicious_peers: %s\n",
+		p.ReserveOnchainMsat,
+		p.PeerAllowlist,
+		p.AcceptAllPeers,
+		p.SuspiciousPeerList,
+	)
 	if p.AcceptAllPeers {
 		return fmt.Sprintf("%sCAUTION: Accept all incoming swap requests", str)
 	}
@@ -64,6 +73,7 @@ func (p *Policy) Get() Policy {
 	return Policy{
 		ReserveOnchainMsat: p.ReserveOnchainMsat,
 		PeerAllowlist:      p.PeerAllowlist,
+		SuspiciousPeerList: p.SuspiciousPeerList,
 		AcceptAllPeers:     p.AcceptAllPeers,
 	}
 }
@@ -83,6 +93,16 @@ func (p *Policy) IsPeerAllowed(peer string) bool {
 	}
 	for _, allowedPeer := range p.PeerAllowlist {
 		if peer == allowedPeer {
+			return true
+		}
+	}
+	return false
+}
+
+// IsPeerSuspicious returns true if the peer is on the list of suspicious peers.
+func (p *Policy) IsPeerSuspicious(peer string) bool {
+	for _, suspiciousPeer := range p.SuspiciousPeerList {
+		if peer == suspiciousPeer {
 			return true
 		}
 	}
@@ -131,6 +151,24 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 	return p.ReloadFile()
 }
 
+// AddToSuspiciousPeerList adds a peer as a suspicious peer to the policy file
+// in runtime.
+func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
+	for _, v := range p.SuspiciousPeerList {
+		if v == pubkey {
+			return errors.New("peer is already marked as suspicious")
+		}
+	}
+	if p.path == "" {
+		return ErrNoPolicyFile
+	}
+	err := addLineToFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+	if err != nil {
+		return err
+	}
+	return p.ReloadFile()
+}
+
 func addLineToFile(filePath, line string) error {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0660)
 	if err != nil {
@@ -163,7 +201,27 @@ func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 		return err
 	}
 	return p.ReloadFile()
+}
 
+func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
+	var peerPk string
+	for _, v := range p.SuspiciousPeerList {
+		if v == pubkey {
+			peerPk = v
+			break
+		}
+	}
+	if peerPk == "" {
+		return fmt.Errorf("peer %s is not in suspicious peer list", pubkey)
+	}
+	if p.path == "" {
+		return ErrNoPolicyFile
+	}
+	err := removeLineFromFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+	if err != nil {
+		return err
+	}
+	return p.ReloadFile()
 }
 
 func removeLineFromFile(filePath, line string) error {
@@ -216,6 +274,7 @@ func DefaultPolicy() *Policy {
 	return &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      defaultPeerAllowlist,
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}
 }

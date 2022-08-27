@@ -42,6 +42,22 @@ func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
 		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
+	}}, nil
+
+}
+
+func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+	err := p.policy.AddToSuspiciousPeerList(request.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	pol := p.policy.Get()
+	return &AddPeerResponse{Policy: &Policy{
+		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		AcceptAllPeers:     pol.AcceptAllPeers,
+		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 
 }
@@ -56,6 +72,21 @@ func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequ
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
 		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
+	}}, nil
+}
+
+func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+	err := p.policy.RemoveFromSuspiciousPeerList(request.PeerPubkey)
+	if err != nil {
+		return nil, err
+	}
+	pol := p.policy.Get()
+	return &RemovePeerResponse{Policy: &Policy{
+		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		AcceptAllPeers:     pol.AcceptAllPeers,
+		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 }
 
@@ -423,6 +454,7 @@ func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPo
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
 		PeerAllowList:      pol.PeerAllowlist,
+		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 }
 

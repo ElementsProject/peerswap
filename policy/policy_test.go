@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,7 @@ func Test_Create(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      defaultPeerAllowlist,
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 
@@ -33,13 +35,25 @@ func Test_Create(t *testing.T) {
 		acceptInt = 1
 	}
 
-	conf := fmt.Sprintf("accept_all_peers=%d\nallowlisted_peers=%s\nallowlisted_peers=%s", acceptInt, peer1, peer2)
+	conf := fmt.Sprintf(
+		"accept_all_peers=%d\n"+
+			"allowlisted_peers=%s\n"+
+			"allowlisted_peers=%s\n"+
+			"suspicious_peers=%s\n"+
+			"suspicious_peers=%s",
+		acceptInt,
+		peer1,
+		peer2,
+		peer1,
+		peer2,
+	)
 
 	policy2, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 	}, policy2)
 }
@@ -60,17 +74,19 @@ func Test_Reload(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 	}, policy)
 
 	newPeer := "new_peer"
-	newConf := fmt.Sprintf("allowlisted_peers=%s", newPeer)
+	newConf := fmt.Sprintf("allowlisted_peers=%s\nsuspicious_peers=%s", newPeer, newPeer)
 
 	err = policy.reload(strings.NewReader(newConf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{newPeer},
+		SuspiciousPeerList: []string{newPeer},
 		AcceptAllPeers:     defaultAcceptAllPeers,
 	}, policy)
 }
@@ -91,6 +107,7 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 	assert.EqualValues(t, &Policy{
 		ReserveOnchainMsat: defaultReserveOnchainMsat,
 		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 	}, policy)
 
@@ -121,18 +138,71 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 
 	err = policy.AddToAllowlist("foo")
 	assert.NoError(t, err)
+	err = policy.AddToSuspiciousPeerList("bar")
+	assert.NoError(t, err)
 
 	policyFile, err := ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=foo\n", string(policyFile))
+	assert.Equal(t, "allowlisted_peers=foo\nsuspicious_peers=bar\n", string(policyFile))
 
-	err = policy.AddToAllowlist("bar")
+	err = policy.AddToAllowlist("foo2")
+	assert.NoError(t, err)
+	err = policy.RemoveFromAllowlist("foo")
 	assert.NoError(t, err)
 
-	err = policy.RemoveFromAllowlist("foo")
+	err = policy.AddToSuspiciousPeerList("bar2")
+	assert.NoError(t, err)
+	err = policy.RemoveFromSuspiciousPeerList("bar")
+	assert.NoError(t, err)
+
 	policyFile, err = ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=bar\n", string(policyFile))
+	assert.Equal(t, "allowlisted_peers=foo2\nsuspicious_peers=bar2\n", string(policyFile))
+}
+
+func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
+	const N_CONC_W = 1000
+
+	policyFilePath := path.Join(t.TempDir(), "policy.conf")
+	file, err := os.Create(policyFilePath)
+	if err != nil {
+		t.Fatalf("Failed Create(): %v", err)
+	}
+
+	err = file.Close()
+	if err != nil {
+		t.Fatalf("Failed Close(): %v", err)
+	}
+
+	policy, err := CreateFromFile(policyFilePath)
+	assert.NoError(t, err)
+
+	var expectedPeers []string
+	for i := 0; i < N_CONC_W; i++ {
+		expectedPeers = append(expectedPeers, fmt.Sprintf("foo%d", i))
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2 * N_CONC_W)
+	for i := 0; i < N_CONC_W; i++ {
+		go func(n int) {
+			ierr := policy.AddToSuspiciousPeerList(fmt.Sprintf("foo%d", n))
+			assert.NoError(t, ierr)
+			wg.Done()
+		}(i)
+		go func(n int) {
+			ierr := policy.AddToAllowlist(fmt.Sprintf("foo%d", n))
+			assert.NoError(t, ierr)
+			wg.Done()
+		}(i)
+
+	}
+
+	wg.Wait()
+
+	assert.ElementsMatch(t, expectedPeers, policy.PeerAllowlist)
+	assert.ElementsMatch(t, expectedPeers, policy.SuspiciousPeerList)
+
 }
 
 func Test_IsPeerAllowed_Allowlist(t *testing.T) {
