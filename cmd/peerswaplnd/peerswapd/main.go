@@ -26,7 +26,7 @@ import (
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
-	lnd2 "github.com/elementsproject/peerswap/lnd"
+	lnd_internal "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/peerswaprpc"
@@ -37,7 +37,6 @@ import (
 	"github.com/elementsproject/peerswap/wallet"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
@@ -104,17 +103,19 @@ func run() error {
 	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
-	cc, err := lnd.GetLndClientConnection(ctx, cfg.LndConfig)
+	cc, err := lnd.GetClientConnection(ctx, cfg.LndConfig)
 	if err != nil {
 		return err
 	}
 	defer cc.Close()
+
 	lnrpcClient := lnrpc.NewLightningClient(cc)
 
 	info, err := lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
+
 	log.Infof("Running with lnd node: %s", info.IdentityPubkey)
 	err = checkLndVersion(info.Version)
 	if err != nil {
@@ -133,7 +134,7 @@ func run() error {
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
-	var lndTxWatcher *lnd2.LndTxWatcher
+	var lndTxWatcher *lnd_internal.TxWatcher
 	// setup bitcoin stuff
 	if cfg.BitcoinEnabled {
 		// bitcoin
@@ -143,7 +144,16 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndTxWatcher = lnd2.NewLndTxWatcher(ctx, chainrpc.NewChainNotifierClient(cc), lnrpcClient, chain)
+		lndTxWatcher, err = lnd_internal.NewTxWatcher(
+			ctx,
+			cc,
+			chain,
+			onchain.BitcoinMinConfs,
+			onchain.BitcoinCsv,
+		)
+		if err != nil {
+			return err
+		}
 
 		// Start the LndEstimator.
 		lndEstimator, err := onchain.NewLndEstimator(
@@ -215,8 +225,33 @@ func run() error {
 	if !cfg.BitcoinEnabled && !cfg.LiquidEnabled {
 		return errors.New("bad config, either liquid or bitcoin settings must be set")
 	}
-	// setup lnd
-	lnd, err := lnd2.NewLnd(ctx, cfg.LndConfig.TlsCertPath, cfg.LndConfig.MacaroonPath, cfg.LndConfig.LndHost, bitcoinOnChainService)
+	// Start lnd listeners and watchers.
+	messageListener, err := lnd_internal.NewMessageListener(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer messageListener.Stop()
+
+	paymentWatcher, err := lnd_internal.NewPaymentWatcher(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer paymentWatcher.Stop()
+
+	peerListener, err := lnd_internal.NewPeerListener(ctx, cc)
+	if err != nil {
+		return err
+	}
+	defer peerListener.Stop()
+
+	// Setup lnd client.
+	lnd, err := lnd_internal.NewClient(
+		ctx,
+		cc,
+		paymentWatcher,
+		messageListener,
+		bitcoinOnChainService,
+	)
 	if err != nil {
 		return err
 	}
@@ -302,7 +337,13 @@ func run() error {
 	pollService.Start()
 	defer pollService.Stop()
 
-	lnd.PollService = pollService
+	// Add poll handler to peer event listener.
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.Poll)
+	if err != nil {
+		return err
+	}
+
+	// Start internal lnd listener.
 	lnd.StartListening()
 
 	// setup grpc server

@@ -46,7 +46,7 @@ func Test_GrpcRetryRequest(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err := peerswaplndinternal.GetLndClientConnection(
+	cc, err := peerswaplndinternal.GetClientConnection(
 		context.Background(),
 		&peerswaplnd.LndConfig{
 			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
@@ -115,7 +115,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err := peerswaplndinternal.GetLndClientConnection(
+	cc, err := peerswaplndinternal.GetClientConnection(
 		context.Background(),
 		&peerswaplnd.LndConfig{
 			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),

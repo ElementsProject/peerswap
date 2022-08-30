@@ -32,3 +32,32 @@ func Debugf(format string, v ...interface{}) {
 		log.Printf("[DEBUG] "+format, v...)
 	}
 }
+
+type logType int
+
+const (
+	DEBUG logType = 1
+	INFO          = 2
+)
+
+type typeLogger struct {
+	typ logType
+}
+
+func (t *typeLogger) Write(p []byte) (n int, err error) {
+	switch t.typ {
+	case DEBUG:
+		Debugf(string(p))
+	case INFO:
+		Infof(string(p))
+	}
+	return len(p), nil
+}
+
+func NewDebugLogger() *typeLogger {
+	return &typeLogger{typ: DEBUG}
+}
+
+func NewInfoLogger() *typeLogger {
+	return &typeLogger{typ: INFO}
+}
