@@ -26,6 +26,8 @@ dist/
 .ci/docker/liquid-config2/**
 
 # build output
-out/
+peerswap-plugin
+out/peerswapd
+out/pscli
+out/peerswap-plugin
 
-./peerswap-plugin
