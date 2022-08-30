@@ -101,7 +101,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Starting peerswap commit %s with cfg: %s", GitCommit, cfg)
+	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
 
 	// setup lnd connection
 	cc, err := lnd.GetLndClientConnection(ctx, cfg.LndConfig)
