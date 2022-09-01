@@ -213,10 +213,12 @@ func (cl *ClightningClient) GetOnchainBalance() (uint64, error) {
 	return totalBalance, nil
 }
 
-// GetFlatSwapOutFee returns a fee that is the size of an opening transaction
-// with 2 inputs and 2 outputs (p2wsh, p2wpkg change): 218 bytes
+// GetFlatSwapOutFee returns an estimated size for the opening transaction. This
+// can be used to calculate the amount of the fee invoice and should cover most
+// but not all cases. For an explanation of the estimation see comments of the
+// onchain.EstimatedOpeningTxSize.
 func (cl *ClightningClient) GetFlatSwapOutFee() (uint64, error) {
-	return cl.bitcoinChain.GetFee(218)
+	return cl.bitcoinChain.GetFee(onchain.EstimatedOpeningTxSize)
 }
 
 func (cl *ClightningClient) GetAsset() string {
