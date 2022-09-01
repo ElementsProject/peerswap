@@ -27,7 +27,5 @@ dist/
 
 # build output
 peerswap-plugin
-out/peerswapd
-out/pscli
-out/peerswap-plugin
+out/
 
