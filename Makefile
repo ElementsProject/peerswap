@@ -5,7 +5,6 @@ PEERSWAP_TEST_FILTER="peerswap"
 GIT_COMMIT=$(shell git rev-list -1 HEAD)
 
 BUILD_OPTS= \
-	-o out \
 	-ldflags "-X main.GitCommit=$(shell git rev-parse HEAD)"
 
 TEST_BUILD_OPTS= \
@@ -50,15 +49,15 @@ test-bins: ${TEST_BINS}
 
 # Binaries for local testing and the integration tests.
 ${OUTDIR}/peerswapd:
-	go build ${BUILD_OPTS} ./cmd/peerswaplnd/peerswapd
+	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswapd ./cmd/peerswaplnd/peerswapd
 	chmod a+x out/peerswapd
 
 ${OUTDIR}/pscli:
-	go build ${BUILD_OPTS} ./cmd/peerswaplnd/pscli
+	go build ${BUILD_OPTS} -o ${OUTDIR}/pscli ./cmd/peerswaplnd/pscli
 	chmod a+x out/pscli
 
 ${OUTDIR}/peerswap-plugin:
-	go build ${BUILD_OPTS} ./cmd/peerswap-plugin
+	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswap-plugin ./cmd/peerswap-plugin
 	chmod a+x out/peerswap-plugin
 
 ${TEST_BIN_DIR}/peerswapd:
