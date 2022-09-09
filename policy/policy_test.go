@@ -161,7 +161,7 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 }
 
 func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
-	const N_CONC_W = 1000
+	const N_CONC_W = 500
 
 	policyFilePath := path.Join(t.TempDir(), "policy.conf")
 	file, err := os.Create(policyFilePath)
