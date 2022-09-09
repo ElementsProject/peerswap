@@ -146,6 +146,7 @@ type SwapOut struct {
 	SatAmt         uint64            `json:"amt_sat"`
 	ShortChannelId string            `json:"short_channel_id"`
 	Asset          string            `json:"asset"`
+	Force          bool              `json:"force"`
 	cl             *ClightningClient `json:"-"`
 }
 
@@ -189,9 +190,13 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.PeerRunsPeerSwap(fundingChannels.Id)
-	if err != nil {
-		return nil, err
+	// Skip this check when `force` is set.
+	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
+		return nil, fmt.Errorf("peer does not run peerswap")
+	}
+
+	if !l.cl.isPeerConnected(fundingChannels.Id) {
+		return nil, fmt.Errorf("peer is not connected")
 	}
 
 	if strings.Compare(l.Asset, "lbtc") == 0 {
@@ -242,6 +247,7 @@ type SwapIn struct {
 	SatAmt         uint64 `json:"amt_sat"`
 	ShortChannelId string `json:"short_channel_id"`
 	Asset          string `json:"asset"`
+	Force          bool   `json:"force"`
 
 	cl *ClightningClient `json:"-"`
 }
@@ -286,11 +292,14 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
-	err = l.cl.PeerRunsPeerSwap(fundingChannels.Id)
-	if err != nil {
-		return nil, err
+	// Skip this check when `force` is set.
+	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
+		return nil, fmt.Errorf("peer does not run peerswap")
 	}
 
+	if !l.cl.isPeerConnected(fundingChannels.Id) {
+		return nil, fmt.Errorf("peer is not connected")
+	}
 	if l.Asset == "lbtc" {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
