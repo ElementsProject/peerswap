@@ -3,6 +3,7 @@ package poll
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +13,12 @@ import (
 )
 
 const version uint64 = 0
+
+type PollNotFoundErr string
+
+func (p PollNotFoundErr) Error() string {
+	return fmt.Sprint("poll for node %s not found", string(p))
+}
 
 type MessageSender interface {
 	SendMessage(peerId string, message []byte, messageType int) error
@@ -200,4 +207,19 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 
 func (s *Service) GetPolls() (map[string]PollInfo, error) {
 	return s.store.GetAll()
+}
+
+// GetPollFrom returns the PollInfo for a single peer with peerId. Returns a
+// PollNotFoundErr if no PollInfo for the peer is present.
+func (s *Service) GetPollFrom(peerId string) (*PollInfo, error) {
+	polls, err := s.store.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	if poll, ok := polls[peerId]; ok {
+		return &poll, nil
+	}
+
+	return nil, PollNotFoundErr(peerId)
 }
