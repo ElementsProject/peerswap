@@ -17,7 +17,7 @@ const version uint64 = 0
 type PollNotFoundErr string
 
 func (p PollNotFoundErr) Error() string {
-	return fmt.Sprint("poll for node %s not found", string(p))
+	return fmt.Sprintf("poll for node %s not found", string(p))
 }
 
 type MessageSender interface {
