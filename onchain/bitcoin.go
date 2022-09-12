@@ -34,6 +34,16 @@ const (
 	// it is too close to the csv limit to pay the invoice.
 	BitcoinCsvSafetyLimit = BitcoinCsv / 2
 
+	// EstimatedOpeningTxSize in vByte is the estimated size of a swap opening
+	// transaction with a security margin. The estimate is meant to express the
+	// fees for most, but not all swap out opening tx fees. This is calculated
+	// as follows: The average amount of inputs is 3 with an expected type of
+	// P2WPKH that has a size of 68 vByte. The outputs are a P2WSH and a P2WPKH
+	// output with a total size of 84 vByte including the tx overhead. This
+	// leads to an expected size for the opening tx of (3*68 + 84) = 288 vByte.
+	// We add a security margin to this which leads to the size of 350 vByte.
+	EstimatedOpeningTxSize = 350
+
 	// This defines the absolute floor of the feerate. This will be the minimum
 	// feerate that will be used. The floor is set to 275 sat/kw so that we
 	// always have a minimum fee rate of 1.1 sat/vb.
