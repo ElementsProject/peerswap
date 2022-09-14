@@ -391,27 +391,24 @@ func (cl *ClightningClient) SendPayPart(payreq string, bolt11 *glightning.Decode
 	return res, nil
 }
 
-func (cl *ClightningClient) PeerRunsPeerSwap(peerid string) error {
-	// get polls
-	polls, err := cl.pollService.GetPolls()
+// isPeerConnected returns true if the peer is connected to the cln node.
+func (cl *ClightningClient) isPeerConnected(nodeId string) bool {
+	peer, err := cl.glightning.GetPeer(nodeId)
 	if err != nil {
-		return err
+		log.Infof("Could not get peer: %v", err)
+		return false
 	}
-	peers, err := cl.glightning.ListPeers()
-	if err != nil {
-		return err
-	}
+	return peer.Connected
+}
 
-	if _, ok := polls[peerid]; !ok {
-		return errors.New("peer does not run peerswap")
+// peerRunsPeerSwap returns true if the peer with peerId is listed in the
+// pollService.
+func (cl *ClightningClient) peerRunsPeerSwap(peerId string) bool {
+	pollInfo, err := cl.pollService.GetPollFrom(peerId)
+	if err == nil && pollInfo != nil {
+		return true
 	}
-
-	for _, peer := range peers {
-		if peer.Id == peerid && peer.Connected {
-			return nil
-		}
-	}
-	return errors.New("peer is not connected")
+	return false
 }
 
 // This is called after the Plugin starts up successfully

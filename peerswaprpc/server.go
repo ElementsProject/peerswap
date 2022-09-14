@@ -3,12 +3,14 @@ package peerswaprpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/elementsproject/glightning/gelements"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
@@ -151,10 +153,16 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	peerId := swapchan.RemotePubkey
 
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
-	err = p.PeerRunsPeerSwap(ctx, peerId)
-	if err != nil {
-		return nil, err
+
+	// Skip this test if force flag is set.
+	if !request.Force && !p.peerRunsPeerSwap(peerId) {
+		return nil, fmt.Errorf("peer does not run peerswap")
 	}
+
+	if !p.isPeerConnected(ctx, peerId) {
+		return nil, fmt.Errorf("peer is not connected")
+	}
+
 	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount)
 	if err != nil {
 		return nil, err
@@ -181,27 +189,31 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	}
 }
 
-func (p *PeerswapServer) PeerRunsPeerSwap(ctx context.Context, peerid string) error {
-	// get polls
-	polls, err := p.pollService.GetPolls()
-	if err != nil {
-		return err
-	}
+// isPeerConnected returns true if the peer is connected to the lnd node.
+func (p *PeerswapServer) isPeerConnected(ctx context.Context, peerId string) bool {
 	peers, err := p.lnd.ListPeers(ctx, &lnrpc.ListPeersRequest{})
 	if err != nil {
-		return err
-	}
-
-	if _, ok := polls[peerid]; !ok {
-		return errors.New("peer does not run peerswap")
+		log.Infof("Could not get peer: %v", err)
+		return false
 	}
 
 	for _, peer := range peers.Peers {
-		if peer.PubKey == peerid {
-			return nil
+		if peer.PubKey == peerId {
+			return true
 		}
 	}
-	return errors.New("peer is not connected")
+
+	return false
+}
+
+// peerRunsPeerSwap returns true if the the peer has sent its poll info to the
+// pollService showing that it is supporting peerswap.
+func (p *PeerswapServer) peerRunsPeerSwap(peerId string) bool {
+	pollInfo, err := p.pollService.GetPollFrom(peerId)
+	if err == nil && pollInfo != nil {
+		return true
+	}
+	return false
 }
 
 func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*SwapResponse, error) {
@@ -266,9 +278,13 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
 
-	err = p.PeerRunsPeerSwap(ctx, peerId)
-	if err != nil {
-		return nil, err
+	// Skip this test if force flag is set.
+	if !request.Force && !p.peerRunsPeerSwap(peerId) {
+		return nil, fmt.Errorf("peer does not run peerswap")
+	}
+
+	if !p.isPeerConnected(ctx, peerId) {
+		return nil, fmt.Errorf("peer is not connected")
 	}
 
 	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount)

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -19,6 +20,9 @@ const (
 	defaultReserveOnchainMsat uint64 = 0
 	defaultAcceptAllPeers            = false
 )
+
+// Global Mutex
+var mu = sync.Mutex{}
 
 var (
 	defaultPeerAllowlist = []string{}
@@ -110,7 +114,7 @@ func (p *Policy) IsPeerSuspicious(peer string) bool {
 }
 
 // ReloadFile reloads and and sets the policy
-// to the policy file. This might be becaus the
+// to the policy file. This might be because the
 // policy file changed and the runtime should use the
 // new policy.
 func (p *Policy) ReloadFile() error {
@@ -136,6 +140,9 @@ func (p *Policy) ReloadFile() error {
 
 // AddToAllowlist adds a peer to the policy file in runtime
 func (p *Policy) AddToAllowlist(pubkey string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	for _, v := range p.PeerAllowlist {
 		if v == pubkey {
 			return errors.New("peer is already whitelisted")
@@ -154,6 +161,9 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 // AddToSuspiciousPeerList adds a peer as a suspicious peer to the policy file
 // in runtime.
 func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	for _, v := range p.SuspiciousPeerList {
 		if v == pubkey {
 			return errors.New("peer is already marked as suspicious")
@@ -183,6 +193,9 @@ func addLineToFile(filePath, line string) error {
 }
 
 func (p *Policy) RemoveFromAllowlist(pubkey string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	var peerPk string
 	for _, v := range p.PeerAllowlist {
 		if v == pubkey {
@@ -204,6 +217,9 @@ func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 }
 
 func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	var peerPk string
 	for _, v := range p.SuspiciousPeerList {
 		if v == pubkey {
