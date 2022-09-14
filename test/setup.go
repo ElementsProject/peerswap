@@ -32,7 +32,7 @@ const (
 func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
@@ -109,7 +109,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.LndNode, []*PeerSwapd, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswapd")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 2 lightningd, 2 peerswapd)
@@ -186,8 +186,8 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframework.BitcoinNode, []testframework.LightningNode, *PeerSwapd, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	peerswapdPath := filepath.Join(filename, "..", "..", "out", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
+	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 cln, 1 lnd, 1 peerswapd)
@@ -299,7 +299,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
@@ -416,7 +416,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*LndNodeWithLiquid, []*PeerSwapd, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "peerswapd")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd, 2 peerswapd)
@@ -531,8 +531,8 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframework.BitcoinNode, *testframework.LiquidNode, []testframework.LightningNode, *PeerSwapd, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	peerswapdPath := filepath.Join(filename, "..", "..", "out", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "peerswap-plugin")
+	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquid, 1 cln, 1 lnd, 1 peerswapd)

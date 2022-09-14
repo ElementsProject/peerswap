@@ -24,7 +24,7 @@ jobs:
           nix_file: 'ci.nix'
       
       - name: Build peerswap
-        run: make build
+        run: make bins
 
       - name: Run go tests
         run: make test
