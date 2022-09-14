@@ -156,7 +156,7 @@ The receiving node (swap [taker](#taker)/[responder](#responder)):
   * MUST [fail the swap](#failing-a-swap) if it does not support the asked `asset`.
 * if `network` is set:
   * MUST [fail the swap](#failing-a-swap) if it does not support the asked `network`.
-* MUST [fail the swap](#failing-a-swap) if the `amount` does not exceeds channel size.
+* MUST [fail the swap](#failing-a-swap) if the `amount` exceeds channel size.
 * MUST [fail the swap](#failing-a-swap) if the channel with `scid` does not exist to the peer.
 * MUST keep the [`swap_in_request` message](#the-swap_in_request-message) field values for later use.
 
@@ -331,7 +331,7 @@ When the fee invoice was payed, the next steps are the same for both kind of swa
 
 ## Doing the Swap
 
-After the peers agreed to the swap conditions, the `swap maker` broadcasts the [`opening_transaction`](#opening-transaction) the [`opening_tx_broadcasted` message](#the-opening_tx_broadcasted-message) and sends it to the `swap taker`.
+After the peers agreed to the swap conditions, the `swap maker` broadcasts the [`opening_transaction`](#opening-transaction) and sends the [`opening_tx_broadcasted` message](#the-opening_tx_broadcasted-message) to the `swap taker`.
 
 #### The `opening_tx_broadcasted` message
   1. `type`: 42077
@@ -397,7 +397,7 @@ The receiving node (swap taker):
       * if this fails:
         * MUST  [fail the swap](#failing-a-swap).
     * otherwise:
-      * MUST broadcast the `claim_by_preimage`[`claim_transaction`](#claim-transaction) with a fee heigh enough to ensure that the transaction is confirmed before the `claim_by_csv` spending path is possible.
+      * MUST broadcast the `claim_by_preimage`[`claim_transaction`](#claim-transaction) with a fee high enough to ensure that the transaction is confirmed before the `claim_by_csv` spending path is possible.
       * MUST consider the swap finished after the [`claim_transaction`](#claim-transaction) has been confirmed.
 
 ## Failing a Swap
@@ -513,14 +513,14 @@ OP_ELSE
 OP_ENDIF
 ```
 With:
-* `<A>` the pubkey hash of the [`taker`](#taker)
-* `<B>` the pubkey hash of the [`maker`](#maker)
+* `<A>` the pubkey of the [`taker`](#taker)
+* `<B>` the pubkey of the [`maker`](#maker)
 * `<H>` the payment_hash
 * `<N>` the number of confirmations before the refund to the maker is possible. See [CSV Times](#csv-times-and-confirmations)
 
 ### Claim transaction
 The claim transaction finishes the atomic swap.
-There are three different variants for the claiming transaction, depending on the finish sp finishing a swap.
+There are three different variants for the claiming transaction, depending on how the swap finishes.
 
 #### The `claim_by_invoice` path
 This is the desired way to finish a swap. The taker sends the funds to its address by revealing the preimage of the swap invoice.
