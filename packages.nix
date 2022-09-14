@@ -1,7 +1,9 @@
 let
-# Pinning to revision e0361a947ed3eb692e43786f78e86075395ef3af for cln v0.11.1 
-# and lnd v0.15.0-beta.
-rev = "e0361a947ed3eb692e43786f78e86075395ef3af";
+# Pinning to revision 93dc85b485638bda9ac76458dcd45b997cc7cdbd 
+# - cln v0.12.1 
+# - lnd v0.15.2-beta
+# - bitcoin v23.0
+rev = "93dc85b485638bda9ac76458dcd45b997cc7cdbd";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
@@ -16,11 +18,6 @@ bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
 # Build a clightning version with developer features enabled.
 # Clightning is way more responsive with dev features.
 clightning-dev = (pkgs.clightning.overrideDerivation (attrs: {
-    src = pkgs.fetchgit {
-        url = "https://github.com/nepet/lightning.git";
-        rev = "bf80565bc5f958be1d562b15ebd18586d8b0820e";
-        sha256 = "sha256-rRX51vqCfUGxCSDt5Wptq0pfAl6tK2CIcNha4eiXtUM=";
-    };
     configureFlags = [ "--enable-developer" "--disable-valgrind" ];
 
     pname = "clightning-dev";
