@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	log2 "log"
+	core_log "log"
 	"net"
 	"net/http"
 	"os"
@@ -53,7 +53,7 @@ var GitCommit string
 func main() {
 	err := run()
 	if err != nil {
-		log2.Fatal(err)
+		core_log.Fatal(err)
 	}
 }
 
@@ -372,7 +372,7 @@ func run() error {
 	go func() {
 		err := grpcSrv.Serve(lis)
 		if err != nil {
-			log2.Fatal(err)
+			core_log.Fatal(err)
 		}
 	}()
 	defer grpcSrv.Stop()
@@ -387,7 +387,7 @@ func run() error {
 		go func() {
 			err := http.ListenAndServe(cfg.RestHost, mux)
 			if err != nil {
-				log2.Fatal(err)
+				core_log.Fatal(err)
 			}
 		}()
 
@@ -520,18 +520,19 @@ func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, func() error, er
 		return nil, nil, err
 	}
 	w := io.MultiWriter(os.Stdout, logFile)
-	log2.SetOutput(w)
+	core_log.SetFlags(core_log.LstdFlags | core_log.LUTC)
+	core_log.SetOutput(w)
 
 	return &LndLogger{loglevel: cfg.LogLevel}, logFile.Close, nil
 }
 
 func (l *LndLogger) Infof(format string, v ...interface{}) {
-	log2.Printf("[INFO] "+format, v...)
+	core_log.Printf("[INFO] "+format, v...)
 }
 
 func (l *LndLogger) Debugf(format string, v ...interface{}) {
 	if l.loglevel == peerswaplnd.LOGLEVEL_DEBUG {
-		log2.Printf("[DEBUG] "+format, v...)
+		core_log.Printf("[DEBUG] "+format, v...)
 	}
 }
 
