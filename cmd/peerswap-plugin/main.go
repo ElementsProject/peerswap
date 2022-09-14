@@ -672,6 +672,15 @@ func setPanicLogger() (func() error, error) {
 		return nil, err
 	}
 
+	_, err = panicLogFile.WriteString("\n\nServer started " + time.Now().UTC().Format(time.RFC3339) + "\n")
+	if err != nil {
+		return nil, err
+	}
+	err = panicLogFile.Sync()
+	if err != nil {
+		return nil, err
+	}
+
 	err = syscall.Dup3(int(panicLogFile.Fd()), int(os.Stderr.Fd()), 0)
 	if err != nil {
 		return nil, err
