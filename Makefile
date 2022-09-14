@@ -41,7 +41,7 @@ release: lnd-release cln-release
 .PHONY: release
 
 clean-bins:
-	rm -rf out/*
+	rm ${BINS}
 
 bins: ${BINS}
 
