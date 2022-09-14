@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.12.4
-// source: peerswaprpc.proto
+// source: peerswaprpc/peerswaprpc.proto
 
 package peerswaprpc
 
@@ -717,5 +717,5 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "peerswaprpc.proto",
+	Metadata: "peerswaprpc/peerswaprpc.proto",
 }

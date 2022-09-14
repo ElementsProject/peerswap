@@ -259,7 +259,8 @@ connect_nodes() {
   echo "$(l2-cli connect $LND_URI2)"
 }
 rebuild() {
-  make build
+  make clean-bins
+  make bins
   restart
 }
 restart() {
@@ -376,6 +377,8 @@ stop_peerswap_lnd() {
 
 rebuild_peerswap_lnd() {
   stop_peerswap_lnd
-  make build
+  rm out/peerswapd
+  rm out/pscli
+  make bins
   start_peerswap_lnd
 }
