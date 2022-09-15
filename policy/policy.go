@@ -59,10 +59,10 @@ func (e ErrReloadPolicy) Error() string {
 type Policy struct {
 	path string
 
-	ReserveOnchainMsat uint64   `long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
-	PeerAllowlist      []string `long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
-	SuspiciousPeerList []string `long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
-	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
+	ReserveOnchainMsat uint64   `json:"reserve_onchain_msat" long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
+	PeerAllowlist      []string `json:"allowlisted_peers" long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
+	SuspiciousPeerList []string `json:"suspicious_peers" long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
+	AcceptAllPeers     bool     `json:"accept_all_peers" long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
 
 	// MinSwapAmountMsat is the minimum swap amount in msat that is needed to
 	// perform a swap. Below this amount it might be uneconomical to do a swap
@@ -70,7 +70,7 @@ type Policy struct {
 	// TODO: This can not be set in the policy by now but this is the place
 	// where this value belongs. Eventually we might want to make this value
 	// editable as a policy setting.
-	MinSwapAmountMsat uint64
+	MinSwapAmountMsat uint64 `json:"min_swap_amount_msat"`
 }
 
 func (p *Policy) String() string {
