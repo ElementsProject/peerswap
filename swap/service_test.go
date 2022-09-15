@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -377,7 +378,10 @@ func Test_SwapOut_PeerIsSuspicious(t *testing.T) {
 
 	swapService := getTestSetup(node)
 	// Setup peer to be suspicious
-	swapService.swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+	swapService.swapServices.policy = &dummyPolicy{
+		isPeerSuspiciousReturn:     true,
+		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+	}
 
 	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
 	assert.Error(t, err)
@@ -392,7 +396,9 @@ func getTestSetup(name string) *SwapService {
 	}
 	mmgr := &MessengerManagerStub{}
 	lc := &dummyLightningClient{preimage: ""}
-	policy := &dummyPolicy{}
+	policy := &dummyPolicy{
+		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+	}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
 	chain.SetBalance(10000000)
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)

@@ -57,8 +57,8 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
-	if swap.GetAmount() < MINIMUM_SWAP_SIZE {
-		swap.CancelMessage = fmt.Sprintf("requiring minimum swap size of %v", MINIMUM_SWAP_SIZE)
+	if swap.GetAmount()*1000 < services.policy.GetMinSwapAmountMsat() {
+		swap.CancelMessage = ErrMinimumSwapSize(services.policy.GetMinSwapAmountMsat()).Error()
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),

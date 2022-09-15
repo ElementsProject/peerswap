@@ -15,14 +15,18 @@ import (
 
 const (
 	PEERSWAP_PROTOCOL_VERSION = 2
-	MINIMUM_SWAP_SIZE         = uint64(100000)
 )
 
 var (
 	AllowedAssets       = []string{"btc", "lbtc"}
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
-	ErrMinimumSwapSize  = fmt.Errorf("requiring minimum swap size of %v", MINIMUM_SWAP_SIZE)
 )
+
+type ErrMinimumSwapSize uint64
+
+func (u ErrMinimumSwapSize) Error() string {
+	return fmt.Sprintf("a minimum swap amount of %d msat is required", uint64(u))
+}
 
 type ErrUnknownSwapMessageType string
 
@@ -314,7 +318,7 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
@@ -327,8 +331,8 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amount < MINIMUM_SWAP_SIZE {
-		return nil, ErrMinimumSwapSize
+	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
@@ -350,7 +354,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Asset:           elementsAsset,
 		Network:         bitcoinNetwork,
 		Scid:            channelId,
-		Amount:          amount,
+		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
@@ -367,7 +371,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
 	}
@@ -379,8 +383,8 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amount < MINIMUM_SWAP_SIZE {
-		return nil, ErrMinimumSwapSize
+	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
 	var bitcoinNetwork string
@@ -401,7 +405,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Asset:           elementsAsset,
 		Network:         bitcoinNetwork,
 		Scid:            channelId,
-		Amount:          amount,
+		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 

@@ -333,10 +333,18 @@ func (d *dummyLightningClient) PayInvoiceViaChannel(payreq, scid string) (preima
 type dummyPolicy struct {
 	isPeerSuspiciousReturn bool
 	isPeerSuspiciousParam  string
+
+	getMinSwapAmountMsatCalled int
+	getMinSwapAmountMsatReturn uint64
 }
 
 func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
 	return 1
+}
+
+func (d *dummyPolicy) GetMinSwapAmountMsat() uint64 {
+	d.getMinSwapAmountMsatCalled++
+	return d.getMinSwapAmountMsatReturn
 }
 
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {

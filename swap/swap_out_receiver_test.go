@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -195,7 +196,10 @@ func Test_SwapOutReceiver_PeerIsSuspicious(t *testing.T) {
 	swapServices := getSwapServices(msgChan)
 
 	// Setup the peer to be suspicious.
-	swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+	swapServices.policy = &dummyPolicy{
+		isPeerSuspiciousReturn:     true,
+		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+	}
 
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)

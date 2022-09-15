@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -130,7 +131,7 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
 	lc := &dummyLightningClient{preimage: "fee"}
-	policy := &dummyPolicy{}
+	policy := &dummyPolicy{getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
 	chain.SetBalance(1000000)
 
