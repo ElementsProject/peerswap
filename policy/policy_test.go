@@ -188,8 +188,15 @@ func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
 	}
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2 * N_CONC_W)
+	wg.Add(3 * N_CONC_W)
 	for i := 0; i < N_CONC_W; i++ {
+		go func() {
+			_ = policy.GetReserveOnchainMsat()
+			_ = policy.GetMinSwapAmountMsat()
+			_ = policy.IsPeerAllowed("abc")
+			_ = policy.IsPeerSuspicious("abc")
+			wg.Done()
+		}()
 		go func(n int) {
 			ierr := policy.AddToSuspiciousPeerList(fmt.Sprintf("foo%d", n))
 			assert.NoError(t, ierr)

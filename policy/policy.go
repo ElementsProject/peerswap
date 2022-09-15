@@ -103,18 +103,24 @@ func (p *Policy) Get() Policy {
 // that should be keept in the wallet when receiving
 // a peerswap request.
 func (p *Policy) GetReserveOnchainMsat() uint64 {
+	mu.Lock()
+	defer mu.Unlock()
 	return p.ReserveOnchainMsat
 }
 
 // GetMinSwapAmountMsat returns the minimum swap amount in msat that is needed
 // to perform a swap.
 func (p *Policy) GetMinSwapAmountMsat() uint64 {
+	mu.Lock()
+	defer mu.Unlock()
 	return p.MinSwapAmountMsat
 }
 
 // IsPeerAllowed returns if a peer or node is part of
 // the allowlist.
 func (p *Policy) IsPeerAllowed(peer string) bool {
+	mu.Lock()
+	defer mu.Unlock()
 	if p.AcceptAllPeers {
 		return true
 	}
@@ -128,6 +134,8 @@ func (p *Policy) IsPeerAllowed(peer string) bool {
 
 // IsPeerSuspicious returns true if the peer is on the list of suspicious peers.
 func (p *Policy) IsPeerSuspicious(peer string) bool {
+	mu.Lock()
+	defer mu.Unlock()
 	for _, suspiciousPeer := range p.SuspiciousPeerList {
 		if peer == suspiciousPeer {
 			return true
