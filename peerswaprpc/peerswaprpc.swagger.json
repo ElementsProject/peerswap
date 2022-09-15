@@ -177,10 +177,14 @@
           "type": "string",
           "format": "uint64"
         },
+        "minSwapAmountMsat": {
+          "type": "string",
+          "format": "uint64"
+        },
         "acceptAllPeers": {
           "type": "boolean"
         },
-        "peerAllowList": {
+        "allowlistedPeers": {
           "type": "array",
           "items": {
             "type": "string"

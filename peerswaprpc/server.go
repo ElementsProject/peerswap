@@ -42,8 +42,9 @@ func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (
 	pol := p.policy.Get()
 	return &AddPeerResponse{Policy: &Policy{
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
+		AllowlistedPeers:   pol.PeerAllowlist,
 		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 
@@ -57,8 +58,9 @@ func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest
 	pol := p.policy.Get()
 	return &AddPeerResponse{Policy: &Policy{
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
+		AllowlistedPeers:   pol.PeerAllowlist,
 		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 
@@ -72,8 +74,9 @@ func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequ
 	pol := p.policy.Get()
 	return &RemovePeerResponse{Policy: &Policy{
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
+		AllowlistedPeers:   pol.PeerAllowlist,
 		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 }
@@ -86,8 +89,9 @@ func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerR
 	pol := p.policy.Get()
 	return &RemovePeerResponse{Policy: &Policy{
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
+		AllowlistedPeers:   pol.PeerAllowlist,
 		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 }
@@ -468,8 +472,9 @@ func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPo
 	pol := p.policy.Get()
 	return &ReloadPolicyFileResponse{Policy: &Policy{
 		ReserveOnchainMsat: pol.ReserveOnchainMsat,
+		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
 		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
+		AllowlistedPeers:   pol.PeerAllowlist,
 		SuspiciousPeerList: pol.SuspiciousPeerList,
 	}}, nil
 }

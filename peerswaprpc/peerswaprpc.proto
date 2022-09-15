@@ -185,9 +185,10 @@ message PeerSwapNodes {
 
 message Policy {
     uint64 reserve_onchain_msat = 1;
-    bool accept_all_peers = 2;
-    repeated string peer_allow_list = 3;
-    repeated string suspicious_peer_list = 4;
+    uint64 min_swap_amount_msat = 2;
+    bool accept_all_peers = 3;
+    repeated string allowlisted_peers = 4;
+    repeated string suspicious_peer_list = 5;
 }
 
 message AllowSwapRequestsRequest {
