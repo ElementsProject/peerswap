@@ -25,6 +25,7 @@ func Test_Create(t *testing.T) {
 		PeerAllowlist:      defaultPeerAllowlist,
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}, policy)
 
 	peer1 := "123"
@@ -55,6 +56,7 @@ func Test_Create(t *testing.T) {
 		PeerAllowlist:      []string{peer1, peer2},
 		SuspiciousPeerList: []string{peer1, peer2},
 		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}, policy2)
 }
 
@@ -76,6 +78,7 @@ func Test_Reload(t *testing.T) {
 		PeerAllowlist:      []string{peer1, peer2},
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}, policy)
 
 	newPeer := "new_peer"
@@ -88,6 +91,7 @@ func Test_Reload(t *testing.T) {
 		PeerAllowlist:      []string{newPeer},
 		SuspiciousPeerList: []string{newPeer},
 		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}, policy)
 }
 
@@ -109,6 +113,7 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 		PeerAllowlist:      []string{peer1, peer2},
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}, policy)
 
 	// copy policy

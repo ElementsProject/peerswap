@@ -19,6 +19,11 @@ const (
 	// can not be spent by incoming swap requests.
 	defaultReserveOnchainMsat uint64 = 0
 	defaultAcceptAllPeers            = false
+
+	// defaultMinSwapAmount is the default of the minimum in msat that is needed
+	// to perform a swap. We need this lower boundary as it is uneconomical to
+	// swap small amounts.
+	defaultMinSwapAmountMsat uint64 = 100000000
 )
 
 // Global Mutex
@@ -58,18 +63,29 @@ type Policy struct {
 	PeerAllowlist      []string `long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
 	SuspiciousPeerList []string `long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
 	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
+
+	// MinSwapAmountMsat is the minimum swap amount in msat that is needed to
+	// perform a swap. Below this amount it might be uneconomical to do a swap
+	// due to the on-chain costs.
+	// TODO: This can not be set in the policy by now but this is the place
+	// where this value belongs. Eventually we might want to make this value
+	// editable as a policy setting.
+	MinSwapAmountMsat uint64
 }
 
 func (p *Policy) String() string {
-	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\nsuspicious_peers: %s\n",
+	str := fmt.Sprintf(
+		"min_swap_amount_msat: %d\n"+
+			"reserve_onchain_msat: %d\n"+
+			"allowlisted_peers: %s\n"+
+			"accept_all_peers: %t\n"+
+			"suspicious_peers: %s\n",
+		p.MinSwapAmountMsat,
 		p.ReserveOnchainMsat,
 		p.PeerAllowlist,
 		p.AcceptAllPeers,
 		p.SuspiciousPeerList,
 	)
-	if p.AcceptAllPeers {
-		return fmt.Sprintf("%sCAUTION: Accept all incoming swap requests", str)
-	}
 	return str
 }
 
@@ -79,6 +95,7 @@ func (p *Policy) Get() Policy {
 		PeerAllowlist:      p.PeerAllowlist,
 		SuspiciousPeerList: p.SuspiciousPeerList,
 		AcceptAllPeers:     p.AcceptAllPeers,
+		MinSwapAmountMsat:  p.MinSwapAmountMsat,
 	}
 }
 
@@ -87,6 +104,12 @@ func (p *Policy) Get() Policy {
 // a peerswap request.
 func (p *Policy) GetReserveOnchainMsat() uint64 {
 	return p.ReserveOnchainMsat
+}
+
+// GetMinSwapAmountMsat returns the minimum swap amount in msat that is needed
+// to perform a swap.
+func (p *Policy) GetMinSwapAmountMsat() uint64 {
+	return p.MinSwapAmountMsat
 }
 
 // IsPeerAllowed returns if a peer or node is part of
@@ -292,6 +315,7 @@ func DefaultPolicy() *Policy {
 		PeerAllowlist:      defaultPeerAllowlist,
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 	}
 }
 
