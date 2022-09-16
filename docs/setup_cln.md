@@ -30,7 +30,7 @@ In order to run `peerswap` add following lines to your the core-lightning config
 
 
 ```bash
-plugin=/PATH/TO/peerswap-plugin
+plugin=~./lightning/plugins/peerswap-plugin
 log-level=debug:plugin-peerswap-plugin
 ```
 
