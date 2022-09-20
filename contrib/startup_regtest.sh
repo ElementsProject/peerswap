@@ -4,6 +4,10 @@
 LIGHTNINGD="lightningd"
 LIGHTNING_CLI="lightning-cli"
 
+# Lnd
+LNDD="lnd"
+LND_CLI="lncli"
+
 # Liquid
 LIQUID_RPC_PORT=18884
 
@@ -12,6 +16,7 @@ ACCEPT_ALL_PEERS=1
 
 # Aliases
 CLN_CLI_BASE_ALIAS="lightning-cli"
+LND_CLI_BASE_ALIAS="lncli"
 
 start_docker_env() {
   docker-compose -f .ci/docker/docker-compose.yml up -d --remove-orphans
@@ -284,45 +289,263 @@ fund_cln_node() {
   fi
 }
 
-start_nodes_lnd() {
-  LND='lnd'
-  if [ -z "$1" ]; then
-    node_count=2
+# LND
+# Starts a new lnd node with arguments [id] [network].
+start_lnd_node() {
+  if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
   else
-    node_count=$1
+    local id=${1}
+    local prefix="lnd-${id}"
+    local network="regtest"
+    local rpc="127.0.0.1:$((10101 + ${id} * 101))"
+    local listen="127.0.0.1:$((10102 + ${id} * 101))"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    prefixwith $prefix echo "creating lnd node on network ${network}, rpc on ${rpc}"
+    local dir="/tmp/test-peerswap/lnd-${id}-${network}"
+    prefixwith $prefix echo "creating node dir ${dir}"
+    mkdir -p ${dir}/data
+
+    # Write config file
+    touch ${dir}/data/lnd.conf
+
+     cat <<-EOF >"${dir}/data/lnd.conf"
+[Application Options]
+datadir=${dir}/data
+logdir=${dir}/logs
+tlskeypath=${dir}/data/tls.key
+tlscertpath=${dir}/data/tls.cert
+rpclisten=${rpc}
+listen=${listen}
+norest=true
+noseedbackup=true
+externalip=${listen}
+
+[protocol]
+protocol.wumbo-channels=true
+
+[bitcoin]
+bitcoin.active=true
+bitcoin.${network}=true
+bitcoin.node=bitcoind
+
+[Bitcoind]
+bitcoind.rpchost=localhost:18443
+bitcoind.rpcuser=admin1
+bitcoind.rpcpass=123
+bitcoind.zmqpubrawblock=tcp://127.0.0.1:29000
+bitcoind.zmqpubrawtx=tcp://127.0.0.1:29001
+EOF
+
+    # Start node
+    if [ -f "${dir}/lnd-${network}.pid" ]; then
+      prefixwith $prefix echo "${LIGHTNINGD} is already running with pid $(cat ${dir}/lnd-${network}.pid)"
+      return 1
+    else
+
+      ${LNDD} --configfile=${dir}/data/lnd.conf > /dev/null 2>&1 &
+      local pid=$!
+
+      if [ $? -eq 1 ]; then 
+        prefixwith $prefix echo "lnd node crashed on startup"
+        return 1
+      fi
+
+      touch ${dir}/lnd-${network}.pid
+      echo "${pid}" > ${dir}/lnd-${network}.pid
+    fi
+    alias ${LND_CLI_BASE_ALIAS}-${id}="${LND_CLI} \
+      --lnddir=${dir}/data \
+      --network=${network} \
+      --chain=bitcoin \
+      --rpcserver=${rpc} \
+      --tlscertpath=${dir}/data/tls.cert \
+      --macaroonpath=${dir}/data/chain/bitcoin/${network}/admin.macaroon"
+    alias lnd-log-${id}="less ${dir}/logs/bitcoin/${network}/lnd.log"
+    alias lnd-logf-${id}="tail -f ${dir}/logs/bitcoin/${network}/lnd.log"
+    echo "\nCommands:\n${LND_CLI_BASE_ALIAS}-${id}, lnd-log-${id}, lnd-logf-${id}\n"
   fi
-  LND_NODES=$node_count
-  for i in $(seq $node_count); do
-    rpcport=$((10101 + i * 100))
-    listenport=$((10102 + i * 100))
-    mkdir -p "/tmp/lnd-regtest-$i/data"
-    touch "/tmp/lnd-regtest-$i/data/lnd.conf"
-    # Start the lightning nodes
-    lnd \
-    --datadir=/tmp/lnd-regtest-$i/data \
-    --bitcoin.active \
-    --bitcoin.regtest \
-    --bitcoin.node=bitcoind \
-    --bitcoind.rpchost=localhost:18443 \
-    --bitcoind.rpcuser=admin1 \
-    --bitcoind.rpcpass=123 \
-    --bitcoind.zmqpubrawblock=tcp://127.0.0.1:29000 \
-    --bitcoind.zmqpubrawtx=tcp://127.0.0.1:29001 \
-    --noseedbackup \
-    --tlskeypath=/tmp/lnd-regtest-$i/tls.key \
-    --tlscertpath=/tmp/lnd-regtest-$i/tls.cert \
-    --rpclisten=0.0.0.0:$rpcport \
-    --norest \
-    --logdir=/tmp/lnd-regtest-$i/logs \
-    --externalip=127.0.0.1:$listenport \
-    --listen=0.0.0.0:$listenport \
-    --protocol.wumbo-channels \
-    --configfile=/tmp/lnd-regtest-$i/data/lnd.conf \
-    > /dev/null 2>&1 &
-    # shellcheck disable=SC2139 disable=SC2086
-    alias lncli-$i="$LNCLI --lnddir=/tmp/lnd-regtest-$i --network regtest --rpcserver=localhost:$rpcport"
-    alias lnd-$i-logs="tail -f /tmp/l$i-$network/log"
+}
+
+# Stops a lnd node with arguments [id] [chain]. 
+stop_lnd_node() {
+  if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local id=${1}
+    local prefix="lnd-${id}"
+    local network="regtest"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    local dir="/tmp/test-peerswap/lnd-${id}-${network}"  
+    if ! [ -f "${dir}/lnd-${network}.pid" ]; then
+      prefixwith $prefix echo "no running lnd node found"
+      return
+    else
+      local pid=$(cat ${dir}/lnd-${network}.pid)
+      prefixwith $prefix echo "killing lnd node with pid ${pid}"
+      kill $pid
+      unalias ${LND_CLI_BASE_ALIAS}-${id}
+      rm "${dir}/lnd-${network}.pid"
+    fi
+  fi
+}
+
+# Removes the temporary dir for a lnd node with arguments [id] [chain]. Stops 
+# the node before trying to remove the dir.
+remove_lnd_node() {
+   if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local id=${1}
+    local prefix="lnd-${id}"
+    local network="regtest"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    local dir="/tmp/test-peerswap/lnd-${id}-${network}"
+    stop_lnd_node ${1} ${network}
+    if [ -d ${dir} ]; then 
+      prefixwith ${prefix} echo "removing node dir ${dir}"
+      rm -rf ${dir}
+      return
+    fi
+  fi
+}
+
+# Setup of a linear lnd network with the following topology:
+# (Alice) 0.1 Btc ---------- 0 Btc (Bob).
+setup_lnd_network() {
+  local n_nodes=2
+  local network="regtest"
+  if [ -z ${1} ]; then
+  else
+    network=${1}
+  fi
+  LND_SETUP_NETWORK=$network
+  local prefix="lnd-${LND_SETUP_NETWORK}"
+  prefixwith $prefix echo "Setting up a lnd ${LND_SETUP_NETWORK} network"
+
+  # Generate blocks
+  generate 10 $LND_SETUP_NETWORK
+
+  # Create and start nodes
+  for i in $(seq $n_nodes); do
+    start_lnd_node ${i} $LND_SETUP_NETWORK
   done
+
+  # Connect nodes
+  while; do
+    prefixwith $prefix echo "Connecting nodes"
+    local to=$(eval ${LND_CLI}-2 getinfo | jq -r '.uris[0]')
+    eval ${LND_CLI}-1 connect $to > /dev/null
+    if [ $? -eq 0 ]; then 
+      break
+    fi
+    sleep 5
+  done
+
+  # Fund nodes
+  for i in $(seq $n_nodes); do
+    fund_lnd_node $i
+  done
+  generate 12 $LND_SETUP_NETWORK
+
+  # Await blockchain sync
+  local blockcount=$(bitcoin-cli \
+    -chain="${LND_SETUP_NETWORK}" \
+    -rpcuser=admin1 \
+    -rpcpassword=123 \
+    -rpcconnect=127.0.0.1 \
+    -rpcport=18443 \
+    getblockcount)
+  while; do
+    blockheight1=$(eval ${LND_CLI}-1 getinfo | jq -r .'block_height')
+    blockheight2=$(eval ${LND_CLI}-2 getinfo | jq -r .'block_height')
+    if [ $blockheight1 -ge $blockcount ] && [ $blockheight2 -ge $blockcount ]; then
+      prefixwith $prefix echo "Nodes are synced to blockchain"  
+      break
+    fi
+    prefixwith $prefix echo "Waiting for nodes to be synced to blockchain"
+    sleep 5  
+  done
+
+  # Fund channel
+  to=$(eval ${LND_CLI}-2 getinfo | jq -r .'identity_pubkey')
+  eval ${LND_CLI}-1 openchannel $to 10000000
+  generate 12 $LND_SETUP_NETWORK
+
+  # Await channel active
+  while; do
+    local active=$(eval ${LND_CLI}-1 listchannels | jq -r '.channels[0].active')
+    if [ "$active" = "true" ]; then
+      prefixwith $prefix echo "Channel is active"
+      break
+    fi
+    prefixwith $prefix echo "Waiting for channel to be active"
+    sleep 5
+  done
+}
+
+# Restarts a running lnd network. Uses the global $LND_SETUP_NETWORK to 
+# determain the network.
+restart_lnd_network() {
+    local n_nodes=2
+    
+    stop_lnd_network
+    for i in $(seq $n_nodes); do
+      start_lnd_node ${i} $LND_SETUP_NETWORK
+    done
+}
+
+# Builds a clean set of peerswap bins. After building the bins, restarts a 
+# running lnd network to make use of the bins. Uses the global 
+# $LND_SETUP_NETWORK to determain the network.
+rebuild_lnd_network() {
+  make clean-bins
+  make bins
+  restart_lnd_network
+}
+
+# Removes a lnd network. Deletes the temporary dirs of the nodes.
+remove_lnd_network() {
+  local n_nodes=2
+  prefixwith "cln-${LND_SETUP_NETWORK}" echo "Tear down lnd ${LND_SETUP_NETWORK}"
+  for i in $(seq $n_nodes); do
+    remove_lnd_node $i $LND_SETUP_NETWORK
+  done
+}
+
+# Funds the lnd node with the argument [id] [chain]. Funds 1Btc to a fresh 
+# address on the node.
+fund_lnd_node() {
+  if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local network="regtest"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    local to=$(eval ${LND_CLI}-${1} newaddress p2wkh | jq -r .'address')
+    bitcoin-cli \
+    -chain=${network} \
+    -rpcuser=admin1 \
+    -rpcpassword=123 \
+    -rpcconnect=127.0.0.1 \
+    -rpcport=18443 \
+    sendtoaddress $to 1
+  fi
 }
 
 start_peerswap_lnd() {
@@ -359,103 +582,6 @@ EOF
     done
 }
 
-setup_alias() {
-  if [ -z "$1" ]; then
-    node_count=2
-  else
-    node_count=$1
-  fi
-  if [ -z "$2" ]; then
-    network=regtest
-  else
-    network=$2
-  fi
-  LN_NODES=$node_count
-
-  LCLI='lightning-cli'
-  LNCLI='lncli'
-  for i in $(seq $node_count); do
-    # shellcheck disable=SC2139 disable=SC2086
-    alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
-    # shellcheck disable=SC2139 disable=SC2086
-    alias l$i-log="less /tmp/l$i-$network/log"
-    alias l$i-follow="tail -f /tmp/l$i-$network/log"
-    alias l$i-followf="tail -f /tmp/l$i-$network/log | grep peerswap"
-  done
-  for i in $(seq 3); do
-    rpcport=$((10101 + i * 100))
-    alias lncli-$i=$LNCLI --lnddir="/tmp/lnd-regtest-$i" --network regtest --rpcserver="localhost:$rpcport"
-    alias lnd-$i-logs="tail -f /tmp/lnd-regtest-$i/logs/bitcoin/regtest/lnd.log"
-  done
-  # Give a hint.
-  echo "Commands: "
-  for i in $(seq $node_count); do
-    echo "	l$i-cli, l$i-log, l$i-follow, l$i-followf, lncli-$i, lnd-$i-logs"
-  done
-
-  alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18443'
-  alias et-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18884'
-  alias et-cli2='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18885'
-
-}
-
-# Connects all nodes in a network of 2 cln and 2 lnd nodes.
-connect_nodes() {
-  to_cln1=$(lightning-cli-1 getinfo | jq -r '"\(.id)@\(.binding[0].address):\(.binding[0].port)"')
-  to_cln2=$(lightning-cli-2 getinfo | jq -r '"\(.id)@\(.binding[0].address):\(.binding[0].port)"')
-  to_lnd1=$(lncli-1 getinfo | jq -r '.uris[0]')
-  to_lnd2=$(lncli-2 getinfo | jq -r '.uris[0]')
-  
-  # connect cln nodes
-  lightning-cli-1 connect $to_cln2
-
-  # connect lnd nodes
-  lncli-1 connect $to_lnd2
-
-  # connect mixed nodes
-  lightning-cli-1 connect $to_lnd1
-  lightning-cli-1 connect $to_lnd2
-  lightning-cli-2 connect $to_lnd1
-  lightning-cli-2 connect $to_lnd2
-}
-
-rebuild() {
-  make clean-bins
-  make bins
-  restart
-}
-restart() {
-  stop_nodes "$1" regtest
-  setup_cln "$nodes" regtest
-  start_nodes_lnd "$nodes"
-}
-
-setup_channel_lnd() {
-  connect_nodes
-  L2_PUBKEY=$(lncli-2 getinfo | jq -r .'identity_pubkey')
-  echo $(lncli-1 openchannel $L2_PUBKEY 1000000)
-  echo $(generate 12)
-}
-
-setup_channel_lnd_cl() {
-  connect_nodes
-  L1_PUBKEY=$(l1-cli getinfo | jq -r .'id')
-  echo $(lncli-1 openchannel $L1_PUBKEY 1000000)
-  echo $(generate 12)
-}
-
-fund_node_lnd() {
-  L1_ADDR=$(lncli-1 newaddress p2wkh | jq -r .'address')
-  echo $(bt-cli generatetoaddress 1 $L1_ADDR)
-  echo $(generate 100)
-}
-
-fund_node_lnd_2() {
-  L1_ADDR=$(lncli-2 newaddress p2wkh | jq -r .'address')
-  echo $(bt-cli generatetoaddress 1 $L1_ADDR)
-  echo $(generate 100)
-}
-
 fund_nodes_l() {
   echo $(lightning-cli-1 dev-liquid-faucet)
   echo $(lightning-cli-1 dev-liquid-faucet)
@@ -477,8 +603,13 @@ generate() {
   else
     block_count=$1
   fi
+  local network="regtest"
+  if [ -z ${2} ]; then
+  else
+    network=${2}
+  fi
   bitcoin-cli \
-    -chain="${CLN_SETUP_NETWORK}" \
+    -chain=${network} \
     -rpcuser=admin1 \
     -rpcpassword=123 \
     -rpcconnect=127.0.0.1 \
@@ -487,7 +618,8 @@ generate() {
 }
 
 reset_dev_env() {
-  remove_nodes
+  remove_cln_network
+  remove_lnd_network
   stop_docker_env
   rm -rf .ci/docker/config/regtest
   rm -rf .ci/docker/liquid-config/liquidregtest
@@ -496,7 +628,8 @@ reset_dev_env() {
 
 start_dev_env() {
   start_docker_env
-  rebuild
+  setup_cln_network
+  setup_lnd_network
 }
 
 stop_peerswap_lnd() {
