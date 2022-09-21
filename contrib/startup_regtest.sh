@@ -494,13 +494,26 @@ setup_lnd_network() {
     prefixwith $prefix echo "Waiting for channel to be active"
     sleep 5
   done
+
+  for i in $(seq $n_nodes); do
+    start_peerswapd $i $network
+  done
+}
+
+# Stops a running lnd network.
+stop_lnd_network() {
+  local n_nodes=2
+  for i in $(seq $n_nodes); do
+    stop_peerswapd $i $LND_SETUP_NETWORK
+    stop_lnd_node $i $LND_SETUP_NETWORK
+  done
 }
 
 # Restarts a running lnd network. Uses the global $LND_SETUP_NETWORK to 
 # determain the network.
 restart_lnd_network() {
     local n_nodes=2
-    
+
     stop_lnd_network
     for i in $(seq $n_nodes); do
       start_lnd_node ${i} $LND_SETUP_NETWORK
@@ -521,6 +534,7 @@ remove_lnd_network() {
   local n_nodes=2
   prefixwith "cln-${LND_SETUP_NETWORK}" echo "Tear down lnd ${LND_SETUP_NETWORK}"
   for i in $(seq $n_nodes); do
+    remove_peerswapd $i $LND_SETUP_NETWORK
     remove_lnd_node $i $LND_SETUP_NETWORK
   done
 }
@@ -548,38 +562,119 @@ fund_lnd_node() {
   fi
 }
 
-start_peerswap_lnd() {
-  if [ -z "$1" ]; then
-      node_count=2
+# Start a peerswap instance with arguments [lnd-id] [lnd-network]. Make sure to
+# use the id and network of the lnd node you want to connect to.
+start_peerswapd() {
+  if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local id=${1}
+    local network="regtest"
+    if [ -z ${2} ]; then
     else
-      node_count=$1
-  fi
-    for i in $(seq $node_count); do
-      lndrpcport=$((10101 + i * 100))
-      listenport=$((42069 + i * 100)) alias l$i-cli="$LCLI --lightning-dir=/tmp/l$i-$network"
-      restport=$((41069 + i * 100))
-      lndpath="/tmp/lnd-regtest-$i"
-      mkdir -p "/tmp/lnd-peerswap-$i/"
-      cat <<-EOF >"/tmp/lnd-peerswap-$i/config"
-network=regtest
-host=localhost:$listenport
-resthost=localhost:$restport
-datadir=/tmp/lnd-peerswap-$i/
-lnd.host=localhost:$lndrpcport
-lnd.tlscertpath=$lndpath/tls.cert
-lnd.macaroonpath=$lndpath/data/chain/bitcoin/regtest/admin.macaroon
+      network=${2}
+    fi
+    local lnd_rpc="127.0.0.1:$((10101 + ${id} * 101))"
+    local lnd_dir="/tmp/test-peerswap/lnd-${id}-${network}"
+    local listen_rpc="127.0.0.1:$((42069 + ${id} * 101))"
+    local listen_rest="127.0.0.1:$((41069 + ${id} * 101))"
+    local dir="/tmp/test-peerswap/peerswap-${id}-${network}"
+    local prefix="peerswap-${id}"
+
+    prefixwith $prefix echo "Creating peerswap config"
+    mkdir -p ${dir}
+    touch ${dir}/config
+    cat <<-EOF >"${dir}/config"
+loglevel=2
+network=${network}
+host=${listen_rpc}
+resthost=${listen_rest}
+datadir=${dir}
+lnd.host=${lnd_rpc}
+lnd.tlscertpath=$lnd_dir/data/tls.cert
+lnd.macaroonpath=$lnd_dir/data/chain/bitcoin/${network}/admin.macaroon
 bitcoinswaps=true
 liquid.rpcuser=admin1
 liquid.rpcpass=123 
 liquid.rpchost=http://127.0.0.1
 liquid.rpcport=18884
-liquid.rpcwallet=swaplnd-$i
+liquid.rpcwallet=swaplnd-${id}
 accept_all_peers=true
 EOF
-  
-    ./out/peerswapd "--configfile=/tmp/lnd-peerswap-$i/config" > /dev/null 2>&1 &
 
-    done
+    touch ${dir}/policy.conf
+    cat <<-EOF > "${dir}/policy.conf"
+accept_all_peers=true
+EOF
+
+    if [ -f "${dir}/peerswapd-${network}.pid" ]; then
+      prefixwith $prefix echo "peerswapd is already running with pid $(cat ${dir}/peerswapd-${network}.pid)"
+      return 1
+    else    
+      prefixwith $prefix echo "Starting peerswapd, listen rpc: ${listen_rpc}, listen rest: ${listen_rest}"
+      ./out/peerswapd --configfile="${dir}/config" > /dev/null 2>&1 &
+      local pid=$!
+      
+      if [ $? -eq 1 ]; then 
+        prefixwith $prefix echo "peerswapd crashed on startup"
+        return 1
+      fi
+
+      touch ${dir}/peerswapd-${network}.pid
+      echo "${pid}" > ${dir}/peerswapd-${network}.pid
+    fi
+  fi
+}
+
+# Stops a peerswap daemon with arguments [id] [network]. 
+stop_peerswapd() {
+  if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local id=${1}
+    local prefix="peerswap-${id}"
+    local network="regtest"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    local dir="/tmp/test-peerswap/peerswap-${id}-${network}"  
+    if ! [ -f "${dir}/peerswapd-${network}.pid" ]; then
+      prefixwith $prefix echo "no running peerswapd found"
+      return
+    else
+      local pid=$(cat ${dir}/peerswapd-${network}.pid)
+      prefixwith $prefix echo "killing peerswapd with pid ${pid}"
+      kill $pid
+      rm "${dir}/peerswapd-${network}.pid"
+    fi
+  fi
+}
+
+# Removes the temporary dir for a peerswapd node with arguments [id] [chain]. Stops 
+# the daemon before trying to remove the dir.
+remove_peerswapd() {
+   if [ -z ${1} ]; then
+    echo "missing node id"
+    return 1
+  else
+    local id=${1}
+    local prefix="peerswap-${id}"
+    local network="regtest"
+    if [ -z ${2} ]; then
+    else
+      network=${2}
+    fi
+    local dir="/tmp/test-peerswap/peerswap-${id}-${network}"
+    stop_peerswapd ${1} ${network}
+    if [ -d ${dir} ]; then 
+      prefixwith ${prefix} echo "removing peerswap dir ${dir}"
+      rm -rf ${dir}
+      return
+    fi
+  fi
 }
 
 fund_nodes_l() {
