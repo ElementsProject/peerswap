@@ -585,6 +585,7 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	return &PrettyPrintSwap{
 		Id:              swap.SwapId.String(),
 		CreatedAt:       timeStamp.String(),
+		Asset:           swap.Data.GetChain(),
 		Type:            swap.Type.String(),
 		Role:            swap.Role.String(),
 		State:           string(swap.Current),

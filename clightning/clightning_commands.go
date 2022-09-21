@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/peerswaprpc"
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
@@ -235,9 +236,8 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 
 			}
 			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
-				return swapOut.Data.ToPrettyPrint(), nil
+				return peerswaprpc.PrettyprintFromServiceSwap(swapOut), nil
 			}
-
 		}
 	}
 }
@@ -354,9 +354,8 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 
 			}
 			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
-				return swapIn.Data.ToPrettyPrint(), nil
+				return peerswaprpc.PrettyprintFromServiceSwap(swapIn), nil
 			}
-
 		}
 	}
 }
@@ -389,14 +388,11 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		return false
 	})
 	if !l.DetailedPrint {
-		var pswasp []*swap.PrettyPrintSwapData
+		var pretty []*peerswaprpc.PrettyPrintSwap
 		for _, v := range swaps {
-			if v.Data == nil {
-				continue
-			}
-			pswasp = append(pswasp, v.Data.ToPrettyPrint())
+			pretty = append(pretty, peerswaprpc.PrettyprintFromServiceSwap(v))
 		}
-		return pswasp, nil
+		return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 	}
 	return swaps, nil
 }
@@ -748,7 +744,12 @@ func (g *ListActiveSwaps) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swaps, nil
+
+	var pretty []*peerswaprpc.PrettyPrintSwap
+	for _, v := range swaps {
+		pretty = append(pretty, peerswaprpc.PrettyprintFromServiceSwap(v))
+	}
+	return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 }
 
 func (g *ListActiveSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {

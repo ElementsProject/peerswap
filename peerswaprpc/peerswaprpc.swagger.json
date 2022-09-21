@@ -207,6 +207,9 @@
         "createdAt": {
           "type": "string"
         },
+        "asset": {
+          "type": "string"
+        },
         "type": {
           "type": "string"
         },

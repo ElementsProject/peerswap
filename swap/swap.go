@@ -104,26 +104,26 @@ type SwapData struct {
 	// cancel message
 	CancelMessage string `json:"cancel_message"`
 
-	PeerNodeId          string    `json:"peer_nod_id"`
+	PeerNodeId          string    `json:"peer_node_id"`
 	InitiatorNodeId     string    `json:"initiator_node_id"`
 	CreatedAt           int64     `json:"created_at"`
 	Role                SwapRole  `json:"role"`
 	FSMState            StateType `json:"fsm_state"`
-	PrivkeyBytes        []byte
-	FeePreimage         string `json:"fee_preimage"`
-	OpeningTxFee        uint64 `json:"opening_tx_fee"`
-	OpeningTxHex        string `json:"opening_tx-hex"`
-	StartingBlockHeight uint32 `json:"opening_block_height"`
-	ClaimTxId           string `json:"claim_tx_id"`
-	ClaimPaymentHash    string `json:"claim_payment_hash"`
-	ClaimPreimage       string `json:"claim_preimage"`
+	PrivkeyBytes        []byte    `json:"private_key"`
+	FeePreimage         string    `json:"fee_preimage"`
+	OpeningTxFee        uint64    `json:"opening_tx_fee"`
+	OpeningTxHex        string    `json:"opening_tx_hex"`
+	StartingBlockHeight uint32    `json:"opening_block_height"`
+	ClaimTxId           string    `json:"claim_tx_id"`
+	ClaimPaymentHash    string    `json:"claim_payment_hash"`
+	ClaimPreimage       string    `json:"claim_preimage"`
 
 	BlindingKeyHex string `json:"blinding_key"`
 
 	LastMessage EventContext `json:"last_message"`
 
-	NextMessage     []byte
-	NextMessageType int
+	NextMessage     []byte `json:"next_message"`
+	NextMessageType int    `json:"next_message_type"`
 
 	LastErr       error  `json:"-"`
 	LastErrString string `json:"last_err,omitempty"`
