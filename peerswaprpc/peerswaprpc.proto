@@ -139,7 +139,7 @@ message RequestedSwap {
 
 message PrettyPrintSwap {
     string id = 1;
-    string created_at = 2;
+    int64 created_at = 2;
     string asset = 3;
     string type = 4;
     string role = 5;
