@@ -191,7 +191,7 @@ message Policy {
 }
 
 message AllowSwapRequestsRequest {
-    string allow = 1;
+    bool allow = 1;
 }
 
 message AllowSwapRequestsResponse {

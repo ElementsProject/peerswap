@@ -658,6 +658,9 @@ type PolicyReloader interface {
 	RemoveFromAllowlist(pubkey string) error
 	AddToSuspiciousPeerList(pubkey string) error
 	RemoveFromSuspiciousPeerList(pubkey string) error
+	NewSwapsAllowed() bool
+	DisableSwaps() error
+	EnableSwaps() error
 	ReloadFile() error
 	Get() policy.Policy
 }
@@ -784,13 +787,16 @@ func (g *AllowSwapRequests) New() interface{} {
 }
 
 func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
+	if g.AllowSwapRequestsString == "" {
+		return nil, fmt.Errorf("missing argument:1 to allow, 0 to disallow")
+	}
 	if g.AllowSwapRequestsString == "1" || strings.ToLower(g.AllowSwapRequestsString) == "true" {
-		g.cl.swaps.SetAllowSwapRequests(true)
+		g.cl.policy.EnableSwaps()
 	} else if g.AllowSwapRequestsString == "0" || strings.ToLower(g.AllowSwapRequestsString) == "false" {
-		g.cl.swaps.SetAllowSwapRequests(false)
+		g.cl.policy.DisableSwaps()
 	}
 
-	allowSwap := g.cl.swaps.GetAllowSwapRequests()
+	allowSwap := g.cl.policy.NewSwapsAllowed()
 
 	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
 

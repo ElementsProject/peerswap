@@ -413,7 +413,7 @@ func allowSwaps(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.AllowSwapRequests(context.Background(), &peerswaprpc.AllowSwapRequestsRequest{
-		Allow: ctx.String(allowFlag.Name),
+		Allow: ctx.Bool(allowFlag.Name),
 	})
 	if err != nil {
 		return err

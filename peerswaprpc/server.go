@@ -569,15 +569,13 @@ func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwaps
 }
 
 func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
-	if request.Allow == "1" || strings.ToLower(request.Allow) == "true" {
-		p.swaps.SetAllowSwapRequests(true)
-	} else if request.Allow == "0" || strings.ToLower(request.Allow) == "false" {
-		p.swaps.SetAllowSwapRequests(false)
+	if request.Allow {
+		p.policy.EnableSwaps()
+	} else {
+		p.policy.DisableSwaps()
 	}
 
-	allow := p.swaps.GetAllowSwapRequests()
-
-	return &AllowSwapRequestsResponse{Allow: allow}, nil
+	return &AllowSwapRequestsResponse{Allow: p.policy.NewSwapsAllowed()}, nil
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
