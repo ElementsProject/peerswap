@@ -796,17 +796,8 @@ func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
 		g.cl.policy.DisableSwaps()
 	}
 
-	allowSwap := g.cl.policy.NewSwapsAllowed()
-
-	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
-
-	if allowSwap {
-		response += "enabled."
-	} else {
-		response += "disabled. Existing swaps are allowed to complete. See `peerswap-listactiveswaps`"
-	}
-
-	return response, nil
+	pol := g.cl.policy.Get()
+	return peerswaprpc.GetPolicyMessage(pol), nil
 }
 
 func boolToString(val bool) string {
