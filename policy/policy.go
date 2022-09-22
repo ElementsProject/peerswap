@@ -35,6 +35,10 @@ var (
 
 	// defaultSuspiciousPeerList is the default set of suspicious peers.
 	defaultSuspiciousPeerList = []string{}
+
+	// defaultAllowNewSwaps is true as we want to allow performing swaps per
+	// default.
+	defaultAllowNewSwaps = true
 )
 
 // Error definitions
@@ -78,15 +82,22 @@ type Policy struct {
 	// where this value belongs. Eventually we might want to make this value
 	// editable as a policy setting.
 	MinSwapAmountMsat uint64 `json:"min_swap_amount_msat"`
+
+	// AllowNewSwaps can be used to disallow any new swaps. This can be useful
+	// when we want to upgrade the node and do not want to allow for any new
+	// swap request from the peer or the node operator.
+	AllowNewSwaps bool `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
 }
 
 func (p *Policy) String() string {
 	str := fmt.Sprintf(
-		"min_swap_amount_msat: %d\n"+
+		"allow_new_swaps: %t\n"+
+			"min_swap_amount_msat: %d\n"+
 			"reserve_onchain_msat: %d\n"+
 			"allowlisted_peers: %s\n"+
 			"accept_all_peers: %t\n"+
 			"suspicious_peers: %s\n",
+		p.AllowNewSwaps,
 		p.MinSwapAmountMsat,
 		p.ReserveOnchainMsat,
 		p.PeerAllowlist,
@@ -97,12 +108,16 @@ func (p *Policy) String() string {
 }
 
 func (p *Policy) Get() Policy {
+	mu.Lock()
+	defer mu.Unlock()
+
 	return Policy{
 		ReserveOnchainMsat: p.ReserveOnchainMsat,
 		PeerAllowlist:      p.PeerAllowlist,
 		SuspiciousPeerList: p.SuspiciousPeerList,
 		AcceptAllPeers:     p.AcceptAllPeers,
 		MinSwapAmountMsat:  p.MinSwapAmountMsat,
+		AllowNewSwaps:      p.AllowNewSwaps,
 	}
 }
 
@@ -121,6 +136,11 @@ func (p *Policy) GetMinSwapAmountMsat() uint64 {
 	mu.Lock()
 	defer mu.Unlock()
 	return p.MinSwapAmountMsat
+}
+
+// NewSwapsAllowed returns the boolean value of AllowNewSwaps.
+func (p *Policy) NewSwapsAllowed() bool {
+	return p.AllowNewSwaps
 }
 
 // IsPeerAllowed returns if a peer or node is part of
@@ -174,6 +194,50 @@ func (p *Policy) ReloadFile() error {
 
 	p.path = path
 	return nil
+}
+
+// DisableSwaps sets the AllowNewSwaps field to false. This persists in the
+// policy.conf.
+func (p *Policy) DisableSwaps() error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if !p.AllowNewSwaps {
+		return nil
+	}
+
+	err := removeLineFromFile(p.path, "allow_new_swaps=true")
+	if err != nil {
+		return err
+	}
+	err = addLineToFile(p.path, "allow_new_swaps=false")
+	if err != nil {
+		return err
+	}
+
+	return p.ReloadFile()
+}
+
+// EnableSwaps sets the AllowNewSwaps field to true. This persists in the
+// policy.conf.
+func (p *Policy) EnableSwaps() error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if p.AllowNewSwaps {
+		return nil
+	}
+
+	err := removeLineFromFile(p.path, "allow_new_swaps=false")
+	if err != nil {
+		return err
+	}
+	err = addLineToFile(p.path, "allow_new_swaps=true")
+	if err != nil {
+		return err
+	}
+
+	return p.ReloadFile()
 }
 
 // AddToAllowlist adds a peer to the policy file in runtime. The pubkey is
@@ -360,6 +424,7 @@ func DefaultPolicy() *Policy {
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}
 }
 

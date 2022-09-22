@@ -30,6 +30,7 @@ func Test_Create(t *testing.T) {
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}, policy)
 
 	peer1 := "123"
@@ -61,6 +62,7 @@ func Test_Create(t *testing.T) {
 		SuspiciousPeerList: []string{peer1, peer2},
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}, policy2)
 }
 
@@ -83,6 +85,7 @@ func Test_Reload(t *testing.T) {
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}, policy)
 
 	newPeer := "new_peer"
@@ -96,6 +99,7 @@ func Test_Reload(t *testing.T) {
 		SuspiciousPeerList: []string{newPeer},
 		AcceptAllPeers:     defaultAcceptAllPeers,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}, policy)
 }
 
@@ -118,6 +122,7 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}, policy)
 
 	// copy policy
@@ -328,6 +333,40 @@ func Test_isValidPubkey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_AllowSwapRequests(t *testing.T) {
+	policyFilePath := path.Join(t.TempDir(), "policy.conf")
+	file, err := os.Create(policyFilePath)
+	assert.NoError(t, err)
+
+	err = file.Close()
+	assert.NoError(t, err)
+
+	policy, err := CreateFromFile(policyFilePath)
+	assert.NoError(t, err)
+
+	// Write the disallow to the policy file.
+	err = policy.DisableSwaps()
+	assert.NoError(t, err)
+	assert.False(t, policy.NewSwapsAllowed())
+
+	policyFile, _ := ioutil.ReadFile(policyFilePath)
+	assert.Equal(
+		t,
+		"allow_new_swaps=false\n",
+		string(policyFile))
+
+	// Write allow_new_swaps to policy file.
+	err = policy.EnableSwaps()
+	assert.NoError(t, err)
+	assert.True(t, policy.NewSwapsAllowed())
+
+	policyFile, _ = ioutil.ReadFile(policyFilePath)
+	assert.Equal(
+		t,
+		"allow_new_swaps=true\n",
+		string(policyFile))
 }
 
 func randomPubKeyHex() string {
