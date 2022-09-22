@@ -187,24 +187,6 @@ func local_request_PeerSwap_ListPeers_0(ctx context.Context, marshaler runtime.M
 
 }
 
-func request_PeerSwap_ListNodes_0(ctx context.Context, marshaler runtime.Marshaler, client PeerSwapClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListNodesRequest
-	var metadata runtime.ServerMetadata
-
-	msg, err := client.ListNodes(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_PeerSwap_ListNodes_0(ctx context.Context, marshaler runtime.Marshaler, server PeerSwapServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListNodesRequest
-	var metadata runtime.ServerMetadata
-
-	msg, err := server.ListNodes(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
 func request_PeerSwap_ListRequestedSwaps_0(ctx context.Context, marshaler runtime.Marshaler, client PeerSwapClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ListRequestedSwapsRequest
 	var metadata runtime.ServerMetadata
@@ -664,31 +646,6 @@ func RegisterPeerSwapHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 
 	})
 
-	mux.Handle("GET", pattern_PeerSwap_ListNodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		var err error
-		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/peerswap.PeerSwap/ListNodes", runtime.WithHTTPPathPattern("/v1/nodes"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_PeerSwap_ListNodes_0(annotatedContext, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_PeerSwap_ListNodes_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("GET", pattern_PeerSwap_ListRequestedSwaps_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1140,28 +1097,6 @@ func RegisterPeerSwapHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 
 	})
 
-	mux.Handle("GET", pattern_PeerSwap_ListNodes_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		var err error
-		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/peerswap.PeerSwap/ListNodes", runtime.WithHTTPPathPattern("/v1/nodes"))
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_PeerSwap_ListNodes_0(annotatedContext, inboundMarshaler, client, req, pathParams)
-		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
-		if err != nil {
-			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_PeerSwap_ListNodes_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("GET", pattern_PeerSwap_ListRequestedSwaps_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1440,8 +1375,6 @@ var (
 
 	pattern_PeerSwap_ListPeers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "peers"}, ""))
 
-	pattern_PeerSwap_ListNodes_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "nodes"}, ""))
-
 	pattern_PeerSwap_ListRequestedSwaps_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "swaps", "requests"}, ""))
 
 	pattern_PeerSwap_ListActiveSwaps_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "swaps", "active"}, ""))
@@ -1477,8 +1410,6 @@ var (
 	forward_PeerSwap_ListSwaps_0 = runtime.ForwardResponseMessage
 
 	forward_PeerSwap_ListPeers_0 = runtime.ForwardResponseMessage
-
-	forward_PeerSwap_ListNodes_0 = runtime.ForwardResponseMessage
 
 	forward_PeerSwap_ListRequestedSwaps_0 = runtime.ForwardResponseMessage
 

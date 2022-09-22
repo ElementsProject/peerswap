@@ -45,17 +45,6 @@
         }
       }
     },
-    "peerswapListNodesResponse": {
-      "type": "object",
-      "properties": {
-        "nodes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/peerswapPeerSwapNodes"
-          }
-        }
-      }
-    },
     "peerswapListPeersResponse": {
       "type": "object",
       "properties": {
@@ -86,14 +75,6 @@
           "items": {
             "$ref": "#/definitions/peerswapPrettyPrintSwap"
           }
-        }
-      }
-    },
-    "peerswapPeerSwapNodes": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "type": "string"
         }
       }
     },

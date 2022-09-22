@@ -435,10 +435,6 @@ func findPeer(peerId string, peerlist []*lnrpc.Peer) *lnrpc.Peer {
 	return nil
 }
 
-func (p *PeerswapServer) ListNodes(ctx context.Context, request *ListNodesRequest) (*ListNodesResponse, error) {
-	return nil, errors.New("ListNodes does not work on lnd yet")
-}
-
 func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPolicyFileRequest) (*Policy, error) {
 	err := p.policy.ReloadFile()
 	if err != nil {

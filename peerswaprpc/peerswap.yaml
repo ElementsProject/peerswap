@@ -15,8 +15,6 @@ http:
       get: "/v1/swaps" 
     - selector: peerswap.PeerSwap.ListPeers 
       get: "/v1/peers" 
-    - selector: peerswap.PeerSwap.ListNodes 
-      get: "/v1/nodes" 
     - selector: peerswap.PeerSwap.ListRequestedSwaps 
       get: "/v1/swaps/requests" 
     - selector: peerswap.PeerSwap.ListActiveSwaps 

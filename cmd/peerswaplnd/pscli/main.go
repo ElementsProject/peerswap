@@ -28,7 +28,7 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
-		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
+		listPeersCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
 		addSusPeerCommand, removeSusPeerCommand,
@@ -117,12 +117,6 @@ var (
 		Usage:  "lists all peerswap-enabled peers",
 		Flags:  []cli.Flag{},
 		Action: listPeers,
-	}
-	listNodesCommand = cli.Command{
-		Name:   "listnodes",
-		Usage:  "lists all peerswap-enabled nodes in the network",
-		Flags:  []cli.Flag{},
-		Action: listNodes,
 	}
 	reloadPolicyFileCommand = cli.Command{
 		Name:   "reloadpolicy",
@@ -290,21 +284,6 @@ func listPeers(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.ListPeers(context.Background(), &peerswaprpc.ListPeersRequest{})
-	if err != nil {
-		return err
-	}
-	printRespJSON(res)
-	return nil
-}
-
-func listNodes(ctx *cli.Context) error {
-	client, cleanup, err := getClient(ctx)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
-	res, err := client.ListNodes(context.Background(), &peerswaprpc.ListNodesRequest{})
 	if err != nil {
 		return err
 	}

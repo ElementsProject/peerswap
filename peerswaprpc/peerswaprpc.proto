@@ -10,7 +10,6 @@ service PeerSwap {
     rpc GetSwap(GetSwapRequest) returns (SwapResponse);
     rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
     rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
-    rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
     rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
 
@@ -89,12 +88,6 @@ message ListPeersRequest {}
 
 message ListPeersResponse {
     repeated PeerSwapPeer peers = 1;
-}
-
-message ListNodesRequest {}
-
-message ListNodesResponse{
-    repeated PeerSwapNodes nodes = 1;
 }
 
 message ReloadPolicyFileRequest {}

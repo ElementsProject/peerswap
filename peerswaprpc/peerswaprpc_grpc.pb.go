@@ -27,7 +27,6 @@ type PeerSwapClient interface {
 	GetSwap(ctx context.Context, in *GetSwapRequest, opts ...grpc.CallOption) (*SwapResponse, error)
 	ListSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
 	ListPeers(ctx context.Context, in *ListPeersRequest, opts ...grpc.CallOption) (*ListPeersResponse, error)
-	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error)
 	ListRequestedSwaps(ctx context.Context, in *ListRequestedSwapsRequest, opts ...grpc.CallOption) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
 	// policy
@@ -91,15 +90,6 @@ func (c *peerSwapClient) ListSwaps(ctx context.Context, in *ListSwapsRequest, op
 func (c *peerSwapClient) ListPeers(ctx context.Context, in *ListPeersRequest, opts ...grpc.CallOption) (*ListPeersResponse, error) {
 	out := new(ListPeersResponse)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/ListPeers", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *peerSwapClient) ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error) {
-	out := new(ListNodesResponse)
-	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/ListNodes", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +213,6 @@ type PeerSwapServer interface {
 	GetSwap(context.Context, *GetSwapRequest) (*SwapResponse, error)
 	ListSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
 	ListPeers(context.Context, *ListPeersRequest) (*ListPeersResponse, error)
-	ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error)
 	ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
 	// policy
@@ -259,9 +248,6 @@ func (UnimplementedPeerSwapServer) ListSwaps(context.Context, *ListSwapsRequest)
 }
 func (UnimplementedPeerSwapServer) ListPeers(context.Context, *ListPeersRequest) (*ListPeersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPeers not implemented")
-}
-func (UnimplementedPeerSwapServer) ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListNodes not implemented")
 }
 func (UnimplementedPeerSwapServer) ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListRequestedSwaps not implemented")
@@ -398,24 +384,6 @@ func _PeerSwap_ListPeers_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PeerSwapServer).ListPeers(ctx, req.(*ListPeersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PeerSwap_ListNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListNodesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PeerSwapServer).ListNodes(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/peerswap.PeerSwap/ListNodes",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PeerSwapServer).ListNodes(ctx, req.(*ListNodesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -662,10 +630,6 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListPeers",
 			Handler:    _PeerSwap_ListPeers_Handler,
-		},
-		{
-			MethodName: "ListNodes",
-			Handler:    _PeerSwap_ListNodes_Handler,
 		},
 		{
 			MethodName: "ListRequestedSwaps",
