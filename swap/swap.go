@@ -361,45 +361,6 @@ func (s *SwapData) cancelTimeout() {
 	}
 }
 
-type PrettyPrintSwapData struct {
-	Id              string `json:"id"`
-	Asset           string `json:"asset"`
-	CreatedAt       string `json:"created_at"`
-	Type            string `json:"type"`
-	Role            string `json:"role"`
-	State           string `json:"state"`
-	InitiatorNodeId string `json:"initiator_node_id"`
-	PeerNodeId      string `json:"peer_node_id"`
-	Amount          uint64 `json:"amount"`
-	ShortChannelId  string `json:"short_channel_id"`
-
-	OpeningTxId string `json:"opening_tx_id,omitempty"`
-
-	ClaimTxId string `json:"claim_tx_id,omitempty"`
-
-	CancelMessage string `json:"cancel_message,omitempty"`
-}
-
-func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
-	timeStamp := time.Unix(s.CreatedAt, 0)
-
-	return &PrettyPrintSwapData{
-		Id:              s.GetId().String(),
-		Asset:           s.GetChain(),
-		Type:            s.GetType().String(),
-		Role:            s.Role.String(),
-		State:           string(s.FSMState),
-		InitiatorNodeId: s.InitiatorNodeId,
-		PeerNodeId:      s.PeerNodeId,
-		Amount:          s.GetAmount(),
-		ShortChannelId:  s.GetScid(),
-		OpeningTxId:     s.GetOpeningTxId(),
-		ClaimTxId:       s.ClaimTxId,
-		CreatedAt:       timeStamp.String(),
-		CancelMessage:   s.GetCancelMessage(),
-	}
-}
-
 func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.PrivkeyBytes)
 	return privkey
