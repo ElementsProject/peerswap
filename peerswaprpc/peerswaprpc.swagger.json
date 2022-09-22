@@ -25,14 +25,6 @@
       ],
       "default": "SWAP_IN"
     },
-    "peerswapAllowSwapRequestsResponse": {
-      "type": "object",
-      "properties": {
-        "allow": {
-          "type": "boolean"
-        }
-      }
-    },
     "peerswapEmpty": {
       "type": "object"
     },

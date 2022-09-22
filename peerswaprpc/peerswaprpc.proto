@@ -13,9 +13,9 @@ service PeerSwap {
     rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
     rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
-    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (AllowSwapRequestsResponse);
 
     // policy
+    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (Policy);
     rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (Policy);
     rpc AddPeer(AddPeerRequest) returns (Policy);
     rpc RemovePeer(RemovePeerRequest) returns (Policy);

@@ -30,8 +30,8 @@ type PeerSwapClient interface {
 	ListNodes(ctx context.Context, in *ListNodesRequest, opts ...grpc.CallOption) (*ListNodesResponse, error)
 	ListRequestedSwaps(ctx context.Context, in *ListRequestedSwapsRequest, opts ...grpc.CallOption) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
-	AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*AllowSwapRequestsResponse, error)
 	// policy
+	AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*Policy, error)
 	ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*Policy, error)
 	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*Policy, error)
 	RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*Policy, error)
@@ -124,8 +124,8 @@ func (c *peerSwapClient) ListActiveSwaps(ctx context.Context, in *ListSwapsReque
 	return out, nil
 }
 
-func (c *peerSwapClient) AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*AllowSwapRequestsResponse, error) {
-	out := new(AllowSwapRequestsResponse)
+func (c *peerSwapClient) AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/AllowSwapRequests", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -226,8 +226,8 @@ type PeerSwapServer interface {
 	ListNodes(context.Context, *ListNodesRequest) (*ListNodesResponse, error)
 	ListRequestedSwaps(context.Context, *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error)
 	ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
-	AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error)
 	// policy
+	AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*Policy, error)
 	ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*Policy, error)
 	AddPeer(context.Context, *AddPeerRequest) (*Policy, error)
 	RemovePeer(context.Context, *RemovePeerRequest) (*Policy, error)
@@ -269,7 +269,7 @@ func (UnimplementedPeerSwapServer) ListRequestedSwaps(context.Context, *ListRequ
 func (UnimplementedPeerSwapServer) ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListActiveSwaps not implemented")
 }
-func (UnimplementedPeerSwapServer) AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
+func (UnimplementedPeerSwapServer) AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AllowSwapRequests not implemented")
 }
 func (UnimplementedPeerSwapServer) ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*Policy, error) {

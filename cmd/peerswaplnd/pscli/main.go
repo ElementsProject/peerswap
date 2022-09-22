@@ -65,9 +65,9 @@ var (
 		Name:     "address",
 		Required: true,
 	}
-	allowFlag = cli.StringFlag{
+	allowFlag = cli.BoolFlag{
 		Name:     "allow_swaps",
-		Required: false,
+		Required: true,
 	}
 	pubkeyFlag = cli.StringFlag{
 		Name:     "peer_pubkey",
@@ -419,15 +419,7 @@ func allowSwaps(ctx *cli.Context) error {
 		return err
 	}
 
-	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
-
-	if res.Allow {
-		response += "enabled."
-	} else {
-		response += "disabled. Existing swaps are allowed to complete. See `pscli listactiveswaps`"
-	}
-
-	fmt.Println(response)
+	printRespJSON(res)
 	return nil
 }
 
