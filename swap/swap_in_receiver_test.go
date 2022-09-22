@@ -146,6 +146,7 @@ func Test_SwapInReceiver_PeerIsSuspicious(t *testing.T) {
 	swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,
 		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
 	}
 
 	swap := newSwapInReceiverFSM(swapId, swapServices, initiator)

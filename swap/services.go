@@ -34,6 +34,7 @@ type Policy interface {
 	IsPeerSuspicious(peer string) bool
 	GetReserveOnchainMsat() uint64
 	GetMinSwapAmountMsat() uint64
+	NewSwapsAllowed() bool
 }
 
 type LightningClient interface {

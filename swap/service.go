@@ -54,20 +54,18 @@ func ErrReceivedMessageFromUnexpectedPeer(peerId string, swapId *SwapId) error {
 type SwapService struct {
 	swapServices *SwapServices
 
-	activeSwaps       map[string]*SwapStateMachine
-	BitcoinEnabled    bool
-	LiquidEnabled     bool
-	allowSwapRequests bool
+	activeSwaps    map[string]*SwapStateMachine
+	BitcoinEnabled bool
+	LiquidEnabled  bool
 	sync.RWMutex
 }
 
 func NewSwapService(services *SwapServices) *SwapService {
 	return &SwapService{
-		swapServices:      services,
-		activeSwaps:       map[string]*SwapStateMachine{},
-		LiquidEnabled:     services.liquidEnabled,
-		BitcoinEnabled:    services.bitcoinEnabled,
-		allowSwapRequests: true,
+		swapServices:   services,
+		activeSwaps:    map[string]*SwapStateMachine{},
+		LiquidEnabled:  services.liquidEnabled,
+		BitcoinEnabled: services.bitcoinEnabled,
 	}
 }
 
@@ -319,12 +317,12 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
 func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
-	if s.hasActiveSwapOnChannel(channelId) {
-		return nil, fmt.Errorf("already has an active swap on channel")
+	if !s.swapServices.policy.NewSwapsAllowed() {
+		return nil, fmt.Errorf("swaps are disabled")
 	}
 
-	if !s.allowSwapRequests {
-		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	if s.hasActiveSwapOnChannel(channelId) {
+		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
@@ -372,11 +370,12 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 // todo check prerequisites
 // SwapIn starts a new swap in process
 func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
+	if !s.swapServices.policy.NewSwapsAllowed() {
+		return nil, fmt.Errorf("swaps are disabled")
+	}
+
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
-	}
-	if !s.allowSwapRequests {
-		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
 
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
@@ -426,9 +425,6 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	if !s.allowSwapRequests {
-		return fmt.Errorf("rejecting all swaps")
-	}
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
 	s.AddActiveSwap(swapId.String(), swap)
 
@@ -446,9 +442,6 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	if !s.allowSwapRequests {
-		return fmt.Errorf("rejecting all swaps")
-	}
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
 
 	s.AddActiveSwap(swapId.String(), swap)
@@ -715,15 +708,6 @@ func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
 	}
 
 	return false
-}
-
-func (s *SwapService) SetAllowSwapRequests(allow bool) bool {
-	s.allowSwapRequests = allow
-	return s.allowSwapRequests
-}
-
-func (s *SwapService) GetAllowSwapRequests() bool {
-	return s.allowSwapRequests
 }
 
 type WrongAssetError string

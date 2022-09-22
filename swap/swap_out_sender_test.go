@@ -336,6 +336,14 @@ type dummyPolicy struct {
 
 	getMinSwapAmountMsatCalled int
 	getMinSwapAmountMsatReturn uint64
+
+	newSwapsAllowedCalled int
+	newSwapsAllowedReturn bool
+}
+
+func (d *dummyPolicy) NewSwapsAllowed() bool {
+	d.newSwapsAllowedCalled++
+	return d.newSwapsAllowedReturn
 }
 
 func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {

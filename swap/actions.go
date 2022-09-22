@@ -22,6 +22,18 @@ type CheckRequestWrapperAction struct {
 }
 
 func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if !services.policy.NewSwapsAllowed() {
+		swap.LastErr = errors.New("swaps are disabled")
+		swap.CancelMessage = "swaps are disabled"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.GetChain(),
+			AmountSat:       swap.GetAmount(),
+			Type:            swap.GetType(),
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+
 	if swap.GetChain() == l_btc_chain && !services.liquidEnabled {
 		swap.LastErr = errors.New("lbtc swaps are not supported")
 		swap.CancelMessage = "lbtc swaps are not supported"

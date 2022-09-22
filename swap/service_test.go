@@ -363,7 +363,10 @@ func Test_SwapIn_PeerIsSuspicious(t *testing.T) {
 
 	swapService := getTestSetup(node)
 	// Setup peer to be suspicious
-	swapService.swapServices.policy = &dummyPolicy{isPeerSuspiciousReturn: true}
+	swapService.swapServices.policy = &dummyPolicy{
+		isPeerSuspiciousReturn: true,
+		newSwapsAllowedReturn:  policy.DefaultPolicy().AllowNewSwaps,
+	}
 
 	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
 	assert.Error(t, err)
@@ -381,6 +384,7 @@ func Test_SwapOut_PeerIsSuspicious(t *testing.T) {
 	swapService.swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,
 		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
 	}
 
 	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
@@ -398,6 +402,7 @@ func getTestSetup(name string) *SwapService {
 	lc := &dummyLightningClient{preimage: ""}
 	policy := &dummyPolicy{
 		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
 	}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
 	chain.SetBalance(10000000)

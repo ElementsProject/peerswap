@@ -199,6 +199,7 @@ func Test_SwapOutReceiver_PeerIsSuspicious(t *testing.T) {
 	swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,
 		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
+		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
 	}
 
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
