@@ -40,13 +40,7 @@ func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		AllowlistedPeers:   pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return &AddPeerResponse{Policy: GetPolicyMessage(pol)}, nil
 
 }
 
@@ -56,13 +50,7 @@ func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		AllowlistedPeers:   pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return &AddPeerResponse{Policy: GetPolicyMessage(pol)}, nil
 
 }
 
@@ -72,13 +60,7 @@ func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequ
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		AllowlistedPeers:   pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return &RemovePeerResponse{Policy: GetPolicyMessage(pol)}, nil
 }
 
 func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
@@ -87,13 +69,7 @@ func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerR
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		AllowlistedPeers:   pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return &RemovePeerResponse{Policy: GetPolicyMessage(pol)}, nil
 }
 
 func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error) {
@@ -470,13 +446,7 @@ func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPo
 	}
 	p.pollService.PollAllPeers()
 	pol := p.policy.Get()
-	return &ReloadPolicyFileResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		MinSwapAmountMsat:  pol.MinSwapAmountMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		AllowlistedPeers:   pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return &ReloadPolicyFileResponse{Policy: GetPolicyMessage(pol)}, nil
 }
 
 func (p *PeerswapServer) ListRequestedSwaps(ctx context.Context, request *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error) {

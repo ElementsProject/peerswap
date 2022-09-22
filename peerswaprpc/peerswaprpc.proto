@@ -186,8 +186,9 @@ message Policy {
     uint64 reserve_onchain_msat = 1;
     uint64 min_swap_amount_msat = 2;
     bool accept_all_peers = 3;
-    repeated string allowlisted_peers = 4;
-    repeated string suspicious_peer_list = 5;
+    bool allow_new_swaps = 4;
+    repeated string allowlisted_peers = 5;
+    repeated string suspicious_peer_list = 6;
 }
 
 message AllowSwapRequestsRequest {

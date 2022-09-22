@@ -184,6 +184,9 @@
         "acceptAllPeers": {
           "type": "boolean"
         },
+        "allowNewSwaps": {
+          "type": "boolean"
+        },
         "allowlistedPeers": {
           "type": "array",
           "items": {
