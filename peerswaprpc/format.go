@@ -1,6 +1,9 @@
 package peerswaprpc
 
-import "github.com/elementsproject/peerswap/policy"
+import (
+	"github.com/elementsproject/peerswap/policy"
+	"google.golang.org/protobuf/encoding/protojson"
+)
 
 func GetPolicyMessage(p policy.Policy) *Policy {
 	return &Policy{
@@ -11,4 +14,16 @@ func GetPolicyMessage(p policy.Policy) *Policy {
 		AllowlistedPeers:   p.PeerAllowlist,
 		SuspiciousPeerList: p.SuspiciousPeerList,
 	}
+}
+
+func (p *Policy) MarshalJSON() ([]byte, error) {
+	return protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "",
+		AllowPartial:    false,
+		UseProtoNames:   true,
+		UseEnumNumbers:  false,
+		EmitUnpopulated: true,
+		Resolver:        nil,
+	}.Marshal(p)
 }
