@@ -1,6 +1,8 @@
 package policy
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testPubKey = "02a427b2f7284fe185216dc9a60689104ee6f785eb2d636d3786ab46e5cbd9f12d"
 
 func Test_Create(t *testing.T) {
 	// check if all variables are set
@@ -131,6 +135,11 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 }
 
 func Test_AddRemovePeer_Runtime(t *testing.T) {
+	var pubkeys []string
+	for i := 0; i < 4; i++ {
+		pubkeys = append(pubkeys, randomPubKeyHex())
+	}
+
 	policyFilePath := path.Join(t.TempDir(), "policy.conf")
 	file, err := os.Create(policyFilePath)
 	assert.NoError(t, err)
@@ -141,28 +150,36 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 	policy, err := CreateFromFile(policyFilePath)
 	assert.NoError(t, err)
 
-	err = policy.AddToAllowlist("foo")
+	err = policy.AddToAllowlist(pubkeys[0])
 	assert.NoError(t, err)
-	err = policy.AddToSuspiciousPeerList("bar")
+	err = policy.AddToSuspiciousPeerList(pubkeys[1])
 	assert.NoError(t, err)
 
 	policyFile, err := ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=foo\nsuspicious_peers=bar\n", string(policyFile))
+	assert.Equal(
+		t,
+		fmt.Sprintf("allowlisted_peers=%s\nsuspicious_peers=%s\n", pubkeys[0], pubkeys[1]),
+		string(policyFile),
+	)
 
-	err = policy.AddToAllowlist("foo2")
+	err = policy.AddToAllowlist(pubkeys[2])
 	assert.NoError(t, err)
-	err = policy.RemoveFromAllowlist("foo")
+	err = policy.RemoveFromAllowlist(pubkeys[0])
 	assert.NoError(t, err)
 
-	err = policy.AddToSuspiciousPeerList("bar2")
+	err = policy.AddToSuspiciousPeerList(pubkeys[3])
 	assert.NoError(t, err)
-	err = policy.RemoveFromSuspiciousPeerList("bar")
+	err = policy.RemoveFromSuspiciousPeerList(pubkeys[1])
 	assert.NoError(t, err)
 
 	policyFile, err = ioutil.ReadFile(policyFilePath)
 	assert.NoError(t, err)
-	assert.Equal(t, "allowlisted_peers=foo2\nsuspicious_peers=bar2\n", string(policyFile))
+	assert.Equal(
+		t,
+		fmt.Sprintf("allowlisted_peers=%s\nsuspicious_peers=%s\n", pubkeys[2], pubkeys[3]),
+		string(policyFile),
+	)
 }
 
 func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
@@ -184,12 +201,14 @@ func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
 
 	var expectedPeers []string
 	for i := 0; i < N_CONC_W; i++ {
-		expectedPeers = append(expectedPeers, fmt.Sprintf("foo%d", i))
+		expectedPeers = append(expectedPeers, randomPubKeyHex())
 	}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(3 * N_CONC_W)
 	for i := 0; i < N_CONC_W; i++ {
+		pubkey := expectedPeers[i]
+
 		go func() {
 			_ = policy.GetReserveOnchainMsat()
 			_ = policy.GetMinSwapAmountMsat()
@@ -197,16 +216,16 @@ func Test_AddRemovePeer_Runtime_ConcurrentWrite(t *testing.T) {
 			_ = policy.IsPeerSuspicious("abc")
 			wg.Done()
 		}()
-		go func(n int) {
-			ierr := policy.AddToSuspiciousPeerList(fmt.Sprintf("foo%d", n))
+		go func(s string) {
+			ierr := policy.AddToSuspiciousPeerList(s)
 			assert.NoError(t, ierr)
 			wg.Done()
-		}(i)
-		go func(n int) {
-			ierr := policy.AddToAllowlist(fmt.Sprintf("foo%d", n))
+		}(pubkey)
+		go func(s string) {
+			ierr := policy.AddToAllowlist(s)
 			assert.NoError(t, ierr)
 			wg.Done()
-		}(i)
+		}(pubkey)
 
 	}
 
@@ -258,6 +277,61 @@ func Test_CreateFile(t *testing.T) {
 
 	assert.Equal(t, "peerswap.conf", fileInfo.Name())
 
-	err = policy.AddToAllowlist("test123")
+	err = policy.AddToAllowlist(testPubKey)
 	require.NoError(t, err)
+}
+
+func Test_isValidPubkey(t *testing.T) {
+	tests := []struct {
+		desc     string
+		arg      string
+		isOk     bool
+		hasError bool
+	}{
+		{
+			desc:     "valid",
+			arg:      "02a427b2f7284fe185216dc9a60689104ee6f785eb2d636d3786ab46e5cbd9f12d",
+			isOk:     true,
+			hasError: false,
+		},
+		{
+			desc:     "too_long",
+			arg:      "02a427b2f7284fe185216dc9a60689104ee6f785eb2d636d3786ab46e5cbd9f12d12",
+			isOk:     false,
+			hasError: true,
+		},
+		{
+			desc:     "too_short",
+			arg:      "02a427b2f7284fe185216dc9a60689104ee6f785eb2d636d3786ab46e5cbd9f1",
+			isOk:     false,
+			hasError: true,
+		},
+		{
+			desc:     "wrong_char",
+			arg:      "02a427h2f7284fe185216dc9a60689104ee6f785eb2d636d3786ab46e5cbd9f1",
+			isOk:     false,
+			hasError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			ok, err := isValidPubkey(tt.arg)
+			assert.Equal(t, tt.isOk, ok)
+			if tt.hasError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if t.Failed() {
+				fmt.Println(err)
+			}
+		})
+	}
+}
+
+func randomPubKeyHex() string {
+	var b = make([]byte, 33)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 
 	"github.com/jessevdk/go-flags"
@@ -49,6 +50,12 @@ type ErrReloadPolicy string
 
 func (e ErrReloadPolicy) Error() string {
 	return fmt.Sprintf("policy could not be reloaded: %v", string(e))
+}
+
+type ErrNotAValidPublicKey string
+
+func (e ErrNotAValidPublicKey) Error() string {
+	return fmt.Sprintf("%s is not a valid public key", string(e))
 }
 
 // PolicyConfig will ensure that a swap request is
@@ -169,7 +176,8 @@ func (p *Policy) ReloadFile() error {
 	return nil
 }
 
-// AddToAllowlist adds a peer to the policy file in runtime
+// AddToAllowlist adds a peer to the policy file in runtime. The pubkey is
+// expected to be hex encoded.
 func (p *Policy) AddToAllowlist(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -182,7 +190,13 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := addLineToFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
+
+	err = addLineToFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -190,7 +204,7 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 }
 
 // AddToSuspiciousPeerList adds a peer as a suspicious peer to the policy file
-// in runtime.
+// in runtime. The pubkey is expected to be hex encoded.
 func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -203,7 +217,13 @@ func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := addLineToFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
+
+	err = addLineToFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -223,9 +243,18 @@ func addLineToFile(filePath, line string) error {
 	return nil
 }
 
+// RemoveFromAllowlist removes the pubkey of a node from the policy
+// allowlisted_peers list. If a pubkey is removed from the allowlist the node
+// corresponding to the pubkey is no longer allowed to request swaps. The pubkey
+// is expected to be hex encoded.
 func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
 
 	var peerPk string
 	for _, v := range p.PeerAllowlist {
@@ -240,16 +269,23 @@ func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := removeLineFromFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+	err = removeLineFromFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
 	return p.ReloadFile()
 }
 
+// RemoveFromSuspiciousPeerList removes the pubkey of a node from the policy
+// suspicious_peers list. The pubkey is expected to be hex encoded.
 func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
 
 	var peerPk string
 	for _, v := range p.SuspiciousPeerList {
@@ -264,7 +300,7 @@ func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := removeLineFromFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+	err = removeLineFromFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -370,4 +406,16 @@ func create(r io.Reader) (*Policy, error) {
 	}
 
 	return policy, nil
+}
+
+// isValidPubkey validates that the pubkey is 66 bytes hex encoded.
+func isValidPubkey(pubkey string) (bool, error) {
+	matched, err := regexp.MatchString("^[0-9a-f]{66}?\\z", pubkey)
+	if err != nil {
+		return false, err
+	}
+	if !matched {
+		return false, ErrNotAValidPublicKey(pubkey)
+	}
+	return true, nil
 }
