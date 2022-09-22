@@ -34,42 +34,42 @@ type PeerswapServer struct {
 	UnimplementedPeerSwapServer
 }
 
-func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (*Policy, error) {
 	err := p.policy.AddToAllowlist(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: GetPolicyMessage(pol)}, nil
+	return GetPolicyMessage(pol), nil
 
 }
 
-func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest) (*Policy, error) {
 	err := p.policy.AddToSuspiciousPeerList(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: GetPolicyMessage(pol)}, nil
+	return GetPolicyMessage(pol), nil
 
 }
 
-func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequest) (*Policy, error) {
 	err := p.policy.RemoveFromAllowlist(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: GetPolicyMessage(pol)}, nil
+	return GetPolicyMessage(pol), nil
 }
 
-func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*Policy, error) {
 	err := p.policy.RemoveFromSuspiciousPeerList(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: GetPolicyMessage(pol)}, nil
+	return GetPolicyMessage(pol), nil
 }
 
 func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error) {
@@ -439,14 +439,14 @@ func (p *PeerswapServer) ListNodes(ctx context.Context, request *ListNodesReques
 	return nil, errors.New("ListNodes does not work on lnd yet")
 }
 
-func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error) {
+func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPolicyFileRequest) (*Policy, error) {
 	err := p.policy.ReloadFile()
 	if err != nil {
 		return nil, err
 	}
 	p.pollService.PollAllPeers()
 	pol := p.policy.Get()
-	return &ReloadPolicyFileResponse{Policy: GetPolicyMessage(pol)}, nil
+	return GetPolicyMessage(pol), nil
 }
 
 func (p *PeerswapServer) ListRequestedSwaps(ctx context.Context, request *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error) {

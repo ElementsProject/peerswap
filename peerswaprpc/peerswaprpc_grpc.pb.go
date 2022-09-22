@@ -32,11 +32,11 @@ type PeerSwapClient interface {
 	ListActiveSwaps(ctx context.Context, in *ListSwapsRequest, opts ...grpc.CallOption) (*ListSwapsResponse, error)
 	AllowSwapRequests(ctx context.Context, in *AllowSwapRequestsRequest, opts ...grpc.CallOption) (*AllowSwapRequestsResponse, error)
 	// policy
-	ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*ReloadPolicyFileResponse, error)
-	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
-	RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error)
-	AddSusPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error)
-	RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error)
+	ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*Policy, error)
+	AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*Policy, error)
+	RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*Policy, error)
+	AddSusPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*Policy, error)
+	RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*Policy, error)
 	// Liquid Stuff
 	LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	LiquidGetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
@@ -133,8 +133,8 @@ func (c *peerSwapClient) AllowSwapRequests(ctx context.Context, in *AllowSwapReq
 	return out, nil
 }
 
-func (c *peerSwapClient) ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*ReloadPolicyFileResponse, error) {
-	out := new(ReloadPolicyFileResponse)
+func (c *peerSwapClient) ReloadPolicyFile(ctx context.Context, in *ReloadPolicyFileRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/ReloadPolicyFile", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -142,8 +142,8 @@ func (c *peerSwapClient) ReloadPolicyFile(ctx context.Context, in *ReloadPolicyF
 	return out, nil
 }
 
-func (c *peerSwapClient) AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error) {
-	out := new(AddPeerResponse)
+func (c *peerSwapClient) AddPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/AddPeer", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -151,8 +151,8 @@ func (c *peerSwapClient) AddPeer(ctx context.Context, in *AddPeerRequest, opts .
 	return out, nil
 }
 
-func (c *peerSwapClient) RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error) {
-	out := new(RemovePeerResponse)
+func (c *peerSwapClient) RemovePeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/RemovePeer", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -160,8 +160,8 @@ func (c *peerSwapClient) RemovePeer(ctx context.Context, in *RemovePeerRequest, 
 	return out, nil
 }
 
-func (c *peerSwapClient) AddSusPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*AddPeerResponse, error) {
-	out := new(AddPeerResponse)
+func (c *peerSwapClient) AddSusPeer(ctx context.Context, in *AddPeerRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/AddSusPeer", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -169,8 +169,8 @@ func (c *peerSwapClient) AddSusPeer(ctx context.Context, in *AddPeerRequest, opt
 	return out, nil
 }
 
-func (c *peerSwapClient) RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*RemovePeerResponse, error) {
-	out := new(RemovePeerResponse)
+func (c *peerSwapClient) RemoveSusPeer(ctx context.Context, in *RemovePeerRequest, opts ...grpc.CallOption) (*Policy, error) {
+	out := new(Policy)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/RemoveSusPeer", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -228,11 +228,11 @@ type PeerSwapServer interface {
 	ListActiveSwaps(context.Context, *ListSwapsRequest) (*ListSwapsResponse, error)
 	AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error)
 	// policy
-	ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error)
-	AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
-	RemovePeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error)
-	AddSusPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error)
-	RemoveSusPeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error)
+	ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*Policy, error)
+	AddPeer(context.Context, *AddPeerRequest) (*Policy, error)
+	RemovePeer(context.Context, *RemovePeerRequest) (*Policy, error)
+	AddSusPeer(context.Context, *AddPeerRequest) (*Policy, error)
+	RemoveSusPeer(context.Context, *RemovePeerRequest) (*Policy, error)
 	// Liquid Stuff
 	LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	LiquidGetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
@@ -272,19 +272,19 @@ func (UnimplementedPeerSwapServer) ListActiveSwaps(context.Context, *ListSwapsRe
 func (UnimplementedPeerSwapServer) AllowSwapRequests(context.Context, *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AllowSwapRequests not implemented")
 }
-func (UnimplementedPeerSwapServer) ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error) {
+func (UnimplementedPeerSwapServer) ReloadPolicyFile(context.Context, *ReloadPolicyFileRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReloadPolicyFile not implemented")
 }
-func (UnimplementedPeerSwapServer) AddPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error) {
+func (UnimplementedPeerSwapServer) AddPeer(context.Context, *AddPeerRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddPeer not implemented")
 }
-func (UnimplementedPeerSwapServer) RemovePeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (UnimplementedPeerSwapServer) RemovePeer(context.Context, *RemovePeerRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemovePeer not implemented")
 }
-func (UnimplementedPeerSwapServer) AddSusPeer(context.Context, *AddPeerRequest) (*AddPeerResponse, error) {
+func (UnimplementedPeerSwapServer) AddSusPeer(context.Context, *AddPeerRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddSusPeer not implemented")
 }
-func (UnimplementedPeerSwapServer) RemoveSusPeer(context.Context, *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (UnimplementedPeerSwapServer) RemoveSusPeer(context.Context, *RemovePeerRequest) (*Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveSusPeer not implemented")
 }
 func (UnimplementedPeerSwapServer) LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error) {

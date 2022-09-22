@@ -16,11 +16,11 @@ service PeerSwap {
     rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (AllowSwapRequestsResponse);
 
     // policy
-    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
-    rpc AddPeer(AddPeerRequest) returns (AddPeerResponse);
-    rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
-    rpc AddSusPeer(AddPeerRequest) returns (AddPeerResponse);
-    rpc RemoveSusPeer(RemovePeerRequest) returns (RemovePeerResponse);
+    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (Policy);
+    rpc AddPeer(AddPeerRequest) returns (Policy);
+    rpc RemovePeer(RemovePeerRequest) returns (Policy);
+    rpc AddSusPeer(AddPeerRequest) returns (Policy);
+    rpc RemoveSusPeer(RemovePeerRequest) returns (Policy);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
@@ -99,22 +99,14 @@ message ListNodesResponse{
 
 message ReloadPolicyFileRequest {}
 
-message ReloadPolicyFileResponse {
-    Policy policy = 1;
-}
-
 message AddPeerRequest {
     string peer_pubkey = 1;
 }
-message AddPeerResponse {
-    Policy policy = 1;
-}
+
 message RemovePeerRequest {
     string peer_pubkey = 1;
 }
-message RemovePeerResponse {
-    Policy policy = 1;
-}
+
 message ListRequestedSwapsRequest {}
 
 message ListRequestedSwapsResponse {
