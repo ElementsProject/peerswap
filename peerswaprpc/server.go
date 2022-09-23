@@ -83,7 +83,7 @@ func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requ
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
 	if request.SwapAmount <= 0 {
-		return nil, errors.New("Missing required amt parameter")
+		return nil, errors.New("Missing required swap_amount parameter")
 	}
 	if request.ChannelId == 0 {
 		return nil, errors.New("Missing required channel_id parameter")
