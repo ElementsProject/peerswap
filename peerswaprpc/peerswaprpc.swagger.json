@@ -15,7 +15,482 @@
   "produces": [
     "application/json"
   ],
-  "paths": {},
+  "paths": {
+    "/v1/liquid/address": {
+      "get": {
+        "summary": "Liquid Stuff",
+        "operationId": "PeerSwap_LiquidGetAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapGetAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/liquid/balance": {
+      "get": {
+        "operationId": "PeerSwap_LiquidGetBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapGetBalanceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/liquid/send": {
+      "post": {
+        "operationId": "PeerSwap_LiquidSendToAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapSendToAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapSendToAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/peers": {
+      "get": {
+        "operationId": "PeerSwap_ListPeers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapListPeersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/policy/peer/add": {
+      "post": {
+        "operationId": "PeerSwap_AddPeer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapAddPeerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/policy/peer/addsus": {
+      "post": {
+        "operationId": "PeerSwap_AddSusPeer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapAddPeerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/policy/peer/remove": {
+      "post": {
+        "operationId": "PeerSwap_RemovePeer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapRemovePeerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/policy/peer/removesus": {
+      "post": {
+        "operationId": "PeerSwap_RemoveSusPeer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapRemovePeerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/policy/reload": {
+      "get": {
+        "operationId": "PeerSwap_ReloadPolicyFile",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/stop": {
+      "post": {
+        "operationId": "PeerSwap_Stop",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapEmpty"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapEmpty"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps": {
+      "get": {
+        "operationId": "PeerSwap_ListSwaps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapListSwapsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/active": {
+      "get": {
+        "operationId": "PeerSwap_ListActiveSwaps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapListSwapsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/allowrequests": {
+      "post": {
+        "summary": "policy",
+        "operationId": "PeerSwap_AllowSwapRequests",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapAllowSwapRequestsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/requests": {
+      "get": {
+        "operationId": "PeerSwap_ListRequestedSwaps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapListRequestedSwapsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/swapin": {
+      "post": {
+        "operationId": "PeerSwap_SwapIn",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapSwapResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapSwapInRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/swapout": {
+      "post": {
+        "operationId": "PeerSwap_SwapOut",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapSwapResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/peerswapSwapOutRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    },
+    "/v1/swaps/{swapId}": {
+      "get": {
+        "operationId": "PeerSwap_GetSwap",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/peerswapSwapResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "swapId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PeerSwap"
+        ]
+      }
+    }
+  },
   "definitions": {
     "RequestedSwapSwapType": {
       "type": "string",
@@ -24,6 +499,22 @@
         "SWAP_OUT"
       ],
       "default": "SWAP_IN"
+    },
+    "peerswapAddPeerRequest": {
+      "type": "object",
+      "properties": {
+        "peerPubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "peerswapAllowSwapRequestsRequest": {
+      "type": "object",
+      "properties": {
+        "allow": {
+          "type": "boolean"
+        }
+      }
     },
     "peerswapEmpty": {
       "type": "object"
@@ -212,6 +703,14 @@
         }
       }
     },
+    "peerswapRemovePeerRequest": {
+      "type": "object",
+      "properties": {
+        "peerPubkey": {
+          "type": "string"
+        }
+      }
+    },
     "peerswapRequestSwapList": {
       "type": "object",
       "properties": {
@@ -241,11 +740,61 @@
         }
       }
     },
+    "peerswapSendToAddressRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "satAmount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
     "peerswapSendToAddressResponse": {
       "type": "object",
       "properties": {
         "txId": {
           "type": "string"
+        }
+      }
+    },
+    "peerswapSwapInRequest": {
+      "type": "object",
+      "properties": {
+        "channelId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "swapAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "force": {
+          "type": "boolean"
+        }
+      }
+    },
+    "peerswapSwapOutRequest": {
+      "type": "object",
+      "properties": {
+        "channelId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "swapAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "force": {
+          "type": "boolean"
         }
       }
     },
