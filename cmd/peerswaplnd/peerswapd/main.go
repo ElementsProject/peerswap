@@ -42,6 +42,7 @@ import (
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -378,7 +379,16 @@ func run() error {
 	defer grpcSrv.Stop()
 	log.Infof("peerswapd grpc listening on %v", cfg.Host)
 	if cfg.RestHost != "" {
-		mux := runtime.NewServeMux()
+		mux := runtime.NewServeMux(
+			runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+				MarshalOptions: protojson.MarshalOptions{
+					UseProtoNames: true,
+				},
+				UnmarshalOptions: protojson.UnmarshalOptions{
+					DiscardUnknown: true,
+				},
+			}),
+		)
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 		err := peerswaprpc.RegisterPeerSwapHandlerFromEndpoint(ctx, mux, cfg.Host, opts)
 		if err != nil {
