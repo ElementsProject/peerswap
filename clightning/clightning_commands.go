@@ -572,46 +572,6 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	return peerSwappers, nil
 }
 
-type ResendLastMessage struct {
-	SwapId string `json:"swap_id"`
-	cl     *ClightningClient
-}
-
-func (s *ResendLastMessage) Description() string {
-	return "resends last swap message"
-}
-
-func (s *ResendLastMessage) LongDescription() string {
-	return "'"
-}
-
-func (g *ResendLastMessage) Name() string {
-	return "peerswap-resendmsg"
-}
-
-func (g *ResendLastMessage) New() interface{} {
-	return &ResendLastMessage{
-		cl:     g.cl,
-		SwapId: g.SwapId,
-	}
-}
-func (g *ResendLastMessage) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &ResendLastMessage{
-		cl: client,
-	}
-}
-
-func (g *ResendLastMessage) Call() (jrpc2.Result, error) {
-	if g.SwapId == "" {
-		return nil, errors.New("swap_id required")
-	}
-	err := g.cl.swaps.ResendLastMessage(g.SwapId)
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
 type GetSwap struct {
 	SwapId string `json:"swap_id"`
 	cl     *ClightningClient
