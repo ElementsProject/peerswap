@@ -596,7 +596,7 @@ func (g *GetSwap) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swap, nil
+	return MSerializedSwapStateMachine(swap), nil
 }
 
 func (g *GetSwap) Get(client *ClightningClient) jrpc2.ServerMethod {
