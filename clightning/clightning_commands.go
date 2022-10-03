@@ -53,6 +53,20 @@ func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 	return &GetAddressResponse{LiquidAddress: res}, nil
 }
 
+func (g *LiquidGetAddress) Description() string {
+	return "Returns a new liquid address of the liquid peerswap wallet."
+}
+
+func (g *LiquidGetAddress) LongDescription() string {
+	return ""
+}
+
+func (g *LiquidGetAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &LiquidGetAddress{
+		cl: client,
+	}
+}
+
 type GetAddressResponse struct {
 	LiquidAddress string `json:"lbtc_address"`
 }
@@ -83,6 +97,20 @@ func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 	return &GetBalanceResponse{
 		res,
 	}, nil
+}
+
+func (g *LiquidGetBalance) Description() string {
+	return "Returns the liquid balance"
+}
+
+func (g *LiquidGetBalance) LongDescription() string {
+	return ""
+}
+
+func (g *LiquidGetBalance) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &LiquidGetBalance{
+		cl: client,
+	}
 }
 
 type GetBalanceResponse struct {
@@ -242,6 +270,20 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 }
 
+func (l *SwapOut) Description() string {
+	return "Initiates a swap out with a peer"
+}
+
+func (l *SwapOut) LongDescription() string {
+	return ""
+}
+
+func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &SwapOut{
+		cl: client,
+	}
+}
+
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
 	SatAmt         uint64 `json:"amt_sat"`
@@ -360,6 +402,20 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 }
 
+func (l *SwapIn) Description() string {
+	return "Initiates a swap in with a peer"
+}
+
+func (l *SwapIn) LongDescription() string {
+	return ""
+}
+
+func (g *SwapIn) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &SwapIn{
+		cl: client,
+	}
+}
+
 // ListSwaps list all active and finished swaps
 type ListSwaps struct {
 	DetailedPrint bool              `json:"detailed,omitempty"`
@@ -395,6 +451,20 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 	}
 	return swaps, nil
+}
+
+func (l *ListSwaps) Description() string {
+	return "Returns a list of historical swaps."
+}
+
+func (l *ListSwaps) LongDescription() string {
+	return ""
+}
+
+func (g *ListSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListSwaps{
+		cl: client,
+	}
 }
 
 type ListNodes struct {
@@ -625,8 +695,7 @@ type PolicyReloader interface {
 	Get() policy.Policy
 }
 type ReloadPolicyFile struct {
-	cl   *ClightningClient
-	name string
+	cl *ClightningClient
 }
 
 func (c ReloadPolicyFile) Name() string {
@@ -658,13 +727,18 @@ func (c *ReloadPolicyFile) LongDescription() string {
 	default config, so fields that are not set are interpreted as default.`
 }
 
+func (c *ReloadPolicyFile) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ReloadPolicyFile{
+		cl: client,
+	}
+}
+
 type GetRequestedSwaps struct {
-	cl   *ClightningClient
-	name string
+	cl *ClightningClient
 }
 
 func (c GetRequestedSwaps) Name() string {
-	return c.name
+	return "peerswap-listswaprequests"
 }
 
 func (c GetRequestedSwaps) New() interface{} {
@@ -686,6 +760,12 @@ func (c GetRequestedSwaps) Description() string {
 func (c GetRequestedSwaps) LongDescription() string {
 	return `This command can give you insight of swaps requested by peer nodes that could not have
 		been performed because either the peer is not in the allowlist or the asset is not set.`
+}
+
+func (c *GetRequestedSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetRequestedSwaps{
+		cl: client,
+	}
 }
 
 type ListActiveSwaps struct {

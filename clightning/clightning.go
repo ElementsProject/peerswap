@@ -40,6 +40,13 @@ var methods = []peerswaprpcMethod{
 	&RemovePeer{},
 	&AddSuspiciousPeer{},
 	&RemoveSuspiciousPeer{},
+	&SwapIn{},
+	&SwapOut{},
+	&ListSwaps{},
+	&LiquidGetAddress{},
+	&LiquidGetBalance{},
+	&ReloadPolicyFile{},
+	&GetRequestedSwaps{},
 }
 
 var devmethods = []peerswaprpcMethod{}
@@ -439,90 +446,15 @@ func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 
 // RegisterMethods registeres rpc methods to c-lightning
 func (cl *ClightningClient) RegisterMethods() error {
-	swapIn := glightning.NewRpcMethod(&SwapIn{
-		cl: cl,
-	}, "swap In")
-	swapIn.Category = "peerswap"
-	err := cl.Plugin.RegisterMethod(swapIn)
-	if err != nil {
-		return err
-	}
-
-	swapOut := glightning.NewRpcMethod(&SwapOut{
-		cl: cl,
-	}, "swap out")
-	swapOut.Category = "peerswap"
-	err = cl.Plugin.RegisterMethod(swapOut)
-	if err != nil {
-		return err
-	}
-
-	listSwaps := glightning.NewRpcMethod(&ListSwaps{
-		cl: cl,
-	}, "list swaps")
-	listSwaps.Category = "peerswap"
-	err = cl.Plugin.RegisterMethod(listSwaps)
-	if err != nil {
-		return err
-	}
-
-	getAddress := glightning.NewRpcMethod(&LiquidGetAddress{
-		cl: cl,
-	}, "get new liquid address")
-	getAddress.Category = "peerswap"
-	err = cl.Plugin.RegisterMethod(getAddress)
-	if err != nil {
-		return err
-	}
-
-	getBalance := glightning.NewRpcMethod(&LiquidGetBalance{
-		cl: cl,
-	}, "get liquid liquidWallet balance")
-	getBalance.Category = "peerswap"
-	err = cl.Plugin.RegisterMethod(getBalance)
-	if err != nil {
-		return err
-	}
-
-	long := `If the policy file has changed, reload the policy
-	from the file specified in the config. Overrides the default
-	config, so fields that are not set are interpreted as default.`
-	reloadPolicyFile := &glightning.RpcMethod{
-		Method: &ReloadPolicyFile{
-			cl:   cl,
-			name: "peerswap-reloadpolicy",
-		},
-		Desc:     "Reload the policy file.",
-		LongDesc: long,
-		Category: "peerswap",
-	}
-	err = cl.Plugin.RegisterMethod(reloadPolicyFile)
-	if err != nil {
-		return err
-	}
-
-	listRequestedSwapsMethod := &GetRequestedSwaps{
-		cl:   cl,
-		name: "peerswap-listswaprequests",
-	}
-	listRequestedSwaps := &glightning.RpcMethod{
-		Method:   listRequestedSwapsMethod,
-		Desc:     listRequestedSwapsMethod.Description(),
-		LongDesc: listRequestedSwapsMethod.LongDescription(),
-		Category: "peerswap",
-	}
-	err = cl.Plugin.RegisterMethod(listRequestedSwaps)
-	if err != nil {
-		return err
-	}
-
 	for _, v := range methods {
 		method := v.Get(cl)
-		glightningMethod := glightning.NewRpcMethod(method, "dev")
-		glightningMethod.Category = "peerswap"
-		glightningMethod.Desc = v.Description()
-		glightningMethod.LongDesc = v.LongDescription()
-		err = cl.Plugin.RegisterMethod(glightningMethod)
+		glightningMethod := &glightning.RpcMethod{
+			Method:   method,
+			Desc:     v.Description(),
+			LongDesc: v.LongDescription(),
+			Category: "peerswap",
+		}
+		err := cl.Plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
@@ -533,7 +465,7 @@ func (cl *ClightningClient) RegisterMethods() error {
 		glightningMethod.Category = "peerswap"
 		glightningMethod.Desc = v.Description()
 		glightningMethod.LongDesc = v.LongDescription()
-		err = cl.Plugin.RegisterMethod(glightningMethod)
+		err := cl.Plugin.RegisterMethod(glightningMethod)
 		if err != nil {
 			return err
 		}
