@@ -55,6 +55,8 @@ const featureBit = 69
 
 var maxPaymentSizeMsat = uint64(math.Pow(2, 32))
 
+var ErrWaitingForReady = fmt.Errorf("peerswap is still in the process of starting up")
+
 type SendPayPartWaiter interface {
 	SendPayPartAndWait(paymentRequest string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayFields, error)
 }
@@ -84,6 +86,12 @@ type ClightningClient struct {
 	hexToIdMap      map[string]string
 
 	ctx context.Context
+
+	isReady bool
+}
+
+func (cl *ClightningClient) SetReady() {
+	cl.isReady = true
 }
 
 func (cl *ClightningClient) AddPaymentCallback(f func(swapId string, invoiceType swap.InvoiceType)) {

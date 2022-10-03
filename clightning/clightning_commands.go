@@ -42,6 +42,10 @@ func (g *LiquidGetAddress) Name() string {
 }
 
 func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.cl.liquidWallet == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
@@ -87,6 +91,10 @@ func (g *LiquidGetBalance) New() interface{} {
 }
 
 func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
@@ -141,6 +149,10 @@ func (s *LiquidSendToAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
+	if !s.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if s.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
@@ -190,6 +202,10 @@ func (l *SwapOut) Name() string {
 }
 
 func (l *SwapOut) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt_sat parameter")
 	}
@@ -305,6 +321,10 @@ func (l *SwapIn) Name() string {
 }
 
 func (l *SwapIn) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt_sat parameter")
 	}
@@ -433,6 +453,10 @@ func (l *ListSwaps) Name() string {
 }
 
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	swaps, err := l.cl.swaps.ListSwaps()
 	if err != nil {
 		return nil, err
@@ -546,6 +570,10 @@ func (l *ListPeers) Name() string {
 }
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	peers, err := l.cl.glightning.ListPeers()
 	if err != nil {
 		return nil, err
@@ -659,6 +687,10 @@ func (g *GetSwap) New() interface{} {
 }
 
 func (g *GetSwap) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.SwapId == "" {
 		return nil, errors.New("swap_id required")
 	}
@@ -707,6 +739,10 @@ func (c ReloadPolicyFile) New() interface{} {
 }
 
 func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	log.Debugf("reloading policy %v", c.cl.policy)
 	err := c.cl.policy.ReloadFile()
 	if err != nil {
@@ -746,6 +782,10 @@ func (c GetRequestedSwaps) New() interface{} {
 }
 
 func (c GetRequestedSwaps) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	requestedSwaps, err := c.cl.requestedSwaps.Get()
 	if err != nil {
 		return nil, err
@@ -783,6 +823,10 @@ func (g *ListActiveSwaps) New() interface{} {
 }
 
 func (g *ListActiveSwaps) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	swaps, err := g.cl.swaps.ListActiveSwaps()
 	if err != nil {
 		return nil, err
@@ -827,9 +871,14 @@ func (g *AllowSwapRequests) New() interface{} {
 }
 
 func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.AllowSwapRequestsString == "" {
 		return nil, fmt.Errorf("missing argument:1 to allow, 0 to disallow")
 	}
+
 	if g.AllowSwapRequestsString == "1" || strings.ToLower(g.AllowSwapRequestsString) == "true" {
 		g.cl.policy.EnableSwaps()
 	} else if g.AllowSwapRequestsString == "0" || strings.ToLower(g.AllowSwapRequestsString) == "false" {
@@ -878,6 +927,10 @@ func (g *AddPeer) New() interface{} {
 }
 
 func (g *AddPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.AddToAllowlist(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -917,6 +970,10 @@ func (g *RemovePeer) New() interface{} {
 }
 
 func (g *RemovePeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.RemoveFromAllowlist(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -956,6 +1013,10 @@ func (g *AddSuspiciousPeer) New() interface{} {
 }
 
 func (g *AddSuspiciousPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.AddToSuspiciousPeerList(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -996,6 +1057,10 @@ func (g *RemoveSuspiciousPeer) New() interface{} {
 }
 
 func (g *RemoveSuspiciousPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.RemoveFromSuspiciousPeerList(g.PeerPubkey)
 	if err != nil {
 		return nil, err
