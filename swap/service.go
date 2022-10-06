@@ -15,14 +15,18 @@ import (
 
 const (
 	PEERSWAP_PROTOCOL_VERSION = 2
-	MINIMUM_SWAP_SIZE         = uint64(100000)
 )
 
 var (
 	AllowedAssets       = []string{"btc", "lbtc"}
 	ErrSwapDoesNotExist = errors.New("swap does not exist")
-	ErrMinimumSwapSize  = fmt.Errorf("requiring minimum swap size of %v", MINIMUM_SWAP_SIZE)
 )
+
+type ErrMinimumSwapSize uint64
+
+func (u ErrMinimumSwapSize) Error() string {
+	return fmt.Sprintf("a minimum swap amount of %d msat is required", uint64(u))
+}
 
 type ErrUnknownSwapMessageType string
 
@@ -50,20 +54,18 @@ func ErrReceivedMessageFromUnexpectedPeer(peerId string, swapId *SwapId) error {
 type SwapService struct {
 	swapServices *SwapServices
 
-	activeSwaps       map[string]*SwapStateMachine
-	BitcoinEnabled    bool
-	LiquidEnabled     bool
-	allowSwapRequests bool
+	activeSwaps    map[string]*SwapStateMachine
+	BitcoinEnabled bool
+	LiquidEnabled  bool
 	sync.RWMutex
 }
 
 func NewSwapService(services *SwapServices) *SwapService {
 	return &SwapService{
-		swapServices:      services,
-		activeSwaps:       map[string]*SwapStateMachine{},
-		LiquidEnabled:     services.liquidEnabled,
-		BitcoinEnabled:    services.bitcoinEnabled,
-		allowSwapRequests: true,
+		swapServices:   services,
+		activeSwaps:    map[string]*SwapStateMachine{},
+		LiquidEnabled:  services.liquidEnabled,
+		BitcoinEnabled: services.bitcoinEnabled,
 	}
 }
 
@@ -314,21 +316,21 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
-	if s.hasActiveSwapOnChannel(channelId) {
-		return nil, fmt.Errorf("already has an active swap on channel")
+func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
+	if !s.swapServices.policy.NewSwapsAllowed() {
+		return nil, fmt.Errorf("swaps are disabled")
 	}
 
-	if !s.allowSwapRequests {
-		return nil, fmt.Errorf("peerswap set to reject all swaps")
+	if s.hasActiveSwapOnChannel(channelId) {
+		return nil, fmt.Errorf("already has an active swap on channel")
 	}
 
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amount < MINIMUM_SWAP_SIZE {
-		return nil, ErrMinimumSwapSize
+	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
@@ -350,7 +352,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Asset:           elementsAsset,
 		Network:         bitcoinNetwork,
 		Scid:            channelId,
-		Amount:          amount,
+		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
@@ -367,20 +369,21 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amount uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
+	if !s.swapServices.policy.NewSwapsAllowed() {
+		return nil, fmt.Errorf("swaps are disabled")
+	}
+
 	if s.hasActiveSwapOnChannel(channelId) {
 		return nil, fmt.Errorf("already has an active swap on channel")
-	}
-	if !s.allowSwapRequests {
-		return nil, fmt.Errorf("peerswap set to reject all swaps")
 	}
 
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amount < MINIMUM_SWAP_SIZE {
-		return nil, ErrMinimumSwapSize
+	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
 	var bitcoinNetwork string
@@ -401,7 +404,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Asset:           elementsAsset,
 		Network:         bitcoinNetwork,
 		Scid:            channelId,
-		Amount:          amount,
+		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 	}
 
@@ -422,9 +425,6 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	if !s.allowSwapRequests {
-		return fmt.Errorf("rejecting all swaps")
-	}
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
 	s.AddActiveSwap(swapId.String(), swap)
 
@@ -442,9 +442,6 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return fmt.Errorf("already has an active swap on channel")
 	}
 
-	if !s.allowSwapRequests {
-		return fmt.Errorf("rejecting all swaps")
-	}
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
 
 	s.AddActiveSwap(swapId.String(), swap)
@@ -711,15 +708,6 @@ func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
 	}
 
 	return false
-}
-
-func (s *SwapService) SetAllowSwapRequests(allow bool) bool {
-	s.allowSwapRequests = allow
-	return s.allowSwapRequests
-}
-
-func (s *SwapService) GetAllowSwapRequests() bool {
-	return s.allowSwapRequests
 }
 
 type WrongAssetError string

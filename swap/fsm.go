@@ -150,6 +150,9 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 		}
 		err = eventCtx.ApplyToSwapData(s.Data)
 		if err != nil {
+			if event == Event_OnSwapOutStarted || event == Event_SwapInSender_OnSwapInRequested {
+				return true, err
+			}
 			return false, err
 		}
 	}

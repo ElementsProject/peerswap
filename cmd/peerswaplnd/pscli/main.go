@@ -7,10 +7,10 @@ import (
 	"os"
 
 	"github.com/elementsproject/peerswap/peerswaprpc"
-	"github.com/lightninglabs/protobuf-hex-display/jsonpb"
-	"github.com/lightninglabs/protobuf-hex-display/proto"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var GitCommit string
@@ -28,7 +28,7 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		swapOutCommand, swapInCommand, getSwapCommand, listSwapsCommand,
-		listPeersCommand, listNodesCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
+		listPeersCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
 		addSusPeerCommand, removeSusPeerCommand,
@@ -65,9 +65,9 @@ var (
 		Name:     "address",
 		Required: true,
 	}
-	allowFlag = cli.StringFlag{
+	allowFlag = cli.BoolFlag{
 		Name:     "allow_swaps",
-		Required: false,
+		Required: true,
 	}
 	pubkeyFlag = cli.StringFlag{
 		Name:     "peer_pubkey",
@@ -117,12 +117,6 @@ var (
 		Usage:  "lists all peerswap-enabled peers",
 		Flags:  []cli.Flag{},
 		Action: listPeers,
-	}
-	listNodesCommand = cli.Command{
-		Name:   "listnodes",
-		Usage:  "lists all peerswap-enabled nodes in the network",
-		Flags:  []cli.Flag{},
-		Action: listNodes,
 	}
 	reloadPolicyFileCommand = cli.Command{
 		Name:   "reloadpolicy",
@@ -297,21 +291,6 @@ func listPeers(ctx *cli.Context) error {
 	return nil
 }
 
-func listNodes(ctx *cli.Context) error {
-	client, cleanup, err := getClient(ctx)
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-
-	res, err := client.ListNodes(context.Background(), &peerswaprpc.ListNodesRequest{})
-	if err != nil {
-		return err
-	}
-	printRespJSON(res)
-	return nil
-}
-
 func reloadPolicyFile(ctx *cli.Context) error {
 	client, cleanup, err := getClient(ctx)
 	if err != nil {
@@ -413,21 +392,13 @@ func allowSwaps(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.AllowSwapRequests(context.Background(), &peerswaprpc.AllowSwapRequestsRequest{
-		Allow: ctx.String(allowFlag.Name),
+		Allow: ctx.Bool(allowFlag.Name),
 	})
 	if err != nil {
 		return err
 	}
 
-	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
-
-	if res.Allow {
-		response += "enabled."
-	} else {
-		response += "disabled. Existing swaps are allowed to complete. See `pscli listactiveswaps`"
-	}
-
-	fmt.Println(response)
+	printRespJSON(res)
 	return nil
 }
 
@@ -542,17 +513,17 @@ func getClientConn(address string) (*grpc.ClientConn,
 }
 
 func printRespJSON(resp proto.Message) {
-	jsonMarshaler := &jsonpb.Marshaler{
-		OrigName:     true,
-		EmitDefaults: true,
-		Indent:       "    ",
-	}
-
-	jsonStr, err := jsonMarshaler.MarshalToString(resp)
+	jsonbytes, err := protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		AllowPartial:    false,
+		UseProtoNames:   true,
+		UseEnumNumbers:  false,
+		EmitUnpopulated: true,
+		Resolver:        nil,
+	}.Marshal(resp)
 	if err != nil {
-		fmt.Println("unable to decode response: ", err)
-		return
+		fmt.Fprintln(os.Stderr, "internal: can not marshal proto message")
 	}
-
-	fmt.Println(jsonStr)
+	fmt.Println(string(jsonbytes))
 }

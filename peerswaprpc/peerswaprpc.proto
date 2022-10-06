@@ -10,17 +10,16 @@ service PeerSwap {
     rpc GetSwap(GetSwapRequest) returns (SwapResponse);
     rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
     rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
-    rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
     rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
     rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
-    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (AllowSwapRequestsResponse);
 
     // policy
-    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (ReloadPolicyFileResponse);
-    rpc AddPeer(AddPeerRequest) returns (AddPeerResponse);
-    rpc RemovePeer(RemovePeerRequest) returns (RemovePeerResponse);
-    rpc AddSusPeer(AddPeerRequest) returns (AddPeerResponse);
-    rpc RemoveSusPeer(RemovePeerRequest) returns (RemovePeerResponse);
+    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (Policy);
+    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (Policy);
+    rpc AddPeer(AddPeerRequest) returns (Policy);
+    rpc RemovePeer(RemovePeerRequest) returns (Policy);
+    rpc AddSusPeer(AddPeerRequest) returns (Policy);
+    rpc RemoveSusPeer(RemovePeerRequest) returns (Policy);
 
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
@@ -91,30 +90,16 @@ message ListPeersResponse {
     repeated PeerSwapPeer peers = 1;
 }
 
-message ListNodesRequest {}
-
-message ListNodesResponse{
-    repeated PeerSwapNodes nodes = 1;
-}
-
 message ReloadPolicyFileRequest {}
-
-message ReloadPolicyFileResponse {
-    Policy policy = 1;
-}
 
 message AddPeerRequest {
     string peer_pubkey = 1;
 }
-message AddPeerResponse {
-    Policy policy = 1;
-}
+
 message RemovePeerRequest {
     string peer_pubkey = 1;
 }
-message RemovePeerResponse {
-    Policy policy = 1;
-}
+
 message ListRequestedSwapsRequest {}
 
 message ListRequestedSwapsResponse {
@@ -137,21 +122,20 @@ message RequestedSwap {
     }
 }
 
-
-
 message PrettyPrintSwap {
     string id = 1;
-    string created_at = 2;
-    string type = 3;
-    string role = 4;
-    string state = 5;
-    string initiator_node_id = 6;
-    string peer_node_id = 7;
-    uint64 amount = 8;
-    string channel_id = 9;
-    string opening_tx_id = 10;
-    string claim_tx_id = 11;
-    string cancel_message = 12;
+    int64 created_at = 2;
+    string asset = 3;
+    string type = 4;
+    string role = 5;
+    string state = 6;
+    string initiator_node_id = 7;
+    string peer_node_id = 8;
+    uint64 amount = 9;
+    string channel_id = 10;
+    string opening_tx_id = 11;
+    string claim_tx_id = 12;
+    string cancel_message = 13;
 }
 
 message PeerSwapPeer {
@@ -185,13 +169,15 @@ message PeerSwapNodes {
 
 message Policy {
     uint64 reserve_onchain_msat = 1;
-    bool accept_all_peers = 2;
-    repeated string peer_allow_list = 3;
-    repeated string suspicious_peer_list = 4;
+    uint64 min_swap_amount_msat = 2;
+    bool accept_all_peers = 3;
+    bool allow_new_swaps = 4;
+    repeated string allowlisted_peers = 5;
+    repeated string suspicious_peer_list = 6;
 }
 
 message AllowSwapRequestsRequest {
-    string allow = 1;
+    bool allow = 1;
 }
 
 message AllowSwapRequestsResponse {

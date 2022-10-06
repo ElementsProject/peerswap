@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/peerswaprpc"
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
@@ -235,9 +236,8 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 
 			}
 			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
-				return swapOut.Data.ToPrettyPrint(), nil
+				return peerswaprpc.PrettyprintFromServiceSwap(swapOut), nil
 			}
-
 		}
 	}
 }
@@ -354,9 +354,8 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 
 			}
 			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
-				return swapIn.Data.ToPrettyPrint(), nil
+				return peerswaprpc.PrettyprintFromServiceSwap(swapIn), nil
 			}
-
 		}
 	}
 }
@@ -389,14 +388,11 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		return false
 	})
 	if !l.DetailedPrint {
-		var pswasp []*swap.PrettyPrintSwapData
+		var pretty []*peerswaprpc.PrettyPrintSwap
 		for _, v := range swaps {
-			if v.Data == nil {
-				continue
-			}
-			pswasp = append(pswasp, v.Data.ToPrettyPrint())
+			pretty = append(pretty, peerswaprpc.PrettyprintFromServiceSwap(v))
 		}
-		return pswasp, nil
+		return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 	}
 	return swaps, nil
 }
@@ -576,46 +572,6 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	return peerSwappers, nil
 }
 
-type ResendLastMessage struct {
-	SwapId string `json:"swap_id"`
-	cl     *ClightningClient
-}
-
-func (s *ResendLastMessage) Description() string {
-	return "resends last swap message"
-}
-
-func (s *ResendLastMessage) LongDescription() string {
-	return "'"
-}
-
-func (g *ResendLastMessage) Name() string {
-	return "peerswap-resendmsg"
-}
-
-func (g *ResendLastMessage) New() interface{} {
-	return &ResendLastMessage{
-		cl:     g.cl,
-		SwapId: g.SwapId,
-	}
-}
-func (g *ResendLastMessage) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &ResendLastMessage{
-		cl: client,
-	}
-}
-
-func (g *ResendLastMessage) Call() (jrpc2.Result, error) {
-	if g.SwapId == "" {
-		return nil, errors.New("swap_id required")
-	}
-	err := g.cl.swaps.ResendLastMessage(g.SwapId)
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
 type GetSwap struct {
 	SwapId string `json:"swap_id"`
 	cl     *ClightningClient
@@ -640,7 +596,7 @@ func (g *GetSwap) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swap, nil
+	return MSerializedSwapStateMachine(swap), nil
 }
 
 func (g *GetSwap) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -662,6 +618,9 @@ type PolicyReloader interface {
 	RemoveFromAllowlist(pubkey string) error
 	AddToSuspiciousPeerList(pubkey string) error
 	RemoveFromSuspiciousPeerList(pubkey string) error
+	NewSwapsAllowed() bool
+	DisableSwaps() error
+	EnableSwaps() error
 	ReloadFile() error
 	Get() policy.Policy
 }
@@ -748,7 +707,12 @@ func (g *ListActiveSwaps) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return swaps, nil
+
+	var pretty []*peerswaprpc.PrettyPrintSwap
+	for _, v := range swaps {
+		pretty = append(pretty, peerswaprpc.PrettyprintFromServiceSwap(v))
+	}
+	return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 }
 
 func (g *ListActiveSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -783,23 +747,17 @@ func (g *AllowSwapRequests) New() interface{} {
 }
 
 func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
+	if g.AllowSwapRequestsString == "" {
+		return nil, fmt.Errorf("missing argument:1 to allow, 0 to disallow")
+	}
 	if g.AllowSwapRequestsString == "1" || strings.ToLower(g.AllowSwapRequestsString) == "true" {
-		g.cl.swaps.SetAllowSwapRequests(true)
+		g.cl.policy.EnableSwaps()
 	} else if g.AllowSwapRequestsString == "0" || strings.ToLower(g.AllowSwapRequestsString) == "false" {
-		g.cl.swaps.SetAllowSwapRequests(false)
+		g.cl.policy.DisableSwaps()
 	}
 
-	allowSwap := g.cl.swaps.GetAllowSwapRequests()
-
-	response := fmt.Sprintf("New incoming PeerSwap requests are currently ")
-
-	if allowSwap {
-		response += "enabled."
-	} else {
-		response += "disabled. Existing swaps are allowed to complete. See `peerswap-listactiveswaps`"
-	}
-
-	return response, nil
+	pol := g.cl.policy.Get()
+	return peerswaprpc.GetPolicyMessage(pol), nil
 }
 
 func boolToString(val bool) string {

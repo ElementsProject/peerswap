@@ -34,62 +34,42 @@ type PeerswapServer struct {
 	UnimplementedPeerSwapServer
 }
 
-func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+func (p *PeerswapServer) AddPeer(ctx context.Context, request *AddPeerRequest) (*Policy, error) {
 	err := p.policy.AddToAllowlist(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return GetPolicyMessage(pol), nil
 
 }
 
-func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest) (*AddPeerResponse, error) {
+func (p *PeerswapServer) AddSusPeer(ctx context.Context, request *AddPeerRequest) (*Policy, error) {
 	err := p.policy.AddToSuspiciousPeerList(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &AddPeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return GetPolicyMessage(pol), nil
 
 }
 
-func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (p *PeerswapServer) RemovePeer(ctx context.Context, request *RemovePeerRequest) (*Policy, error) {
 	err := p.policy.RemoveFromAllowlist(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return GetPolicyMessage(pol), nil
 }
 
-func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*RemovePeerResponse, error) {
+func (p *PeerswapServer) RemoveSusPeer(ctx context.Context, request *RemovePeerRequest) (*Policy, error) {
 	err := p.policy.RemoveFromSuspiciousPeerList(request.PeerPubkey)
 	if err != nil {
 		return nil, err
 	}
 	pol := p.policy.Get()
-	return &RemovePeerResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return GetPolicyMessage(pol), nil
 }
 
 func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error) {
@@ -103,7 +83,7 @@ func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requ
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
 	if request.SwapAmount <= 0 {
-		return nil, errors.New("Missing required amt parameter")
+		return nil, errors.New("Missing required swap_amount parameter")
 	}
 	if request.ChannelId == 0 {
 		return nil, errors.New("Missing required channel_id parameter")
@@ -455,23 +435,14 @@ func findPeer(peerId string, peerlist []*lnrpc.Peer) *lnrpc.Peer {
 	return nil
 }
 
-func (p *PeerswapServer) ListNodes(ctx context.Context, request *ListNodesRequest) (*ListNodesResponse, error) {
-	return nil, errors.New("ListNodes does not work on lnd yet")
-}
-
-func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPolicyFileRequest) (*ReloadPolicyFileResponse, error) {
+func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPolicyFileRequest) (*Policy, error) {
 	err := p.policy.ReloadFile()
 	if err != nil {
 		return nil, err
 	}
 	p.pollService.PollAllPeers()
 	pol := p.policy.Get()
-	return &ReloadPolicyFileResponse{Policy: &Policy{
-		ReserveOnchainMsat: pol.ReserveOnchainMsat,
-		AcceptAllPeers:     pol.AcceptAllPeers,
-		PeerAllowList:      pol.PeerAllowlist,
-		SuspiciousPeerList: pol.SuspiciousPeerList,
-	}}, nil
+	return GetPolicyMessage(pol), nil
 }
 
 func (p *PeerswapServer) ListRequestedSwaps(ctx context.Context, request *ListRequestedSwapsRequest) (*ListRequestedSwapsResponse, error) {
@@ -563,23 +534,22 @@ func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwaps
 	return &ListSwapsResponse{Swaps: resSwaps}, nil
 }
 
-func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSwapRequestsRequest) (*AllowSwapRequestsResponse, error) {
-	if request.Allow == "1" || strings.ToLower(request.Allow) == "true" {
-		p.swaps.SetAllowSwapRequests(true)
-	} else if request.Allow == "0" || strings.ToLower(request.Allow) == "false" {
-		p.swaps.SetAllowSwapRequests(false)
+func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSwapRequestsRequest) (*Policy, error) {
+	if request.Allow {
+		p.policy.EnableSwaps()
+	} else {
+		p.policy.DisableSwaps()
 	}
 
-	allow := p.swaps.GetAllowSwapRequests()
-
-	return &AllowSwapRequestsResponse{Allow: allow}, nil
+	pol := p.policy.Get()
+	return GetPolicyMessage(pol), nil
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
-	timeStamp := time.Unix(swap.Data.CreatedAt, 0)
 	return &PrettyPrintSwap{
 		Id:              swap.SwapId.String(),
-		CreatedAt:       timeStamp.String(),
+		CreatedAt:       swap.Data.CreatedAt,
+		Asset:           swap.Data.GetChain(),
 		Type:            swap.Type.String(),
 		Role:            swap.Role.String(),
 		State:           string(swap.Current),

@@ -104,26 +104,26 @@ type SwapData struct {
 	// cancel message
 	CancelMessage string `json:"cancel_message"`
 
-	PeerNodeId          string    `json:"peer_nod_id"`
+	PeerNodeId          string    `json:"peer_node_id"`
 	InitiatorNodeId     string    `json:"initiator_node_id"`
 	CreatedAt           int64     `json:"created_at"`
 	Role                SwapRole  `json:"role"`
 	FSMState            StateType `json:"fsm_state"`
-	PrivkeyBytes        []byte
-	FeePreimage         string `json:"fee_preimage"`
-	OpeningTxFee        uint64 `json:"opening_tx_fee"`
-	OpeningTxHex        string `json:"opening_tx-hex"`
-	StartingBlockHeight uint32 `json:"opening_block_height"`
-	ClaimTxId           string `json:"claim_tx_id"`
-	ClaimPaymentHash    string `json:"claim_payment_hash"`
-	ClaimPreimage       string `json:"claim_preimage"`
+	PrivkeyBytes        []byte    `json:"private_key"`
+	FeePreimage         string    `json:"fee_preimage"`
+	OpeningTxFee        uint64    `json:"opening_tx_fee"`
+	OpeningTxHex        string    `json:"opening_tx_hex"`
+	StartingBlockHeight uint32    `json:"opening_block_height"`
+	ClaimTxId           string    `json:"claim_tx_id"`
+	ClaimPaymentHash    string    `json:"claim_payment_hash"`
+	ClaimPreimage       string    `json:"claim_preimage"`
 
 	BlindingKeyHex string `json:"blinding_key"`
 
 	LastMessage EventContext `json:"last_message"`
 
-	NextMessage     []byte
-	NextMessageType int
+	NextMessage     []byte `json:"next_message"`
+	NextMessageType int    `json:"next_message_type"`
 
 	LastErr       error  `json:"-"`
 	LastErrString string `json:"last_err,omitempty"`
@@ -358,45 +358,6 @@ func (s *SwapData) GetCancelMessage() string {
 func (s *SwapData) cancelTimeout() {
 	if s.toCancel != nil {
 		s.toCancel()
-	}
-}
-
-type PrettyPrintSwapData struct {
-	Id              string `json:"id"`
-	Asset           string `json:"asset"`
-	CreatedAt       string `json:"created_at"`
-	Type            string `json:"type"`
-	Role            string `json:"role"`
-	State           string `json:"state"`
-	InitiatorNodeId string `json:"initiator_node_id"`
-	PeerNodeId      string `json:"peer_node_id"`
-	Amount          uint64 `json:"amount"`
-	ShortChannelId  string `json:"short_channel_id"`
-
-	OpeningTxId string `json:"opening_tx_id,omitempty"`
-
-	ClaimTxId string `json:"claim_tx_id,omitempty"`
-
-	CancelMessage string `json:"cancel_message,omitempty"`
-}
-
-func (s *SwapData) ToPrettyPrint() *PrettyPrintSwapData {
-	timeStamp := time.Unix(s.CreatedAt, 0)
-
-	return &PrettyPrintSwapData{
-		Id:              s.GetId().String(),
-		Asset:           s.GetChain(),
-		Type:            s.GetType().String(),
-		Role:            s.Role.String(),
-		State:           string(s.FSMState),
-		InitiatorNodeId: s.InitiatorNodeId,
-		PeerNodeId:      s.PeerNodeId,
-		Amount:          s.GetAmount(),
-		ShortChannelId:  s.GetScid(),
-		OpeningTxId:     s.GetOpeningTxId(),
-		ClaimTxId:       s.ClaimTxId,
-		CreatedAt:       timeStamp.String(),
-		CancelMessage:   s.GetCancelMessage(),
 	}
 }
 

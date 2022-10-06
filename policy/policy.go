@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 
 	"github.com/jessevdk/go-flags"
@@ -19,6 +20,11 @@ const (
 	// can not be spent by incoming swap requests.
 	defaultReserveOnchainMsat uint64 = 0
 	defaultAcceptAllPeers            = false
+
+	// defaultMinSwapAmount is the default of the minimum in msat that is needed
+	// to perform a swap. We need this lower boundary as it is uneconomical to
+	// swap small amounts.
+	defaultMinSwapAmountMsat uint64 = 100000000
 )
 
 // Global Mutex
@@ -29,6 +35,10 @@ var (
 
 	// defaultSuspiciousPeerList is the default set of suspicious peers.
 	defaultSuspiciousPeerList = []string{}
+
+	// defaultAllowNewSwaps is true as we want to allow performing swaps per
+	// default.
+	defaultAllowNewSwaps = true
 )
 
 // Error definitions
@@ -46,6 +56,12 @@ func (e ErrReloadPolicy) Error() string {
 	return fmt.Sprintf("policy could not be reloaded: %v", string(e))
 }
 
+type ErrNotAValidPublicKey string
+
+func (e ErrNotAValidPublicKey) Error() string {
+	return fmt.Sprintf("%s is not a valid public key", string(e))
+}
+
 // PolicyConfig will ensure that a swap request is
 // only performed if the policy is matched. In this
 // case this means that the requesting peer is part
@@ -54,31 +70,54 @@ func (e ErrReloadPolicy) Error() string {
 type Policy struct {
 	path string
 
-	ReserveOnchainMsat uint64   `long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
-	PeerAllowlist      []string `long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
-	SuspiciousPeerList []string `long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
-	AcceptAllPeers     bool     `long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
+	ReserveOnchainMsat uint64   `json:"reserve_onchain_msat" long:"reserve_onchain_msat" description:"The amount of msats that are kept untouched on the onchain wallet for swap requests that are received." clightning_options:"ignore"`
+	PeerAllowlist      []string `json:"allowlisted_peers" long:"allowlisted_peers" description:"A list of peers that are allowed to send swap requests to the node."`
+	SuspiciousPeerList []string `json:"suspicious_peers" long:"suspicious_peers" description:"A list of peers that acted suspicious and are not allowed to request swaps."`
+	AcceptAllPeers     bool     `json:"accept_all_peers" long:"accept_all_peers" description:"Use with caution! If set, the peer allowlist is ignored and all incoming swap requests are allowed"`
+
+	// MinSwapAmountMsat is the minimum swap amount in msat that is needed to
+	// perform a swap. Below this amount it might be uneconomical to do a swap
+	// due to the on-chain costs.
+	// TODO: This can not be set in the policy by now but this is the place
+	// where this value belongs. Eventually we might want to make this value
+	// editable as a policy setting.
+	MinSwapAmountMsat uint64 `json:"min_swap_amount_msat"`
+
+	// AllowNewSwaps can be used to disallow any new swaps. This can be useful
+	// when we want to upgrade the node and do not want to allow for any new
+	// swap request from the peer or the node operator.
+	AllowNewSwaps bool `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
 }
 
 func (p *Policy) String() string {
-	str := fmt.Sprintf("reserve_onchain_msat: %d\nallowlisted_peers: %s\naccept_all_peers: %t\nsuspicious_peers: %s\n",
+	str := fmt.Sprintf(
+		"allow_new_swaps: %t\n"+
+			"min_swap_amount_msat: %d\n"+
+			"reserve_onchain_msat: %d\n"+
+			"allowlisted_peers: %s\n"+
+			"accept_all_peers: %t\n"+
+			"suspicious_peers: %s\n",
+		p.AllowNewSwaps,
+		p.MinSwapAmountMsat,
 		p.ReserveOnchainMsat,
 		p.PeerAllowlist,
 		p.AcceptAllPeers,
 		p.SuspiciousPeerList,
 	)
-	if p.AcceptAllPeers {
-		return fmt.Sprintf("%sCAUTION: Accept all incoming swap requests", str)
-	}
 	return str
 }
 
 func (p *Policy) Get() Policy {
+	mu.Lock()
+	defer mu.Unlock()
+
 	return Policy{
 		ReserveOnchainMsat: p.ReserveOnchainMsat,
 		PeerAllowlist:      p.PeerAllowlist,
 		SuspiciousPeerList: p.SuspiciousPeerList,
 		AcceptAllPeers:     p.AcceptAllPeers,
+		MinSwapAmountMsat:  p.MinSwapAmountMsat,
+		AllowNewSwaps:      p.AllowNewSwaps,
 	}
 }
 
@@ -86,12 +125,29 @@ func (p *Policy) Get() Policy {
 // that should be keept in the wallet when receiving
 // a peerswap request.
 func (p *Policy) GetReserveOnchainMsat() uint64 {
+	mu.Lock()
+	defer mu.Unlock()
 	return p.ReserveOnchainMsat
+}
+
+// GetMinSwapAmountMsat returns the minimum swap amount in msat that is needed
+// to perform a swap.
+func (p *Policy) GetMinSwapAmountMsat() uint64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return p.MinSwapAmountMsat
+}
+
+// NewSwapsAllowed returns the boolean value of AllowNewSwaps.
+func (p *Policy) NewSwapsAllowed() bool {
+	return p.AllowNewSwaps
 }
 
 // IsPeerAllowed returns if a peer or node is part of
 // the allowlist.
 func (p *Policy) IsPeerAllowed(peer string) bool {
+	mu.Lock()
+	defer mu.Unlock()
 	if p.AcceptAllPeers {
 		return true
 	}
@@ -105,6 +161,8 @@ func (p *Policy) IsPeerAllowed(peer string) bool {
 
 // IsPeerSuspicious returns true if the peer is on the list of suspicious peers.
 func (p *Policy) IsPeerSuspicious(peer string) bool {
+	mu.Lock()
+	defer mu.Unlock()
 	for _, suspiciousPeer := range p.SuspiciousPeerList {
 		if peer == suspiciousPeer {
 			return true
@@ -138,7 +196,52 @@ func (p *Policy) ReloadFile() error {
 	return nil
 }
 
-// AddToAllowlist adds a peer to the policy file in runtime
+// DisableSwaps sets the AllowNewSwaps field to false. This persists in the
+// policy.conf.
+func (p *Policy) DisableSwaps() error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if !p.AllowNewSwaps {
+		return nil
+	}
+
+	err := removeLineFromFile(p.path, "allow_new_swaps=true")
+	if err != nil {
+		return err
+	}
+	err = addLineToFile(p.path, "allow_new_swaps=false")
+	if err != nil {
+		return err
+	}
+
+	return p.ReloadFile()
+}
+
+// EnableSwaps sets the AllowNewSwaps field to true. This persists in the
+// policy.conf.
+func (p *Policy) EnableSwaps() error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if p.AllowNewSwaps {
+		return nil
+	}
+
+	err := removeLineFromFile(p.path, "allow_new_swaps=false")
+	if err != nil {
+		return err
+	}
+	err = addLineToFile(p.path, "allow_new_swaps=true")
+	if err != nil {
+		return err
+	}
+
+	return p.ReloadFile()
+}
+
+// AddToAllowlist adds a peer to the policy file in runtime. The pubkey is
+// expected to be hex encoded.
 func (p *Policy) AddToAllowlist(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -151,7 +254,13 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := addLineToFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
+
+	err = addLineToFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -159,7 +268,7 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 }
 
 // AddToSuspiciousPeerList adds a peer as a suspicious peer to the policy file
-// in runtime.
+// in runtime. The pubkey is expected to be hex encoded.
 func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -172,7 +281,13 @@ func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := addLineToFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
+
+	err = addLineToFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -192,9 +307,18 @@ func addLineToFile(filePath, line string) error {
 	return nil
 }
 
+// RemoveFromAllowlist removes the pubkey of a node from the policy
+// allowlisted_peers list. If a pubkey is removed from the allowlist the node
+// corresponding to the pubkey is no longer allowed to request swaps. The pubkey
+// is expected to be hex encoded.
 func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
 
 	var peerPk string
 	for _, v := range p.PeerAllowlist {
@@ -209,16 +333,23 @@ func (p *Policy) RemoveFromAllowlist(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := removeLineFromFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
+	err = removeLineFromFile(p.path, fmt.Sprintf("allowlisted_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
 	return p.ReloadFile()
 }
 
+// RemoveFromSuspiciousPeerList removes the pubkey of a node from the policy
+// suspicious_peers list. The pubkey is expected to be hex encoded.
 func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	ok, err := isValidPubkey(pubkey)
+	if !ok {
+		return err
+	}
 
 	var peerPk string
 	for _, v := range p.SuspiciousPeerList {
@@ -233,7 +364,7 @@ func (p *Policy) RemoveFromSuspiciousPeerList(pubkey string) error {
 	if p.path == "" {
 		return ErrNoPolicyFile
 	}
-	err := removeLineFromFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
+	err = removeLineFromFile(p.path, fmt.Sprintf("suspicious_peers=%s", pubkey))
 	if err != nil {
 		return err
 	}
@@ -292,6 +423,8 @@ func DefaultPolicy() *Policy {
 		PeerAllowlist:      defaultPeerAllowlist,
 		SuspiciousPeerList: defaultSuspiciousPeerList,
 		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
 	}
 }
 
@@ -338,4 +471,16 @@ func create(r io.Reader) (*Policy, error) {
 	}
 
 	return policy, nil
+}
+
+// isValidPubkey validates that the pubkey is 66 bytes hex encoded.
+func isValidPubkey(pubkey string) (bool, error) {
+	matched, err := regexp.MatchString("^[0-9a-f]{66}?\\z", pubkey)
+	if err != nil {
+		return false, err
+	}
+	if !matched {
+		return false, ErrNotAValidPublicKey(pubkey)
+	}
+	return true, nil
 }

@@ -22,6 +22,18 @@ type CheckRequestWrapperAction struct {
 }
 
 func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if !services.policy.NewSwapsAllowed() {
+		swap.LastErr = errors.New("swaps are disabled")
+		swap.CancelMessage = "swaps are disabled"
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.GetChain(),
+			AmountSat:       swap.GetAmount(),
+			Type:            swap.GetType(),
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(errors.New(swap.CancelMessage))
+	}
+
 	if swap.GetChain() == l_btc_chain && !services.liquidEnabled {
 		swap.LastErr = errors.New("lbtc swaps are not supported")
 		swap.CancelMessage = "lbtc swaps are not supported"
@@ -57,8 +69,8 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
-	if swap.GetAmount() < MINIMUM_SWAP_SIZE {
-		swap.CancelMessage = fmt.Sprintf("requiring minimum swap size of %v", MINIMUM_SWAP_SIZE)
+	if swap.GetAmount()*1000 < services.policy.GetMinSwapAmountMsat() {
+		swap.CancelMessage = ErrMinimumSwapSize(services.policy.GetMinSwapAmountMsat()).Error()
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
