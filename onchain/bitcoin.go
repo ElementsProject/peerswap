@@ -5,11 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/psbt"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
 )
@@ -244,7 +244,8 @@ func (b *BitcoinOnChain) PrepareSpendingTransaction(swapParams *swap.OpeningPara
 
 	spendingTx.TxOut[0].Value = spendingTx.TxOut[0].Value - int64(fee)
 
-	sigHashes := txscript.NewTxSigHashes(spendingTx)
+	outputFetcher := txscript.NewCannedPrevOutputFetcher(scriptChangeAddrScriptP2pkh, openingMsgTx.TxOut[vout].Value-200)
+	sigHashes := txscript.NewTxSigHashes(spendingTx, outputFetcher)
 	sigHash, err = txscript.CalcWitnessSigHash(redeemScript, sigHashes, txscript.SigHashAll, spendingTx, 0, int64(swapParams.Amount))
 	if err != nil {
 		return nil, nil, nil, err

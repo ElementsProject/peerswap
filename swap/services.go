@@ -8,7 +8,8 @@ import (
 
 	"github.com/elementsproject/peerswap/messages"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
+	btecdsa "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 )
 
 const (
@@ -109,7 +110,7 @@ func (o *ClaimParams) String() string {
 }
 
 type Signer interface {
-	Sign(hash []byte) (*btcec.Signature, error)
+	Sign(hash []byte) (*btecdsa.Signature, error)
 }
 
 type TimeOutService interface {

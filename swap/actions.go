@@ -11,7 +11,7 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/messages"
@@ -343,7 +343,7 @@ type SetBlindingKeyActionWrapper struct {
 func (a *SetBlindingKeyActionWrapper) Execute(services *SwapServices, swap *SwapData) EventType {
 	// Set the blinding key for opening transaction if we do a liquid swap
 	if swap.GetChain() == l_btc_chain {
-		blindingKey, err := btcec.NewPrivateKey(btcec.S256())
+		blindingKey, err := btcec.NewPrivateKey()
 		if err != nil {
 			return swap.HandleError(err)
 		}
@@ -451,10 +451,10 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	takerKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), takerKeyBytes)
+	takerKey, _ := btcec.PrivKeyFromBytes(takerKeyBytes)
 
 	if swap.ClaimTxId == "" {
-		txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), takerKey)
+		txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), &Secp256k1Signer{key: takerKey})
 		if err != nil {
 			return swap.HandleError(err)
 		}

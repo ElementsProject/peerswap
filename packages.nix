@@ -5,6 +5,11 @@ rev = "e0361a947ed3eb692e43786f78e86075395ef3af";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
+# Need an lnd v0.15.2-beta for an emergency fix in lnd.
+lndemergencyrev = "d74b3668e7bf0eb2e765fdfcb6665b6d4b751edf";
+lndemergencynixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${lndemergencyrev}.tar.gz";
+lndemergencypkgs = import lndemergencynixpkgs {};
+
 # Override priority for bitcoin as /bin/bitcoin_test will
 # confilict with /bin/bitcoin_test from elementsd.
 bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
@@ -37,8 +42,8 @@ in with pkgs;
         bitcoin = bitcoin;
         elements = elementsd;
         mermaid = nodePackages.mermaid-cli;
-        lnd = lnd;
+        lnd = lndemergencypkgs.lnd;
     };
-    testpkgs = [ go bitcoin elementsd clightning-dev lnd];
-    devpkgs = [ bitcoin elementsd clightning clightning-dev lnd docker-compose jq nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoin elementsd clightning-dev lndemergencypkgs.lnd ];
+    devpkgs = [ bitcoin elementsd clightning clightning-dev lndemergencypkgs.lnd docker-compose jq nodePackages.mermaid-cli ];
 }

@@ -10,7 +10,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/vulpemventures/go-elements/pset"
@@ -1388,7 +1388,7 @@ func rand32ByteArray() []byte {
 //	"crypto/rand"
 //	"encoding/hex"
 //	"fmt"
-//	"github.com/btcsuite/btcd/btcec"
+//	"github.com/btcsuite/btcd/btcec/v2"
 //	"github.com/elementsproject/peerswap/onchain"
 //	"github.com/elementsproject/peerswap/swap"
 //	"log"

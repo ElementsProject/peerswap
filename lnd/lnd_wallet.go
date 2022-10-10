@@ -6,8 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil/psbt"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"

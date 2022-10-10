@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/lightning"
 )
 
@@ -305,10 +305,10 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 	var blindingKey *btcec.PrivateKey
 	if s.OpeningTxBroadcasted != nil && s.OpeningTxBroadcasted.BlindingKey != "" {
 		blindingKeyBytes, _ := hex.DecodeString(s.OpeningTxBroadcasted.BlindingKey)
-		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
+		blindingKey, _ = btcec.PrivKeyFromBytes(blindingKeyBytes)
 	} else if s.BlindingKeyHex != "" {
 		blindingKeyBytes, _ := hex.DecodeString(s.BlindingKeyHex)
-		blindingKey, _ = btcec.PrivKeyFromBytes(btcec.S256(), blindingKeyBytes)
+		blindingKey, _ = btcec.PrivKeyFromBytes(blindingKeyBytes)
 	}
 
 	return &OpeningParams{
@@ -321,11 +321,11 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 }
 
 func (s *SwapData) GetClaimParams() *ClaimParams {
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.PrivkeyBytes)
+	key, _ := btcec.PrivKeyFromBytes(s.PrivkeyBytes)
 
 	claimParams := &ClaimParams{
 		Preimage:     s.ClaimPreimage,
-		Signer:       key,
+		Signer:       &Secp256k1Signer{key},
 		OpeningTxHex: s.OpeningTxHex,
 	}
 
@@ -362,7 +362,7 @@ func (s *SwapData) cancelTimeout() {
 }
 
 func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
-	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), s.PrivkeyBytes)
+	privkey, _ := btcec.PrivKeyFromBytes(s.PrivkeyBytes)
 	return privkey
 }
 
@@ -397,7 +397,7 @@ func newSwapId() string {
 
 // getRandomPrivkey returns a random private key for the swap
 func getRandomPrivkey() *btcec.PrivateKey {
-	privkey, err := btcec.NewPrivateKey(btcec.S256())
+	privkey, err := btcec.NewPrivateKey()
 	if err != nil {
 		return nil
 	}
