@@ -889,12 +889,6 @@ func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
 	return peerswaprpc.GetPolicyMessage(pol), nil
 }
 
-func boolToString(val bool) string {
-	if val {
-		return "enabled"
-	}
-	return "disabled"
-}
 func (g *AllowSwapRequests) Get(client *ClightningClient) jrpc2.ServerMethod {
 	return &AllowSwapRequests{
 		cl:                      client,
