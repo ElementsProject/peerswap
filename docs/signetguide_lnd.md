@@ -169,14 +169,14 @@ _Note: If building from source, be sure to build with the required tags: `make i
 Download the following files
 ```bash
 curl https://raw.githubusercontent.com/lightningnetwork/lnd/master/scripts/keys/roasbeef.asc | gpg --import \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/manifest-roasbeef-v0.15.0-beta.sig && \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/manifest-v0.15.0-beta.txt && \
-wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.0-beta/lnd-linux-amd64-v0.15.0-beta.tar.gz
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.2-beta/manifest-roasbeef-v0.15.2-beta.sig && \
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.2-beta/manifest-v0.15.2-beta.txt && \
+wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.2-beta/lnd-linux-amd64-v0.15.2-beta.tar.gz
 ```
 
 Verify the release
 ```bash
-gpg --verify manifest-roasbeef-v0.15.0-beta.sig manifest-v0.15.0-beta.txt
+gpg --verify manifest-roasbeef-v0.15.2-beta.sig manifest-v0.15.2-beta.txt
 ```
 
 If the shasums match this command will return
@@ -186,13 +186,13 @@ If the shasums match this command will return
 Extract the binaries 
 
 ```bash
-tar -zvxf lnd-linux-amd64-v0.15.0-beta.tar.gz
+tar -zvxf lnd-linux-amd64-v0.15.2-beta.tar.gz
 ```
 
 Copy the binaries to the system path
 
 ```bash
-sudo cp -vnR lnd-linux-amd64-v0.15.0-beta/* /usr/bin/
+sudo cp -vnR lnd-linux-amd64-v0.15.2-beta/* /usr/bin/
 ```
 
 Create config dir in home
@@ -288,10 +288,10 @@ EOF
 Remove all unneccessary files and folders
 ```bash
 rm go1.19.linux-amd64.tar.gz && \
-rm lnd-linux-amd64-v0.15.0-beta.tar.gz && \
-rm -r lnd-linux-amd64-v0.15.0-beta && \
-rm manifest-roasbeef-v0.15.0-beta.sig && \
-rm manifest-v0.15.0-beta.txt && \
+rm lnd-linux-amd64-v0.15.2-beta.tar.gz && \
+rm -r lnd-linux-amd64-v0.15.2-beta && \
+rm manifest-roasbeef-v0.15.2-beta.sig && \
+rm manifest-v0.15.2-beta.txt && \
 rm SHA256SUMS && \
 rm -r bitcoin-0.21.1/ && \
 rm -r elements-elements-0.21.0.2/ && \
