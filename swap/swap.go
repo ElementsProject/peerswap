@@ -228,6 +228,17 @@ func (s *SwapData) GetInvoiceExpiry() uint64 {
 	return expiry
 }
 
+func (s *SwapData) GetInvoiceCltv() uint64 {
+	switch s.GetChain() {
+	case btc_chain:
+		return (BitcoinCsv / 2) - 1
+	case l_btc_chain:
+		return (LiquidCsv / 2) - 1
+	default:
+		return 0
+	}
+}
+
 func (s *SwapData) GetNetwork() string {
 	if s.SwapInRequest != nil {
 		return s.SwapInRequest.Network

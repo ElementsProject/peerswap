@@ -315,7 +315,7 @@ func (s *SwapStateMachine) printFeeInvoiceInfo() {
 	}
 
 	ll := s.swapServices.lightning
-	_, msatAmt, err := ll.DecodePayreq(s.Data.SwapOutAgreement.Payreq)
+	_, msatAmt, _, err := ll.DecodePayreq(s.Data.SwapOutAgreement.Payreq)
 	if err != nil {
 		return
 	}
