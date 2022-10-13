@@ -132,10 +132,11 @@ message PrettyPrintSwap {
     string initiator_node_id = 7;
     string peer_node_id = 8;
     uint64 amount = 9;
-    string channel_id = 10;
+    string channel_id = 10;;
     string opening_tx_id = 11;
     string claim_tx_id = 12;
     string cancel_message = 13;
+    uint64 lnd_chan_id = 14;
 }
 
 message PeerSwapPeer {

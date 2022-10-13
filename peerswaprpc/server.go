@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -546,6 +547,16 @@ func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSw
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
+	scid, err := newScidFromString(swap.Data.GetScid())
+	if err != nil {
+		log.Debugf("Could not parse scid from %s: %v", scid, err)
+	}
+
+	var lnd_chan_id uint64
+	if scid != nil {
+		lnd_chan_id = scid.ToUint64()
+	}
+
 	return &PrettyPrintSwap{
 		Id:              swap.SwapId.String(),
 		CreatedAt:       swap.Data.CreatedAt,
@@ -560,5 +571,35 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		OpeningTxId:     swap.Data.GetOpeningTxId(),
 		ClaimTxId:       swap.Data.ClaimTxId,
 		CancelMessage:   swap.Data.GetCancelMessage(),
+		LndChanId:       lnd_chan_id,
 	}
+}
+
+func newScidFromString(scid string) (*lnwire.ShortChannelID, error) {
+	scid = strings.ReplaceAll(scid, "x", ":")
+	parts := strings.Split(scid, ":")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("expected scid to be composed of 3 blocks")
+	}
+
+	blockHeight, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, err
+	}
+
+	txIndex, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	txPosition, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return nil, err
+	}
+
+	return &lnwire.ShortChannelID{
+		BlockHeight: uint32(blockHeight),
+		TxIndex:     uint32(txIndex),
+		TxPosition:  uint16(txPosition),
+	}, nil
 }
