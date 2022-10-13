@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,7 +31,8 @@ func WaitFor(f WaitFunc, timeout time.Duration) error {
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("WaitFor reached timeout with %v", f)
+			return fmt.Errorf("WaitFor reached timeout with %s",
+				runtime.FuncForPC(uintptr(reflect.ValueOf(f).Pointer())).Name())
 		default:
 			if f() {
 				return nil

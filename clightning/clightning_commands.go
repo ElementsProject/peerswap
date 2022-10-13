@@ -42,6 +42,10 @@ func (g *LiquidGetAddress) Name() string {
 }
 
 func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.cl.liquidWallet == nil {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
@@ -51,6 +55,20 @@ func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 	}
 	log.Infof("[Wallet] Getting lbtc address %s", res)
 	return &GetAddressResponse{LiquidAddress: res}, nil
+}
+
+func (g *LiquidGetAddress) Description() string {
+	return "Returns a new liquid address of the liquid peerswap wallet."
+}
+
+func (g *LiquidGetAddress) LongDescription() string {
+	return ""
+}
+
+func (g *LiquidGetAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &LiquidGetAddress{
+		cl: client,
+	}
 }
 
 type GetAddressResponse struct {
@@ -73,6 +91,10 @@ func (g *LiquidGetBalance) New() interface{} {
 }
 
 func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
@@ -83,6 +105,20 @@ func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 	return &GetBalanceResponse{
 		res,
 	}, nil
+}
+
+func (g *LiquidGetBalance) Description() string {
+	return "Returns the liquid balance"
+}
+
+func (g *LiquidGetBalance) LongDescription() string {
+	return ""
+}
+
+func (g *LiquidGetBalance) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &LiquidGetBalance{
+		cl: client,
+	}
 }
 
 type GetBalanceResponse struct {
@@ -113,6 +149,10 @@ func (s *LiquidSendToAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 }
 
 func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
+	if !s.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if s.cl.liquidWallet == nil {
 		return nil, errors.New("lbtc swaps are not enabled")
 	}
@@ -162,6 +202,10 @@ func (l *SwapOut) Name() string {
 }
 
 func (l *SwapOut) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt_sat parameter")
 	}
@@ -242,6 +286,20 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 }
 
+func (l *SwapOut) Description() string {
+	return "Initiates a swap out with a peer"
+}
+
+func (l *SwapOut) LongDescription() string {
+	return ""
+}
+
+func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &SwapOut{
+		cl: client,
+	}
+}
+
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
 	SatAmt         uint64 `json:"amt_sat"`
@@ -263,6 +321,10 @@ func (l *SwapIn) Name() string {
 }
 
 func (l *SwapIn) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if l.SatAmt <= 0 {
 		return nil, errors.New("Missing required amt_sat parameter")
 	}
@@ -360,6 +422,20 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 }
 
+func (l *SwapIn) Description() string {
+	return "Initiates a swap in with a peer"
+}
+
+func (l *SwapIn) LongDescription() string {
+	return ""
+}
+
+func (g *SwapIn) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &SwapIn{
+		cl: client,
+	}
+}
+
 // ListSwaps list all active and finished swaps
 type ListSwaps struct {
 	DetailedPrint bool              `json:"detailed,omitempty"`
@@ -377,6 +453,10 @@ func (l *ListSwaps) Name() string {
 }
 
 func (l *ListSwaps) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	swaps, err := l.cl.swaps.ListSwaps()
 	if err != nil {
 		return nil, err
@@ -395,6 +475,20 @@ func (l *ListSwaps) Call() (jrpc2.Result, error) {
 		return &peerswaprpc.ListSwapsResponse{Swaps: pretty}, nil
 	}
 	return swaps, nil
+}
+
+func (l *ListSwaps) Description() string {
+	return "Returns a list of historical swaps."
+}
+
+func (l *ListSwaps) LongDescription() string {
+	return ""
+}
+
+func (g *ListSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListSwaps{
+		cl: client,
+	}
 }
 
 type ListNodes struct {
@@ -476,6 +570,10 @@ func (l *ListPeers) Name() string {
 }
 
 func (l *ListPeers) Call() (jrpc2.Result, error) {
+	if !l.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	peers, err := l.cl.glightning.ListPeers()
 	if err != nil {
 		return nil, err
@@ -589,6 +687,10 @@ func (g *GetSwap) New() interface{} {
 }
 
 func (g *GetSwap) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.SwapId == "" {
 		return nil, errors.New("swap_id required")
 	}
@@ -625,8 +727,7 @@ type PolicyReloader interface {
 	Get() policy.Policy
 }
 type ReloadPolicyFile struct {
-	cl   *ClightningClient
-	name string
+	cl *ClightningClient
 }
 
 func (c ReloadPolicyFile) Name() string {
@@ -638,6 +739,10 @@ func (c ReloadPolicyFile) New() interface{} {
 }
 
 func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	log.Debugf("reloading policy %v", c.cl.policy)
 	err := c.cl.policy.ReloadFile()
 	if err != nil {
@@ -658,13 +763,18 @@ func (c *ReloadPolicyFile) LongDescription() string {
 	default config, so fields that are not set are interpreted as default.`
 }
 
+func (c *ReloadPolicyFile) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ReloadPolicyFile{
+		cl: client,
+	}
+}
+
 type GetRequestedSwaps struct {
-	cl   *ClightningClient
-	name string
+	cl *ClightningClient
 }
 
 func (c GetRequestedSwaps) Name() string {
-	return c.name
+	return "peerswap-listswaprequests"
 }
 
 func (c GetRequestedSwaps) New() interface{} {
@@ -672,6 +782,10 @@ func (c GetRequestedSwaps) New() interface{} {
 }
 
 func (c GetRequestedSwaps) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	requestedSwaps, err := c.cl.requestedSwaps.Get()
 	if err != nil {
 		return nil, err
@@ -686,6 +800,12 @@ func (c GetRequestedSwaps) Description() string {
 func (c GetRequestedSwaps) LongDescription() string {
 	return `This command can give you insight of swaps requested by peer nodes that could not have
 		been performed because either the peer is not in the allowlist or the asset is not set.`
+}
+
+func (c *GetRequestedSwaps) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetRequestedSwaps{
+		cl: client,
+	}
 }
 
 type ListActiveSwaps struct {
@@ -703,6 +823,10 @@ func (g *ListActiveSwaps) New() interface{} {
 }
 
 func (g *ListActiveSwaps) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	swaps, err := g.cl.swaps.ListActiveSwaps()
 	if err != nil {
 		return nil, err
@@ -747,9 +871,14 @@ func (g *AllowSwapRequests) New() interface{} {
 }
 
 func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	if g.AllowSwapRequestsString == "" {
 		return nil, fmt.Errorf("missing argument:1 to allow, 0 to disallow")
 	}
+
 	if g.AllowSwapRequestsString == "1" || strings.ToLower(g.AllowSwapRequestsString) == "true" {
 		g.cl.policy.EnableSwaps()
 	} else if g.AllowSwapRequestsString == "0" || strings.ToLower(g.AllowSwapRequestsString) == "false" {
@@ -760,12 +889,6 @@ func (g *AllowSwapRequests) Call() (jrpc2.Result, error) {
 	return peerswaprpc.GetPolicyMessage(pol), nil
 }
 
-func boolToString(val bool) string {
-	if val {
-		return "enabled"
-	}
-	return "disabled"
-}
 func (g *AllowSwapRequests) Get(client *ClightningClient) jrpc2.ServerMethod {
 	return &AllowSwapRequests{
 		cl:                      client,
@@ -798,6 +921,10 @@ func (g *AddPeer) New() interface{} {
 }
 
 func (g *AddPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.AddToAllowlist(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -837,6 +964,10 @@ func (g *RemovePeer) New() interface{} {
 }
 
 func (g *RemovePeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.RemoveFromAllowlist(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -876,6 +1007,10 @@ func (g *AddSuspiciousPeer) New() interface{} {
 }
 
 func (g *AddSuspiciousPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.AddToSuspiciousPeerList(g.PeerPubkey)
 	if err != nil {
 		return nil, err
@@ -916,6 +1051,10 @@ func (g *RemoveSuspiciousPeer) New() interface{} {
 }
 
 func (g *RemoveSuspiciousPeer) Call() (jrpc2.Result, error) {
+	if !g.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
 	err := g.cl.policy.RemoveFromSuspiciousPeerList(g.PeerPubkey)
 	if err != nil {
 		return nil, err

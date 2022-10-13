@@ -287,6 +287,11 @@ func run() error {
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
 	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
 
+	// We are ready to accept and handle requests.
+	// FIXME: Once we reworked the recovery service (non-blocking) we want to
+	// set ready after the recovery to avoid race conditions.
+	lightningPlugin.SetReady()
+
 	// Try to upgrade version if needed
 	versionService, err := version.NewVersionService(swapDb)
 	if err != nil {
