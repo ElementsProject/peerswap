@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"

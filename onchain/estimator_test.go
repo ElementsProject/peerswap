@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/stretchr/testify/require"
 )

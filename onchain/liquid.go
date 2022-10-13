@@ -10,7 +10,7 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/vulpemventures/go-elements/confidential"
 	"github.com/vulpemventures/go-elements/pset"
 
@@ -67,7 +67,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
 
 	redeemPayment, _ := payment.FromScript(scriptPubKey, l.network, swapParams.BlindingKey.PubKey())
-	sats, _ := elementsutil.SatoshiToElementsValue(swapParams.Amount)
+	sats, _ := elementsutil.ValueToBytes(swapParams.Amount)
 
 	blindedScriptAddr, err := redeemPayment.ConfidentialWitnessScriptHash()
 	if err != nil {
@@ -223,7 +223,7 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) (err error) {
 	claimParams.OutputAssetBlindingFactor = generateRandom32Bytes()
 	claimParams.BlindingSeed = generateRandom32Bytes()
-	claimParams.EphemeralKey, err = btcec.NewPrivateKey(btcec.S256())
+	claimParams.EphemeralKey, err = btcec.NewPrivateKey()
 	if err != nil {
 		return err
 	}
@@ -369,7 +369,6 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 		ValueBlindFactor:    outputVbf,
 		ValueCommit:         valueCommitment[:],
 		ScriptPubkey:        confOutputScript,
-		MinValue:            1,
 		Exp:                 0,
 		MinBits:             52,
 	}
@@ -390,7 +389,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	spendingTx.Outputs = append(spendingTx.Outputs, receiverOutput)
 
 	// add feeoutput
-	feeValue, _ := elementsutil.SatoshiToElementsValue(fee)
+	feeValue, _ := elementsutil.ValueToBytes(fee)
 	feeScript := []byte{}
 	feeOutput := transaction.NewTxOutput(asset, feeValue, feeScript)
 	spendingTx.Outputs = append(spendingTx.Outputs, feeOutput)

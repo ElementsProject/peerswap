@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/policy"
@@ -480,11 +480,11 @@ func getTestParams() (pubkeyA, pubkeyB, takerPubkey, makerPubkey, scid string) {
 }
 
 func getRandom33ByteHexString() string {
-	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	privkey, _ := btcec.NewPrivateKey()
 	return hex.EncodeToString(privkey.PubKey().SerializeCompressed())
 }
 
 func getRandom32ByteHexString() string {
-	privkey, _ := btcec.NewPrivateKey(btcec.S256())
+	privkey, _ := btcec.NewPrivateKey()
 	return hex.EncodeToString(privkey.Serialize())
 }
