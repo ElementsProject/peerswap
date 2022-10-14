@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/elementsproject/peerswap/messages"
 )
-
-const version uint64 = 0
 
 type PollNotFoundErr string
 
@@ -63,6 +62,7 @@ type Service struct {
 	policy         Policy
 	peers          PeerGetter
 	store          Store
+	tmpStore       map[string]string
 	removeDuration time.Duration
 }
 
@@ -78,6 +78,7 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		policy:         policy,
 		peers:          peers,
 		store:          store,
+		tmpStore:       make(map[string]string),
 		removeDuration: removeDuration,
 	}
 
@@ -114,7 +115,7 @@ func (s *Service) Stop() {
 // Poll sends the POLL message to a single peer.
 func (s *Service) Poll(peer string) {
 	poll := PollMessage{
-		Version:     version,
+		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:      s.assets,
 		PeerAllowed: s.policy.IsPeerAllowed(peer),
 	}
@@ -140,7 +141,7 @@ func (s *Service) PollAllPeers() {
 // single peer.
 func (s *Service) RequestPoll(peer string) {
 	request := RequestPollMessage{
-		Version:     version,
+		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:      s.assets,
 		PeerAllowed: s.policy.IsPeerAllowed(peer),
 	}
@@ -185,6 +186,13 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 			PeerAllowed: msg.PeerAllowed,
 			LastSeen:    time.Now(),
 		})
+		if ti, ok := s.tmpStore[peerId]; ok {
+			if ti == string(payload) {
+				return nil
+			}
+		}
+		log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		s.tmpStore[peerId] = string(payload)
 		return nil
 	case messages.MESSAGETYPE_REQUEST_POLL:
 		var msg RequestPollMessage
@@ -199,6 +207,13 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 		})
 		// Send a poll on request
 		s.Poll(peerId)
+		if ti, ok := s.tmpStore[peerId]; ok {
+			if ti == string(payload) {
+				return nil
+			}
+		}
+		log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		s.tmpStore[peerId] = string(payload)
 		return nil
 	default:
 		return nil
