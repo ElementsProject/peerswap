@@ -147,12 +147,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		return err
 	}
 	msgBytes := []byte(payload)
-	log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 	switch msgType {
 	default:
 		// Do nothing here, as it will spam the cln log.
 		return nil
 	case messages.MESSAGETYPE_SWAPOUTREQUEST:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapOutRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -163,6 +163,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPOUTAGREEMENT:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapOutAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -183,6 +184,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_OPENINGTXBROADCASTED:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *OpeningTxBroadcastedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -203,6 +205,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_CANCELED:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *CancelMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -223,6 +226,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINREQUEST:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapInRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -233,6 +237,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINAGREEMENT:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapInAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
@@ -253,6 +258,7 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_COOPCLOSE:
+		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *CoopCloseMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
