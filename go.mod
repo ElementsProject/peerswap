@@ -68,3 +68,8 @@ replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc
 
 // Temporary: this server is dead, LND 0.15 no longer refers to this old server address
 replace git.schwanenlied.me/yawning/bsaes.git => github.com/Yawning/bsaes v0.0.0-20180720073208-c0276d75487e
+
+// LND-0.15.2 hard codes ancient gocheck and xmlpath references to launchpad.net that require VCS bzr, point at github equivalent until they update their deps
+replace launchpad.net/gocheck v0.0.0-20140225173054-000000000087 => github.com/go-check/check v0.0.0-20140225173054-eb6ee6f84d0a
+replace launchpad.net/xmlpath v0.0.0-20130614043138-000000000004 => github.com/go-xmlpath/xmlpath v0.0.0-20130614043138-43e5e9adc398
+
