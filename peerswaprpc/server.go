@@ -334,7 +334,7 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 		return nil, err
 	}
 
-	polls, err := p.pollService.GetPolls()
+	polls, err := p.pollService.GetCompatiblePolls()
 	if err != nil {
 		return nil, err
 	}

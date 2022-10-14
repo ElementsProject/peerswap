@@ -47,9 +47,10 @@ type Store interface {
 }
 
 type PollInfo struct {
-	Assets      []string `json:"assets"`
-	PeerAllowed bool
-	LastSeen    time.Time
+	ProtocolVersion uint64   `json:"version"`
+	Assets          []string `json:"assets"`
+	PeerAllowed     bool
+	LastSeen        time.Time
 }
 type Service struct {
 	sync.RWMutex
@@ -182,9 +183,10 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 			return err
 		}
 		s.store.Update(peerId, PollInfo{
-			Assets:      msg.Assets,
-			PeerAllowed: msg.PeerAllowed,
-			LastSeen:    time.Now(),
+			ProtocolVersion: msg.Version,
+			Assets:          msg.Assets,
+			PeerAllowed:     msg.PeerAllowed,
+			LastSeen:        time.Now(),
 		})
 		if ti, ok := s.tmpStore[peerId]; ok {
 			if ti == string(payload) {
@@ -201,9 +203,10 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 			return err
 		}
 		s.store.Update(peerId, PollInfo{
-			Assets:      msg.Assets,
-			PeerAllowed: msg.PeerAllowed,
-			LastSeen:    time.Now(),
+			ProtocolVersion: msg.Version,
+			Assets:          msg.Assets,
+			PeerAllowed:     msg.PeerAllowed,
+			LastSeen:        time.Now(),
 		})
 		// Send a poll on request
 		s.Poll(peerId)
@@ -222,6 +225,22 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 
 func (s *Service) GetPolls() (map[string]PollInfo, error) {
 	return s.store.GetAll()
+}
+
+// GetCompatiblePolls returns all polls from peers that are running the same
+// protocol version.
+func (s *Service) GetCompatiblePolls() (map[string]PollInfo, error) {
+	var compPeers = make(map[string]PollInfo)
+	peers, err := s.store.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for id, p := range peers {
+		if p.ProtocolVersion == swap.PEERSWAP_PROTOCOL_VERSION {
+			compPeers[id] = p
+		}
+	}
+	return compPeers, nil
 }
 
 // GetPollFrom returns the PollInfo for a single peer with peerId. Returns a
