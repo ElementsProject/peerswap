@@ -80,12 +80,12 @@ func (l *Client) AddPaymentNotifier(swapId string, payreq string, invoiceType sw
 	l.paymentWatcher.AddWaitForPayment(swapId, payreq, invoiceType)
 }
 
-func (l *Client) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
+func (l *Client) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, expiry int64, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
-		return "", 0, err
+		return "", 0, 0, err
 	}
-	return decoded.PaymentHash, uint64(decoded.NumMsat), nil
+	return decoded.PaymentHash, uint64(decoded.NumMsat), decoded.CltvExpiry, nil
 }
 
 func (l *Client) PayInvoice(payreq string) (preImage string, err error) {
@@ -120,7 +120,7 @@ func (l *Client) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.C
 	return channel, nil
 }
 
-func (l *Client) GetPayreq(msatAmount uint64, preimageString string, swapId string, memo string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
+func (l *Client) GetPayreq(msatAmount uint64, preimageString string, swapId string, memo string, invoiceType swap.InvoiceType, expirySeconds, expiryCltv uint64) (string, error) {
 	preimage, err := lightning.MakePreimageFromStr(preimageString)
 	if err != nil {
 		return "", err
@@ -130,8 +130,8 @@ func (l *Client) GetPayreq(msatAmount uint64, preimageString string, swapId stri
 		ValueMsat:  int64(msatAmount),
 		Memo:       memo,
 		RPreimage:  preimage[:],
-		Expiry:     int64(expiry),
-		CltvExpiry: 144,
+		Expiry:     int64(expirySeconds),
+		CltvExpiry: expiryCltv,
 	})
 	if err != nil {
 		return "", err
@@ -157,6 +157,7 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
 		PaymentRequest:  payreq,
 		TimeoutSeconds:  30,
+		CltvLimit:       int32(decoded.Expiry),
 		OutgoingChanIds: []uint64{channel.ChanId},
 		MaxParts:        1,
 	})

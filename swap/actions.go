@@ -17,6 +17,11 @@ import (
 	"github.com/elementsproject/peerswap/messages"
 )
 
+const (
+	BitcoinCsv = 1008
+	LiquidCsv  = 60
+)
+
 type CheckRequestWrapperAction struct {
 	next Action
 }
@@ -215,7 +220,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 
 	// Construct memo
 	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_CLAIM, swap.GetScidInBoltFormat(), swap.GetId())
-	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry())
+	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry(), swap.GetInvoiceCltv())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -389,7 +394,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.GetId().String(), memo, INVOICE_FEE, 600)
+	feeInvoice, err := services.lightning.GetPayreq(openingFee*1000, feepreimage.String(), swap.GetId().String(), memo, INVOICE_FEE, 600, 0)
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -570,10 +575,11 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 
 	ll := services.lightning
 	// policy := services.policy
-	_, msatAmt, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
+	_, msatAmt, _, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	swap.OpeningTxFee = msatAmt / 1000
 
 	expectedFee, err := wallet.GetFlatSwapOutFee()
@@ -622,9 +628,17 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		}
 	}
 
-	phash, msatAmount, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
+	phash, msatAmount, expiry, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
+	}
+
+	// Check that invoice min_final_cltv_expiry is safe. Safe means the payee
+	// can not hold the htlc long enough to refund the on-chain part before
+	// accepting it.
+	if (swap.GetChain() == btc_chain && expiry > BitcoinCsv/2) ||
+		(swap.GetChain() == l_btc_chain && expiry > LiquidCsv/2) {
+		return swap.HandleError(fmt.Errorf("unsafe invoice cltv: %d", expiry))
 	}
 
 	if msatAmount != swap.GetAmount()*1000 {

@@ -254,8 +254,8 @@ func (cl *ClightningClient) AddMessageHandler(f func(peerId string, msgType stri
 }
 
 // GetPayreq returns a Bolt11 Invoice
-func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, swapId string, memo string, invoiceType swap.InvoiceType, expiry uint64) (string, error) {
-	res, err := cl.glightning.CreateInvoice(amountMsat, getLabel(swapId, invoiceType), memo, uint32(expiry), []string{}, preImage, false)
+func (cl *ClightningClient) GetPayreq(amountMsat uint64, preImage string, swapId string, memo string, invoiceType swap.InvoiceType, expirySeconds, expiryCltv uint64) (string, error) {
+	res, err := cl.glightning.CreateInvoiceWithCltvExpiry(amountMsat, getLabel(swapId, invoiceType), memo, uint32(expirySeconds), []string{}, preImage, false, uint32(expiryCltv))
 	if err != nil {
 		return "", err
 	}
@@ -267,12 +267,12 @@ func getLabel(swapId string, invoiceType swap.InvoiceType) string {
 }
 
 // DecodePayreq decodes a Bolt11 Invoice
-func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, err error) {
+func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, expiry int64, err error) {
 	res, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
-		return "", 0, err
+		return "", 0, 0, err
 	}
-	return res.PaymentHash, res.MilliSatoshis, nil
+	return res.PaymentHash, res.MilliSatoshis, int64(res.MinFinalCltvExpiry), nil
 }
 
 // PayInvoice tries to pay a Bolt11 Invoice

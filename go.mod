@@ -15,7 +15,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/decred/dcrd/lru v1.1.1 // indirect
 	github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6 // indirect
-	github.com/elementsproject/glightning v0.0.0-20220713160855-49a9a8ec3e4d
+	github.com/elementsproject/glightning v0.0.0-20221013194807-73978c84cee8
 	github.com/fergusstrange/embedded-postgres v1.19.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
