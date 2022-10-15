@@ -405,9 +405,6 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		t.Fatalf("ListPeers %v", err)
 	}
 
-	lightningds[1].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[0].Info.Id), testframework.TIMEOUT)
-	lightningds[0].WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", lightningds[1].Info.Id), testframework.TIMEOUT)
-
 	syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
 
 	return bitcoind, liquidd, []*CLightningNodeWithLiquid{{lightningds[0]}, {lightningds[1]}}, scid

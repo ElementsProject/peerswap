@@ -102,6 +102,7 @@ func run() error {
 		return err
 	}
 	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
+	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
 
 	// setup lnd connection
 	cc, err := lnd.GetClientConnection(ctx, cfg.LndConfig)

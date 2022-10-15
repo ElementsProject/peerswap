@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+
 	"go.etcd.io/bbolt"
 )
 
@@ -57,6 +58,12 @@ func (vs *VersionService) SafeUpgrade(swapService ActiveSwapGetter) error {
 
 	return nil
 
+}
+
+// GetCurrentVersion returns the hardcoded implementation version, sometimes
+// also referred to as database version.
+func GetCurrentVersion() string {
+	return version
 }
 
 type ActiveSwapsError struct {

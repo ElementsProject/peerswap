@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/elementsproject/peerswap/messages"
 )
-
-const version uint64 = 0
 
 type PollNotFoundErr string
 
@@ -48,9 +47,10 @@ type Store interface {
 }
 
 type PollInfo struct {
-	Assets      []string `json:"assets"`
-	PeerAllowed bool
-	LastSeen    time.Time
+	ProtocolVersion uint64   `json:"version"`
+	Assets          []string `json:"assets"`
+	PeerAllowed     bool
+	LastSeen        time.Time
 }
 type Service struct {
 	sync.RWMutex
@@ -63,6 +63,7 @@ type Service struct {
 	policy         Policy
 	peers          PeerGetter
 	store          Store
+	tmpStore       map[string]string
 	removeDuration time.Duration
 }
 
@@ -78,6 +79,7 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		policy:         policy,
 		peers:          peers,
 		store:          store,
+		tmpStore:       make(map[string]string),
 		removeDuration: removeDuration,
 	}
 
@@ -114,7 +116,7 @@ func (s *Service) Stop() {
 // Poll sends the POLL message to a single peer.
 func (s *Service) Poll(peer string) {
 	poll := PollMessage{
-		Version:     version,
+		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:      s.assets,
 		PeerAllowed: s.policy.IsPeerAllowed(peer),
 	}
@@ -140,7 +142,7 @@ func (s *Service) PollAllPeers() {
 // single peer.
 func (s *Service) RequestPoll(peer string) {
 	request := RequestPollMessage{
-		Version:     version,
+		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:      s.assets,
 		PeerAllowed: s.policy.IsPeerAllowed(peer),
 	}
@@ -181,10 +183,22 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 			return err
 		}
 		s.store.Update(peerId, PollInfo{
-			Assets:      msg.Assets,
-			PeerAllowed: msg.PeerAllowed,
-			LastSeen:    time.Now(),
+			ProtocolVersion: msg.Version,
+			Assets:          msg.Assets,
+			PeerAllowed:     msg.PeerAllowed,
+			LastSeen:        time.Now(),
 		})
+		if ti, ok := s.tmpStore[peerId]; ok {
+			if ti == string(payload) {
+				return nil
+			}
+		}
+		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+		} else {
+			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		}
+		s.tmpStore[peerId] = string(payload)
 		return nil
 	case messages.MESSAGETYPE_REQUEST_POLL:
 		var msg RequestPollMessage
@@ -193,12 +207,24 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 			return err
 		}
 		s.store.Update(peerId, PollInfo{
-			Assets:      msg.Assets,
-			PeerAllowed: msg.PeerAllowed,
-			LastSeen:    time.Now(),
+			ProtocolVersion: msg.Version,
+			Assets:          msg.Assets,
+			PeerAllowed:     msg.PeerAllowed,
+			LastSeen:        time.Now(),
 		})
 		// Send a poll on request
 		s.Poll(peerId)
+		if ti, ok := s.tmpStore[peerId]; ok {
+			if ti == string(payload) {
+				return nil
+			}
+		}
+		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+		} else {
+			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		}
+		s.tmpStore[peerId] = string(payload)
 		return nil
 	default:
 		return nil
@@ -207,6 +233,22 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 
 func (s *Service) GetPolls() (map[string]PollInfo, error) {
 	return s.store.GetAll()
+}
+
+// GetCompatiblePolls returns all polls from peers that are running the same
+// protocol version.
+func (s *Service) GetCompatiblePolls() (map[string]PollInfo, error) {
+	var compPeers = make(map[string]PollInfo)
+	peers, err := s.store.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	for id, p := range peers {
+		if p.ProtocolVersion == swap.PEERSWAP_PROTOCOL_VERSION {
+			compPeers[id] = p
+		}
+	}
+	return compPeers, nil
 }
 
 // GetPollFrom returns the PollInfo for a single peer with peerId. Returns a

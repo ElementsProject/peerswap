@@ -590,7 +590,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	}
 
 	// get polls
-	polls, err := l.cl.pollService.GetPolls()
+	polls, err := l.cl.pollService.GetCompatiblePolls()
 	if err != nil {
 		return nil, err
 	}

@@ -111,7 +111,7 @@ func (n *clnPollableNode) TriggerPoll() error {
 }
 
 func (n *clnPollableNode) AwaitPollFrom(node pollableNode) error {
-	return n.WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", node.GetId()), testframework.TIMEOUT)
+	return n.WaitForLog(fmt.Sprintf("Received poll from peer %s", node.GetId()), testframework.TIMEOUT)
 }
 
 type peerswapPollableNode struct {
@@ -132,7 +132,7 @@ func (n *peerswapPollableNode) TriggerPoll() error {
 }
 
 func (n *peerswapPollableNode) AwaitPollFrom(node pollableNode) error {
-	return n.WaitForLog(fmt.Sprintf("From: %s got msgtype: a463", node.GetId()), testframework.TIMEOUT)
+	return n.WaitForLog(fmt.Sprintf("Received poll from peer %s", node.GetId()), testframework.TIMEOUT)
 }
 
 func syncPoll(a, b pollableNode) error {
