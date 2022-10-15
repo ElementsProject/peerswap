@@ -193,7 +193,11 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 				return nil
 			}
 		}
-		log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+		} else {
+			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		}
 		s.tmpStore[peerId] = string(payload)
 		return nil
 	case messages.MESSAGETYPE_REQUEST_POLL:
@@ -215,7 +219,11 @@ func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) 
 				return nil
 			}
 		}
-		log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+		} else {
+			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+		}
 		s.tmpStore[peerId] = string(payload)
 		return nil
 	default:
