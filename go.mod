@@ -9,7 +9,6 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
-	github.com/btcsuite/btcwallet v0.16.1 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/coreos/go-systemd/v22 v22.4.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
@@ -28,7 +27,7 @@ require (
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
 	github.com/lightningnetwork/lightning-onion v1.2.0 // indirect
-	github.com/lightningnetwork/lnd v0.15.2-beta
+	github.com/lightningnetwork/lnd v0.15.3-beta
 	github.com/lightningnetwork/lnd/tor v1.1.0 // indirect
 	github.com/ltcsuite/ltcd v0.22.1-beta // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
