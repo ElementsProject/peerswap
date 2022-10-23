@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/version"
@@ -103,6 +104,9 @@ func run() error {
 	}
 	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
 	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
+	if isdev.IsDev() {
+		log.Infof("Devmode eneabled.")
+	}
 
 	// setup lnd connection
 	cc, err := lnd.GetClientConnection(ctx, cfg.LndConfig)
