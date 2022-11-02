@@ -677,6 +677,12 @@ remove_peerswapd() {
   fi
 }
 
+# Setup alias rules for common services
+setup_aliases() {
+  alias lbt-cli='elements-cli -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18884'
+  alias bt-cli='bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123 -rpcconnect=127.0.0.1 -rpcport=18443'
+}
+
 fund_nodes_l() {
   echo $(lightning-cli-1 dev-liquid-faucet)
   echo $(lightning-cli-1 dev-liquid-faucet)
@@ -688,7 +694,7 @@ l_generate() {
   else
     block_count=$1
   fi
-  res=$(et-cli generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep)
+  res=$(lbt-cli generatetoaddress $block_count ert1qfkht0df45q00kzyayagw6vqhfhe8ve7z7wecm0xsrkgmyulewlzqumq3ep)
   echo $res
 }
 

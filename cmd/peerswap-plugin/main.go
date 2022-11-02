@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/version"
 
@@ -91,6 +92,9 @@ func run() error {
 	log.SetLogger(clightning.NewGlightninglogger(lightningPlugin.Plugin))
 	log.Infof("PeerSwap CLN starting up with commit %s", GitCommit)
 	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
+	if isdev.IsDev() {
+		log.Infof("Dev-mode enabled.")
+	}
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {
 		return err

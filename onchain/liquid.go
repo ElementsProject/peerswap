@@ -571,10 +571,11 @@ func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	return l.getFee(l.getClaimTxSize())
 }
 
-// GetFlatSwapOutFee returns a fee that is the size of an opening transaction
-// with 2 inputs and 3 ouputs (blinded p2wpkh, blinded p2wsh, feeoutput): 2587 bytes
+// GetFlatSwapOutFee returns an estimate of the fee for the opening transaction.
+// The size is a calculate 2672 bytes for 3 inputs and 3 ouputs of which 2 are
+// blinded. An additional safety margin is added for a total of 3000 bytes.
 func (l *LiquidOnChain) GetFlatSwapOutFee() (uint64, error) {
-	return l.getFee(2587)
+	return l.getFee(3000)
 }
 
 func (l *LiquidOnChain) GetAsset() string {

@@ -9,8 +9,7 @@ BUILD_OPTS= \
 
 TEST_BUILD_OPTS= \
 	-ldflags "-X main.GitCommit=$(shell git rev-parse HEAD)" \
-	-tags dev \
-	-tags fast_test
+	-tags "dev fast_test"
 
 INTEGRATION_TEST_ENV= \
 	RUN_INTEGRATION_TESTS=1 \
