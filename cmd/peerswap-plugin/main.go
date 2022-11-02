@@ -93,7 +93,7 @@ func run() error {
 	log.Infof("PeerSwap CLN starting up with commit %s", GitCommit)
 	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
 	if isdev.IsDev() {
-		log.Infof("Devmode eneabled.")
+		log.Infof("Dev-mode enabled.")
 	}
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {

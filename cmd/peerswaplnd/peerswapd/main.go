@@ -105,7 +105,7 @@ func run() error {
 	log.Infof("PeerSwap LND starting up with commit %s and cfg: %s", GitCommit, cfg)
 	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
 	if isdev.IsDev() {
-		log.Infof("Devmode eneabled.")
+		log.Infof("Dev-mode enabled.")
 	}
 
 	// setup lnd connection
