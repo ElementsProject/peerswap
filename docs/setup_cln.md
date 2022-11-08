@@ -67,6 +67,39 @@ In order to check if your daemon is setup correctly run
 lightning-cli peerswap-reloadpolicy
 ```
 
+### Alternate config file
+For some nodes it might be annoying to restart the whole node for a change in
+the peerswap config. For this case the config can also be served in a separate 
+file.
+Therefore set the option `peerswap-config-path` in the cln config to the
+peerswap config file. If this option is set, the config in the cln config file
+will be ignored and the peerswap config file is used to set up peerswap.
+
+A peerswap config file is a __toml__ file of the following form
+
+#### Example
+```toml
+dbpath="/path/to/db.file"
+policypath="/path/to/the/policy.file"
+
+[Bitcoin]
+rpcuser="rpcuser"
+rpcpassword="rpcpassword"
+rpcpasswordfile="rpcpasswordfile"
+rpchost="rpchost"
+rpcport=1234
+cookiefilepath="cookiefilepath"
+
+[Liquid]
+rpcuser="rpcuser"
+rpcpassword="rpcpassword"
+rpcpasswordfile="rpcpasswordfile"
+rpchost="rpchost"
+rpcport=1234
+rpcwallet="rpcwallet"
+enabled=true
+```
+
 ### Policy
 
 On first startup of the plugin a policy file will be generated (default path: `~/.lightning/<network>/peerswap/policy.conf`) in which trusted nodes will be specified.
