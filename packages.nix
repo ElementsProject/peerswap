@@ -7,8 +7,8 @@ rev = "93dc85b485638bda9ac76458dcd45b997cc7cdbd";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
-# Need an lnd v0.15.2-beta for an emergency fix in lnd.
-lndemergencyrev = "d74b3668e7bf0eb2e765fdfcb6665b6d4b751edf";
+# Need an lnd v0.15.4-beta for an emergency fix in lnd.
+lndemergencyrev = "991a5ca464eaf59e50f3f0d102f4216f2f9d18f5";
 lndemergencynixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${lndemergencyrev}.tar.gz";
 lndemergencypkgs = import lndemergencynixpkgs {};
 
