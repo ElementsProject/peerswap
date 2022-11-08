@@ -4,10 +4,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/elementsproject/glightning/glightning"
+	"github.com/elementsproject/peerswap/log"
+	"github.com/pelletier/go-toml/v2"
 )
 
 const (
@@ -48,7 +53,8 @@ type PeerswapClightningConfig struct {
 	LiquidRpcWallet       string
 	LiquidEnabled         bool
 
-	PolicyPath string
+	PolicyPath     string
+	ConfigFilePath string
 }
 
 // RegisterOptions adds options to clightning
@@ -115,10 +121,61 @@ func (cl *ClightningClient) RegisterOptions() error {
 	return nil
 }
 
-// GetConfig returns the peerswap config
-func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
+// parseConfigFromFile parses the peerswap-plugin config from a *toml file.
+func parseConfigFromFile(configPath string) (*PeerswapClightningConfig, error) {
+	data, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
 
-	dbpath, err := cl.Plugin.GetOption(dbOption)
+	var fileConf struct {
+		DbPath     string
+		PolicyPath string
+		Bitcoin    struct {
+			RpcUser         string
+			RpcPassword     string
+			RpcPasswordFile string
+			RpcHost         string
+			RpcPort         uint
+			CookieFilePath  string
+		}
+		Liquid struct {
+			RpcUser         string
+			RpcPassword     string
+			RpcPasswordFile string
+			RpcHost         string
+			RpcPort         uint
+			RpcWallet       string
+			Enabled         bool
+		}
+	}
+
+	err = toml.Unmarshal(data, &fileConf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PeerswapClightningConfig{
+		DbPath:                 fileConf.DbPath,
+		BitcoinRpcUser:         fileConf.Bitcoin.RpcUser,
+		BitcoinRpcPassword:     fileConf.Bitcoin.RpcPassword,
+		BitcoinRpcPasswordFile: fileConf.Bitcoin.RpcPasswordFile,
+		BitcoinRpcHost:         fileConf.Bitcoin.RpcHost,
+		BitcoinRpcPort:         fileConf.Bitcoin.RpcPort,
+		BitcoinCookieFilePath:  fileConf.Bitcoin.CookieFilePath,
+		LiquidRpcUser:          fileConf.Liquid.RpcUser,
+		LiquidRpcPassword:      fileConf.Liquid.RpcPassword,
+		LiquidRpcPasswordFile:  fileConf.Liquid.RpcPasswordFile,
+		LiquidRpcHost:          fileConf.Liquid.RpcHost,
+		LiquidRpcPort:          fileConf.Liquid.RpcPort,
+		LiquidRpcWallet:        fileConf.Liquid.RpcWallet,
+		LiquidEnabled:          fileConf.Liquid.Enabled,
+		PolicyPath:             fileConf.PolicyPath,
+	}, nil
+}
+
+func parseConfigFromInitMsg(plugin *glightning.Plugin) (*PeerswapClightningConfig, error) {
+	dbpath, err := plugin.GetOption(dbOption)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +191,11 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		return nil, err
 	}
 	// bitcoin rpc settings
-	bitcoinRpcHost, err := cl.Plugin.GetOption(bitcoinRpcHostOption)
+	bitcoinRpcHost, err := plugin.GetOption(bitcoinRpcHostOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinRpcPortString, err := cl.Plugin.GetOption(bitcoinRpcPortOption)
+	bitcoinRpcPortString, err := plugin.GetOption(bitcoinRpcPortOption)
 	if err != nil {
 		return nil, err
 	}
@@ -149,24 +206,24 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 			return nil, errors.New(fmt.Sprintf("%s is not an int", liquidRpcPortOption))
 		}
 	}
-	bitcoinRpcUser, err := cl.Plugin.GetOption(bitcoinRpcUserOption)
+	bitcoinRpcUser, err := plugin.GetOption(bitcoinRpcUserOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinRpcPassword, err := cl.Plugin.GetOption(bitcoinRpcPasswordOption)
+	bitcoinRpcPassword, err := plugin.GetOption(bitcoinRpcPasswordOption)
 	if err != nil {
 		return nil, err
 	}
-	bitcoinCookieFilePath, err := cl.Plugin.GetOption(bitcoinCookieFilePath)
+	bitcoinCookieFilePath, err := plugin.GetOption(bitcoinCookieFilePath)
 	if err != nil {
 		return nil, err
 	}
 	// liquid rpc settings
-	liquidRpcHost, err := cl.Plugin.GetOption(liquidRpcHostOption)
+	liquidRpcHost, err := plugin.GetOption(liquidRpcHostOption)
 	if err != nil {
 		return nil, err
 	}
-	liquidRpcPortString, err := cl.Plugin.GetOption(liquidRpcPortOption)
+	liquidRpcPortString, err := plugin.GetOption(liquidRpcPortOption)
 	if err != nil {
 		return nil, err
 	}
@@ -178,17 +235,17 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 			return nil, errors.New(fmt.Sprintf("%s is not an int", liquidRpcPortOption))
 		}
 	}
-	liquidRpcUser, err := cl.Plugin.GetOption(liquidRpcUserOption)
+	liquidRpcUser, err := plugin.GetOption(liquidRpcUserOption)
 	if err != nil {
 		return nil, err
 	}
 
-	liquidRpcPass, err := cl.Plugin.GetOption(liquidRpcPasswordOption)
+	liquidRpcPass, err := plugin.GetOption(liquidRpcPasswordOption)
 	if err != nil {
 		return nil, err
 	}
-	liquidRpcPassFile, err := cl.Plugin.GetOption(liquidRpcPasswordFilepathOption)
-	liquidRpcWallet, err := cl.Plugin.GetOption(rpcWalletOption)
+	liquidRpcPassFile, err := plugin.GetOption(liquidRpcPasswordFilepathOption)
+	liquidRpcWallet, err := plugin.GetOption(rpcWalletOption)
 	if err != nil {
 		return nil, err
 	}
@@ -198,13 +255,13 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		liquidRpcWallet = hex.EncodeToString(idBytes)
 	}
 
-	liquidEnabled, err := cl.Plugin.GetBoolOption(liquidEnabledOption)
+	liquidEnabled, err := plugin.GetBoolOption(liquidEnabledOption)
 	if err != nil {
 		return nil, err
 	}
 
 	// get policy path
-	policyPath, err := cl.Plugin.GetOption(policyPathOption)
+	policyPath, err := plugin.GetOption(policyPathOption)
 	if err != nil {
 		return nil, err
 	}
@@ -233,4 +290,32 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		BitcoinCookieFilePath: bitcoinCookieFilePath,
 		PolicyPath:            policyPath,
 	}, nil
+}
+
+// GetConfig returns the peerswap config
+func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
+	// If we have a config file path set, use this path to parse the config from
+	// instead of the config that is returned by the `init` method of core
+	// lightning.
+	configFilePath, err := cl.Plugin.GetOption(configFilePathOption)
+	if err != nil {
+		return nil, err
+	}
+
+	var config *PeerswapClightningConfig
+	if configFilePath != "" {
+		log.Infof("Trying to parse config from file %s", configFilePath)
+		config, err = parseConfigFromFile(configFilePath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		log.Infof("Trying to parse config from init msg")
+		config, err = parseConfigFromInitMsg(cl.Plugin)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return config, nil
 }
