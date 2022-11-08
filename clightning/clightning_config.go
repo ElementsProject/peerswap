@@ -16,6 +16,11 @@ import (
 )
 
 const (
+	defaultDbName         = "peerswap"
+	defaultPolicyFileName = "policy.conf"
+)
+
+const (
 	dbOption                        = "peerswap-db-path"
 	liquidRpcHostOption             = "peerswap-elementsd-rpchost"
 	liquidRpcPortOption             = "peerswap-elementsd-rpcport"
@@ -179,17 +184,7 @@ func parseConfigFromInitMsg(plugin *glightning.Plugin) (*PeerswapClightningConfi
 	if err != nil {
 		return nil, err
 	}
-	if dbpath == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		dbpath = filepath.Join(wd, "peerswap")
-	}
-	err = os.MkdirAll(dbpath, 0755)
-	if err != nil && err != os.ErrExist {
-		return nil, err
-	}
+
 	// bitcoin rpc settings
 	bitcoinRpcHost, err := plugin.GetOption(bitcoinRpcHostOption)
 	if err != nil {
@@ -266,14 +261,6 @@ func parseConfigFromInitMsg(plugin *glightning.Plugin) (*PeerswapClightningConfi
 		return nil, err
 	}
 
-	if policyPath == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		policyPath = filepath.Join(wd, "peerswap", "policy.conf")
-	}
-
 	return &PeerswapClightningConfig{
 		DbPath:                dbpath,
 		LiquidRpcHost:         liquidRpcHost,
@@ -313,6 +300,63 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		log.Infof("Trying to parse config from init msg")
 		config, err = parseConfigFromInitMsg(cl.Plugin)
 		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Normalize config.
+	// Todo: Move validation from main function to the config.
+
+	// If the db path is not set we create a new database at the default
+	// location that is in the same dir as the config file (if this was set),
+	// otherwise we assume the database is in the working directory.
+	//
+	// It is recommended to create the db file separately to have control over
+	// the file permissions.
+	if config.DbPath == "" {
+		var dir string
+		if configFilePath != "" {
+			// First option next to the config file if config file path is set:
+			fp := filepath.FromSlash(configFilePath)
+			dir = filepath.Dir(fp)
+		} else {
+			// Second option in the working directory
+			dir, err = os.Getwd()
+			if err != nil {
+				return nil, err
+			}
+		}
+		config.DbPath = filepath.Join(dir, defaultDbName)
+
+		err = os.MkdirAll(config.DbPath, 0755)
+		if err != nil && err != os.ErrExist {
+			return nil, err
+		}
+	}
+
+	// If the policy path is not set we create a new policy file at the default
+	// location that is in the same dir as the config file (if this was set),
+	// otherwise we assume the policy file in the working directory.
+	//
+	// It is recommended to create the db file separately to have control over
+	// the file permissions.
+	if config.PolicyPath == "" {
+		var dir string
+		if configFilePath != "" {
+			// First option next to the config file if config file path is set:
+			fp := filepath.FromSlash(configFilePath)
+			dir = filepath.Dir(fp)
+		} else {
+			// Second option in the working directory
+			dir, err = os.Getwd()
+			if err != nil {
+				return nil, err
+			}
+		}
+		config.DbPath = filepath.Join(dir, defaultPolicyFileName)
+
+		err = os.MkdirAll(config.DbPath, 0755)
+		if err != nil && err != os.ErrExist {
 			return nil, err
 		}
 	}
