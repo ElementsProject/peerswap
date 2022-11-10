@@ -44,24 +44,24 @@ const (
 
 // PeerswapClightningConfig contains relevant config params for peerswap
 type PeerswapClightningConfig struct {
-	DbPath string
+	DbPath string `json:"dbpath"`
 
-	BitcoinRpcUser         string
-	BitcoinRpcPassword     string
-	BitcoinRpcPasswordFile string
-	BitcoinRpcHost         string
-	BitcoinRpcPort         uint
-	BitcoinCookieFilePath  string
+	BitcoinRpcUser         string `json:"bitcoin.rpcuser"`
+	BitcoinRpcPassword     string `json:"bitcoin.rpcpassword"`
+	BitcoinRpcPasswordFile string `json:"bitcoin.rpcpasswordfile"`
+	BitcoinRpcHost         string `json:"bitcoin.rpchost"`
+	BitcoinRpcPort         uint   `json:"bitcoin.rpcport"`
+	BitcoinCookieFilePath  string `json:"bitcoin.rpccookiefilepath"`
 
-	LiquidRpcUser         string
-	LiquidRpcPassword     string
-	LiquidRpcPasswordFile string
-	LiquidRpcHost         string
-	LiquidRpcPort         uint
-	LiquidRpcWallet       string
-	LiquidEnabled         bool
+	LiquidRpcUser         string `json:"liquid.rpcuser"`
+	LiquidRpcPassword     string `json:"liquid.rpcpassword"`
+	LiquidRpcPasswordFile string `json:"liquid.rpcpasswordfile"`
+	LiquidRpcHost         string `json:"liquid.rpchost"`
+	LiquidRpcPort         uint   `json:"liquid.rpcport"`
+	LiquidRpcWallet       string `json:"liquid.rpcwallet"`
+	LiquidEnabled         bool   `json:"liquid.enabled"`
 
-	PolicyPath     string
+	PolicyPath     string `json:"policypath"`
 	ConfigFilePath string
 }
 
@@ -385,6 +385,7 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 			return nil, err
 		}
 	}
+
 	return config, nil
 }
 

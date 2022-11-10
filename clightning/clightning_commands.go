@@ -1079,6 +1079,42 @@ func (c RemoveSuspiciousPeer) LongDescription() string {
 		`with this node`
 }
 
+type ListConfig struct {
+	cl *ClightningClient
+}
+
+func (c *ListConfig) Name() string {
+	return "peerswap-listconfig"
+}
+
+func (c *ListConfig) New() interface{} {
+	return &ListConfig{
+		cl: c.cl,
+	}
+}
+
+func (c *ListConfig) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+
+	return c.cl.peerswapConfig, nil
+}
+
+func (c *ListConfig) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &ListConfig{
+		cl: client,
+	}
+}
+
+func (c ListConfig) Description() string {
+	return "Show the peerswap config"
+}
+
+func (c ListConfig) LongDescription() string {
+	return c.Description()
+}
+
 type PeerSwapPeerChannel struct {
 	ChannelId       string  `json:"short_channel_id"`
 	LocalBalance    uint64  `json:"local_balance"`

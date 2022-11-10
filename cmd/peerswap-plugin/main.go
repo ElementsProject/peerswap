@@ -132,6 +132,10 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
+
+	// Inject the config into the core lightning plugin.
+	lightningPlugin.SetPeerswapConfig(*config)
+
 	// setup services
 	nodeInfo, err := lightningPlugin.GetLightningRpc().GetInfo()
 	if err != nil {

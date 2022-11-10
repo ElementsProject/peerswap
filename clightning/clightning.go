@@ -53,6 +53,7 @@ var methods = []peerswaprpcMethod{
 	&LiquidGetBalance{},
 	&ReloadPolicyFile{},
 	&GetRequestedSwaps{},
+	&ListConfig{},
 }
 
 var devmethods = []peerswaprpcMethod{}
@@ -92,6 +93,8 @@ type ClightningClient struct {
 	ctx context.Context
 
 	isReady bool
+
+	peerswapConfig PeerswapClightningConfig
 }
 
 func (cl *ClightningClient) SetReady() {
@@ -244,6 +247,12 @@ func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
 	if cl.bitcoinChain != nil {
 		cl.bitcoinNetwork = bitcoinChain.GetChain()
 	}
+}
+
+// SetPeerswapConfig injects the peerswap config that is used during runtime.
+// This config is just used for a console print.
+func (cl *ClightningClient) SetPeerswapConfig(config PeerswapClightningConfig) {
+	cl.peerswapConfig = config
 }
 
 func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {
