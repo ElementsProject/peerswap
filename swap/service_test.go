@@ -179,7 +179,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 	service := getTestSetup("alice")
 	swapId := NewSwapId()
-	service.AddActiveSwap(swapId.String(), &SwapStateMachine{
+	service.lockSwap(swapId.String(), "channelID", &SwapStateMachine{
 		SwapId: swapId,
 		Data: &SwapData{
 			FSMState:         "",
@@ -223,15 +223,15 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 		failures: 0,
 	})
 
-	_, err := service.SwapOut("peer", "lbtc", "channelID", "alice", uint64(200))
-	if assert.Error(t, err, "expected error") {
-		assert.Equal(t, "already has an active swap on channel", err.Error())
-	}
+	_, err := service.SwapOut("peer", "lbtc", "channelID", "alice", uint64(100000))
+	assert.Error(t, err, "expected error")
+	assert.ErrorIs(t, err, ActiveSwapError{channelId: "channelID", swapId: swapId.String()})
+	t.Logf("Got Error: %s", err.Error())
 
-	_, err = service.SwapIn("peer", "lbtc", "channelID", "alice", uint64(200))
-	if assert.Error(t, err, "expected error") {
-		assert.Equal(t, "already has an active swap on channel", err.Error())
-	}
+	_, err = service.SwapIn("peer", "lbtc", "channelID", "alice", uint64(100000))
+	assert.Error(t, err, "expected error")
+	assert.ErrorIs(t, err, ActiveSwapError{channelId: "channelID", swapId: swapId.String()})
+	t.Logf("Got Error: %s", err.Error())
 }
 
 func TestMessageFromUnexpectedPeer(t *testing.T) {
@@ -331,7 +331,7 @@ func TestTimeout(t *testing.T) {
 	sws.Start()
 
 	fsm := newSwapInSenderFSM(sws.swapServices, "alice", "bob")
-	sws.AddActiveSwap(fsm.SwapId.String(), fsm)
+	sws.lockSwap(fsm.SwapId.String(), fsm.Data.GetScid(), fsm)
 
 	fsm.Current = State_SwapInSender_AwaitAgreement
 	sws.swapServices.toService.addNewTimeOut(context.Background(), 10*time.Millisecond, fsm.SwapId.String())
