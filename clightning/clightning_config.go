@@ -2,13 +2,16 @@ package clightning
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
@@ -62,13 +65,18 @@ type PeerswapClightningConfig struct {
 	ConfigFilePath string
 }
 
+func (c PeerswapClightningConfig) String() string {
+	b, _ := json.Marshal(c)
+	return string(b)
+}
+
 // RegisterOptions adds options to clightning
 func (cl *ClightningClient) RegisterOptions() error {
 	err := cl.Plugin.RegisterNewOption(dbOption, "path to boltdb", "")
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "localhost")
+	err = cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
 	if err != nil {
 		return err
 	}
@@ -361,5 +369,207 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		}
 	}
 
+	// If no bitcoin config is set at all we use the config that core lightning
+	// provides.
+	// TODO: I don't like this kind of behavior, we should have a flag to
+	// indicate if we want to use the lnd bitcoin config or a separate config.
+	// As I don't want to break the current behavior I stick to the following:
+	// If no bitcoin config is set at all -> use cln bitcoin config and assume
+	// that bitcoin is a swap possibility.
+	if config.BitcoinCookieFilePath == "" && config.BitcoinRpcHost == "" &&
+		config.BitcoinRpcPassword == "" && config.BitcoinRpcPasswordFile == "" &&
+		config.BitcoinRpcPort == 0 && config.BitcoinRpcUser == "" {
+		log.Debugf("No bitcoin config set, injecting from cln")
+		err = cl.injectBitcoinConfig(config)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return config, nil
+}
+
+func (cl *ClightningClient) injectBitcoinConfig(conf *PeerswapClightningConfig) error {
+	clnConf, err := cl.glightning.ListConfigs()
+	if err != nil {
+		return err
+	}
+
+	info, err := cl.glightning.GetInfo()
+	if err != nil {
+		return err
+	}
+
+	bconf, err := getBitcoinConfig(clnConf, info)
+	if err != nil {
+		return err
+	}
+
+	conf.BitcoinCookieFilePath = bconf.CookiePath
+	conf.BitcoinRpcHost = bconf.RpcHost
+	conf.BitcoinRpcPassword = bconf.RpcPassword
+	conf.BitcoinRpcPort = bconf.RpcPort
+	conf.BitcoinRpcUser = bconf.RpcUser
+
+	return nil
+}
+
+func getBitcoinConfig(conf map[string]interface{}, info *glightning.NodeInfo) (*BitcoinConfig, error) {
+	data, err := json.Marshal(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	var listConfigResponse struct {
+		ImportantPlugins []*struct {
+			Path    string
+			Name    string
+			Options map[string]interface{}
+		} `json:"important-plugins"`
+	}
+	err = json.Unmarshal(data, &listConfigResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	bconf := &BitcoinConfig{}
+	// Search the bcli plugin
+	for _, plugin := range listConfigResponse.ImportantPlugins {
+		if plugin.Name == "bcli" {
+			// Read the configuration
+			if v, ok := plugin.Options["bitcoin-datadir"]; ok {
+				if v != nil {
+					bconf.DataDir = v.(string)
+				}
+			}
+			if v, ok := plugin.Options["bitcoin-rpcuser"]; ok {
+				if v != nil {
+					bconf.RpcUser = v.(string)
+				}
+			}
+			if v, ok := plugin.Options["bitcoin-rpcpassword"]; ok {
+				if v != nil {
+					bconf.RpcPassword = v.(string)
+				}
+			}
+			if v, ok := plugin.Options["bitcoin-rpcconnect"]; ok {
+				if v != nil {
+					bconf.RpcHost = v.(string)
+				}
+			}
+			if v, ok := plugin.Options["bitcoin-rpcport"]; ok {
+				if v != nil {
+					port, err := strconv.Atoi(v.(string))
+					if err != nil {
+						return nil, err
+					}
+					bconf.RpcPort = uint(port)
+				}
+			}
+			if v, ok := plugin.Options["network"]; ok {
+				if v != nil {
+					bconf.Network = v.(string)
+				}
+			}
+			if _, ok := plugin.Options["mainnet"]; ok {
+				bconf.Network = "bitcoin"
+			}
+			if _, ok := plugin.Options["testnet"]; ok {
+				bconf.Network = "testnet"
+			}
+			if _, ok := plugin.Options["signet"]; ok {
+				bconf.Network = "signet"
+			}
+
+			// Check if we know the network
+			if bconf.Network == "" {
+				// If not, try to get the network from the info call
+				if info.Network == "" {
+					return nil, fmt.Errorf("could not figure out which network to use")
+				}
+				bconf.Network = info.Network
+			}
+
+			// Normalize bconf. Set standard values if config is not set.
+			if bconf.RpcHost == "" {
+				bconf.RpcHost = "http://127.0.0.1"
+			} else {
+				addr, err := url.Parse(bconf.RpcHost)
+				if err != nil {
+					return nil, err
+				}
+				if addr.Scheme == "" {
+					addr.Scheme = "http"
+				}
+				bconf.RpcHost = addr.String()
+			}
+
+			if bconf.DataDir == "" {
+				homeDir, err := os.UserHomeDir()
+				if err != nil {
+					return nil, err
+				}
+				bconf.DataDir = filepath.Join(homeDir, ".bitcoin")
+			}
+
+			// If user and password are unset we might have a cookie file in the
+			// datadir.
+			if bconf.RpcUser == "" && bconf.RpcPassword == "" {
+				// Look for the network dir
+				var netdir string
+				switch bconf.Network {
+				case "bitcoin":
+					netdir = ""
+				case "regtest":
+					netdir = "regtest"
+				case "signet":
+					netdir = "signet"
+				case "testnet":
+					netdir = "testnet3"
+				default:
+					return nil, fmt.Errorf("unknown network %s", netdir)
+				}
+
+				cookiePath := filepath.Join(bconf.DataDir, netdir, ".cookie")
+				bconf.CookiePath = cookiePath
+				rpcuser, rpcpass, err := readCookie(cookiePath)
+				if err != nil {
+					return nil, err
+				}
+
+				bconf.RpcUser = rpcuser
+				bconf.RpcPassword = rpcpass
+			}
+
+			return bconf, nil
+		}
+	}
+
+	return nil, fmt.Errorf("bcli configuration not found")
+}
+
+func readCookie(path string) (string, string, error) {
+	cookieBytes, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", err
+	}
+
+	cookie := strings.Split(string(cookieBytes), ":")
+	if len(cookie) != 2 {
+		return "", "", fmt.Errorf("malformed cookie %v", cookieBytes)
+	}
+
+	return cookie[0], cookie[1], nil
+}
+
+// BitcoinConfig is an internally used struct that represents the data that can
+// be fetched from core lightning.
+type BitcoinConfig struct {
+	DataDir     string
+	RpcUser     string
+	RpcPassword string
+	RpcHost     string
+	RpcPort     uint
+	Cookie      string
+	CookiePath  string
+	Network     string
 }
