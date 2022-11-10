@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	glog "log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -128,6 +126,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
+	log.Debugf("Starting with config: \n%s", config)
+
 	err = validateConfig(config)
 	if err != nil {
 		return err
@@ -517,172 +517,18 @@ func getElementsClient(li *glightning.Lightning, pluginConfig *clightning.Peersw
 	return elementsCli, nil
 }
 func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.PeerswapClightningConfig) (*gbitcoin.Bitcoin, error) {
-	configs, err := li.ListConfigs()
-	if err != nil {
-		return nil, err
-	}
-	gi, err := li.GetInfo()
-	if err != nil {
-		return nil, err
-	}
-	jsonString, err := json.Marshal(configs)
-	if err != nil {
-		return nil, err
-	}
-	var listconfigRes *ListConfigRes
-	err = json.Unmarshal(jsonString, &listconfigRes)
-	if err != nil {
-		return nil, err
-	}
-	var rpcHost, rpcUser, rpcPassword string
-	var rpcPort int
+	rpcUser := pluginConfig.BitcoinRpcUser
+	rpcPassword := pluginConfig.BitcoinRpcPassword
+	rpcHost := pluginConfig.BitcoinRpcHost
+	rpcPort := pluginConfig.BitcoinRpcPort
 
-	if pluginConfig.BitcoinRpcHost == "" {
-		rpcHost = "http://127.0.0.1"
-	}
-	if pluginConfig.BitcoinRpcPort == 0 {
-		rpcPort = int(getNetworkPort(gi.Network))
-	}
-
-	if pluginConfig.BitcoinRpcUser != "" || pluginConfig.BitcoinCookieFilePath != "" {
-		if pluginConfig.BitcoinCookieFilePath != "" {
-			// look for cookie file
-			cookiePath := filepath.Join(pluginConfig.BitcoinCookieFilePath)
-			if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
-				log.Infof("cannot find bitcoin cookie file at %s", cookiePath)
-				return nil, nil
-			}
-			cookieBytes, err := os.ReadFile(cookiePath)
-			if err != nil {
-				return nil, err
-			}
-
-			cookie := strings.Split(string(cookieBytes), ":")
-
-			rpcUser = cookie[0]
-			rpcPassword = cookie[1]
-		} else {
-			rpcUser = pluginConfig.BitcoinRpcUser
-			if pluginConfig.BitcoinRpcPassword == "" {
-				return nil, errors.New("if peerswap-bitcoin-rpcuser is set, peerswap-bitcoin-rpcpassword must be set as well")
-			}
-			rpcPassword = pluginConfig.BitcoinRpcPassword
-		}
-	} else {
-		var bcliConfig *ImportantPlugin
-		for _, v := range listconfigRes.ImportantPlugins {
-			if v.Name == "bcli" {
-				bcliConfig = v
-			}
-		}
-		if bcliConfig == nil {
-			return nil, errors.New("bcli config not found")
-		}
-
-		if rpcPortStr, ok := bcliConfig.Options["bitcoin-rpcport"]; ok && rpcPortStr != nil {
-			rpcPort, err = strconv.Atoi(rpcPortStr.(string))
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if rpcConn, ok := bcliConfig.Options["bitcoin-rpcconnect"]; ok {
-			var rpcConnStr string
-			if rpcConn == nil {
-				rpcConnStr = "127.0.0.1"
-			} else {
-				rpcConnStr = rpcConn.(string)
-			}
-
-			rpcHost = "http://" + rpcConnStr
-		}
-
-		bclirpcUser, ok := bcliConfig.Options["bitcoin-rpcuser"]
-		if bclirpcUser == nil || !ok {
-			// look for cookie file
-			bitcoinDir, ok := bcliConfig.Options["bitcoin-datadir"].(string)
-			if !ok {
-				// if no bitcoin dir is set, default to $HOME/.bitcoin
-				homeDir, err := os.UserHomeDir()
-				if err != nil {
-					return nil, err
-				}
-				bitcoinDir = filepath.Join(homeDir, ".bitcoin")
-			}
-
-			cookiePath := filepath.Join(bitcoinDir, getNetworkFolder(gi.Network), ".cookie")
-			if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
-				log.Infof("cannot find bitcoin cookie file at %s", cookiePath)
-				return nil, nil
-			}
-			cookieBytes, err := os.ReadFile(cookiePath)
-			if err != nil {
-				return nil, err
-			}
-
-			cookie := strings.Split(string(cookieBytes), ":")
-
-			rpcUser = cookie[0]
-			rpcPassword = cookie[1]
-
-		} else {
-			rpcUser = bclirpcUser.(string)
-			// assume auth authentication
-			rpcPassBcli, ok := bcliConfig.Options["bitcoin-rpcpassword"]
-			if !ok || rpcPassBcli == nil {
-				log.Infof("`bitcoin-rpcpassword` not set in lightning config")
-				return nil, nil
-			}
-
-			rpcPassword = rpcPassBcli.(string)
-
-		}
-	}
-
-	log.Debugf("connecting with %s, %s to %s:%v", rpcUser, rpcPassword, rpcHost, rpcPort)
 	bitcoin := gbitcoin.NewBitcoin(rpcUser, rpcPassword)
 	bitcoin.SetTimeout(10)
-	err = bitcoin.StartUp(rpcHost, "", uint(rpcPort))
+	err := bitcoin.StartUp(rpcHost, "", uint(rpcPort))
 	if err != nil {
 		return nil, err
 	}
 	return bitcoin, nil
-}
-
-func getNetworkFolder(network string) string {
-	switch network {
-	case "regtest":
-		return "regtest"
-	case "testnet":
-		return "testnet3"
-	case "signet":
-		return "signet"
-	default:
-		return ""
-	}
-}
-
-func getNetworkPort(network string) uint {
-	switch network {
-	case "regtest":
-		return 18443
-	case "testnet":
-		return 18332
-	case "signet":
-		return 38332
-	default:
-		return 8332
-	}
-}
-
-type ListConfigRes struct {
-	ImportantPlugins []*ImportantPlugin `json:"important-plugins"`
-}
-
-type ImportantPlugin struct {
-	Path    string
-	Name    string
-	Options map[string]interface{}
 }
 
 func checkClnVersion(network string, fullVersionString string) (bool, error) {
