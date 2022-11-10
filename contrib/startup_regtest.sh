@@ -72,7 +72,7 @@ EOF
     # If we've configured to use developer we append dev options.
     if $LIGHTNINGD --help | grep -q dev-fast-gossip; then
       prefixwith $prefix echo "using a developer-enabled cln node"
-      cat <<-EOF >>"${dir}/config"
+      cat <<-EOF >"${dir}/config"
 dev-fast-gossip
 dev-bitcoind-poll=1
 experimental-dual-fund
@@ -83,6 +83,20 @@ funder-per-channel-max=100000
 funder-fuzz-percent=0
 EOF
     fi
+
+    # Write alternate peerswap config file
+    prefixwith $prefix echo "writing alternate peerswap config file"
+    touch ${dir}/peerswap.conf
+    cat <<-EOF >"${dir}/peerswap.conf"
+policypath="${dir}/policy.conf"
+
+[Liquid]
+rpchost="http://127.0.0.1"
+rpcport=${LIQUID_RPC_PORT}
+rpcuser="admin1"
+rpcpassword="123"
+rpcwallet="swap-${id}"
+EOF
 
     # Write policy config
     prefixwith $prefix echo "writing policy file"
@@ -99,12 +113,7 @@ EOF
       --lightning-dir="${dir}" \
       --daemon \
       --plugin="$(pwd)/out/peerswap" \
-      --peerswap-elementsd-rpchost="http://127.0.0.1" \
-      --peerswap-elementsd-rpcport="${LIQUID_RPC_PORT}" \
-      --peerswap-elementsd-rpcuser=admin1 \
-      --peerswap-elementsd-rpcpassword=123 \
-      --peerswap-elementsd-rpcwallet="swap-${id}" \
-      --peerswap-policy-path="${dir}/policy.conf"
+      --peerswap-config-path="${dir}/peerswap.conf"
       if [ $? -eq 1 ]; then 
         prefixwith $prefix echo "cln node crashed"
         rm ${dir}/lightningd-${network}.pid
