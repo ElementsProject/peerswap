@@ -191,6 +191,14 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
+	log.Infof(
+		"Starting bitcoin client with chain:%s, rpcuser:%s, rpcpassword:%s, rpchost:%s, rpcport:%d",
+		chain.Name,
+		config.BitcoinRpcUser,
+		config.BitcoinRpcPassword,
+		config.BitcoinRpcHost,
+		config.BitcoinRpcPort,
+	)
 	bitcoinCli, err := getBitcoinClient(lightningPlugin.GetLightningRpc(), config)
 	if err != nil {
 		return err
