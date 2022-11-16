@@ -42,7 +42,7 @@ var supportedAssets = []string{}
 var GitCommit string
 
 const (
-	minClnVersion = float64(10.2)
+	minClnVersion = "0.12.1"
 )
 
 func main() {
@@ -108,9 +108,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	err = checkClnVersion(nodeInfo.Network, nodeInfo.Version)
+	ok, err := checkClnVersion(nodeInfo.Network, nodeInfo.Version)
 	if err != nil {
 		return err
+	}
+	if !ok {
+		return fmt.Errorf("Core-Lightning version %s is incompatible", nodeInfo.Version)
 	}
 
 	// We want to make sure that cln is synced and ready to use before we
@@ -644,20 +647,14 @@ type ImportantPlugin struct {
 	Options map[string]interface{}
 }
 
-func checkClnVersion(network string, fullVersionString string) error {
+func checkClnVersion(network string, fullVersionString string) (bool, error) {
 	// skip version check if running signet as it needs a custom build
+	// ? Can someone explain why we need this here?
 	if network == "signet" {
-		return nil
+		return true, nil
 	}
-	versionString := fullVersionString[3:7]
-	versionFloat, err := strconv.ParseFloat(versionString, 64)
-	if err != nil {
-		return err
-	}
-	if versionFloat < minClnVersion {
-		return errors.New(fmt.Sprintf("clightning version unsupported, requires %v", minClnVersion))
-	}
-	return nil
+
+	return version.CompareVersionStrings(fullVersionString, minClnVersion)
 }
 
 // setPanicLogger duplicates calls to Stderr to a file in the lightning peerswap directory
