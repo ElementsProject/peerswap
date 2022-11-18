@@ -108,11 +108,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	log.Infof("Using core-lightning version %s", nodeInfo.Version)
 	ok, err := checkClnVersion(nodeInfo.Network, nodeInfo.Version)
 	if err != nil {
+		log.Debugf("Could not compare version: %s", err.Error())
 		return err
 	}
 	if !ok {
+		log.Debugf("Core-lighting version %s is not supported, min version is v%s", nodeInfo.Version, minClnVersion)
 		return fmt.Errorf("Core-Lightning version %s is incompatible", nodeInfo.Version)
 	}
 
