@@ -138,9 +138,9 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 		params.origMakerWallet-commitFee-claimFee, balance)
 }
 
-// Test_OnlyOneActiveSwapPerChannel checks that there is only one active swap per 
+// Test_OnlyOneActiveSwapPerChannelCln checks that there is only one active swap per 
 // channel.
-func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
+func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
