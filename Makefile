@@ -125,6 +125,7 @@ test-liquid-lnd: test-bins
 test-misc-integration: test-bins
 	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
 	-run '^('\
+	'Test_OnlyOneActiveSwapPerChannel|'\
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
 	'Test_RestoreFromPassedCSV|'\
