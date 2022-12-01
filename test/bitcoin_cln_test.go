@@ -3,11 +3,15 @@ package test
 import (
 	"math"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
+	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -132,6 +136,95 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	require.NoError(err)
 	require.InDelta(params.origMakerWallet-commitFee-claimFee, balance, 1., "expected %d, got %d",
 		params.origMakerWallet-commitFee-claimFee, balance)
+}
+
+// Test_OnlyOneActiveSwapPerChannelCln checks that there is only one active swap per 
+// channel.
+func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
+	require := require.New(t)
+
+	bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
+	defer func() {
+		if t.Failed() {
+			filter := os.Getenv("PEERSWAP_TEST_FILTER")
+			pprintFail(
+				tailableProcess{
+					p:     bitcoind.DaemonProcess,
+					lines: defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[0].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[1].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+			)
+		}
+	}()
+
+	var channelBalances []uint64
+	var walletBalances []uint64
+	for _, lightningd := range lightningds {
+		b, err := lightningd.GetBtcBalanceSat()
+		require.NoError(err)
+		walletBalances = append(walletBalances, b)
+
+		b, err = lightningd.GetChannelBalanceSat(scid)
+		require.NoError(err)
+		channelBalances = append(channelBalances, b)
+	}
+
+	params := &testParams{
+		swapAmt:          channelBalances[0] / 5,
+		scid:             scid,
+		origTakerWallet:  walletBalances[0],
+		origMakerWallet:  walletBalances[1],
+		origTakerBalance: channelBalances[0],
+		origMakerBalance: channelBalances[1],
+		takerNode:        lightningds[0],
+		makerNode:        lightningds[1],
+		takerPeerswap:    lightningds[0].DaemonProcess,
+		makerPeerswap:    lightningds[1].DaemonProcess,
+		chainRpc:         bitcoind.RpcProxy,
+		chaind:           bitcoind,
+		confirms:         BitcoinConfirms,
+		csv:              BitcoinCsv,
+		swapType:         swap.SWAPTYPE_OUT,
+	}
+	asset := "btc"
+
+	// Do swap. Expect N_SWAPS - 1 errors.
+	wg := sync.WaitGroup{}
+	N_SWAPS := 10
+	var nErr int32
+	for i:=0; i<N_SWAPS; i++ {
+	wg.Add(1)
+	go func(n int) {
+		defer wg.Done()
+		var response map[string]interface{}
+		err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		t.Logf("[%d] Response: %v",n, response)
+		if err != nil {
+			t.Logf("[%d] Err: %s",n, err.Error())
+			atomic.AddInt32(&nErr, 1)
+		}
+	}(i)
+	}
+	wg.Wait()
+
+	var response *peerswaprpc.ListSwapsResponse
+	lightningds[0].Rpc.Request(&clightning.ListActiveSwaps{}, &response)
+	t.Logf("GOT: %v", response)
+
+	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d",N_SWAPS-1, nErr)
+	assert.EqualValues(t, len(response.Swaps), 1, "expected only 1 active swap, got: %d", len(response.Swaps))
 }
 
 func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {

@@ -123,7 +123,10 @@ func (s *SwapService) RecoverSwaps() error {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
 
-		s.AddActiveSwap(swap.SwapId.String(), swap)
+		err := s.lockSwap(swap.SwapId.String(), swap.Data.GetScid(), swap)
+		if err != nil {
+			return err
+		}
 
 		done, err := swap.Recover()
 		if err != nil {
@@ -327,10 +330,6 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("swaps are disabled")
 	}
 
-	if s.hasActiveSwapOnChannel(channelId) {
-		return nil, fmt.Errorf("already has an active swap on channel")
-	}
-
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
 		return nil, PeerIsSuspiciousError(peer)
 	}
@@ -340,7 +339,10 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	}
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
-	s.AddActiveSwap(swap.SwapId.String(), swap)
+	err := s.lockSwap(swap.SwapId.String(), channelId, swap)
+	if err != nil {
+		return nil, err
+	}
 
 	var bitcoinNetwork string
 	var elementsAsset string
@@ -380,10 +382,6 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, fmt.Errorf("swaps are disabled")
 	}
 
-	if s.hasActiveSwapOnChannel(channelId) {
-		return nil, fmt.Errorf("already has an active swap on channel")
-	}
-
 	if s.swapServices.policy.IsPeerSuspicious(peer) {
 		return nil, PeerIsSuspiciousError(peer)
 	}
@@ -402,7 +400,10 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, errors.New("invalid chain")
 	}
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
-	s.AddActiveSwap(swap.SwapId.String(), swap)
+	err := s.lockSwap(swap.SwapId.String(), channelId, swap)
+	if err != nil {
+		return nil, err
+	}
 
 	request := &SwapInRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
@@ -426,13 +427,19 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
-	// check if a swap is already active on the channel
-	if s.hasActiveSwapOnChannel(message.Scid) {
-		return fmt.Errorf("already has an active swap on channel")
-	}
-
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
-	s.AddActiveSwap(swapId.String(), swap)
+
+	err := s.lockSwap(swap.SwapId.String(), message.Scid, swap)
+	if err != nil {
+		// If we already have an active swap on the same channel or can not lock
+		// in a new swap we want to tell it our peer.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: err.Error(),
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
 
 	done, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, message)
 	if done {
@@ -443,14 +450,19 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
-	// check if a swap is already active on the channel
-	if s.hasActiveSwapOnChannel(message.Scid) {
-		return fmt.Errorf("already has an active swap on channel")
-	}
-
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
 
-	s.AddActiveSwap(swapId.String(), swap)
+	err := s.lockSwap(swap.SwapId.String(), message.Scid, swap)
+	if err != nil {
+		// If we already have an active swap on the same channel or can not lock
+		// in a new swap we want to tell it our peer.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: err.Error(),
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
 
 	done, err := swap.SendEvent(Event_OnSwapOutRequestReceived, message)
 	if err != nil {
@@ -662,14 +674,6 @@ func (s *SwapService) ResendLastMessage(swapId string) error {
 	return nil
 }
 
-// AddActiveSwap adds a swap to the active swaps
-func (s *SwapService) AddActiveSwap(swapId string, swap *SwapStateMachine) {
-	// todo: why does this function take a swapId if we have a swap struct containing the swapId?
-	s.Lock()
-	defer s.Unlock()
-	s.activeSwaps[swapId] = swap
-}
-
 func (s *SwapService) ListActiveSwaps() ([]*SwapStateMachine, error) {
 	swaps, err := s.swapServices.swapStore.ListAll()
 	if err != nil {
@@ -704,16 +708,32 @@ func (s *SwapService) RemoveActiveSwap(swapId string) {
 	delete(s.activeSwaps, swapId)
 }
 
-func (s *SwapService) hasActiveSwapOnChannel(channelId string) bool {
-	s.RLock()
-	defer s.RUnlock()
-	for _, swap := range s.activeSwaps {
+// lockSwap locks in a swap. This function ensures that we only have one active
+// swap on a channel as required by the protocol.
+// Returns an error if the swap is already locked.
+func (s *SwapService) lockSwap(swapId, channelId string, fsm *SwapStateMachine) error {
+	s.Lock()
+	defer s.Unlock()
+
+	// Check if we already have an active swap on the same channel
+	for id, swap := range s.activeSwaps {
 		if swap.Data.GetScid() == channelId {
-			return true
+			return ActiveSwapError{channelId: channelId, swapId: id}
 		}
 	}
 
-	return false
+	// Add active swap
+	s.activeSwaps[swapId] = fsm
+	return nil
+}
+
+type ActiveSwapError struct {
+	channelId string
+	swapId    string
+}
+
+func (e ActiveSwapError) Error() string {
+	return fmt.Sprintf("already has an active swap on channel %s: %s", e.channelId, e.swapId)
 }
 
 type WrongAssetError string
