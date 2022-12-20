@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	log2 "log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,52 +48,80 @@ func main() {
 	// In order to receive panics, we write to stderr to a file
 	closeFileFunc, err := setPanicLogger()
 	if err != nil {
-		log.Infof("Error setting panic log file: %s", err)
+		log.Infof("Error setting panic log file: %s", err) // !: this is completely useless
 		os.Exit(1)
 	}
 	defer closeFileFunc()
 
-	if err := run(); err != nil {
-		log.Infof("plugin quitting, error: %s", err)
+	if err := outer(); err != nil {
+		// todo: Log to panic log (std.err)
+		log.Infof("plugin quitting, error: %s", err) // !: this is completely useless
 		os.Exit(1)
 	}
-
 }
-func run() error {
+
+func outer() error {
+	// Main context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// initialize
-	lightningPlugin, initChan, err := clightning.NewClightningClient(ctx)
+
+	// Initialize peerswap, check in with core lightning.
+	// todo: It seems that creating this initCh channel and using it is a race.
+	// todo: Rework this in `NewClightningClient` (also add mutex).
+	plugin, initCh, err := clightning.NewClightningClient(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = lightningPlugin.RegisterOptions()
+	err = plugin.RegisterOptions()
 	if err != nil {
 		return err
 	}
 
-	err = lightningPlugin.RegisterMethods()
+	err = plugin.RegisterMethods()
 	if err != nil {
 		return err
 	}
 
-	// start lightningPlugin plugin
-	quitChan := make(chan interface{})
+	// Glightning `Start()` is a blocking call. If this returns the server is
+	// shutdown -> cancel main runtime context.
 	go func() {
-		err := lightningPlugin.Start()
-		if err != nil {
-			log2.Fatal(err)
+		ierr := plugin.Start()
+		if ierr != nil {
+			ctx = context.WithValue(ctx, "ierr", ierr)
 		}
-		quitChan <- true
+		cancel()
 	}()
-	<-initChan
-	log.SetLogger(clightning.NewGlightninglogger(lightningPlugin.Plugin))
-	log.Infof("PeerSwap CLN starting up with commit %s", GitCommit)
+	// Wait for the plugin to be initialized.
+	<-initCh
+
+	// Now we can set the logger to the core lightning log. From here on we can
+	// use the log in all inner and the rest of this routine.
+	log.SetLogger(clightning.NewGlightninglogger(plugin.Plugin))
+
+	// Start PeerSwap.
+	err = run(ctx, plugin)
+	if err != nil {
+		log.Infof("Exited with error: %s", err.Error())
+	}
+
+	// Wait for context to be done and check if the context has collected any
+	// errors, pass this error back to the main routine.
+	<-ctx.Done()
+	if ierr, ok := ctx.Value("ierr").(error); ok {
+		return ierr
+	}
+
+	return nil
+}
+
+func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) error {
+	log.Infof("PeerSwap starting up with commit %s", GitCommit)
 	log.Infof("DB version: %s, Protocol version: %d", version.GetCurrentVersion(), swap.PEERSWAP_PROTOCOL_VERSION)
 	if isdev.IsDev() {
 		log.Infof("Dev-mode enabled.")
 	}
+
 	config, err := lightningPlugin.GetConfig()
 	if err != nil {
 		return err
@@ -320,7 +347,9 @@ func run() error {
 	}
 
 	log.Infof("peerswap initialized")
-	<-quitChan
+
+	// Wait for context to finish up
+	<-ctx.Done()
 	return nil
 }
 
