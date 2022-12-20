@@ -21,6 +21,7 @@ import (
 const (
 	defaultDbName         = "peerswap"
 	defaultPolicyFileName = "policy.conf"
+	defaultConfigFileName = "peerswap.conf"
 )
 
 const (
@@ -31,7 +32,7 @@ const (
 	liquidRpcPasswordOption         = "peerswap-elementsd-rpcpassword"
 	liquidRpcPasswordFilepathOption = "peerswap-elementsd-rpcpasswordfile"
 	liquidEnabledOption             = "peerswap-elementsd-enabled"
-	rpcWalletOption                 = "peerswap-elementsd-rpcwallet"
+	liquidRpcWalletOption           = "peerswap-elementsd-rpcwallet"
 
 	bitcoinRpcHostOption     = "peerswap-bitcoin-rpchost"
 	bitcoinRpcPortOption     = "peerswap-bitcoin-rpcport"
@@ -96,11 +97,11 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "http://localhost")
+	err = cl.Plugin.RegisterNewOption(liquidRpcHostOption, "elementsd rpchost", "")
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "7041")
+	err = cl.Plugin.RegisterNewOption(liquidRpcPortOption, "elementsd rpcport", "")
 	if err != nil {
 		return err
 	}
@@ -112,7 +113,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 	if err != nil {
 		return err
 	}
-	err = cl.Plugin.RegisterNewOption(rpcWalletOption, "liquid-rpcwallet", "peerswap")
+	err = cl.Plugin.RegisterNewOption(liquidRpcWalletOption, "liquid-rpcwallet", "")
 	if err != nil {
 		return err
 	}
@@ -121,7 +122,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 		return err
 	}
 
-	err = cl.Plugin.RegisterNewBoolOption(liquidEnabledOption, "enable/disable liquid", true)
+	err = cl.Plugin.RegisterNewBoolOption(liquidEnabledOption, "enable/disable liquid", false)
 	if err != nil {
 		return err
 	}
@@ -248,7 +249,7 @@ func parseConfigFromInitMsg(plugin *glightning.Plugin) (*PeerswapClightningConfi
 		return nil, err
 	}
 	liquidRpcPassFile, err := plugin.GetOption(liquidRpcPasswordFilepathOption)
-	liquidRpcWallet, err := plugin.GetOption(rpcWalletOption)
+	liquidRpcWallet, err := plugin.GetOption(liquidRpcWalletOption)
 	if err != nil {
 		return nil, err
 	}
@@ -287,54 +288,97 @@ func parseConfigFromInitMsg(plugin *glightning.Plugin) (*PeerswapClightningConfi
 	}, nil
 }
 
+// whichClnConfigIsSet returns a slice that contains all the fields that are set
+// in the
+func (cl *ClightningClient) whichClnConfigIsSet() []string {
+	var reasons []string
+	// We don't need to respect the error here has we are only interested in
+	// valid set configs that we want to add to our reasons.
+	config, _ := parseConfigFromInitMsg(cl.Plugin)
+
+	if config.DbPath != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", dbOption, config.DbPath))
+	}
+	if config.LiquidRpcHost != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", liquidRpcHostOption, config.LiquidRpcHost))
+	}
+	if config.LiquidRpcPort != 0 {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%d", liquidRpcPortOption, config.LiquidRpcPort))
+	}
+	if config.LiquidRpcUser != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", liquidRpcUserOption, config.LiquidRpcUser))
+	}
+	if config.LiquidRpcPassword != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", liquidRpcPasswordOption, config.LiquidRpcPassword))
+	}
+	if config.LiquidRpcPasswordFile != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", liquidRpcPasswordFilepathOption, config.LiquidRpcPasswordFile))
+	}
+	if config.LiquidRpcWallet != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", liquidRpcWalletOption, config.LiquidRpcWallet))
+	}
+	if config.LiquidEnabled {
+		reasons = append(reasons, fmt.Sprintf("%s: is set", liquidEnabledOption))
+	}
+	if config.BitcoinRpcHost != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", bitcoinRpcHostOption, config.BitcoinRpcHost))
+	}
+	if config.BitcoinRpcPort != 0 {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%d", bitcoinRpcPortOption, config.BitcoinRpcPort))
+	}
+	if config.BitcoinRpcUser != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", bitcoinRpcUserOption, config.BitcoinRpcUser))
+	}
+	if config.BitcoinRpcPassword != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", bitcoinRpcPasswordOption, config.BitcoinRpcPassword))
+	}
+	if config.BitcoinCookieFilePath != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", bitcoinCookieFilePath, config.BitcoinCookieFilePath))
+	}
+	if config.PolicyPath != "" {
+		reasons = append(reasons, fmt.Sprintf("field is set: %s=%s", policyPathOption, config.PolicyPath))
+	}
+	return reasons
+}
+
 // GetConfig returns the peerswap config
-func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
-	// If we have a config file path set, use this path to parse the config from
-	// instead of the config that is returned by the `init` method of core
-	// lightning.
-	configFilePath, err := cl.Plugin.GetOption(configFilePathOption)
+func (cl *ClightningClient) GetConfig(dataDir string) (*PeerswapClightningConfig, error) {
+	// Check if some cln config is set and throw an error if so. This is needed
+	// to ensure that people switch to the new config file instead of using the
+	// cln config. Cln is not able to pass config on dynamic plugin start, e.g.
+	// when peerswap is stopped and restarted while cln keeps running.
+	// Peerswap is not considered to be an `important plugin`.
+	fields := cl.whichClnConfigIsSet()
+	if fields != nil {
+		log.Infof(
+			"Setting config in core lightning config file is deprecated. Please "+
+				"use a standalone 'peerswap.conf' file that resides in the working "+
+				"directory of the plugin (%s): %s",
+			dataDir,
+			strings.Join(fields, ","),
+		)
+		return nil, fmt.Errorf("illegal use of core lightning config")
+	}
+
+	// Parse config from the default config dir that currently is set to the
+	// working directory of the plugin.
+	configFilePath := filepath.Join(dataDir, defaultConfigFileName)
+
+	log.Infof("Reading config from file %s", configFilePath)
+	config, err := parseConfigFromFile(configFilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	var config *PeerswapClightningConfig
-	if configFilePath != "" {
-		log.Infof("Trying to parse config from file %s", configFilePath)
-		config, err = parseConfigFromFile(configFilePath)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		log.Infof("Trying to parse config from init msg")
-		config, err = parseConfigFromInitMsg(cl.Plugin)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Normalize config.
-	// Todo: Move validation from main function to the config.
-
-	// If the db path is not set we create a new database at the default
-	// location that is in the same dir as the config file (if this was set),
-	// otherwise we assume the database is in the working directory.
+	//
+	// If the db path is not set we create a new database dir at the default
+	// location that is in the same dir as the config file.
 	//
 	// It is recommended to create the db file separately to have control over
 	// the file permissions.
 	if config.DbPath == "" {
-		var dir string
-		if configFilePath != "" {
-			// First option next to the config file if config file path is set:
-			fp := filepath.FromSlash(configFilePath)
-			dir = filepath.Dir(fp)
-		} else {
-			// Second option in the working directory
-			dir, err = os.Getwd()
-			if err != nil {
-				return nil, err
-			}
-		}
-		config.DbPath = filepath.Join(dir, defaultDbName)
+		config.DbPath = filepath.Join(dataDir, defaultDbName)
 
 		err = os.MkdirAll(config.DbPath, 0755)
 		if err != nil && err != os.ErrExist {
@@ -342,37 +386,17 @@ func (cl *ClightningClient) GetConfig() (*PeerswapClightningConfig, error) {
 		}
 	}
 
-	// If the policy path is not set we create a new policy file at the default
-	// location that is in the same dir as the config file (if this was set),
-	// otherwise we assume the policy file in the working directory.
-	//
-	// It is recommended to create the db file separately to have control over
-	// the file permissions.
+	// If the policy path is not set we expect the policy file next to
+	// the config file. This file is NOT created if it does not exist,
+	// peerswap will stop if this file does not exist.
 	if config.PolicyPath == "" {
-		var dir string
-		if configFilePath != "" {
-			// First option next to the config file if config file path is set:
-			fp := filepath.FromSlash(configFilePath)
-			dir = filepath.Dir(fp)
-		} else {
-			// Second option in the working directory
-			dir, err = os.Getwd()
-			if err != nil {
-				return nil, err
-			}
-		}
-		config.DbPath = filepath.Join(dir, defaultPolicyFileName)
-
-		err = os.MkdirAll(config.DbPath, 0755)
-		if err != nil && err != os.ErrExist {
-			return nil, err
-		}
+		config.PolicyPath = filepath.Join(dataDir, defaultPolicyFileName)
 	}
 
 	// If no bitcoin config is set at all we use the config that core lightning
 	// provides.
 	// TODO: I don't like this kind of behavior, we should have a flag to
-	// indicate if we want to use the lnd bitcoin config or a separate config.
+	// indicate if we want to use the cln bitcoin config or a separate config.
 	// As I don't want to break the current behavior I stick to the following:
 	// If no bitcoin config is set at all -> use cln bitcoin config and assume
 	// that bitcoin is a swap possibility.

@@ -122,8 +122,16 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		log.Infof("Dev-mode enabled.")
 	}
 
-	config, err := lightningPlugin.GetConfig()
+	// The working dir of the plugin is the default data dir. This should default for cln to (~/.lightning/[network-type])
+	dataDir, err := os.Getwd()
 	if err != nil {
+		return err
+	}
+	log.Infof("Using data dir: %s", dataDir)
+
+	config, err := lightningPlugin.GetConfig(dataDir)
+	if err != nil {
+		log.Infof("Could not read config: %s", err.Error())
 		return err
 	}
 	log.Debugf("Starting with config: \n%s", config)
