@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	glog "log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -45,17 +46,18 @@ const (
 )
 
 func main() {
+	mlog := glog.New(os.Stderr, "", glog.LstdFlags|glog.LUTC)
+
 	// In order to receive panics, we write to stderr to a file
 	closeFileFunc, err := setPanicLogger()
 	if err != nil {
-		log.Infof("Error setting panic log file: %s", err) // !: this is completely useless
+		mlog.Println(err.Error())
 		os.Exit(1)
 	}
 	defer closeFileFunc()
 
 	if err := outer(); err != nil {
-		// todo: Log to panic log (std.err)
-		log.Infof("plugin quitting, error: %s", err) // !: this is completely useless
+		mlog.Println(err.Error())
 		os.Exit(1)
 	}
 }
