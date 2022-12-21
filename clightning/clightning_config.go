@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	defaultDbName         = "peerswap"
-	defaultPolicyFileName = "policy.conf"
-	defaultConfigFileName = "peerswap.conf"
+	defaultDbName           = "peerswap"
+	defaultPolicyFileName   = "policy.conf"
+	defaultConfigFileName   = "peerswap.conf"
+	defaultLiquidWalletName = "peerswap"
 )
 
 const (
@@ -407,6 +408,13 @@ func (cl *ClightningClient) GetConfig(dataDir string) (*PeerswapClightningConfig
 		err = cl.injectBitcoinConfig(config)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	if config.LiquidEnabled {
+		// Set default elements wallet
+		if config.LiquidRpcWallet == "" {
+			config.LiquidRpcWallet = defaultLiquidWalletName
 		}
 	}
 
