@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -81,6 +83,7 @@ type RpcProxy struct {
 	configFile string
 	serviceURL *url.URL
 	authHeader []byte
+	cookieFile string
 
 	Rpc jsonrpc.RPCClient
 }
@@ -114,24 +117,26 @@ func NewRpcProxy(configFile string) (*RpcProxy, error) {
 		return nil, fmt.Errorf("url.Parse() %w", err)
 	}
 
-	var rpcPass string
+	var auth string
 	if pass, ok := conf["rpcpassword"]; ok {
-		rpcPass = pass
+		if user, ok := conf["rpcuser"]; ok {
+			auth = fmt.Sprintf("%s:%s", user, pass)
+		} else {
+			return nil, fmt.Errorf("rpcuser not found in config %s", configFile)
+		}
 	} else {
+		// Assume cookie file.
+		cookiePath := filepath.Join(filepath.Dir(configFile), "liquidregtest", ".cookie")
+		authByte, err := os.ReadFile(cookiePath)
+		auth = string(authByte)
+		if err != nil {
+			return nil, fmt.Errorf("can not read .cookie file at %s", cookiePath)
+		}
 		return nil, fmt.Errorf("rpcpassword not found in config %s", configFile)
 	}
 
-	var rpcUser string
-	if user, ok := conf["rpcuser"]; ok {
-		rpcUser = user
-	} else {
-		return nil, fmt.Errorf("rpcuser not found in config %s", configFile)
-	}
-
-	authPair := fmt.Sprintf("%s:%s", rpcUser, rpcPass)
-	authPairb64 := base64.RawURLEncoding.EncodeToString([]byte(authPair))
-	authHeader := []byte("Basic ")
-	authHeader = append(authHeader, []byte(authPairb64)...)
+	auth64 := base64.RawURLEncoding.EncodeToString([]byte(auth))
+	authHeader := append([]byte("Basic "), []byte(auth64)...)
 
 	rpcClient := jsonrpc.NewClientWithOpts(serviceURL.String(), &jsonrpc.RPCClientOpts{
 		CustomHeaders: map[string]string{

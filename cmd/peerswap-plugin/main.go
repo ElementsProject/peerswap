@@ -136,11 +136,6 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	}
 	log.Debugf("Starting with config: \n%s", config)
 
-	err = validateConfig(config)
-	if err != nil {
-		return err
-	}
-
 	// Inject the config into the core lightning plugin.
 	lightningPlugin.SetPeerswapConfig(*config)
 
@@ -176,24 +171,22 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if config.LiquidEnabled {
+	if config.LiquidEnabled || liquidWanted(config) {
+		liquidEnabled = true
+		log.Infof("Starting elements client with rpcuser: %s, rpcpassword: %s, rpccookie: %s, rpcport: %d, rpchost: %s",
+			config.LiquidRpcUser,
+			config.LiquidRpcPassword,
+			config.LiquidRpcPasswordFile,
+			config.LiquidRpcPort,
+			config.LiquidRpcHost,
+		)
 		liquidOnChainService, liquidTxWatcher, liquidRpcWallet, liquidCli, err = setupLiquid(ctx, lightningPlugin.GetLightningRpc(), config)
-		if err != nil && liquidWanted(config) {
+		if err != nil {
 			return err
 		}
-		if err != nil {
-			log.Infof("Error setting up liquid %v", err)
-		}
-		if err == nil {
-			liquidEnabled = true
-		}
+		log.Infof("Liquid swaps enabled")
 	}
 
-	if liquidEnabled {
-		log.Infof("Liquid swaps enabled")
-	} else {
-		log.Infof("Liquid swaps disabled")
-	}
 	// bitcoin
 	chain, err := getBitcoinChain(lightningPlugin.GetLightningRpc())
 	if err != nil {
@@ -500,7 +493,15 @@ func getElementsClient(li *glightning.Lightning, pluginConfig *clightning.Peersw
 		if err != nil {
 			return nil, err
 		}
-		cookiePath := filepath.Join(homeDir, ".elements", liquidChain, ".cookie")
+
+		cookiePath := pluginConfig.LiquidRpcPasswordFile
+		// If no password, no user and no cookie file path is set, we assume
+		// a cookie file at the default location that is
+		// '$HOME/.elements/<chain>/.cookie'
+		if cookiePath == "" {
+			cookiePath = filepath.Join(homeDir, ".elements", liquidChain, ".cookie")
+		}
+
 		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
 			log.Infof("cannot find liquid cookie file at %s", cookiePath)
 			return nil, err
@@ -524,9 +525,9 @@ func getElementsClient(li *glightning.Lightning, pluginConfig *clightning.Peersw
 	}
 
 	elementsCli = gelements.NewElements(rpcUser, rpcPass)
-
 	err = elementsCli.StartUp(pluginConfig.LiquidRpcHost, pluginConfig.LiquidRpcPort)
 	if err != nil {
+		log.Infof("GOT ERR: %s, Config: %s", err.Error(), pluginConfig)
 		return nil, err
 	}
 

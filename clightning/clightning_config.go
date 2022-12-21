@@ -365,10 +365,19 @@ func (cl *ClightningClient) GetConfig(dataDir string) (*PeerswapClightningConfig
 	// working directory of the plugin.
 	configFilePath := filepath.Join(dataDir, defaultConfigFileName)
 
-	log.Infof("Reading config from file %s", configFilePath)
-	config, err := parseConfigFromFile(configFilePath)
-	if err != nil {
-		return nil, err
+	var err error
+	var config *PeerswapClightningConfig
+	// Check if config file exists. If config file does not exist we continue
+	// with default config, just the same as if the config file was blank.
+	if _, err := os.Stat(configFilePath); errors.Is(err, os.ErrNotExist) {
+		log.Infof("Config file not found at: %s", configFilePath)
+		config = &PeerswapClightningConfig{}
+	} else {
+		log.Infof("Reading config from file %s", configFilePath)
+		config, err = parseConfigFromFile(configFilePath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Normalize config.
