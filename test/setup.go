@@ -11,6 +11,7 @@ import (
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,14 +61,20 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
-		err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm|os.ModeDir)
-		if err != nil {
-			t.Fatal("could not create path", err)
-		}
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
+
+		// Create config file
+		peerswapConfig := ``
+
+		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
+		os.WriteFile(
+			configPath,
+			[]byte(peerswapConfig),
+			os.ModePerm,
+		)
 
 		// Use lightningd with dev flags enabled
 		lightningd.WithCmd("lightningd-dev")
@@ -212,10 +219,20 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}
+
+	// Create config file
+	peerswapConfig := ``
+
+	configPath := filepath.Join(cln.GetDataDir(), "peerswap.conf")
+	os.WriteFile(
+		configPath,
+		[]byte(peerswapConfig),
+		os.ModePerm,
+	)
 
 	// Use lightningd with dev flags enabled
 	cln.WithCmd("lightningd-dev")
@@ -226,7 +243,6 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 		"--dev-fast-gossip",
 		"--large-channels",
 		fmt.Sprint("--plugin=", peerswapPluginPath),
-		fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(cln.DataDir, "policy.conf")),
 	})
 
 	// lnd
@@ -331,13 +347,50 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
 
 		// Set wallet name
 		walletName := fmt.Sprintf("swap%d", i)
+
+		// Create config file
+		fileConf := struct {
+			Liquid struct {
+				RpcUser     string
+				RpcPassword string
+				RpcHost     string
+				RpcPort     uint
+				RpcWallet   string
+				Enabled     bool
+			}
+		}{
+			Liquid: struct {
+				RpcUser     string
+				RpcPassword string
+				RpcHost     string
+				RpcPort     uint
+				RpcWallet   string
+				Enabled     bool
+			}{
+				RpcUser:     liquidd.RpcUser,
+				RpcPassword: liquidd.RpcPassword,
+				RpcHost:     "http://127.0.0.1",
+				RpcPort:     uint(liquidd.RpcPort),
+				RpcWallet:   walletName,
+				Enabled:     true,
+			},
+		}
+		data, err := toml.Marshal(fileConf)
+		require.NoError(t, err)
+
+		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
+		os.WriteFile(
+			configPath,
+			data,
+			os.ModePerm,
+		)
 
 		// Use lightningd with dev flags enabled
 		lightningd.WithCmd("lightningd-dev")
@@ -348,12 +401,6 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			"--dev-fast-gossip",
 			"--large-channels",
 			fmt.Sprint("--plugin=", pathToPlugin),
-			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
-			"--peerswap-elementsd-rpchost=http://127.0.0.1",
-			fmt.Sprintf("--peerswap-elementsd-rpcport=%d", liquidd.RpcPort),
-			fmt.Sprintf("--peerswap-elementsd-rpcuser=%s", liquidd.RpcUser),
-			fmt.Sprintf("--peerswap-elementsd-rpcpassword=%s", liquidd.RpcPassword),
-			fmt.Sprintf("--peerswap-elementsd-rpcwallet=%s", walletName),
 		})
 
 		lightningds = append(lightningds, lightningd)
@@ -560,10 +607,49 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}
+
+	walletName := "cln-test-wallet-1"
+
+	// Create config file
+	fileConf := struct {
+		Liquid struct {
+			RpcUser     string
+			RpcPassword string
+			RpcHost     string
+			RpcPort     uint
+			RpcWallet   string
+			Enabled     bool
+		}
+	}{
+		Liquid: struct {
+			RpcUser     string
+			RpcPassword string
+			RpcHost     string
+			RpcPort     uint
+			RpcWallet   string
+			Enabled     bool
+		}{
+			RpcUser:     liquidd.RpcUser,
+			RpcPassword: liquidd.RpcPassword,
+			RpcHost:     "http://127.0.0.1",
+			RpcPort:     uint(liquidd.RpcPort),
+			RpcWallet:   walletName,
+			Enabled:     true,
+		},
+	}
+	data, err := toml.Marshal(fileConf)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(cln.GetDataDir(), "peerswap.conf")
+	os.WriteFile(
+		configPath,
+		data,
+		os.ModePerm,
+	)
 
 	// Use lightningd with dev flags enabled
 	cln.WithCmd("lightningd-dev")
@@ -574,12 +660,6 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		"--dev-fast-gossip",
 		"--large-channels",
 		fmt.Sprint("--plugin=", peerswapPluginPath),
-		fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(cln.DataDir, "policy.conf")),
-		"--peerswap-elementsd-rpchost=http://127.0.0.1",
-		fmt.Sprintf("--peerswap-elementsd-rpcport=%d", liquidd.RpcPort),
-		fmt.Sprintf("--peerswap-elementsd-rpcuser=%s", liquidd.RpcUser),
-		fmt.Sprintf("--peerswap-elementsd-rpcpassword=%s", liquidd.RpcPassword),
-		fmt.Sprintf("--peerswap-elementsd-rpcwallet=%s", "test-cln-wallet-1"),
 	})
 
 	// lnd
