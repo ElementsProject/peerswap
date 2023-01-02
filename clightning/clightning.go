@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	log2 "log"
@@ -25,6 +26,14 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
 )
+
+// ClnMaxPaymentSizeMsat is the max amount in msat that core-lightning will send
+// in a single htlc if `large-channels` are not enabled. The amount is
+// 2^32 msat.
+//
+// FIXME: This should be removed some time soon in cln and we can remove it here
+// then also.
+const ClnMaxPaymentSizeMsat uint64 = 4294967296
 
 var methods = []peerswaprpcMethod{
 	//&ListNodes{}, we disable finding nodes with the featurebit for now, as you would only find clightning nodes
@@ -140,6 +149,34 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 	cl.initChan = make(chan interface{})
 	cl.hexToIdMap = make(map[string]string)
 	return cl, cl.initChan, nil
+}
+
+// CanSpend checks if an `amtMsat` can be spend. It returns an error if the
+// amount is larger than the `ClnMaxPaymentSizeMsat` if the option
+// `--large-channels` is missing or set to false.
+func (cl *ClightningClient) CanSpend(amtMsat uint64) error {
+	if amtMsat > ClnMaxPaymentSizeMsat {
+		var has_large_channel bool
+		cfg, err := cl.glightning.ListConfigs()
+		if err != nil {
+			return err
+		}
+		if _, ok := cfg["large-channels"]; ok {
+			// Found the config option, read field
+			var lc struct {
+				LargeChannels bool `json:"large-channels"`
+			}
+
+			jstring, _ := json.Marshal(cfg)
+			json.Unmarshal(jstring, &lc)
+			has_large_channel = lc.LargeChannels
+		}
+
+		if !has_large_channel {
+			return fmt.Errorf("swap amount is %d: need to enable option '--large-channels' to swap amounts larger than 2^32 msat", amtMsat)
+		}
+	}
+	return nil
 }
 
 // CheckChannel checks if a channel is eligable for a swap

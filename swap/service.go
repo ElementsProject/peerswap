@@ -338,8 +338,13 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
+	err := s.swapServices.lightning.CanSpend(amtSat * 1000)
+	if err != nil {
+		return nil, err
+	}
+
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
-	err := s.lockSwap(swap.SwapId.String(), channelId, swap)
+	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +434,18 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
 
-	err := s.lockSwap(swap.SwapId.String(), message.Scid, swap)
+	err := s.swapServices.lightning.CanSpend(message.Amount * 1000)
+	if err != nil {
+		// We want to tell our peer why we can not do this swap.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: err.Error(),
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
+
+	err = s.lockSwap(swap.SwapId.String(), message.Scid, swap)
 	if err != nil {
 		// If we already have an active swap on the same channel or can not lock
 		// in a new swap we want to tell it our peer.
