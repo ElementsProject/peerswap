@@ -130,8 +130,7 @@ test-misc-integration: test-bins
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
 	'Test_RestoreFromPassedCSV|'\
-	'Test_ClnCln_MPP|'\
-	'Test_ClnLnd_MPP)'\
+	'Test_Wumbo)'\
 	 ./test
 .PHONY: test-misc-integration
 
