@@ -56,12 +56,12 @@ A swap-out is when the initiator wants to pay a lightning payment in order to re
 
 For CLN:
 ```bash
-swap-out [amount in sats] [short channel id] [asset: btc or lbtc]
+swap-out [short channel id] [amount in sats] [asset: btc or lbtc]
 ```
 
 For LND:
 ```bash
-swapout --sat_amt [amount in sats] --channel-id [chan_id] --asset [btc or lbtc]
+swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
 ```
 
 ### Swap-In
@@ -70,12 +70,12 @@ A swap-in is when the initiator wants to spend onchain bitcoin in order to recei
 
 For CLN:
 ```bash
-swap-in [amount in sats] [short channel id] [asset: btc or lbtc]
+swap-in [short channel id] [amount in sats] [asset: btc or lbtc]
 ```
 
 For LND:
 ```bash
-swapin --sat_amt [amount in sats] --channel_id [chan_id] --asset [btc or lbtc]
+swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
 ```
 
 
