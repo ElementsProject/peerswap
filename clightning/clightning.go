@@ -497,7 +497,9 @@ func (cl *ClightningClient) GetPeers() []string {
 
 	var peerlist []string
 	for _, peer := range peers {
-		peerlist = append(peerlist, peer.Id)
+		if peer.Connected {
+			peerlist = append(peerlist, peer.Id)
+		}
 	}
 	return peerlist
 }
