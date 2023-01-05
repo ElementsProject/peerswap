@@ -136,6 +136,7 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 	cl.Plugin.SubscribeConnect(cl.OnConnect)
 
 	cl.glightning = glightning.NewLightning()
+	cl.glightning.SetTimeout(40)
 
 	// we disable feature bit for now as lnd does not support it anyway
 	//b := big.NewInt(0)
