@@ -46,6 +46,7 @@ type LightningClient interface {
 	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
 	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType)
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
+	CanSpend(amountMsat uint64) error
 }
 
 type TxWatcher interface {

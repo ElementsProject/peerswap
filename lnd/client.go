@@ -72,6 +72,11 @@ func NewClient(
 	}, nil
 }
 
+// CanSpend has no functionality, it is just here to fulfill the interface.
+func (l *Client) CanSpend(amtMsat uint64) error {
+	return nil
+}
+
 func (l *Client) StartListening() error {
 	return l.messageListener.Start()
 }

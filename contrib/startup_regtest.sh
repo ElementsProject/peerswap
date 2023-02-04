@@ -18,6 +18,9 @@ ACCEPT_ALL_PEERS=1
 CLN_CLI_BASE_ALIAS="lightning-cli"
 LND_CLI_BASE_ALIAS="lncli"
 
+# Setup parameter
+SETUP_CHANNEL_SIZE=10000000
+
 start_docker_env() {
   docker-compose -f .ci/docker/docker-compose.yml up -d --remove-orphans
 }
@@ -216,7 +219,7 @@ setup_cln_network() {
 
   # Fund channel
   to=$(eval ${LIGHTNING_CLI}-2 getinfo | jq -r .'id')
-  eval ${LIGHTNING_CLI}-1 fundchannel $to 10000000
+  eval ${LIGHTNING_CLI}-1 fundchannel $to ${SETUP_CHANNEL_SIZE}
   generate 12
 
   # Await channel active
@@ -481,7 +484,7 @@ setup_lnd_network() {
 
   # Fund channel
   to=$(eval ${LND_CLI}-2 getinfo | jq -r .'identity_pubkey')
-  eval ${LND_CLI}-1 openchannel $to 10000000
+  eval ${LND_CLI}-1 openchannel $to ${SETUP_CHANNEL_SIZE}
   generate 12 $LND_SETUP_NETWORK
 
   # Await channel active

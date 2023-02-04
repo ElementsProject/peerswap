@@ -251,6 +251,14 @@ type dummyLightningClient struct {
 	preimage        string
 	paymentCallback func(swapId string, invoiceType InvoiceType)
 	failpayment     bool
+
+	canSpendError  error
+	canSpendCalled int
+}
+
+func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {
+	d.canSpendCalled++
+	return d.canSpendError
 }
 
 func (d *dummyLightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) {

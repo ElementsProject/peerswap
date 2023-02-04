@@ -138,7 +138,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 		params.origMakerWallet-commitFee-claimFee, balance)
 }
 
-// Test_OnlyOneActiveSwapPerChannelCln checks that there is only one active swap per 
+// Test_OnlyOneActiveSwapPerChannelCln checks that there is only one active swap per
 // channel.
 func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 	IsIntegrationTest(t)
@@ -204,18 +204,18 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 	wg := sync.WaitGroup{}
 	N_SWAPS := 10
 	var nErr int32
-	for i:=0; i<N_SWAPS; i++ {
-	wg.Add(1)
-	go func(n int) {
-		defer wg.Done()
-		var response map[string]interface{}
-		err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
-		t.Logf("[%d] Response: %v",n, response)
-		if err != nil {
-			t.Logf("[%d] Err: %s",n, err.Error())
-			atomic.AddInt32(&nErr, 1)
-		}
-	}(i)
+	for i := 0; i < N_SWAPS; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			var response map[string]interface{}
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			t.Logf("[%d] Response: %v", n, response)
+			if err != nil {
+				t.Logf("[%d] Err: %s", n, err.Error())
+				atomic.AddInt32(&nErr, 1)
+			}
+		}(i)
 	}
 	wg.Wait()
 
@@ -223,7 +223,7 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 	lightningds[0].Rpc.Request(&clightning.ListActiveSwaps{}, &response)
 	t.Logf("GOT: %v", response)
 
-	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d",N_SWAPS-1, nErr)
+	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d", N_SWAPS-1, nErr)
 	assert.EqualValues(t, len(response.Swaps), 1, "expected only 1 active swap, got: %d", len(response.Swaps))
 }
 

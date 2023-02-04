@@ -30,6 +30,14 @@ const (
 )
 
 func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
+	return clnclnSetupWithConfig(t, fundAmt, []string{
+		"--dev-bitcoind-poll=1",
+		"--dev-fast-gossip",
+		"--large-channels",
+	})
+}
+
+func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
@@ -52,7 +60,11 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm|os.ModeDir)
+		if err != nil {
+			t.Fatal("could not create path", err)
+		}
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -61,13 +73,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		lightningd.WithCmd("lightningd-dev")
 
 		// Add plugin to cmd line options
-		lightningd.AppendCmdLine([]string{
-			"--dev-bitcoind-poll=1",
-			"--dev-fast-gossip",
-			"--large-channels",
-			fmt.Sprint("--plugin=", pathToPlugin),
-			fmt.Sprintf("--peerswap-policy-path=%s", filepath.Join(lightningd.DataDir, "policy.conf")),
-		})
+		lightningd.AppendCmdLine(append([]string{fmt.Sprint("--plugin=", pathToPlugin)}, clnConf...))
 
 		lightningds = append(lightningds, lightningd)
 	}
@@ -101,7 +107,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		t.Fatalf("ListPeers %v", err)
 	}
 
-	syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
+	_ = syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
 
 	return bitcoind, lightningds, scid
 }

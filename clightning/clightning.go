@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	log2 "log"
-	"math"
 	"os"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
@@ -28,6 +26,14 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
 )
+
+// ClnMaxPaymentSizeMsat is the max amount in msat that core-lightning will send
+// in a single htlc if `large-channels` are not enabled. The amount is
+// 2^32 msat.
+//
+// FIXME: This should be removed some time soon in cln and we can remove it here
+// then also.
+const ClnMaxPaymentSizeMsat uint64 = 4294967296
 
 var methods = []peerswaprpcMethod{
 	//&ListNodes{}, we disable finding nodes with the featurebit for now, as you would only find clightning nodes
@@ -52,8 +58,6 @@ var methods = []peerswaprpcMethod{
 var devmethods = []peerswaprpcMethod{}
 
 const featureBit = 69
-
-var maxPaymentSizeMsat = uint64(math.Pow(2, 32))
 
 var ErrWaitingForReady = fmt.Errorf("peerswap is still in the process of starting up")
 
@@ -146,6 +150,34 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 	cl.initChan = make(chan interface{})
 	cl.hexToIdMap = make(map[string]string)
 	return cl, cl.initChan, nil
+}
+
+// CanSpend checks if an `amtMsat` can be spend. It returns an error if the
+// amount is larger than the `ClnMaxPaymentSizeMsat` if the option
+// `--large-channels` is missing or set to false.
+func (cl *ClightningClient) CanSpend(amtMsat uint64) error {
+	if amtMsat > ClnMaxPaymentSizeMsat {
+		var has_large_channel bool
+		cfg, err := cl.glightning.ListConfigs()
+		if err != nil {
+			return err
+		}
+		if _, ok := cfg["large-channels"]; ok {
+			// Found the config option, read field
+			var lc struct {
+				LargeChannels bool `json:"large-channels"`
+			}
+
+			jstring, _ := json.Marshal(cfg)
+			json.Unmarshal(jstring, &lc)
+			has_large_channel = lc.LargeChannels
+		}
+
+		if !has_large_channel {
+			return fmt.Errorf("swap amount is %d: need to enable option '--large-channels' to swap amounts larger than 2^32 msat", amtMsat)
+		}
+	}
+	return nil
 }
 
 // CheckChannel checks if a channel is eligable for a swap
@@ -285,8 +317,9 @@ func (cl *ClightningClient) PayInvoice(payreq string) (preimage string, err erro
 	return res.PaymentPreimage, nil
 }
 
-// PayInvoiceViaChannel ensures that the invoice is payed via the direct
-// channel to the peer.
+// PayInvoiceViaChannel ensures that the invoice is payed via the direct channel
+// to the peer. It takes the desired channel as the enforced route and uses the
+// `sendpay` api for a direct payment via this route.
 func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (preimage string, err error) {
 	bolt11, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
@@ -294,10 +327,33 @@ func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (pr
 	}
 
 	label := randomString()
-	_, err = cl.SendPayPart(payreq, bolt11, bolt11.MilliSatoshis, scid, label, 0)
+
+	// We have to ensure that the `short_channel_id` is divided by `x`es.
+	cid := lightning.Scid(scid)
+	scid = cid.ClnStyle()
+
+	_, err = cl.glightning.SendPay(
+		[]glightning.RouteHop{
+			{
+				Id:             bolt11.Payee,
+				ShortChannelId: scid,
+				MilliSatoshi:   bolt11.MilliSatoshis,
+				AmountMsat:     fmt.Sprintf("%dmsat", bolt11.MilliSatoshis),
+				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
+				Direction:      0,
+			},
+		},
+		bolt11.PaymentHash,
+		label,
+		nil,
+		payreq,
+		bolt11.PaymentSecret,
+		0,
+	)
 	if err != nil {
 		return "", err
 	}
+
 	res, err := cl.glightning.WaitSendPay(bolt11.PaymentHash, 0)
 	if err != nil {
 		return "", err
@@ -307,103 +363,10 @@ func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (pr
 	return preimage, nil
 }
 
-// RebalancePayment handles the lightning payment that should rebalance the channel
-// if the payment is larger than 4mm sats it forces a mpp payment through the channel
+// RebalancePayment handles the lightning payment that should re-balance the
+// channel.
 func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
-	Bolt11, err := cl.glightning.DecodeBolt11(payreq)
-	if err != nil {
-		return "", err
-	}
-	if !strings.Contains(channel, "x") {
-		channel = strings.Replace(channel, ":", "x", -1)
-	}
-	err = cl.CheckChannel(channel, Bolt11.MilliSatoshis/1000)
-	if err != nil {
-		return "", err
-	}
-
-	// If we exceed the maximum msat amount for a single payment we split them
-	// up and use MPPs.
-	if Bolt11.MilliSatoshis > maxPaymentSizeMsat {
-		preimage, err = MppPayment(cl, payreq, channel, Bolt11)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		preimage, err = cl.PayInvoiceViaChannel(payreq, channel)
-		if err != nil {
-			return "", err
-		}
-	}
-	return preimage, nil
-}
-
-func (cl *ClightningClient) SendPayPartAndWait(paymentRequest string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayFields, error) {
-	_, err := cl.SendPayPart(paymentRequest, bolt11, amountMsat, channel, label, partId)
-	if err != nil {
-		return nil, err
-	}
-	return cl.glightning.WaitSendPayPart(bolt11.PaymentHash, 0, partId)
-}
-
-// MppPayment splits the payment in parts and waits for the payments to finish.
-// We split in 10 parts as this will always result in a set of payments that
-// dont have a "rest" and are all of the exact same size. They match the total
-// amount that we want to transfer. As we only send over a direct channel to a
-// direct peer we also dont need to optimize on a small number of subpayments.
-func MppPayment(spw SendPayPartWaiter, payreq string, channel string, bolt11 *glightning.DecodedBolt11) (string, error) {
-	wg := new(sync.WaitGroup)
-
-	var numPayments uint64 = 10
-	var partId uint64
-	var res *glightning.SendPayFields
-	var err error
-	for partId = 1; partId < numPayments+1; partId++ {
-		wg.Add(1)
-		go func(partId uint64) {
-			defer wg.Done()
-			log.Debugf("Sending part %d/%d", partId, numPayments)
-			res, err = spw.SendPayPartAndWait(payreq, bolt11, bolt11.MilliSatoshis/numPayments, channel, randomString(), partId)
-			if err != nil {
-				log.Debugf("Could not complete MPP: %v", err)
-			}
-		}(partId)
-	}
-	wg.Wait()
-
-	if err != nil {
-		return "", err
-	}
-
-	return res.PaymentPreimage, nil
-}
-
-// SendPayPart sends a payment through a specific channel. If the partId is not 0
-// it sends only the part of the payment that is set on amountMsat. the final
-// amount is read from the bolt11.
-func (cl *ClightningClient) SendPayPart(payreq string, bolt11 *glightning.DecodedBolt11, amountMsat uint64, channel string, label string, partId uint64) (*glightning.SendPayResult, error) {
-	res, err := cl.glightning.SendPay(
-		[]glightning.RouteHop{
-			{
-				Id:             bolt11.Payee,
-				ShortChannelId: channel,
-				MilliSatoshi:   amountMsat,
-				AmountMsat:     fmt.Sprintf("%dmsat", amountMsat),
-				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
-				Direction:      0,
-			},
-		},
-		bolt11.PaymentHash,
-		label,
-		&bolt11.MilliSatoshis,
-		payreq,
-		bolt11.PaymentSecret,
-		partId,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return cl.PayInvoiceViaChannel(payreq, channel)
 }
 
 // isPeerConnected returns true if the peer is connected to the cln node.
