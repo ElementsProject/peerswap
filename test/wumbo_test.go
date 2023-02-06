@@ -72,7 +72,7 @@ func Test_Wumbo(t *testing.T) {
 			largeChannelsEnabled: false,
 			swapAmtSat:           maxPaymentSize + 1,
 			swapType:             swap.SWAPTYPE_IN,
-			expectedError:        fmt.Errorf("-1:swap canceled, reason: swap amount is 4294968000: need to enable option '--large-channels' to swap amounts larger than 2^32 msat"),
+			expectedError:        fmt.Errorf("-1:swap canceled, reason: from the CLN peer: swap amount is 4294968000: need to enable option '--large-channels' to swap amounts larger than 2^32 msat"),
 		},
 		{
 			description:          "in_lc_max",
