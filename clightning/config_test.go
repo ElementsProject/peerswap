@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseConfigFile(t *testing.T) {
+func Test_ReadFromFile(t *testing.T) {
 	conf := `
 	dbpath="dbpath"
 	policypath="policypath"
@@ -34,29 +34,58 @@ func TestParseConfigFile(t *testing.T) {
 
 	dir := t.TempDir()
 	fp := filepath.Join(dir, "peerswap.conf")
-	ioutil.WriteFile(fp, []byte(conf), fs.ModePerm)
+	_ = ioutil.WriteFile(fp, []byte(conf), fs.ModePerm)
 
-	actual, err := parseConfigFromFile(fp)
+	c := &Config{DataDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
+	actual, err := ReadFromFile()(c)
 	if err != nil {
 		t.Fatalf("ERROR: %v", err)
 	}
 
-	expected := &PeerswapClightningConfig{
-		DbPath:                 "dbpath",
-		LiquidRpcHost:          "rpchost",
-		LiquidRpcPort:          1234,
-		LiquidRpcUser:          "rpcuser",
-		LiquidRpcPassword:      "rpcpassword",
-		LiquidRpcPasswordFile:  "rpcpasswordfile",
-		LiquidRpcWallet:        "rpcwallet",
-		LiquidEnabled:          true,
-		BitcoinRpcHost:         "rpchost",
-		BitcoinRpcPort:         1234,
-		BitcoinRpcUser:         "rpcuser",
-		BitcoinRpcPassword:     "rpcpassword",
-		BitcoinRpcPasswordFile: "rpcpasswordfile",
-		BitcoinCookieFilePath:  "cookiefilepath",
-		PolicyPath:             "policypath",
+	expected := &Config{
+		DataDir:    dir,
+		DbPath:     "dbpath",
+		PolicyPath: "policypath",
+		Bitcoin: &BitcoinConf{
+			RpcUser:         "rpcuser",
+			RpcPassword:     "rpcpassword",
+			RpcPasswordFile: "rpcpasswordfile",
+			RpcHost:         "rpchost",
+			RpcPort:         1234,
+			Network:         "",
+			DataDir:         "",
+		},
+		Liquid: &LiquidConf{
+			RpcUser:         "rpcuser",
+			RpcPassword:     "rpcpassword",
+			RpcPasswordFile: "rpcpasswordfile",
+			RpcHost:         "rpchost",
+			RpcPort:         1234,
+			RpcWallet:       "rpcwallet",
+			Network:         "",
+			DataDir:         "",
+			Enabled:         true,
+		},
+	}
+
+	assert.EqualValues(t, expected, actual)
+}
+
+func Test_ReadFromFile_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	fp := filepath.Join(dir, "peerswap.conf")
+	_ = ioutil.WriteFile(fp, []byte{}, fs.ModePerm)
+
+	c := &Config{DataDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
+	actual, err := ReadFromFile()(c)
+	if err != nil {
+		t.Fatalf("ERROR: %v", err)
+	}
+
+	expected := &Config{
+		DataDir: dir,
+		Bitcoin: &BitcoinConf{},
+		Liquid:  &LiquidConf{},
 	}
 
 	assert.EqualValues(t, expected, actual)

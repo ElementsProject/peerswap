@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	glog "log"
 	"os"
 	"path/filepath"
@@ -16,8 +15,6 @@ import (
 	"github.com/elementsproject/peerswap/version"
 
 	"github.com/vulpemventures/go-elements/network"
-
-	"strings"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -129,15 +126,15 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	}
 	log.Infof("Using data dir: %s", dataDir)
 
-	config, err := lightningPlugin.GetConfig(dataDir)
+	config, err := clightning.GetConfig(lightningPlugin)
 	if err != nil {
 		log.Infof("Could not read config: %s", err.Error())
 		return err
 	}
-	log.Debugf("Starting with config: \n%s", config)
+	log.Debugf("Starting with config: %s", config)
 
 	// Inject the config into the core lightning plugin.
-	lightningPlugin.SetPeerswapConfig(*config)
+	lightningPlugin.SetPeerswapConfig(config)
 
 	// setup services
 	nodeInfo, err := lightningPlugin.GetLightningRpc().GetInfo()
@@ -171,19 +168,35 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if config.LiquidEnabled || liquidWanted(config) {
+	if config.Liquid.Enabled && liquidWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword: %s, rpccookie: %s, rpcport: %d, rpchost: %s",
-			config.LiquidRpcUser,
-			config.LiquidRpcPassword,
-			config.LiquidRpcPasswordFile,
-			config.LiquidRpcPort,
-			config.LiquidRpcHost,
+			config.Liquid.RpcUser,
+			config.Liquid.RpcPassword,
+			config.Liquid.RpcPasswordFile,
+			config.Liquid.RpcPort,
+			config.Liquid.RpcHost,
 		)
-		liquidOnChainService, liquidTxWatcher, liquidRpcWallet, liquidCli, err = setupLiquid(ctx, lightningPlugin.GetLightningRpc(), config)
+		liquidCli, err = getElementsClient(lightningPlugin.GetLightningRpc(), config)
 		if err != nil {
 			return err
 		}
+
+		liquidRpcWallet, err = wallet.NewRpcWallet(liquidCli, config.Liquid.RpcWallet)
+		if err != nil {
+			return err
+		}
+
+		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
+
+		// LiquidChain
+		liquidChain, err := getLiquidChain(liquidCli)
+		if err != nil {
+			return err
+		}
+
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
+		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
 	}
 
@@ -195,10 +208,10 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	log.Infof(
 		"Starting bitcoin client with chain:%s, rpcuser:%s, rpcpassword:%s, rpchost:%s, rpcport:%d",
 		chain.Name,
-		config.BitcoinRpcUser,
-		config.BitcoinRpcPassword,
-		config.BitcoinRpcHost,
-		config.BitcoinRpcPort,
+		config.Bitcoin.RpcUser,
+		config.Bitcoin.RpcPassword,
+		config.Bitcoin.RpcHost,
+		config.Bitcoin.RpcPort,
 	)
 	bitcoinCli, err := getBitcoinClient(lightningPlugin.GetLightningRpc(), config)
 	if err != nil {
@@ -368,57 +381,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	return nil
 }
 
-func setupLiquid(ctx context.Context, li *glightning.Lightning,
-	config *clightning.PeerswapClightningConfig) (*onchain.LiquidOnChain, *txwatcher.BlockchainRpcTxWatcher, *wallet.ElementsRpcWallet, *gelements.Elements, error) {
-	var err error
-	supportedAssets = append(supportedAssets, "lbtc")
-
-	// blockchaincli
-	liquidCli, err := getElementsClient(li, config)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	// Wallet
-	liquidWalletCli, err := getElementsClient(li, config)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	liquidRpcWallet, err := wallet.NewRpcWallet(liquidWalletCli, config.LiquidRpcWallet)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	// txwatcher
-	liquidTxWatcher := txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
-
-	// LiquidChain
-	liquidChain, err := getLiquidChain(liquidCli)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	liquidOnChainService := onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
-	return liquidOnChainService, liquidTxWatcher, liquidRpcWallet, liquidCli, nil
-}
-
-func liquidWanted(cfg *clightning.PeerswapClightningConfig) bool {
-	return !(cfg.LiquidRpcUser == "" && cfg.LiquidRpcPasswordFile == "")
-}
-
-func validateConfig(cfg *clightning.PeerswapClightningConfig) error {
-	if cfg.LiquidEnabled {
-		if cfg.LiquidRpcPasswordFile != "" {
-			passBytes, err := ioutil.ReadFile(cfg.LiquidRpcPasswordFile)
-			if err != nil {
-				return err
-			}
-			passString := strings.TrimRight(string(passBytes), "\r\n")
-			cfg.LiquidRpcPassword = passString
-		}
-
-	}
-
-	return nil
+func liquidWanted(cfg *clightning.Config) bool {
+	return cfg.Liquid.RpcUser != "" && cfg.Liquid.RpcPassword != ""
 }
 
 func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
@@ -449,95 +413,28 @@ func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 		return &chaincfg.TestNet3Params, nil
 	case "signet":
 		return &chaincfg.SigNetParams, nil
-	case "bitcoin":
+	case "mainnet":
 		return &chaincfg.MainNetParams, nil
 	default:
 		return nil, errors.New("unknown bitcoin network")
 	}
 }
 
-func getLiquidFolderNameForBitcoinChain(btcChain *chaincfg.Params) (string, error) {
-	switch btcChain.Name {
-	case "mainnet":
-		return "liquidv1", nil
-	case "testnet3":
-	case "simnet":
-	case "signet":
-		return "liquidtestnet", nil
-	case "regtest":
-		return "liquidregtest", nil
-	default:
-		return "", errors.New("unknown bitcoin network")
-
-	}
-	return "", errors.New("unknown bitcoin network")
-}
-func getElementsClient(li *glightning.Lightning, pluginConfig *clightning.PeerswapClightningConfig) (*gelements.Elements, error) {
-	var elementsCli *gelements.Elements
-	var rpcUser, rpcPass string
-
-	// get bitcoin chain
-	bitcoinChain, err := getBitcoinChain(li)
+func getElementsClient(li *glightning.Lightning, config *clightning.Config) (*gelements.Elements, error) {
+	elementsCli := gelements.NewElements(config.Liquid.RpcUser, config.Liquid.RpcPassword)
+	err := elementsCli.StartUp(config.Liquid.RpcHost, config.Liquid.RpcPort)
 	if err != nil {
-		return nil, err
-	}
-
-	// if no user and pass is specified try to find the cookie file
-	if pluginConfig.LiquidRpcUser == "" && pluginConfig.LiquidRpcPassword == "" {
-		// get liquid Chain
-		liquidChain, err := getLiquidFolderNameForBitcoinChain(bitcoinChain)
-		if err != nil {
-			return nil, err
-		}
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-
-		cookiePath := pluginConfig.LiquidRpcPasswordFile
-		// If no password, no user and no cookie file path is set, we assume
-		// a cookie file at the default location that is
-		// '$HOME/.elements/<chain>/.cookie'
-		if cookiePath == "" {
-			cookiePath = filepath.Join(homeDir, ".elements", liquidChain, ".cookie")
-		}
-
-		if _, err := os.Stat(cookiePath); os.IsNotExist(err) {
-			log.Infof("cannot find liquid cookie file at %s", cookiePath)
-			return nil, err
-		}
-		cookieBytes, err := os.ReadFile(cookiePath)
-		if err != nil {
-			return nil, err
-		}
-
-		cookie := strings.Split(string(cookieBytes), ":")
-
-		rpcUser = cookie[0]
-		rpcPass = cookie[1]
-
-	} else if pluginConfig.LiquidRpcUser != "" && pluginConfig.LiquidRpcPassword != "" {
-		rpcUser = pluginConfig.LiquidRpcUser
-		rpcPass = pluginConfig.LiquidRpcPassword
-	} else {
-		// incorrect config
-		return nil, errors.New("Either both liquid-rpcuser and liquid-rpcpassword must be set, or none")
-	}
-
-	elementsCli = gelements.NewElements(rpcUser, rpcPass)
-	err = elementsCli.StartUp(pluginConfig.LiquidRpcHost, pluginConfig.LiquidRpcPort)
-	if err != nil {
-		log.Infof("GOT ERR: %s, Config: %s", err.Error(), pluginConfig)
+		log.Infof("Could not connect to elements: %s", err.Error())
 		return nil, err
 	}
 
 	return elementsCli, nil
 }
-func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.PeerswapClightningConfig) (*gbitcoin.Bitcoin, error) {
-	rpcUser := pluginConfig.BitcoinRpcUser
-	rpcPassword := pluginConfig.BitcoinRpcPassword
-	rpcHost := pluginConfig.BitcoinRpcHost
-	rpcPort := pluginConfig.BitcoinRpcPort
+func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Config) (*gbitcoin.Bitcoin, error) {
+	rpcUser := pluginConfig.Bitcoin.RpcUser
+	rpcPassword := pluginConfig.Bitcoin.RpcPassword
+	rpcHost := pluginConfig.Bitcoin.RpcHost
+	rpcPort := pluginConfig.Bitcoin.RpcPort
 
 	bitcoin := gbitcoin.NewBitcoin(rpcUser, rpcPassword)
 	bitcoin.SetTimeout(10)

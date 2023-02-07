@@ -9,6 +9,7 @@ import (
 	"fmt"
 	log2 "log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
@@ -251,8 +252,25 @@ func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
 
 // SetPeerswapConfig injects the peerswap config that is used during runtime.
 // This config is just used for a console print.
-func (cl *ClightningClient) SetPeerswapConfig(config PeerswapClightningConfig) {
-	cl.peerswapConfig = config
+func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
+	cl.peerswapConfig = PeerswapClightningConfig{
+		DbPath:                 config.DbPath,
+		BitcoinRpcUser:         config.Bitcoin.RpcUser,
+		BitcoinRpcPassword:     config.Bitcoin.RpcPassword,
+		BitcoinRpcPasswordFile: config.Bitcoin.RpcPasswordFile,
+		BitcoinRpcHost:         config.Bitcoin.RpcHost,
+		BitcoinRpcPort:         config.Bitcoin.RpcPort,
+		BitcoinCookieFilePath:  config.Bitcoin.RpcPasswordFile,
+		LiquidRpcUser:          config.Liquid.RpcUser,
+		LiquidRpcPassword:      config.Liquid.RpcPassword,
+		LiquidRpcPasswordFile:  config.Liquid.RpcPasswordFile,
+		LiquidRpcHost:          config.Liquid.RpcHost,
+		LiquidRpcPort:          config.Liquid.RpcPort,
+		LiquidRpcWallet:        config.Liquid.RpcWallet,
+		LiquidEnabled:          config.Liquid.Enabled,
+		PolicyPath:             config.PolicyPath,
+		ConfigFilePath:         filepath.Join(config.DataDir, "peerswap.conf"),
+	}
 }
 
 func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {

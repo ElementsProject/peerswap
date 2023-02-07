@@ -75,7 +75,7 @@ EOF
       cat <<-EOF >"${dir}/config"
 dev-fast-gossip
 dev-bitcoind-poll=1
-experimental-dual-fund
+5experimental-dual-fund
 funder-policy=match
 funder-policy-mod=100
 funder-min-their-funding=10000

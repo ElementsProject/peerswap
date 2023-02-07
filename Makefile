@@ -130,7 +130,11 @@ test-misc-integration: test-bins
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
 	'Test_RestoreFromPassedCSV|'\
-	'Test_Wumbo)'\
+	'Test_Wumbo|'\
+	'Test_ClnConfig|'\
+	'Test_ClnPluginConfigFile|'\
+	'Test_ClnPluginConfigFile_DoesNotExist|'\
+	'Test_ClnPluginConfig_ElementsAuthCookie)'\
 	 ./test
 .PHONY: test-misc-integration
 

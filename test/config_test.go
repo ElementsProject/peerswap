@@ -169,6 +169,8 @@ func Test_ClnPluginConfigFile_DoesNotExist(t *testing.T) {
 	}
 }
 
+// Test_ClnPluginConfig_ElementsAuthCookie checks that peerswap can
+// read the elements cookie file.
 func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
@@ -195,7 +197,7 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 			"fallbackfee":      "0.00001",
 			"initialfreecoins": "2100000000000000",
 			"validatepegin":    "0",
-			"chain":            "liquidregtest"},
+			"chain":            "regtest"},
 		1,
 	)
 	require.NoError(t, err)
@@ -233,7 +235,7 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 			RpcPort         int
 			Enabled         bool
 		}{
-			RpcPasswordFile: filepath.Join(liquidd.DataDir, "liquidregtest", ".cookie"),
+			RpcPasswordFile: filepath.Join(liquidd.DataDir, "regtest", ".cookie"),
 			RpcPort:         liquidd.RpcPort,
 			Enabled:         true,
 		},
