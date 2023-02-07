@@ -16,7 +16,7 @@ import (
 
 // Test_ClnConfig checks that the peerswap plugin does not accept
 // peerswap config from cln config, exits and prints an error to the
-// logs. It is sufficient test with command line arguments only (no
+// logs. It is sufficient to test with command line arguments only (no
 // config file), as core lightning internally parses all config
 // options to command line arguments on startup.
 func Test_ClnConfig(t *testing.T) {
