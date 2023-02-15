@@ -7,7 +7,6 @@ import (
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
 )
 
@@ -665,7 +664,8 @@ func Test_ClnLnd_Liquid_SwapIn(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			require.NoError(err)
 		}()
 		csvClaimTest(t, params)
 	})
@@ -845,7 +845,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 						lines:  defaultLines,
 					},
 					tailableProcess{
-						p:     lightningds[1].(*testframework.LndNode).DaemonProcess,
+						p:     lightningds[1].(*LndNodeWithLiquid).DaemonProcess,
 						lines: defaultLines,
 					},
 					tailableProcess{
