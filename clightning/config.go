@@ -15,15 +15,14 @@ import (
 )
 
 const (
-	defaultLiquidRpc        uint = 7041
-	defaultRpcHost               = "http://127.0.0.1"
-	defaultBitcoinSubDir         = ".bitcoin"
-	defaultElementsSubDir        = ".elements"
-	defaultCookieFile            = ".cookie"
-	defaultLiquidWalletName      = "peerswap"
-	defaultDbName                = "peerswap"
-	defaultPolicyFileName        = "policy.conf"
-	defaultConfigFileName        = "peerswap.conf"
+	defaultRpcHost          = "http://127.0.0.1"
+	defaultBitcoinSubDir    = ".bitcoin"
+	defaultElementsSubDir   = ".elements"
+	defaultCookieFile       = ".cookie"
+	defaultLiquidWalletName = "peerswap"
+	defaultDbName           = "peerswap"
+	defaultPolicyFileName   = "policy.conf"
+	defaultConfigFileName   = "peerswap.conf"
 )
 
 type BitcoinConf struct {
@@ -330,7 +329,7 @@ func ElementsFallback() Processor {
 		}
 
 		if c.Liquid.RpcPort == 0 {
-			c.Liquid.RpcPort = defaultLiquidRpc
+			c.Liquid.RpcPort = defaultElementsRpcPort(c.Liquid.Network)
 		}
 
 		if c.Liquid.RpcPassword == "" && c.Liquid.RpcUser == "" &&
@@ -437,6 +436,17 @@ func defaultBitcoinRpcPort(network string) uint {
 	}
 }
 
+func defaultElementsRpcPort(network string) uint {
+	switch network {
+	case "liquidtestnet":
+		return 18891
+	case "regtest":
+		return 18443
+	default:
+		return 7041
+	}
+}
+
 func bitcoinNetDir(network string) (string, error) {
 	switch network {
 	case "mainnet":
@@ -457,7 +467,7 @@ func liquidNetDir(network string) (string, error) {
 	case "mainnet":
 		return "liquidv1", nil
 	case "testnet3", "simnet", "signet":
-		return "testnet", nil
+		return "liquidtestnet", nil
 	case "regtest":
 		return "regtest", nil
 	default:
