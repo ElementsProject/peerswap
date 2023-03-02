@@ -13,6 +13,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*
 
+*The PeerSwap project is not responsible for how you deploy, distribute, or integrate Peerswap. Please refer to your local system administrator, PaaS provider, or appliance distributor. A few community Docker examples can be found [here](https://github.com/tiero/peerswap-box) and [here](https://github.com/vilm3r/docker-peerswap). PeerSwap cannot provide official Docker containers for these reasons:
+
+* *PeerSwap CLN plugin must be in the same Docker container as CLN due to how plugins work.
+* *PeerSwap LND daemon currently has an issue with Docker's internal networking, therefore the daemon needs to be run inside the same container as LND. [Read more](.docs/docker.md).
+
 PeerSwap enables Lightning Network nodes to balance their channels by facilitating atomic swaps with direct peers. PeerSwap enhances decentralization of the Lightning Network by enabling all nodes to be their own swap provider. No centralized coordinator, no 3rd party rent collector, and lowest cost channel balancing means small nodes can better compete with large nodes.
 
 - [PeerSwap](#peerswap)
