@@ -180,6 +180,12 @@ func (cl *ClightningClient) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
+// Implementation returns the name of the lightning network client 
+// implementation.
+func (cl *ClightningClient) Implementation() string {
+	return "CLN"
+}
+
 // CheckChannel checks if a channel is eligable for a swap
 func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
 	funds, err := cl.glightning.ListFunds()

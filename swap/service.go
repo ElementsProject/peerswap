@@ -436,10 +436,11 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 	err := s.swapServices.lightning.CanSpend(message.Amount * 1000)
 	if err != nil {
+		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
 		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
 			SwapId:  swapId,
-			Message: err.Error(),
+			Message: msg,
 		})
 		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
 		return err

@@ -77,6 +77,12 @@ func (l *Client) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
+// Implementation returns the name of the lightning network client 
+// implementation.
+func (l *Client) Implementation() string {
+	return "LND"
+}
+
 func (l *Client) StartListening() error {
 	return l.messageListener.Start()
 }

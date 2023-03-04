@@ -256,6 +256,10 @@ type dummyLightningClient struct {
 	canSpendCalled int
 }
 
+func (d *dummyLightningClient) Implementation() string {
+	return "dummy"
+}
+
 func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {
 	d.canSpendCalled++
 	return d.canSpendError
