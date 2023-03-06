@@ -56,7 +56,7 @@ ${OUTDIR}/pscli:
 	chmod a+x out/pscli
 
 ${OUTDIR}/peerswap:
-	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswap ./cmd/peerswap
+	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswap ./cmd/peerswap-plugin
 	chmod a+x out/peerswap
 
 ${TEST_BIN_DIR}/peerswapd:
@@ -68,7 +68,7 @@ ${TEST_BIN_DIR}/pscli:
 	chmod a+x ${TEST_BIN_DIR}/pscli
 
 ${TEST_BIN_DIR}/peerswap:
-	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswap ./cmd/peerswap
+	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswap ./cmd/peerswap-plugin
 	chmod a+x ${TEST_BIN_DIR}/peerswap
 
 # Test section. Has commads for local and ci testing.
@@ -143,7 +143,7 @@ lnd-release: clean-lnd
 cln-release: clean-cln
 	# peerswap binary is not installed in GOPATH because it must be called by full pathname as a CLN plugin.
 	# You may choose to install it to any location you wish.
-	go build -o peerswap -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap/main.go
+	go build -o peerswap -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
 
 clean-cln:
