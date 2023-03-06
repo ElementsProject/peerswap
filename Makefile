@@ -150,6 +150,9 @@ clean-cln:
 	# PeerSwap CLN builds
 	rm -f peerswap
 	rm -f out/peerswap
+	# Purge pre-rename binaries
+	rm -f peerswap-plugin
+	rm -f out/peerswap-plugin
 .PHONY: clean-cln
 
 clean-lnd:
