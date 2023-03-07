@@ -772,7 +772,7 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 						lines:  defaultLines,
 					},
 					tailableProcess{
-						p:     lightningds[1].(*testframework.LndNode).DaemonProcess,
+						p:     lightningds[1].(*LndNodeWithLiquid).DaemonProcess,
 						lines: defaultLines,
 					},
 					tailableProcess{
