@@ -11,7 +11,7 @@ env:
   SLOW_MACHINE: 1
 
 jobs:
-  build:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,6 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
-    needs: [build]
     strategy:
       matrix:
         test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration]
@@ -39,11 +38,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
+      - name: "Cache Nix store"
+        uses: actions/cache@v3.0.8
+        id: nix-cache
+        with:
+          path: /tmp/nixcache
+          key: nix-${{ hashFiles('packages.nix') }}
 
       - name: Install Nix
         uses: cachix/install-nix-action@v20
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+      
+      - name: "Import Nix store cache"
+        if: "steps.nix-cache.outputs.cache-hit == 'true'"
+        run: "nix-store --import < /tmp/nixcache"
 
       - name: Run tests
         run: nix-shell --run "make test-${{matrix.test-vector}}"
+
+      - name: "Export Nix store cache"
+        if: "steps.nix-cache.outputs.cache-hit != 'true'"
+        run: "nix-store --export $(find /nix/store -maxdepth 1 -name '*-*') > /tmp/nixcache"
