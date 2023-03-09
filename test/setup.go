@@ -40,7 +40,7 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
@@ -193,7 +193,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 cln, 1 lnd, 1 peerswapd)
@@ -305,7 +305,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
-	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
@@ -535,7 +535,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
-	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap-plugin")
+	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := t.TempDir()
 
 	// Setup nodes (1 bitcoind, 1 liquid, 1 cln, 1 lnd, 1 peerswapd)
