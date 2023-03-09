@@ -182,7 +182,7 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", err
 	}
-	refundFee, err := l.GetRefundFee()
+	refundFee, err := l.getFee(l.getCoopClaimTxSize())
 	if err != nil {
 		return "", "", err
 	}
@@ -403,6 +403,10 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 func (l *LiquidOnChain) getClaimTxSize() int {
 	return 1350
+}
+
+func (l *LiquidOnChain) getCoopClaimTxSize() int {
+	return 1360
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
