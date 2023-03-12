@@ -9,9 +9,14 @@ rev = "5ae751c41b1b78090e4c311f43aa34792599e563";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
+# bitcoin v24.0.1 installation breaks on darwin. Temporarily revert to v24.0
+bitcoin-fix-rev = "0a8826e7582cf357c1248e10653fd946e6570f99";
+bitcoin-fix-nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${bitcoin-fix-rev}.tar.gz";
+bitcoin-fix-pkgs = import bitcoin-fix-nixpkgs {};
+
 # Override priority for bitcoin as /bin/bitcoin_test will
 # confilict with /bin/bitcoin_test from elementsd.
-bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
+bitcoin = (bitcoin-fix-pkgs.bitcoin.overrideAttrs (attrs: {
     meta = attrs.meta or {} // {
         priority = 0;
     };
@@ -39,5 +44,5 @@ in with pkgs;
         lnd = lnd;
     };
     testpkgs = [ go bitcoin elementsd clightning-dev lnd ];
-    devpkgs = [ bitcoin elementsd clightning clightning-dev lnd docker-compose jq nodePackages.mermaid-cli ];
+    devpkgs = [ go bitcoin elementsd clightning clightning-dev lnd docker-compose jq nodePackages.mermaid-cli ];
 }
