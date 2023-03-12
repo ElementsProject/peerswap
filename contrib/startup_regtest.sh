@@ -47,6 +47,7 @@ start_cln_node() {
     local network="regtest"
     local addr="127.0.0.1:$((7070 + ${id} * 101))"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -128,6 +129,7 @@ stop_cln_node() {
     local prefix="cln-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -156,6 +158,7 @@ remove_cln_node() {
     local prefix="cln-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      negwork="regtest"
     else
       network=${2}
     fi
@@ -175,6 +178,7 @@ setup_cln_network() {
   local n_nodes=2
   local network="regtest"
   if [ -z ${1} ]; then
+    network="regtest"
   else
     network=${1}
   fi
@@ -206,7 +210,7 @@ setup_cln_network() {
     -rpcconnect=127.0.0.1 \
     -rpcport=18443 \
     getblockcount)
-  while; do
+  while true; do
     blockheight1=$(eval ${LIGHTNING_CLI}-1 getinfo | jq -r .'blockheight')
     blockheight2=$(eval ${LIGHTNING_CLI}-2 getinfo | jq -r .'blockheight')
     if [ $blockheight1 -ge $blockcount ] && [ $blockheight2 -ge $blockcount ]; then
@@ -223,7 +227,7 @@ setup_cln_network() {
   generate 12
 
   # Await channel active
-  while; do
+  while true; do
     local state=$(eval ${LIGHTNING_CLI}-1 listfunds | jq -r '.channels[0].state')
     if [ "$state" = "CHANNELD_NORMAL" ]; then
       prefixwith $prefix echo "Channel is active"
@@ -305,6 +309,7 @@ start_lnd_node() {
     local rpc="127.0.0.1:$((10101 + ${id} * 101))"
     local listen="127.0.0.1:$((10102 + ${id} * 101))"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -384,6 +389,7 @@ stop_lnd_node() {
     local prefix="lnd-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -412,6 +418,7 @@ remove_lnd_node() {
     local prefix="lnd-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -431,6 +438,7 @@ setup_lnd_network() {
   local n_nodes=2
   local network="regtest"
   if [ -z ${1} ]; then
+    network="regtest"
   else
     network=${1}
   fi
@@ -447,7 +455,7 @@ setup_lnd_network() {
   done
 
   # Connect nodes
-  while; do
+  while true; do
     prefixwith $prefix echo "Connecting nodes"
     local to=$(eval ${LND_CLI}-2 getinfo | jq -r '.uris[0]')
     eval ${LND_CLI}-1 connect $to > /dev/null
@@ -471,7 +479,7 @@ setup_lnd_network() {
     -rpcconnect=127.0.0.1 \
     -rpcport=18443 \
     getblockcount)
-  while; do
+  while true; do
     blockheight1=$(eval ${LND_CLI}-1 getinfo | jq -r .'block_height')
     blockheight2=$(eval ${LND_CLI}-2 getinfo | jq -r .'block_height')
     if [ $blockheight1 -ge $blockcount ] && [ $blockheight2 -ge $blockcount ]; then
@@ -488,7 +496,7 @@ setup_lnd_network() {
   generate 12 $LND_SETUP_NETWORK
 
   # Await channel active
-  while; do
+  while true; do
     local active=$(eval ${LND_CLI}-1 listchannels | jq -r '.channels[0].active')
     if [ "$active" = "true" ]; then
       prefixwith $prefix echo "Channel is active"
@@ -551,6 +559,7 @@ fund_lnd_node() {
   else
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -575,6 +584,7 @@ start_peerswapd() {
     local id=${1}
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -640,6 +650,7 @@ stop_peerswapd() {
     local prefix="peerswap-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -667,6 +678,7 @@ remove_peerswapd() {
     local prefix="peerswap-${id}"
     local network="regtest"
     if [ -z ${2} ]; then
+      network="regtest"
     else
       network=${2}
     fi
@@ -709,6 +721,7 @@ generate() {
   fi
   local network="regtest"
   if [ -z ${2} ]; then
+    network="regtest"
   else
     network=${2}
   fi

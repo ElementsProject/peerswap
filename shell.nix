@@ -22,6 +22,6 @@ stdenv.mkDerivation rec {
     alias lncli='${execs.lnd}/bin/lncli'
 
     . ./contrib/startup_regtest.sh
-    setup_alias
+    setup_aliases
     '';
 }
