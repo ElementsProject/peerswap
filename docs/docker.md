@@ -1,6 +1,6 @@
 # Docker Suggestions
 
-*Distributors, integrators, and end users are responsible for proper packaging and deployment of the PeerSwap project. The PeerSwap project is not responsible for how the code is deployed. Please refer to your local system administrator, PaaS provider, or appliance distributor. 
+*Distributors, integrators, and end users are responsible for proper packaging and deployment of the PeerSwap project. The PeerSwap project is not responsible for how the code is deployed. Please refer to your local system administrator, PaaS provider, or appliance distributor.* 
 
 
 ## Core Lightning (CLN)
