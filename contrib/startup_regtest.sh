@@ -98,7 +98,7 @@ EOF
       ${LIGHTNINGD}\
       --lightning-dir="${dir}" \
       --daemon \
-      --plugin="$(pwd)/out/peerswap-plugin" \
+      --plugin="$(pwd)/out/peerswap" \
       --peerswap-elementsd-rpchost="http://127.0.0.1" \
       --peerswap-elementsd-rpcport="${LIQUID_RPC_PORT}" \
       --peerswap-elementsd-rpcuser=admin1 \
