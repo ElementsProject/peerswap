@@ -132,7 +132,9 @@ func NewRpcProxy(configFile string) (*RpcProxy, error) {
 		if err != nil {
 			return nil, fmt.Errorf("can not read .cookie file at %s", cookiePath)
 		}
-		return nil, fmt.Errorf("rpcpassword not found in config %s", configFile)
+	}
+	if auth == "" {
+		return nil, fmt.Errorf("no .cookie file found and no rpcpasssword found in config file %s", configFile)
 	}
 
 	auth64 := base64.RawURLEncoding.EncodeToString([]byte(auth))

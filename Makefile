@@ -134,7 +134,8 @@ test-misc-integration: test-bins
 	'Test_ClnConfig|'\
 	'Test_ClnPluginConfigFile|'\
 	'Test_ClnPluginConfigFile_DoesNotExist|'\
-	'Test_ClnPluginConfig_ElementsAuthCookie)'\
+	'Test_ClnPluginConfig_ElementsAuthCookie|'\
+	'Test_ClnPluginConfig_DisableLiquid)'\
 	 ./test
 .PHONY: test-misc-integration
 
