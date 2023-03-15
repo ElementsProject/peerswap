@@ -11,7 +11,7 @@ const (
 	liquidRpcUserOption             = "peerswap-elementsd-rpcuser"
 	liquidRpcPasswordOption         = "peerswap-elementsd-rpcpassword"
 	liquidRpcPasswordFilepathOption = "peerswap-elementsd-rpcpasswordfile"
-	liquidEnabledOption             = "peerswap-elementsd-enabled"
+	liquidDisabledOption            = "peerswap-elementsd-disabled"
 	liquidRpcWalletOption           = "peerswap-elementsd-rpcwallet"
 
 	bitcoinRpcHostOption     = "peerswap-bitcoin-rpchost"
@@ -30,7 +30,7 @@ var legacyOptions = []string{
 	liquidRpcUserOption,
 	liquidRpcPasswordOption,
 	liquidRpcPasswordFilepathOption,
-	liquidEnabledOption,
+	liquidDisabledOption,
 	liquidRpcWalletOption,
 	bitcoinRpcHostOption,
 	bitcoinRpcPortOption,
@@ -57,7 +57,7 @@ type PeerswapClightningConfig struct {
 	LiquidRpcHost         string `json:"liquid.rpchost"`
 	LiquidRpcPort         uint   `json:"liquid.rpcport"`
 	LiquidRpcWallet       string `json:"liquid.rpcwallet"`
-	LiquidEnabled         bool   `json:"liquid.enabled"`
+	LiquidDisabled        bool   `json:"liquid.disabled"`
 
 	PolicyPath     string `json:"policypath"`
 	ConfigFilePath string
@@ -119,7 +119,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 		return err
 	}
 
-	err = cl.Plugin.RegisterNewBoolOption(liquidEnabledOption, "enable/disable liquid", false)
+	err = cl.Plugin.RegisterNewBoolOption(liquidDisabledOption, "enable/disable liquid", false)
 	if err != nil {
 		return err
 	}

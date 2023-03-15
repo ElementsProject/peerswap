@@ -44,7 +44,7 @@ type LiquidConf struct {
 	RpcWallet       string
 	Network         string
 	DataDir         string
-	Enabled         bool
+	Disabled        bool
 }
 
 type Config struct {
@@ -149,7 +149,7 @@ func ReadFromFile() Processor {
 			c.Liquid.RpcHost = fileConf.Liquid.RpcHost
 			c.Liquid.RpcPort = fileConf.Liquid.RpcPort
 			c.Liquid.RpcWallet = fileConf.Liquid.RpcWallet
-			c.Liquid.Enabled = fileConf.Liquid.Enabled
+			c.Liquid.Disabled = fileConf.Liquid.Disabled
 		}
 
 		return c, nil
@@ -370,7 +370,7 @@ func ElementsCookieConnect() Processor {
 	return func(c *Config) (*Config, error) {
 		var err error
 		if c.Liquid.RpcUser == "" && c.Liquid.RpcPassword == "" &&
-			c.Liquid.Enabled {
+			!c.Liquid.Disabled {
 			if c.Liquid.RpcPasswordFile == "" {
 				return nil, fmt.Errorf("no liquid rpc configuration found")
 			}
@@ -469,7 +469,7 @@ func liquidNetDir(network string) (string, error) {
 	case "testnet3", "simnet", "signet":
 		return "liquidtestnet", nil
 	case "regtest":
-		return "regtest", nil
+		return "liquidregtest", nil
 	default:
 		return "", fmt.Errorf("can not get liquid network dir for bitcoin network: %s", network)
 	}

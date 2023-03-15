@@ -622,7 +622,6 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 			RpcHost     string
 			RpcPort     uint
 			RpcWallet   string
-			Enabled     bool
 		}
 	}{
 		Liquid: struct {
@@ -631,14 +630,12 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 			RpcHost     string
 			RpcPort     uint
 			RpcWallet   string
-			Enabled     bool
 		}{
 			RpcUser:     liquidd.RpcUser,
 			RpcPassword: liquidd.RpcPassword,
 			RpcHost:     "http://127.0.0.1",
 			RpcPort:     uint(liquidd.RpcPort),
 			RpcWallet:   walletName,
-			Enabled:     true,
 		},
 	}
 	data, err := toml.Marshal(fileConf)

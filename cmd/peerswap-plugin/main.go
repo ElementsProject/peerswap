@@ -168,7 +168,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if config.Liquid.Enabled && liquidWanted(config) {
+	if !config.Liquid.Disabled && liquidWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword: %s, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
@@ -198,6 +198,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
+	} else if config.Liquid.Disabled {
+		log.Infof("Liquid swpas disabled")
 	}
 
 	// bitcoin

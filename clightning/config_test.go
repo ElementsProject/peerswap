@@ -64,7 +64,7 @@ func Test_ReadFromFile(t *testing.T) {
 			RpcWallet:       "rpcwallet",
 			Network:         "",
 			DataDir:         "",
-			Enabled:         true,
+			Disabled:        false,
 		},
 	}
 
