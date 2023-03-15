@@ -198,8 +198,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
-	} else if config.Liquid.Disabled {
-		log.Infof("Liquid swpas disabled")
+	} else {
+		log.Infof("Liquid swaps disabled")
 	}
 
 	// bitcoin
