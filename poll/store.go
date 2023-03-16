@@ -64,8 +64,7 @@ func (s *pollStore) GetAll() (map[string]PollInfo, error) {
 	return pollinfos, nil
 }
 
-func (s *pollStore) RemoveUnseen(olderThan time.Duration) error {
-	now := time.Now()
+func (s *pollStore) RemoveUnseen(now time.Time, olderThan time.Duration) error {
 	return s.db.Update(func(t *bbolt.Tx) error {
 		b := t.Bucket(POLL_BUCKET)
 		return b.ForEach(func(k, v []byte) error {
