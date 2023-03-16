@@ -12,12 +12,12 @@ If no swaps are returned you can safely upgrade peerswap.
 ### Restarting LND peerswapd
  - lnd: `pscli stop; /PATH/TO/peerswapd`
 
-### Restarting CLN peerswap-plugin
-Due to [CLN issue #5294](https://github.com/ElementsProject/lightning/issues/5294) it is recommended that you fully restart `lightningd` in order to restart peerswap. If you do not rely on CLN to pass any config parameters to peerswap then it is safe to restart peerswap-plugin without touching CLN.
+### Restarting CLN peerswap
+Due to [CLN issue #5294](https://github.com/ElementsProject/lightning/issues/5294) it is recommended that you fully restart `lightningd` in order to restart peerswap. If you do not rely on CLN to pass any config parameters to peerswap then it is safe to restart peerswap without touching CLN.
 
 
  - cln full restart: `lightning-cli stop; /PATH/TO/lightningd`
- - peerswap-plugin restart without lightningd config options: `lightning-cli plugin stop peerswap-plugin; lightning-cli plugin start /PATH/TO/peerswap-plugin`
+ - peerswap restart without lightningd config options: `lightning-cli plugin stop peerswap; lightning-cli plugin start /PATH/TO/peerswap`
 
 Restarting PeerSwap does not affect the accompanying CLN or LND node.
 

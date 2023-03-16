@@ -214,7 +214,7 @@ lightningd --daemon \
 Or with liquid enabled
 ```bash
 lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap-plugin \
+        --plugin=$HOME/peerswap/peerswap \
         --peerswap-elementsd-rpchost=http://localhost \
         --peerswap-elementsd-rpcport=18884 \
         --peerswap-elementsd-rpcuser=admin1 \

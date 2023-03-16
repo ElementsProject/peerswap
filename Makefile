@@ -24,12 +24,12 @@ INTEGRATION_TEST_OPTS= \
 BINS= \
 	${OUTDIR}/peerswapd \
 	${OUTDIR}/pscli \
-	${OUTDIR}/peerswap-plugin \
+	${OUTDIR}/peerswap \
 
 TEST_BINS= \
 	${TEST_BIN_DIR}/peerswapd \
 	${TEST_BIN_DIR}/pscli \
-	${TEST_BIN_DIR}/peerswap-plugin \
+	${TEST_BIN_DIR}/peerswap \
 
 .PHONY: subdirs ${BINS} ${TEST_BINS}
 
@@ -55,9 +55,9 @@ ${OUTDIR}/pscli:
 	go build ${BUILD_OPTS} -o ${OUTDIR}/pscli ./cmd/peerswaplnd/pscli
 	chmod a+x out/pscli
 
-${OUTDIR}/peerswap-plugin:
-	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswap-plugin ./cmd/peerswap-plugin
-	chmod a+x out/peerswap-plugin
+${OUTDIR}/peerswap:
+	go build ${BUILD_OPTS} -o ${OUTDIR}/peerswap ./cmd/peerswap-plugin
+	chmod a+x out/peerswap
 
 ${TEST_BIN_DIR}/peerswapd:
 	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswapd ./cmd/peerswaplnd/peerswapd
@@ -67,9 +67,9 @@ ${TEST_BIN_DIR}/pscli:
 	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/pscli ./cmd/peerswaplnd/pscli
 	chmod a+x ${TEST_BIN_DIR}/pscli
 
-${TEST_BIN_DIR}/peerswap-plugin:
-	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswap-plugin ./cmd/peerswap-plugin
-	chmod a+x ${TEST_BIN_DIR}/peerswap-plugin
+${TEST_BIN_DIR}/peerswap:
+	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswap ./cmd/peerswap-plugin
+	chmod a+x ${TEST_BIN_DIR}/peerswap
 
 # Test section. Has commads for local and ci testing.
 test:
@@ -141,13 +141,16 @@ lnd-release: clean-lnd
 .PHONY: lnd-release
 
 cln-release: clean-cln
-	# peerswap-plugin binary is not installed in GOPATH because it must be called by full pathname as a CLN plugin.
+	# peerswap binary is not installed in GOPATH because it must be called by full pathname as a CLN plugin.
 	# You may choose to install it to any location you wish.
-	go build -o peerswap-plugin -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap-plugin/main.go
+	go build -o peerswap -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswap-plugin/main.go
 .PHONY: cln-release
 
 clean-cln:
 	# PeerSwap CLN builds
+	rm -f peerswap
+	rm -f out/peerswap
+	# Purge pre-rename binaries
 	rm -f peerswap-plugin
 	rm -f out/peerswap-plugin
 .PHONY: clean-cln

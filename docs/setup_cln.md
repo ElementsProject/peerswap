@@ -20,7 +20,7 @@ cd peerswap
 make cln-release
 ```
 
-The `peerswap-plugin` binary is now located in the repo folder.
+The `peerswap` binary is now located in the repo folder.
 
 
 
@@ -30,11 +30,11 @@ In order to run `peerswap` add following lines to your the core-lightning config
 
 
 ```bash
-plugin=/PATH/TO/peerswap-plugin
-log-level=debug:plugin-peerswap-plugin
+plugin=/PATH/TO/peerswap
+log-level=debug:plugin-peerswap
 ```
 
-Specify the full path to the `peerswap-plugin` binary. For now it is recommended to log all debug messages from peerswap.
+Specify the full path to the `peerswap` binary. For now it is recommended to log all debug messages from peerswap.
 
 Peerswap will automatically try to connect to your bitcoind and (if available) elementsd
 
@@ -74,12 +74,12 @@ This can be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH
 
 __WARNING__: One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
 
-### Debugging peerswap-plugin crashes
+### Debugging peerswap crashes
 
-Currently if `peerswap-plugin` crashes looks like this in lightningd's log.
+Currently if `peerswap` crashes looks like this in lightningd's log.
 
 ```
-INFO    plugin-peerswap-plugin: Killing plugin: exited during normal operation
+INFO    plugin-peerswap: Killing plugin: exited during normal operation
 ```
 
 When this happens you can find the traceback in `~/.lightning/bitcoin/peerswap/peerswap-panic-log`. Look at the file timestap to confirm it corresponds to the current crash. When you report an issue please include your CLN version, PeerSwap githash, this crash traceback, peerswap log messages during the event, and any other relevant details of what led to the failure.
