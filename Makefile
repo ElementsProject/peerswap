@@ -19,7 +19,8 @@ INTEGRATION_TEST_ENV= \
 INTEGRATION_TEST_OPTS= \
 	-tags dev \
 	-tags fast_test \
-	-timeout=30m -v
+	-timeout=30m -v \
+	-failfast
 
 BINS= \
 	${OUTDIR}/peerswapd \
