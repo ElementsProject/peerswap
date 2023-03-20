@@ -39,5 +39,5 @@ in with pkgs;
         lnd = lnd;
     };
     testpkgs = [ go bitcoind elementsd clightning-dev lnd ];
-    devpkgs = [ bitcoind elementsd clightning clightning-dev lnd docker-compose jq nodePackages.mermaid-cli ];
+    devpkgs = [ go_1_19 gotools bitcoind elementsd clightning clightning-dev lnd ];
 }
