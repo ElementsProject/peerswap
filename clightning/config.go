@@ -230,6 +230,11 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 							return nil, err
 						}
 						c.Bitcoin.Network = info.Network
+						// Ugly hack to rewrite core-lightnings network name to
+						// the internal variant: bitcoin ~ mainnet.
+						if c.Bitcoin.Network == "bitcoin" {
+							c.Bitcoin.Network = "mainnet"
+						}
 					}
 
 					// Extract rest of the bitcoind config
@@ -450,7 +455,7 @@ func defaultElementsRpcPort(network string) uint {
 func bitcoinNetDir(network string) (string, error) {
 	switch network {
 	case "mainnet":
-		return "mainnet", nil
+		return "", nil
 	case "signet":
 		return "signet", nil
 	case "testnet3":
