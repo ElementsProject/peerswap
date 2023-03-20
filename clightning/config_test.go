@@ -11,7 +11,6 @@ import (
 
 func Test_ReadFromFile(t *testing.T) {
 	conf := `
-	dbpath="dbpath"
 	policypath="policypath"
 
 	[Bitcoin]
@@ -36,16 +35,15 @@ func Test_ReadFromFile(t *testing.T) {
 	fp := filepath.Join(dir, "peerswap.conf")
 	_ = ioutil.WriteFile(fp, []byte(conf), fs.ModePerm)
 
-	c := &Config{DataDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
+	c := &Config{PeerswapDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
 	actual, err := ReadFromFile()(c)
 	if err != nil {
 		t.Fatalf("ERROR: %v", err)
 	}
 
 	expected := &Config{
-		DataDir:    dir,
-		DbPath:     "dbpath",
-		PolicyPath: "policypath",
+		PeerswapDir: dir,
+		PolicyPath:  "policypath",
 		Bitcoin: &BitcoinConf{
 			RpcUser:         "rpcuser",
 			RpcPassword:     "rpcpassword",
@@ -76,16 +74,16 @@ func Test_ReadFromFile_EmptyFile(t *testing.T) {
 	fp := filepath.Join(dir, "peerswap.conf")
 	_ = ioutil.WriteFile(fp, []byte{}, fs.ModePerm)
 
-	c := &Config{DataDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
+	c := &Config{PeerswapDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
 	actual, err := ReadFromFile()(c)
 	if err != nil {
 		t.Fatalf("ERROR: %v", err)
 	}
 
 	expected := &Config{
-		DataDir: dir,
-		Bitcoin: &BitcoinConf{},
-		Liquid:  &LiquidConf{},
+		PeerswapDir: dir,
+		Bitcoin:     &BitcoinConf{},
+		Liquid:      &LiquidConf{},
 	}
 
 	assert.EqualValues(t, expected, actual)

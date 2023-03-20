@@ -5,7 +5,6 @@ import (
 )
 
 const (
-	dbOption                        = "peerswap-db-path"
 	liquidRpcHostOption             = "peerswap-elementsd-rpchost"
 	liquidRpcPortOption             = "peerswap-elementsd-rpcport"
 	liquidRpcUserOption             = "peerswap-elementsd-rpcuser"
@@ -24,7 +23,6 @@ const (
 )
 
 var legacyOptions = []string{
-	dbOption,
 	liquidRpcHostOption,
 	liquidRpcPortOption,
 	liquidRpcUserOption,
@@ -42,8 +40,6 @@ var legacyOptions = []string{
 
 // PeerswapClightningConfig contains relevant config params for peerswap
 type PeerswapClightningConfig struct {
-	DbPath string `json:"dbpath"`
-
 	BitcoinRpcUser         string `json:"bitcoin.rpcuser"`
 	BitcoinRpcPassword     string `json:"bitcoin.rpcpassword"`
 	BitcoinRpcPasswordFile string `json:"bitcoin.rpcpasswordfile"`
@@ -59,8 +55,7 @@ type PeerswapClightningConfig struct {
 	LiquidRpcWallet       string `json:"liquid.rpcwallet"`
 	LiquidDisabled        bool   `json:"liquid.disabled"`
 
-	PolicyPath     string `json:"policypath"`
-	ConfigFilePath string
+	PeerswapDir string `json:"peerswap-dir"`
 }
 
 func (c PeerswapClightningConfig) String() string {
@@ -68,13 +63,11 @@ func (c PeerswapClightningConfig) String() string {
 	return string(b)
 }
 
-// RegisterOptions adds options to clightning
+// RegisterOptions adds options to core-lightning. All these options
+// are deprecated, we just keep them to notify people if an option was
+// passed to core-lightning
 func (cl *ClightningClient) RegisterOptions() error {
-	err := cl.Plugin.RegisterNewOption(dbOption, "path to boltdb", "")
-	if err != nil {
-		return err
-	}
-	err = cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
+	err := cl.Plugin.RegisterNewOption(bitcoinRpcHostOption, "bitcoind rpchost", "")
 	if err != nil {
 		return err
 	}

@@ -61,7 +61,11 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm)
+		if err != nil {
+			t.Fatal("could not create dir", err)
+		}
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -69,7 +73,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 		// Create config file
 		peerswapConfig := ``
 
-		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
+		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap", "peerswap.conf")
 		os.WriteFile(
 			configPath,
 			[]byte(peerswapConfig),
@@ -219,7 +223,11 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.MkdirAll(filepath.Join(cln.GetDataDir(), "peerswap"), os.ModePerm)
+	if err != nil {
+		t.Fatal("could not create dir", err)
+	}
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}
@@ -227,7 +235,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	// Create config file
 	peerswapConfig := ``
 
-	configPath := filepath.Join(cln.GetDataDir(), "peerswap.conf")
+	configPath := filepath.Join(cln.GetDataDir(), "peerswap", "peerswap.conf")
 	os.WriteFile(
 		configPath,
 		[]byte(peerswapConfig),
@@ -347,7 +355,11 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		defer printFailedFiltered(t, lightningd.DaemonProcess)
 
 		// Create policy file and accept all peers
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm)
+		if err != nil {
+			t.Fatal("could not create dir", err)
+		}
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -385,7 +397,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		data, err := toml.Marshal(fileConf)
 		require.NoError(t, err)
 
-		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
+		configPath := filepath.Join(lightningd.GetDataDir(), "peerswap", "peerswap.conf")
 		os.WriteFile(
 			configPath,
 			data,
@@ -607,7 +619,11 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	defer printFailedFiltered(t, cln.DaemonProcess)
 
 	// Create policy file and accept all peers
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.MkdirAll(filepath.Join(cln.GetDataDir(), "peerswap"), os.ModePerm)
+	if err != nil {
+		t.Fatal("could not create dir", err)
+	}
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}
@@ -641,7 +657,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	data, err := toml.Marshal(fileConf)
 	require.NoError(t, err)
 
-	configPath := filepath.Join(cln.GetDataDir(), "peerswap.conf")
+	configPath := filepath.Join(cln.GetDataDir(), "peerswap", "peerswap.conf")
 	os.WriteFile(
 		configPath,
 		data,

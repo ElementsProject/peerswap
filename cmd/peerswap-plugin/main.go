@@ -276,7 +276,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	}
 
 	// db
-	swapDb, err := bbolt.Open(filepath.Join(config.DbPath, "swaps"), 0700, nil)
+	swapDb, err := bbolt.Open(filepath.Join(config.DbPath), 0700, nil)
 	if err != nil {
 		return err
 	}

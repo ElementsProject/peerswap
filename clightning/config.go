@@ -20,9 +20,10 @@ const (
 	defaultElementsSubDir   = ".elements"
 	defaultCookieFile       = ".cookie"
 	defaultLiquidWalletName = "peerswap"
-	defaultDbName           = "peerswap"
+	dbName                  = "swaps"
 	defaultPolicyFileName   = "policy.conf"
 	defaultConfigFileName   = "peerswap.conf"
+	defaultPeerswapSubDir   = "peerswap"
 )
 
 type BitcoinConf struct {
@@ -48,11 +49,12 @@ type LiquidConf struct {
 }
 
 type Config struct {
-	DataDir    string
-	DbPath     string
-	PolicyPath string
-	Bitcoin    *BitcoinConf
-	Liquid     *LiquidConf
+	LightningDir string
+	PeerswapDir  string
+	DbPath       string
+	PolicyPath   string
+	Bitcoin      *BitcoinConf
+	Liquid       *LiquidConf
 }
 
 func (c *Config) String() string {
@@ -64,11 +66,24 @@ func (c *Config) String() string {
 // main data dir, the current working directory of the plugin.
 func SetWorkingDir() Processor {
 	return func(c *Config) (*Config, error) {
-		dataDir, err := os.Getwd()
+		var err error
+		c.LightningDir, err = os.Getwd()
 		if err != nil {
 			return nil, err
 		}
-		c.DataDir = dataDir
+
+		return c, nil
+	}
+}
+
+// SetPeerswapPaths sets the Peerswap dir and the db name. If someone wants to
+// have them in a different place they need to symlink to the paths.
+// Path to peerswap data-dir: `<lightning-dir>/peerswap`.
+// Path to peerswap swaps-db: `<lightning-dir>/peerswap/swaps`.
+func SetPeerswapPaths(plugin *glightning.Plugin) Processor {
+	return func(c *Config) (*Config, error) {
+		c.PeerswapDir = filepath.Join(c.LightningDir, defaultPeerswapSubDir)
+		c.DbPath = filepath.Join(c.PeerswapDir, dbName)
 		return c, nil
 	}
 }
@@ -95,9 +110,9 @@ func CheckForLegacyClnConfig(plugin *glightning.Plugin) Processor {
 		if reasons != nil {
 			log.Infof(
 				"Setting config in core lightning config file is deprecated. Please "+
-					"use a standalone 'peerswap.conf' file that resides in the working "+
+					"use a standalone 'peerswap.conf' file that resides in the plugin dir "+
 					"directory of the plugin (%s): %s",
-				c.DataDir,
+				c.PeerswapDir,
 				strings.Join(reasons, ","),
 			)
 			return nil, fmt.Errorf("illegal use of core lightning config")
@@ -111,7 +126,7 @@ func CheckForLegacyClnConfig(plugin *glightning.Plugin) Processor {
 // in the running CLN container.
 func ReadFromFile() Processor {
 	return func(c *Config) (*Config, error) {
-		data, err := ioutil.ReadFile(filepath.Join(c.DataDir, defaultConfigFileName))
+		data, err := ioutil.ReadFile(filepath.Join(c.PeerswapDir, defaultConfigFileName))
 		if os.IsNotExist(err) {
 			return c, nil
 		}
@@ -120,7 +135,6 @@ func ReadFromFile() Processor {
 		}
 
 		var fileConf struct {
-			DbPath     string
 			PolicyPath string
 			Bitcoin    *BitcoinConf
 			Liquid     *LiquidConf
@@ -131,7 +145,6 @@ func ReadFromFile() Processor {
 			return nil, err
 		}
 
-		c.DbPath = fileConf.DbPath
 		c.PolicyPath = fileConf.PolicyPath
 
 		if fileConf.Bitcoin != nil {
@@ -159,11 +172,7 @@ func ReadFromFile() Processor {
 func PeerSwapFallback() Processor {
 	return func(c *Config) (*Config, error) {
 		if c.PolicyPath == "" {
-			c.PolicyPath = filepath.Join(c.DataDir, defaultPolicyFileName)
-		}
-
-		if c.DbPath == "" {
-			c.DbPath = filepath.Join(c.DataDir, defaultDbName)
+			c.PolicyPath = filepath.Join(c.PeerswapDir, defaultPolicyFileName)
 		}
 
 		if c.Liquid.RpcWallet == "" {
@@ -392,6 +401,7 @@ func GetConfig(client *ClightningClient) (*Config, error) {
 	pl := &Pipeline{processors: []Processor{}}
 	pl = pl.
 		Add(SetWorkingDir()).
+		Add(SetPeerswapPaths(client.Plugin)).
 		Add(CheckForLegacyClnConfig(client.Plugin)).
 		Add(ReadFromFile()).
 		Add(PeerSwapFallback()).

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	log2 "log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
@@ -184,7 +183,7 @@ func (cl *ClightningClient) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
-// Implementation returns the name of the lightning network client 
+// Implementation returns the name of the lightning network client
 // implementation.
 func (cl *ClightningClient) Implementation() string {
 	return "CLN"
@@ -254,7 +253,6 @@ func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
 // This config is just used for a console print.
 func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
 	cl.peerswapConfig = PeerswapClightningConfig{
-		DbPath:                 config.DbPath,
 		BitcoinRpcUser:         config.Bitcoin.RpcUser,
 		BitcoinRpcPassword:     config.Bitcoin.RpcPassword,
 		BitcoinRpcPasswordFile: config.Bitcoin.RpcPasswordFile,
@@ -268,8 +266,7 @@ func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
 		LiquidRpcPort:          config.Liquid.RpcPort,
 		LiquidRpcWallet:        config.Liquid.RpcWallet,
 		LiquidDisabled:         config.Liquid.Disabled,
-		PolicyPath:             config.PolicyPath,
-		ConfigFilePath:         filepath.Join(config.DataDir, "peerswap.conf"),
+		PeerswapDir:            config.PeerswapDir,
 	}
 }
 

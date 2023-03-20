@@ -242,7 +242,9 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 	data, err := toml.Marshal(peerswapConfig)
 	require.NoError(t, err)
 
-	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
+	err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm)
+	require.NoError(t, err)
+	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap", "peerswap.conf")
 	os.WriteFile(
 		configPath,
 		data,
