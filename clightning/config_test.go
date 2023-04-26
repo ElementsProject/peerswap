@@ -11,8 +11,6 @@ import (
 
 func Test_ReadFromFile(t *testing.T) {
 	conf := `
-	policypath="policypath"
-
 	[Bitcoin]
 	rpcuser="rpcuser"
 	rpcpassword="rpcpassword"
@@ -43,7 +41,6 @@ func Test_ReadFromFile(t *testing.T) {
 
 	expected := &Config{
 		PeerswapDir: dir,
-		PolicyPath:  "policypath",
 		Bitcoin: &BitcoinConf{
 			RpcUser:         "rpcuser",
 			RpcPassword:     "rpcpassword",

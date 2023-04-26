@@ -135,17 +135,14 @@ func ReadFromFile() Processor {
 		}
 
 		var fileConf struct {
-			PolicyPath string
-			Bitcoin    *BitcoinConf
-			Liquid     *LiquidConf
+			Bitcoin *BitcoinConf
+			Liquid  *LiquidConf
 		}
 
 		err = toml.Unmarshal(data, &fileConf)
 		if err != nil {
 			return nil, err
 		}
-
-		c.PolicyPath = fileConf.PolicyPath
 
 		if fileConf.Bitcoin != nil {
 			c.Bitcoin.RpcUser = fileConf.Bitcoin.RpcUser
