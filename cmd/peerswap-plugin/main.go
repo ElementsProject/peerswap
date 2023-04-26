@@ -415,7 +415,7 @@ func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 		return &chaincfg.TestNet3Params, nil
 	case "signet":
 		return &chaincfg.SigNetParams, nil
-	case "mainnet":
+	case "bitcoin":
 		return &chaincfg.MainNetParams, nil
 	default:
 		return nil, errors.New("unknown bitcoin network")
