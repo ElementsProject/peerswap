@@ -38,9 +38,9 @@ Specify the full path to the `peerswap` binary. For now it is recommended to log
 
 Peerswap will automatically try to connect to your bitcoind (using the bitcoind rpc settings from core-lightning).
 
-The swap database will be located at `<lightning-dir>/peerswap`
+The swap database will be located at `<lightning-dir>/peerswap/swaps`
 
-Additional configuration can be specified in a `peerswap.conf` file that is expected to be located in the core-lightning `datadir` (defaults to `/home/<user>/.lightning/<network>/peerswap.conf`)
+Additional configuration can be specified in a `peerswap.conf` file that is expected to be located in the peerswap data dir `<lightning-dir>/peerswap` (defaults to `/home/<user>/.lightning/<network>/peerswap/peerswap.conf`)
 
 The following optional configs can be specified:
 ```bash

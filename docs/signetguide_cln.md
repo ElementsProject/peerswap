@@ -209,8 +209,8 @@ Peerswap will try to detect the `elementsd` cookie file at the default location.
 If you use a different data fir for `elementsd` you need to add the connection
 options to the peerswap config file in order to enable liquid swaps.
 ```
-mkdir -p $HOME/.lightning/signet
-touch $HOME/.lightning/signet/peerswap.conf
+mkdir -p $HOME/.lightning/signet/peerswap
+touch $HOME/.lightning/signet/peerswap/peerswap.conf
 ```
 
 ```
