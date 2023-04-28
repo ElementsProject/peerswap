@@ -25,6 +25,7 @@ func getBitcoindConfig() map[string]string {
 func getLiquiddConfig() map[string]string {
 	return map[string]string{
 		"listen":           "1",
+		"debug":            "1",
 		"rpcuser":          "rpcuser",
 		"rpcpassword":      "rpcpass",
 		"fallbackfee":      "0.00001",
@@ -127,6 +128,12 @@ func (n *BitcoinNode) Run(generateInitialBlocks bool) error {
 	err := n.WaitForLog("Done loading", TIMEOUT)
 	if err != nil {
 		return err
+	}
+
+	// Add RPC client
+	n.RpcProxy, err = NewRpcProxy(n.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("NewRpcProxy(configFile) %w", err)
 	}
 
 	// Create and open wallet
@@ -264,14 +271,62 @@ func NewLiquidNode(testDir string, bitcoin *BitcoinNode, id int) (*LiquidNode, e
 	configFile := filepath.Join(dataDir, "elements.conf")
 	WriteConfig(configFile, config, regtestConfig, config["chain"])
 
-	proxy, err := NewRpcProxy(configFile)
+	return &LiquidNode{
+		DaemonProcess: NewDaemonProcess(cmdLine, fmt.Sprintf("elements-%d", id)),
+		DataDir:       dataDir,
+		ConfigFile:    configFile,
+		RpcPort:       rpcPort,
+		Port:          port,
+		WalletName:    "liquidwallet",
+		RpcUser:       config["rpcuser"],
+		RpcPassword:   config["rpcpassword"],
+		Network:       config["chain"],
+		bitcoin:       bitcoin,
+	}, nil
+}
+
+func NewLiquidNodeFromConfig(testDir string, bitcoin *BitcoinNode, config map[string]string, id int) (*LiquidNode, error) {
+	rpcPort, err := GetFreePort()
 	if err != nil {
-		return nil, fmt.Errorf("NewRpcProxy(configFile) %w", err)
+		return nil, err
 	}
+
+	port := rpcPort
+	for port == rpcPort {
+		port, err = GetFreePort()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	rngDirExtension, err := GenerateRandomString(5)
+	if err != nil {
+		return nil, err
+	}
+
+	dataDir := filepath.Join(testDir, fmt.Sprintf("liquid-%s", rngDirExtension))
+
+	err = os.MkdirAll(dataDir, os.ModeDir|os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
+
+	cmdLine := []string{
+		"elementsd",
+		fmt.Sprintf("-datadir=%s", dataDir),
+	}
+
+	bitcoindConfig := getBitcoindConfig()
+	config["mainchainrpcport"] = strconv.Itoa(bitcoin.RpcPort)
+	config["mainchainrpcuser"] = bitcoindConfig["rpcuser"]
+	config["mainchainrpcpassword"] = bitcoindConfig["rpcpassword"]
+
+	regtestConfig := map[string]string{"rpcport": strconv.Itoa(rpcPort), "port": strconv.Itoa(port)}
+	configFile := filepath.Join(dataDir, "elements.conf")
+	WriteConfig(configFile, config, regtestConfig, config["chain"])
 
 	return &LiquidNode{
 		DaemonProcess: NewDaemonProcess(cmdLine, fmt.Sprintf("elements-%d", id)),
-		RpcProxy:      proxy,
 		DataDir:       dataDir,
 		ConfigFile:    configFile,
 		RpcPort:       rpcPort,
@@ -291,6 +346,11 @@ func (n *LiquidNode) Run(generateInitialBlocks bool) error {
 	err := n.WaitForLog("Done loading", TIMEOUT)
 	if err != nil {
 		return err
+	}
+
+	n.RpcProxy, err = NewRpcProxy(n.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("NewRpcProxy(configFile) %w", err)
 	}
 
 	// Create and open wallet

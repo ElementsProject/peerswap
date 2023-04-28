@@ -188,7 +188,7 @@ cd peerswap && \
 make cln-release
 ```
 
-## Cleanup
+### Cleanup
 
 Remove all unnecessary files and folders
 ```bash
@@ -203,25 +203,39 @@ rm laanwj-releases.asc && \
 rm SHA256SUMS.asc
 ```
 
+### Config (Enable Liquid)
+
+Peerswap will try to detect the `elementsd` cookie file at the default location.
+If you use a different data fir for `elementsd` you need to add the connection
+options to the peerswap config file in order to enable liquid swaps.
+```
+mkdir -p $HOME/.lightning/signet/peerswap
+touch $HOME/.lightning/signet/peerswap/peerswap.conf
+```
+
+```
+echo '[Liquid]
+rpcuser="admin1"
+rpcpassword="123"
+rpchost="http://localhost"
+rpcport=18884
+rpcwallet="swap"' > $HOME/.lightning/signet/peerswap.conf
+```
+
+To disable liquid swaps you can add the following to the peerswap config file:
+```
+[Liquid]
+disabled=true
+```
+
 ### Run
 
-start the core-lightning daemon with the following config flags for bitcoin only:
+Start the core-lightning daemon with:
 
 ```bash
 lightningd --daemon \
         --plugin=$HOME/peerswap/peerswap 
-```
-Or with liquid enabled
-```bash
-lightningd --daemon \
-        --plugin=$HOME/peerswap/peerswap \
-        --peerswap-elementsd-rpchost=http://localhost \
-        --peerswap-elementsd-rpcport=18884 \
-        --peerswap-elementsd-rpcuser=admin1 \
-        --peerswap-elementsd-rpcpassword=123 \
-        --peerswap-elementsd-network=testnet \
-        --peerswap-elementsd-rpcwallet=swap 
-```
+``` 
 
 Create a new signet address and receive some sats from https://signet.bc-2.jp/
 

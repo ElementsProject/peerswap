@@ -53,6 +53,7 @@ var methods = []peerswaprpcMethod{
 	&LiquidGetBalance{},
 	&ReloadPolicyFile{},
 	&GetRequestedSwaps{},
+	&ListConfig{},
 }
 
 var devmethods = []peerswaprpcMethod{}
@@ -92,6 +93,8 @@ type ClightningClient struct {
 	ctx context.Context
 
 	isReady bool
+
+	peerswapConfig PeerswapClightningConfig
 }
 
 func (cl *ClightningClient) SetReady() {
@@ -180,7 +183,7 @@ func (cl *ClightningClient) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
-// Implementation returns the name of the lightning network client 
+// Implementation returns the name of the lightning network client
 // implementation.
 func (cl *ClightningClient) Implementation() string {
 	return "CLN"
@@ -243,6 +246,27 @@ func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
 	cl.bitcoinChain = bitcoinChain
 	if cl.bitcoinChain != nil {
 		cl.bitcoinNetwork = bitcoinChain.GetChain()
+	}
+}
+
+// SetPeerswapConfig injects the peerswap config that is used during runtime.
+// This config is just used for a console print.
+func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
+	cl.peerswapConfig = PeerswapClightningConfig{
+		BitcoinRpcUser:         config.Bitcoin.RpcUser,
+		BitcoinRpcPassword:     config.Bitcoin.RpcPassword,
+		BitcoinRpcPasswordFile: config.Bitcoin.RpcPasswordFile,
+		BitcoinRpcHost:         config.Bitcoin.RpcHost,
+		BitcoinRpcPort:         config.Bitcoin.RpcPort,
+		BitcoinCookieFilePath:  config.Bitcoin.RpcPasswordFile,
+		LiquidRpcUser:          config.Liquid.RpcUser,
+		LiquidRpcPassword:      config.Liquid.RpcPassword,
+		LiquidRpcPasswordFile:  config.Liquid.RpcPasswordFile,
+		LiquidRpcHost:          config.Liquid.RpcHost,
+		LiquidRpcPort:          config.Liquid.RpcPort,
+		LiquidRpcWallet:        config.Liquid.RpcWallet,
+		LiquidDisabled:         config.Liquid.Disabled,
+		PeerswapDir:            config.PeerswapDir,
 	}
 }
 

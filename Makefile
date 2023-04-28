@@ -19,7 +19,8 @@ INTEGRATION_TEST_ENV= \
 INTEGRATION_TEST_OPTS= \
 	-tags dev \
 	-tags fast_test \
-	-timeout=30m -v
+	-timeout=30m -v \
+	-failfast
 
 BINS= \
 	${OUTDIR}/peerswapd \
@@ -130,7 +131,12 @@ test-misc-integration: test-bins
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
 	'Test_RestoreFromPassedCSV|'\
-	'Test_Wumbo)'\
+	'Test_Wumbo|'\
+	'Test_ClnConfig|'\
+	'Test_ClnPluginConfigFile|'\
+	'Test_ClnPluginConfigFile_DoesNotExist|'\
+	'Test_ClnPluginConfig_ElementsAuthCookie|'\
+	'Test_ClnPluginConfig_DisableLiquid)'\
 	 ./test
 .PHONY: test-misc-integration
 

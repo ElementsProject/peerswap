@@ -36,29 +36,37 @@ log-level=debug:plugin-peerswap
 
 Specify the full path to the `peerswap` binary. For now it is recommended to log all debug messages from peerswap.
 
-Peerswap will automatically try to connect to your bitcoind and (if available) elementsd
+Peerswap will automatically try to connect to your bitcoind (using the bitcoind rpc settings from core-lightning).
+
+The swap database will be located at `<lightning-dir>/peerswap/swaps`
+
+Additional configuration can be specified in a `peerswap.conf` file that is expected to be located in the peerswap data dir `<lightning-dir>/peerswap` (defaults to `/home/<user>/.lightning/<network>/peerswap/peerswap.conf`)
 
 The following optional configs can be specified:
-
 ```bash
-# General
-peerswap-db-path ## Path to swap db file (default: $HOME/.lightning/<network>/peerswap/swap)
-peerswap-policy-path ## Path to policy file (default: $HOME/.lightning/<network>/peerswap/policy.conf)
+# General section
+policypath="/path/to/policy" ## Path to policy file (default: $HOME/.lightning/<network>/peerswap/policy.conf)
 
-# Bitcoin connection info 
-peerswap-bitcoin-rpchost ## Host of bitcoind rpc (default: localhost)
-peerswap-bitcoin-rpcport ## Port of bitcoind rpc (default: network-default)
-peerswap-bitcoin-rpcuser ## User for bitcoind rpc
-peerswap-bitcoin-rpcpassword ## Password for bitcoind rpc
-peerswap-bitcoin-cookiefilepath ## Path to bitcoin cookie file 
+# Bitcoin section
+# Alternative bitcoin rpc connection settings.
+# Example config:
+[Bitcoin]
+rpcuser="user"
+rpcpassword="password"
+rpchost="host"
+rpcport=1234
+cookiefilepath="/path/to/auth/.cookie" ## If set this will be used for authentication
 
-peerswap-elementsd-enabled ## Override liquid enable (default: true)
-peerswap-elementsd-rpchost ## Host of elementsd rpc (default: localhost)
-peerswap-elementsd-rpcport ## Port of elementsd rpc (default: 18888)
-peerswap-elementsd-rpcuser ## User for elementsd rpc
-peerswap-elementsd-rpcpassword ## Password for elementsd rpc
-peerswap-elementsd-rpcpasswordfile ## Path to passwordfile for elementsd rpc
-peerswap-elementsd-rpcwallet ## Rpcwallet to use (default: peerswap)
+# Liquid section
+# Liquid rpc connection settings.
+[Liquid]
+rpcuser="user"
+rpcpassword="password"
+rpchost="host"
+rpcport=1234
+rpcpasswordfile="/path/to/auth/.cookie" ## If set this will be used for authentication
+rpcwallet="swap-wallet" ## (default: peerswap)
+enabled=false ## If set to true, peerswap connects to elementsd
 ```
 
 In order to check if your daemon is setup correctly run
