@@ -43,7 +43,7 @@ type Policy interface {
 type Store interface {
 	Update(peerId string, info PollInfo) error
 	GetAll() (map[string]PollInfo, error)
-	RemoveUnseen(olderThan time.Duration) error
+	RemoveUnseen(now time.Time, olderThan time.Duration) error
 }
 
 type PollInfo struct {
@@ -96,9 +96,9 @@ func (s *Service) Start() {
 	go func() {
 		for {
 			select {
-			case <-s.clock.C:
+			case now := <-s.clock.C:
 				// remove unseen
-				s.store.RemoveUnseen(s.removeDuration)
+				s.store.RemoveUnseen(now, s.removeDuration)
 				// poll
 				s.PollAllPeers()
 			case <-s.ctx.Done():
