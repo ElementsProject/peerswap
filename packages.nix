@@ -5,7 +5,7 @@ let
 # - bitcoin v24.0.1
 # - elements v22.1.0
 
-rev = "5ae751c41b1b78090e4c311f43aa34792599e563";
+rev = "e928e936fbf344e10a0979b574bf1823063d37e4";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
