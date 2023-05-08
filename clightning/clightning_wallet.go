@@ -208,7 +208,7 @@ func (cl *ClightningClient) GetOnchainBalance() (uint64, error) {
 
 	var totalBalance uint64
 	for _, output := range funds.Outputs {
-		totalBalance += output.Value
+		totalBalance += output.AmountMilliSatoshi.MSat() / 1000
 	}
 	return totalBalance, nil
 }

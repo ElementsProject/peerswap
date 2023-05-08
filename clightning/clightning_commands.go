@@ -228,7 +228,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels not found")
 	}
 
-	if fundingChannels.ChannelSatoshi < (l.SatAmt + 5000) {
+	if fundingChannels.AmountMilliSatoshi.MSat() < (l.SatAmt+5000)*1000 {
 		return nil, errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
@@ -347,7 +347,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if fundingChannels == nil {
 		return nil, errors.New("fundingChannels not found")
 	}
-	if fundingChannels.ChannelTotalSatoshi-fundingChannels.ChannelSatoshi < l.SatAmt {
+	if fundingChannels.AmountMilliSatoshi.MSat()-fundingChannels.OurAmountMilliSatoshi.MSat() < (l.SatAmt * 1000) {
 		return nil, errors.New("not enough inbound capacity to perform swap")
 	}
 	if !fundingChannels.Connected {
@@ -386,7 +386,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		}
 		sats := uint64(0)
 		for _, v := range funds.Outputs {
-			sats += v.Value
+			sats += v.AmountMilliSatoshi.MSat() / 1000
 		}
 
 		if sats < l.SatAmt+2000 {
