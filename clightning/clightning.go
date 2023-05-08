@@ -69,6 +69,7 @@ type SendPayPartWaiter interface {
 // ClightningClient is the main driver behind c-lightnings plugins system
 // it handles rpc calls and messages
 type ClightningClient struct {
+	version    string
 	glightning *glightning.Lightning
 	Plugin     *glightning.Plugin
 
@@ -95,6 +96,12 @@ type ClightningClient struct {
 	isReady bool
 
 	peerswapConfig PeerswapClightningConfig
+}
+
+// Version returns the version of the core-lightning node, as reported
+// by `getinfo`.
+func (cl *ClightningClient) Version() string {
+	return cl.version
 }
 
 func (cl *ClightningClient) SetReady() {
@@ -427,6 +434,7 @@ func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string
 		log2.Fatalf("getinfo err %v", err)
 	}
 	cl.nodeId = getInfo.Id
+	cl.version = getInfo.Version
 	cl.initChan <- true
 }
 
