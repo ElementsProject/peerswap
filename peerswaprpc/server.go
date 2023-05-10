@@ -148,26 +148,26 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
+	// In order to be responsive we wait for the `opening_tx` to be sent before
+	// we return. Time out if we wait too long.
+	if !swapOut.WaitForStateChange(func(st swap.StateType) bool {
+		switch st {
+		case swap.State_SwapOutSender_AwaitTxConfirmation:
+			return true
+		case swap.State_SwapCanceled:
+			err = fmt.Errorf(swapOut.Data.GetCancelMessage())
+			return true
 		default:
-			if swapOut.Current == swap.State_SwapOutSender_AwaitAgreement || swapOut.Current == swap.State_SwapOutSender_PayFeeInvoice || swapOut.Current == swap.State_SwapOutSender_AwaitTxBroadcastedMessage {
-				continue
-			}
-			if swapOut.Current == swap.State_SwapCanceled {
-				return nil, errors.New(swapOut.Data.GetCancelMessage())
-
-			}
-			if swapOut.Current == swap.State_SwapOutSender_AwaitTxConfirmation {
-				return &SwapResponse{Swap: PrettyprintFromServiceSwap(swapOut)}, nil
-			}
-
+			return false
 		}
+	}, 30*time.Second) {
+		// Timeout.
+		return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &SwapResponse{Swap: PrettyprintFromServiceSwap(swapOut)}, nil
 }
 
 // isPeerConnected returns true if the peer is connected to the lnd node.
@@ -272,26 +272,26 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
+	// In order to be responsive we wait for the `opening_tx` to be sent before
+	// we return. Time out if we wait too long.
+	if !swapIn.WaitForStateChange(func(st swap.StateType) bool {
+		switch st {
+		case swap.State_SwapInSender_SendTxBroadcastedMessage:
+			return true
+		case swap.State_SwapCanceled:
+			err = fmt.Errorf(swapIn.Data.GetCancelMessage())
+			return true
 		default:
-			if swapIn.Current == swap.State_SwapInSender_AwaitAgreement || swapIn.Current == swap.State_SwapInSender_BroadcastOpeningTx {
-				continue
-			}
-			if swapIn.Current == swap.State_SwapCanceled {
-				return nil, errors.New(swapIn.Data.GetCancelMessage())
-
-			}
-			if swapIn.Current == swap.State_SwapInSender_SendTxBroadcastedMessage {
-				return &SwapResponse{Swap: PrettyprintFromServiceSwap(swapIn)}, nil
-			}
-
+			return false
 		}
+	}, 30*time.Second) {
+		// Timeout.
+		return nil, errors.New("rpc timeout reached, use peerswap-listswaps for info")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &SwapResponse{Swap: PrettyprintFromServiceSwap(swapIn)}, nil
 }
 
 func (p *PeerswapServer) GetSwap(ctx context.Context, request *GetSwapRequest) (*SwapResponse, error) {

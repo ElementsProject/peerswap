@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/elementsproject/peerswap/log"
 )
@@ -96,6 +97,48 @@ type SwapStateMachine struct {
 	retries int
 
 	failures int
+
+	stateMutex  sync.Mutex
+	stateChange *sync.Cond
+}
+
+func (s *SwapStateMachine) setState(newState StateType) {
+	s.stateMutex.Lock()
+	s.Current = newState
+	s.stateMutex.Unlock()
+	s.stateChange.Broadcast()
+}
+
+// WaitForStateChange calls the isDesiredState callback on every state change.
+// It returns true if the callback returned true and false if the timeout is
+// reached.
+func (s *SwapStateMachine) WaitForStateChange(isDesiredState func(StateType) bool, timeout time.Duration) bool {
+	timeoutCh := time.After(timeout)
+	s.stateMutex.Lock()
+	defer s.stateMutex.Unlock()
+
+	var timedOut bool
+	for !isDesiredState(s.Current) {
+		unlockCh := make(chan struct{})
+
+		go func() {
+			select {
+			case <-unlockCh:
+			case <-timeoutCh:
+				timedOut = true
+				s.stateChange.Broadcast()
+			}
+		}()
+
+		s.stateChange.Wait()
+		close(unlockCh)
+
+		if timedOut {
+			return isDesiredState(s.Current)
+		}
+	}
+
+	return true
 }
 
 // getNextState returns the next state for the event given the machine's current
@@ -179,8 +222,8 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 		// Transition over to the next state.
 		s.Previous = s.Current
-		s.Current = nextState
-		s.Data.SetState(s.Current)
+		s.setState(nextState)
+		s.Data.SetState(nextState)
 
 		// Print Swap information
 		s.logSwapInfo()
