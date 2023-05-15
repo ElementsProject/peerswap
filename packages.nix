@@ -1,17 +1,17 @@
 let
-# Pinning to revision 5ae751c41b1b78090e4c311f43aa34792599e563 
-# - cln v23.02
-# - lnd v0.15.5-beta
+# Pinning to revision c65c2f09e5bb54cbbbc4aa72030d62e138d8f0cf 
+# - cln v23.02.2
+# - lnd v0.16.2-beta
 # - bitcoin v24.0.1
 # - elements v22.1.0
 
-rev = "5ae751c41b1b78090e4c311f43aa34792599e563";
+rev = "c65c2f09e5bb54cbbbc4aa72030d62e138d8f0cf";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
 # Override priority for bitcoin as /bin/bitcoin_test will
 # confilict with /bin/bitcoin_test from elementsd.
-bitcoin = (pkgs.bitcoin.overrideAttrs (attrs: {
+bitcoind = (pkgs.bitcoind.overrideAttrs (attrs: {
     meta = attrs.meta or {} // {
         priority = 0;
     };
@@ -33,11 +33,11 @@ in with pkgs;
     execs = {
         clightning = clightning;
         clightning-dev = clightning-dev;
-        bitcoin = bitcoin;
-        elements = elementsd;
+        bitcoind = bitcoind;
+        elementsd = elementsd;
         mermaid = nodePackages.mermaid-cli;
         lnd = lnd;
     };
-    testpkgs = [ go bitcoin elementsd clightning-dev lnd ];
-    devpkgs = [ bitcoin elementsd clightning clightning-dev lnd docker-compose jq nodePackages.mermaid-cli ];
+    testpkgs = [ go bitcoind elementsd clightning-dev lnd ];
+    devpkgs = [ go_1_19 gotools bitcoind elementsd clightning clightning-dev lnd ];
 }
