@@ -122,6 +122,7 @@ func (s *SwapService) RecoverSwaps() error {
 		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
 			swap = swapOutReceiverFromStore(swap, s.swapServices)
 		}
+		swap.stateChange = sync.NewCond(&swap.stateMutex)
 
 		err := s.lockSwap(swap.SwapId.String(), swap.Data.GetScid(), swap)
 		if err != nil {

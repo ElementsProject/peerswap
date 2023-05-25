@@ -1,5 +1,7 @@
 package swap
 
+import "sync"
+
 // swapInReceiverFromStore recovers a swap statemachine from the swap store
 func swapInReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *SwapStateMachine {
 	smData.swapServices = services
@@ -9,7 +11,7 @@ func swapInReceiverFromStore(smData *SwapStateMachine, services *SwapServices) *
 
 // newSwapInReceiverFSM returns a new swap statemachine for a swap-in receiver
 func newSwapInReceiverFSM(swapId *SwapId, services *SwapServices, peer string) *SwapStateMachine {
-	return &SwapStateMachine{
+	fsm := &SwapStateMachine{
 		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_IN,
@@ -17,6 +19,8 @@ func newSwapInReceiverFSM(swapId *SwapId, services *SwapServices, peer string) *
 		States:       getSwapInReceiverStates(),
 		Data:         NewSwapDataFromRequest(swapId, peer),
 	}
+	fsm.stateChange = sync.NewCond(&fsm.stateMutex)
+	return fsm
 }
 
 // getSwapInReceiverStates returns the states for the swap-in receiver

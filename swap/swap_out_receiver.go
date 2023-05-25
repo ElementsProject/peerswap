@@ -1,5 +1,7 @@
 package swap
 
+import "sync"
+
 // todo every send message should be it's own state / action, if msg sending fails, tx will be broadcasted again / error occurs
 // or make the sender a more sophisticated program which tries resending...
 const ()
@@ -13,7 +15,7 @@ func swapOutReceiverFromStore(smData *SwapStateMachine, services *SwapServices) 
 
 // newSwapOutReceiverFSM returns a new swap statemachine for a swap-out receiver
 func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices, peer string) *SwapStateMachine {
-	return &SwapStateMachine{
+	fsm := &SwapStateMachine{
 		SwapId:       swapId,
 		swapServices: services,
 		Type:         SWAPTYPE_OUT,
@@ -21,6 +23,8 @@ func newSwapOutReceiverFSM(swapId *SwapId, services *SwapServices, peer string) 
 		States:       getSwapOutReceiverStates(),
 		Data:         NewSwapDataFromRequest(swapId, peer),
 	}
+	fsm.stateChange = sync.NewCond(&fsm.stateMutex)
+	return fsm
 }
 
 // getSwapOutReceiverStates returns the states for the swap-out receiver
