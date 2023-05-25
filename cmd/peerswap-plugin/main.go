@@ -37,7 +37,7 @@ var supportedAssets = []string{}
 var GitCommit string
 
 const (
-	minClnVersion = "0.12.1"
+	minClnVersion = "23.02"
 )
 
 func main() {
@@ -141,8 +141,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
-	log.Infof("Using core-lightning version %s", nodeInfo.Version)
-	ok, err := checkClnVersion(nodeInfo.Network, nodeInfo.Version)
+	log.Infof("Using core-lightning version %s", lightningPlugin.Version())
+	ok, err := checkClnVersion(nodeInfo.Network, lightningPlugin.Version())
 	if err != nil {
 		log.Debugf("Could not compare version: %s", err.Error())
 		return err

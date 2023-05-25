@@ -180,6 +180,33 @@ func PeerSwapFallback() Processor {
 	}
 }
 
+func SetBitcoinNetwork(client *ClightningClient) Processor {
+	return func(c *Config) (*Config, error) {
+		if c.Bitcoin.Network == "" {
+			// No network is set, we fetch it from cln.
+			// Set bitcoin network via getinfo return value
+			// Network could not be extracted, try `getinfo`.
+			info, err := client.glightning.GetInfo()
+			if err != nil {
+				return nil, err
+			}
+			// Hack to rewrite core-lightnings network names to
+			// the common internal variants.
+			switch info.Network {
+			case "bitcoin":
+				c.Bitcoin.Network = "mainnet"
+			case "testnet":
+				c.Bitcoin.Network = "testnet3"
+			case "":
+				return nil, fmt.Errorf("could not detect bitcoin network")
+			default:
+				c.Bitcoin.Network = info.Network
+			}
+		}
+		return c, nil
+	}
+}
+
 // BitcoinFallbackFromClnConfig
 // if no bitcoin config is set at all, try to fall back to cln bitcoin config.
 func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
@@ -214,36 +241,7 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 			// Extract settings from the `bcli` plugin.
 			for _, plugin := range listConfigResponse.ImportantPlugins {
 				if plugin.Name == "bcli" {
-					// Extract network.
-					if v, ok := plugin.Options["network"]; ok {
-						if v != nil {
-							c.Bitcoin.Network = v.(string)
-						}
-					}
-					if _, ok := plugin.Options["mainnet"]; ok {
-						c.Bitcoin.Network = "mainnet"
-					}
-					if _, ok := plugin.Options["testnet"]; ok {
-						c.Bitcoin.Network = "testnet"
-					}
-					if _, ok := plugin.Options["signet"]; ok {
-						c.Bitcoin.Network = "signet"
-					}
-					if c.Bitcoin.Network == "" {
-						// Network could not be extracted, try `getinfo`.
-						info, err := client.glightning.GetInfo()
-						if err != nil {
-							return nil, err
-						}
-						c.Bitcoin.Network = info.Network
-						// Ugly hack to rewrite core-lightnings network name to
-						// the internal variant: bitcoin ~ mainnet.
-						if c.Bitcoin.Network == "bitcoin" {
-							c.Bitcoin.Network = "mainnet"
-						}
-					}
-
-					// Extract rest of the bitcoind config
+					// Extract the bitcoind config
 					if v, ok := plugin.Options["bitcoin-datadir"]; ok {
 						if v != nil {
 							c.Bitcoin.DataDir = v.(string)
@@ -403,6 +401,7 @@ func GetConfig(client *ClightningClient) (*Config, error) {
 		Add(ReadFromFile()).
 		Add(PeerSwapFallback()).
 		Add(BitcoinFallbackFromClnConfig(client)).
+		Add(SetBitcoinNetwork(client)).
 		Add(BitcoinFallback()).
 		Add(ElementsFallback()).
 		Add(BitcoinCookieConnect()).
@@ -438,7 +437,7 @@ func defaultBitcoinRpcPort(network string) uint {
 	switch network {
 	case "signet":
 		return 38332
-	case "testnet":
+	case "testnet", "testnet3":
 		return 18332
 	case "regtest":
 		return 18443
@@ -461,12 +460,12 @@ func defaultElementsRpcPort(network string) uint {
 
 func bitcoinNetDir(network string) (string, error) {
 	switch network {
-	case "mainnet":
+	case "mainnet", "bitcoin":
 		return "", nil
 	case "signet":
 		return "signet", nil
-	case "testnet3":
-		return "testnet", nil
+	case "testnet3", "testnet":
+		return "testnet3", nil
 	case "regtest":
 		return "regtest", nil
 	default:
@@ -476,9 +475,9 @@ func bitcoinNetDir(network string) (string, error) {
 
 func liquidNetDir(network string) (string, error) {
 	switch network {
-	case "mainnet":
+	case "mainnet", "bitcoin":
 		return "liquidv1", nil
-	case "testnet3", "simnet", "signet":
+	case "testnet3", "simnet", "signet", "testnet":
 		return "liquidtestnet", nil
 	case "regtest":
 		return "liquidregtest", nil

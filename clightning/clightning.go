@@ -69,6 +69,7 @@ type SendPayPartWaiter interface {
 // ClightningClient is the main driver behind c-lightnings plugins system
 // it handles rpc calls and messages
 type ClightningClient struct {
+	version    string
 	glightning *glightning.Lightning
 	Plugin     *glightning.Plugin
 
@@ -95,6 +96,12 @@ type ClightningClient struct {
 	isReady bool
 
 	peerswapConfig PeerswapClightningConfig
+}
+
+// Version returns the version of the core-lightning node, as reported
+// by `getinfo`.
+func (cl *ClightningClient) Version() string {
+	return cl.version
 }
 
 func (cl *ClightningClient) SetReady() {
@@ -207,7 +214,7 @@ func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) err
 		return errors.New("fundingChannels not found")
 	}
 
-	if fundingChannels.ChannelSatoshi < amountSat {
+	if fundingChannels.OurAmountMilliSatoshi.MSat() < amountSat*1000 {
 		return errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
@@ -335,7 +342,7 @@ func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amo
 	if err != nil {
 		return "", 0, 0, err
 	}
-	return res.PaymentHash, res.MilliSatoshis, int64(res.MinFinalCltvExpiry), nil
+	return res.PaymentHash, res.AmountMsat.MSat(), int64(res.MinFinalCltvExpiry), nil
 }
 
 // PayInvoice tries to pay a Bolt11 Invoice
@@ -367,15 +374,14 @@ func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (pr
 			{
 				Id:             bolt11.Payee,
 				ShortChannelId: scid,
-				MilliSatoshi:   bolt11.MilliSatoshis,
-				AmountMsat:     fmt.Sprintf("%dmsat", bolt11.MilliSatoshis),
-				Delay:          uint(bolt11.MinFinalCltvExpiry + 1),
+				AmountMsat:     bolt11.AmountMsat,
+				Delay:          uint32(bolt11.MinFinalCltvExpiry + 1),
 				Direction:      0,
 			},
 		},
 		bolt11.PaymentHash,
 		label,
-		nil,
+		bolt11.AmountMsat.MSat(),
 		payreq,
 		bolt11.PaymentSecret,
 		0,
@@ -428,6 +434,7 @@ func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string
 		log2.Fatalf("getinfo err %v", err)
 	}
 	cl.nodeId = getInfo.Id
+	cl.version = getInfo.Version
 	cl.initChan <- true
 }
 

@@ -192,8 +192,8 @@ func (n *CLightningNode) GetBtcBalanceSat() (sats uint64, err error) {
 
 	var sum uint64
 	for _, output := range r.Outputs {
-		// Value seems to be already in sat.
-		sum += output.Value
+		// AmountMilliSatoshi is in msat.
+		sum += output.AmountMilliSatoshi.MSat() / 1000
 	}
 	return sum, nil
 }
@@ -206,7 +206,7 @@ func (n *CLightningNode) GetChannelBalanceSat(scid string) (sats uint64, err err
 
 	for _, ch := range funds.Channels {
 		if ch.ShortChannelId == scid {
-			return ch.ChannelSatoshi, nil
+			return ch.OurAmountMilliSatoshi.MSat() / 1000, nil
 		}
 	}
 
@@ -463,15 +463,15 @@ func (n *CLightningNode) SendPay(bolt11, scid string) error {
 		{
 			Id:             decodedBolt11.Payee,
 			ShortChannelId: scid,
-			MilliSatoshi:   decodedBolt11.MilliSatoshis,
-			AmountMsat:     decodedBolt11.AmountMsat,
-			Delay:          uint(decodedBolt11.MinFinalCltvExpiry + 1),
-			Direction:      0,
+			// MilliSatoshi:   decodedBolt11.MilliSatoshis,
+			AmountMsat: decodedBolt11.AmountMsat,
+			Delay:      uint32(decodedBolt11.MinFinalCltvExpiry + 1),
+			Direction:  0,
 		},
 	},
 		decodedBolt11.PaymentHash,
 		"",
-		&decodedBolt11.MilliSatoshis,
+		decodedBolt11.AmountMsat.MSat(),
 		bolt11,
 		decodedBolt11.PaymentSecret,
 		0,

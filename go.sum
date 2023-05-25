@@ -186,8 +186,10 @@ github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6 h1:sE4tvxWw01v7K3MAHwKF2UF3xQbgy23PRURntuV1CkU=
 github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6/go.mod h1:11Gm+ccJnvAhCNLlf5+cS9KjtbaD5I5zaZpFMsTHWTw=
-github.com/elementsproject/glightning v0.0.0-20221013194807-73978c84cee8 h1:hGFieFW9zJavM+nQ9mKoPfPY5ag3L6JREAp0ED1W5wU=
-github.com/elementsproject/glightning v0.0.0-20221013194807-73978c84cee8/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
+github.com/elementsproject/glightning v0.0.0-20230508201707-c2410b204731 h1:OAY0lNrZiCO1lwlaGiVH4htwrih1AAxxpuWRA9qQYwI=
+github.com/elementsproject/glightning v0.0.0-20230508201707-c2410b204731/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
+github.com/elementsproject/glightning v0.0.0-20230525134205-ef34d849f564 h1:orSb6yU9D1Ow9epbRZJVAfGF6vC1HxaPqg9zLWga6Hw=
+github.com/elementsproject/glightning v0.0.0-20230525134205-ef34d849f564/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=

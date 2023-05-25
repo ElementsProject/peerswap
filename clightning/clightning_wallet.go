@@ -10,6 +10,7 @@ import (
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/version"
 )
 
 func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
@@ -26,6 +27,21 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 	prepRes, err := cl.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
 	if err != nil {
 		return "", 0, 0, err
+	}
+
+	// Backwards compatibility layer. Since `v23.05`, `preparetx` returns a
+	// psbt v2 instead of v0. We still want to support `v23.02` so we skip the
+	// conversion of the psbt (from v2 to v0).
+	isV2, err := version.CompareVersionStrings(cl.Version(), "v23.05")
+	if err != nil {
+		return "", 0, 0, err
+	}
+	if isV2 {
+		res, err := cl.glightning.SetPSBTVersion(prepRes.Psbt, 0)
+		if err != nil {
+			return "", 0, 0, err
+		}
+		prepRes.Psbt = res.Psbt
 	}
 
 	fee, err = cl.bitcoinChain.GetFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
@@ -208,7 +224,7 @@ func (cl *ClightningClient) GetOnchainBalance() (uint64, error) {
 
 	var totalBalance uint64
 	for _, output := range funds.Outputs {
-		totalBalance += output.Value
+		totalBalance += output.AmountMilliSatoshi.MSat() / 1000
 	}
 	return totalBalance, nil
 }
