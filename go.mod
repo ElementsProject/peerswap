@@ -9,7 +9,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
-	github.com/elementsproject/glightning v0.0.0-20221013194807-73978c84cee8
+	github.com/elementsproject/glightning v0.0.0-20230525134205-ef34d849f564
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/jessevdk/go-flags v1.5.0
@@ -151,5 +151,3 @@ require (
 
 // This fork contains some options we need to reconnect to lnd.
 replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220824133300-340e95267339
-
-replace github.com/elementsproject/glightning => github.com/elementsproject/glightning v0.0.0-20230508201707-c2410b204731
