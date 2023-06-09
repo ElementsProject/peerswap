@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -355,6 +356,20 @@ func ElementsFallback() Processor {
 	}
 }
 
+func CheckBitcoinRpcIsUrl() Processor {
+	return func(c *Config) (*Config, error) {
+		_, err := url.Parse(fmt.Sprintf("%s:%d", c.Bitcoin.RpcHost, c.Bitcoin.RpcPort))
+		if err != nil && strings.Contains(err.Error(), "first path segment in URL cannot contain colon") {
+			// We are missing a http or https in front of the rpc address.
+			if !strings.HasPrefix(c.Bitcoin.RpcHost, "http://") && !strings.HasPrefix(c.Bitcoin.RpcHost, "https://") {
+				c.Bitcoin.RpcHost = fmt.Sprintf("http://%s", c.Bitcoin.RpcHost)
+				return c, nil
+			}
+		}
+		return c, err
+	}
+}
+
 // BitcoinCookieConnect deflates a cookie file to override rpc user
 // and password.
 func BitcoinCookieConnect() Processor {
@@ -404,6 +419,7 @@ func GetConfig(client *ClightningClient) (*Config, error) {
 		Add(SetBitcoinNetwork(client)).
 		Add(BitcoinFallback()).
 		Add(ElementsFallback()).
+		Add(CheckBitcoinRpcIsUrl()).
 		Add(BitcoinCookieConnect()).
 		Add(ElementsCookieConnect())
 

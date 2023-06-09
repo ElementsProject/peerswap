@@ -655,11 +655,10 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 			for _, channel := range peer.Channels {
 				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
 					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
-						ChannelId:       c.ShortChannelId,
-						LocalBalance:    c.ChannelSatoshi,
-						RemoteBalance:   uint64(c.ChannelTotalSatoshi - c.ChannelSatoshi),
-						LocalPercentage: float64(c.ChannelSatoshi) / float64(c.ChannelTotalSatoshi),
-						State:           c.State,
+						ChannelId:     c.ShortChannelId,
+						LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
+						RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
+						State:         c.State,
 					})
 				}
 			}
@@ -1138,7 +1137,7 @@ type PeerSwapPeer struct {
 	Channels        []*PeerSwapPeerChannel `json:"channels"`
 	AsSender        *SwapStats             `json:"sent,omitempty"`
 	AsReceiver      *SwapStats             `json:"received,omitempty"`
-	PaidFee         uint64                 `json:"total_fee_paid"`
+	PaidFee         uint64                 `json:"total_fee_paid,omitempty"`
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin
