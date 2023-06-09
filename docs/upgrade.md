@@ -1,5 +1,7 @@
 ### Upgrading PeerSwap
 
+Restarting PeerSwap has no ill effect to the accompanying CLN or LND node. Unlike other atomic swaps PeerSwap does not jam the channels with "HODL invoices" so there is no undefined behavior during temporary PeerSwap downtime.
+
 Prior to upgrading PeerSwap you must first be certain no swaps are currently in progress.
 
 To check for active swaps run:
@@ -13,13 +15,7 @@ If no swaps are returned you can safely upgrade peerswap.
  - lnd: `pscli stop; /PATH/TO/peerswapd`
 
 ### Restarting CLN peerswap
-Due to [CLN issue #5294](https://github.com/ElementsProject/lightning/issues/5294) it is recommended that you fully restart `lightningd` in order to restart peerswap. If you do not rely on CLN to pass any config parameters to peerswap then it is safe to restart peerswap without touching CLN.
-
-
- - cln full restart: `lightning-cli stop; /PATH/TO/lightningd`
- - peerswap restart without lightningd config options: `lightning-cli plugin stop peerswap; lightning-cli plugin start /PATH/TO/peerswap`
-
-Restarting PeerSwap does not affect the accompanying CLN or LND node.
+ - cln: `lightning-cli plugin stop peerswap; lightning-cli plugin start /PATH/TO/peerswap`
 
 #### Temporarily disable new incoming swap requests
 
