@@ -166,8 +166,8 @@ func (s *Service) RequestAllPeerPolls() {
 	}
 }
 
-// MessageHandler checks for the incomming messages
-// type and takes the incomming payload to update the
+// MessageHandler checks for the incoming messages
+// type and takes the incoming payload to update the
 // store.
 func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) error {
 	messageType, err := messages.HexStringToMessageType(msgType)
