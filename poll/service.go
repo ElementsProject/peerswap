@@ -58,29 +58,31 @@ type Service struct {
 	ctx   context.Context
 	done  context.CancelFunc
 
-	assets         []string
-	messenger      Messenger
-	policy         Policy
-	peers          PeerGetter
-	store          Store
-	tmpStore       map[string]string
-	removeDuration time.Duration
+	assets           []string
+	messenger        Messenger
+	policy           Policy
+	peers            PeerGetter
+	store            Store
+	tmpStore         map[string]string
+	removeDuration   time.Duration
+	loggedDisconnect map[string]struct{}
 }
 
 func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
 	clock := time.NewTicker(tickDuration)
 	ctx, done := context.WithCancel(context.Background())
 	s := &Service{
-		clock:          clock,
-		ctx:            ctx,
-		done:           done,
-		assets:         allowedAssets,
-		messenger:      messenger,
-		policy:         policy,
-		peers:          peers,
-		store:          store,
-		tmpStore:       make(map[string]string),
-		removeDuration: removeDuration,
+		clock:            clock,
+		ctx:              ctx,
+		done:             done,
+		assets:           allowedAssets,
+		messenger:        messenger,
+		policy:           policy,
+		peers:            peers,
+		store:            store,
+		tmpStore:         make(map[string]string),
+		removeDuration:   removeDuration,
+		loggedDisconnect: make(map[string]struct{}),
 	}
 
 	s.messenger.AddMessageHandler(s.MessageHandler)
@@ -128,7 +130,20 @@ func (s *Service) Poll(peer string) {
 	}
 
 	if err := s.messenger.SendMessage(peer, msg, int(poll.MessageType())); err != nil {
-		log.Debugf("poll_service: could not send poll msg: %v", err)
+		s.Lock()
+		defer s.Unlock()
+		// Only log message if not already logged an error on this peer. Mostly
+		// these errors will deal with disconnected peers so there is no need to
+		// continue logging if the peer is 'still' disconnected.
+		if _, seen := s.loggedDisconnect[peer]; !seen {
+			log.Debugf("poll_service: could not send msg: %v", err)
+			s.loggedDisconnect[peer] = struct{}{}
+		}
+	} else {
+		s.Lock()
+		defer s.Unlock()
+		// Message could be sent. Release peer from `loggedDisconnect`.
+		delete(s.loggedDisconnect, peer)
 	}
 }
 
@@ -154,7 +169,20 @@ func (s *Service) RequestPoll(peer string) {
 	}
 
 	if err := s.messenger.SendMessage(peer, msg, int(request.MessageType())); err != nil {
-		log.Debugf("poll_service: could not send request_poll msg: %v", err)
+		s.Lock()
+		defer s.Unlock()
+		// Only log message if not already logged an error on this peer. Mostly
+		// these errors will deal with disconnected peers so there is no need to
+		// continue logging if the peer is 'still' disconnected.
+		if _, seen := s.loggedDisconnect[peer]; !seen {
+			log.Debugf("poll_service: could not send msg: %v", err)
+			s.loggedDisconnect[peer] = struct{}{}
+		} else {
+			s.Lock()
+			defer s.Unlock()
+			// Message could be sent. Release peer from `loggedDisconnect`.
+			delete(s.loggedDisconnect, peer)
+		}
 	}
 }
 
