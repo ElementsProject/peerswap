@@ -170,9 +170,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 
 	if !config.Liquid.Disabled && liquidWanted(config) {
 		liquidEnabled = true
-		log.Infof("Starting elements client with rpcuser: %s, rpcpassword: %s, rpccookie: %s, rpcport: %d, rpchost: %s",
+		log.Infof("Starting elements client with rpcuser: %s, rpcpassword:******, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
-			config.Liquid.RpcPassword,
 			config.Liquid.RpcPasswordFile,
 			config.Liquid.RpcPort,
 			config.Liquid.RpcHost,
@@ -208,10 +207,9 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		return err
 	}
 	log.Infof(
-		"Starting bitcoin client with chain:%s, rpcuser:%s, rpcpassword:%s, rpchost:%s, rpcport:%d",
+		"Starting bitcoin client with chain:%s, rpcuser:%s, rpcpassword:******,, rpchost:%s, rpcport:%d",
 		chain.Name,
 		config.Bitcoin.RpcUser,
-		config.Bitcoin.RpcPassword,
 		config.Bitcoin.RpcHost,
 		config.Bitcoin.RpcPort,
 	)
