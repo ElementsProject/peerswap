@@ -58,7 +58,13 @@ type Config struct {
 	Liquid       *LiquidConf
 }
 
-func (c *Config) String() string {
+func (c Config) String() string {
+	bcopy := *c.Bitcoin
+	lcopy := *c.Liquid
+	bcopy.RpcPassword = "*****"
+	lcopy.RpcPassword = "*****"
+	c.Bitcoin = &bcopy
+	c.Liquid = &lcopy
 	b, _ := json.Marshal(c)
 	return string(b)
 }
