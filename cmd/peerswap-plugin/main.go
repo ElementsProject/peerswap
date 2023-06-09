@@ -148,7 +148,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		return err
 	}
 	if !ok {
-		log.Debugf("Core-lighting version %s is not supported, min version is v%s", nodeInfo.Version, minClnVersion)
+		log.Infof("Core-lighting version %s is not supported, min version is v%s", nodeInfo.Version, minClnVersion)
 		return fmt.Errorf("Core-Lightning version %s is incompatible", nodeInfo.Version)
 	}
 
