@@ -152,12 +152,12 @@ func (t *TxWatcher) addTxWatcher(ctx context.Context, swapId string, txId string
 // the callback as soon as the tx is confirmed. The empty uint32 parameter is
 // due to the Watcher interface of swap expecting a signature with a vout
 // parameter.
-func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint32, heightHint uint32, script []byte) {
+func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint32, heightHint uint32, script []byte) error {
 	t.Lock()
 	if _, ok := t.confirmationWatchers[swapId]; ok {
 		log.Debugf("[TxWatcher] Swap: %s: Tried to resubscribe to tx watcher for tx %s", swapId, txId)
 		t.Unlock()
-		return
+		return nil
 	}
 	log.Debugf("[TxWatcher] Swap: %s: Add new confirmation watcher for tx %s, awaiting %d confirmations",
 		swapId,
@@ -174,7 +174,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 		// could lead to stale swaps that might not resolve.
 		log.Infof("[TxWatcher] Swap: %s: Could not subscribe tx watcher for tx %s, %v", swapId, txId, err)
 		cancel()
-		return
+		return nil
 	}
 
 	t.wg.Add(1)
@@ -247,16 +247,17 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 			}
 		}
 	}()
+	return nil
 }
 
 // AddWaitForConfirmationTx subscribes to the lnd onchain tx watcher and calls
 // the callback as soon as the tx is above the csv limit.
-func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, heightHint uint32, script []byte) {
+func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, heightHint uint32, script []byte) error {
 	t.Lock()
 	if _, ok := t.waitForCsvWatchers[swapId]; ok {
 		log.Debugf("[TxWatcher] Swap: %s: Tried to resubscribe to tx watcher for tx %s", swapId, txId)
 		t.Unlock()
-		return
+		return nil
 	}
 	log.Debugf("[TxWatcher] Swap: %s: Add new csv watcher for tx %s, with csv limit: %d",
 		swapId,
@@ -278,7 +279,7 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 		// could lead to stale swaps that might not resolve.
 		log.Infof("[TxWatcher] Swap: %s: Could not subscribe tx watcher to tx %s, %v", swapId, txId, err)
 		cancel()
-		return
+		return nil
 	}
 
 	t.wg.Add(1)
@@ -363,6 +364,7 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 			}
 		}
 	}()
+	return nil
 }
 
 // AddConfirmationCallback adds a callback to the watcher that will be called in

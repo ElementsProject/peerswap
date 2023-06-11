@@ -309,7 +309,11 @@ func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	err = onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	if err != nil {
+		// We only throw an error if the csv is already spent
+		return Event_AlreadyClaimed
+	}
 	return NoOp
 }
 
@@ -337,7 +341,11 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	err = onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	if err != nil {
+		// We only throw an error if the csv is already spent
+		return Event_AlreadyClaimed
+	}
 	return NoOp
 }
 
@@ -651,8 +659,14 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+
 	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
+	err = txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	if err != nil {
+		// We only throw an error if the csv is already spent
+		return Event_AlreadyClaimed
+	}
+
 	return NoOp
 }
 

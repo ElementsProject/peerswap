@@ -295,6 +295,7 @@ func (s *SwapStateMachine) IsFinished() bool {
 		return true
 	case State_ClaimedCoop:
 		return true
+	case State_ClaimedUndefined:
 	}
 	return false
 }

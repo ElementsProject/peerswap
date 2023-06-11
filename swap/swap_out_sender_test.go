@@ -436,12 +436,12 @@ func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, cl
 	return getRandom32ByteHexString(), "txhex", nil
 }
 
-func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) {
-
+func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) error {
+	return nil
 }
 
-func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) {
-
+func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) error {
+	return nil
 }
 
 func (d *dummyChain) GetBlockHeight() (uint32, error) {
