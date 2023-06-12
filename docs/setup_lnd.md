@@ -1,10 +1,10 @@
 # LND Setup
 
-This guide walks through the steps necessary to setup peerswap plugin with lnd.
+This guide walks through the steps necessary to setup the PeerSwap standalone daemon with LND.
 
 ## Install dependencies
 
-Peerswap requires [LND](https://github.com/lightningnetwork/lnd) and if liquid should be used also a [liquid](https://docs.blockstream.com/liquid/node_setup.html) installation.
+Peerswap requires [LND](https://github.com/lightningnetwork/lnd) and, for L-BTC swaps, a [Liquid](https://docs.blockstream.com/liquid/node_setup.html) node installation.
 
 Install golang from https://golang.org/doc/install
 
@@ -12,7 +12,7 @@ Install golang from https://golang.org/doc/install
 
 ### Build
 
-Clone the peerswap repository and build the peerswap plugin
+Clone the repository and build PeerSwap
 
 ```bash
 git clone https://github.com/ElementsProject/peerswap.git && \
@@ -24,17 +24,17 @@ This will install `peerswapd` and `pscli` to your go path
 
 ### Config file
 
-In order to get peerswap running we need a configuration 
+In order to get PeerSwap running we need a configuration 
 
 ```bash
 mkdir -p ~/.peerswap
 ```
 
-Add config file. Replace the paths to the tls certificate and macaroon file.
+Add config file. Replace the paths to the TLS certificate and macaroon file.
 
 For every peer you want to allow swaps with add a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>`
 
-Bitcoin-swaps only config
+Bitcoin-swaps only config:
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -43,7 +43,7 @@ lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
 EOF
 ```
 
-Liquid-swaps Config. Replace the rpc parameters as needed
+Liquid-swaps config. Replace the RPC parameters as needed:
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -65,7 +65,7 @@ __WARNING__: One could set the `accept_all_peers=true` policy to ignore the allo
 
 ### Run
 
-start the peerswap daemon in background:
+Start the PeerSwap daemon in background:
 
 ```bash
 peerswapd
