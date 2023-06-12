@@ -1,52 +1,69 @@
 # Usage Guide
 
-PeerSwap is a Peer To Peer atomic swap plugin for lightning nodes. It allows for channel rebalincing via atomic swaps with onchain coins. Supported blockchains:
+PeerSwap is a P2P atomic swap plugin for Lightning nodes. It allows for channel rebalancing via atomic swaps with onchain coins. Supported blockchains:
 
-- btc (bitcoin)
-- lbtc (liquid)
+- Bitcoin
+- [Liquid Network](https://docs.liquid.net/docs)
 
 
 ## Notes on commands
 
-every command can be run with core-lightning plugins interface or using pscli.
+Every command can be run with CLN's plugins interface or using pscli.
 
-For the cln plugin you need to prepend `lightning-cli peerswap-<command>`.
+For the CLN plugin you need to prepend `lightning-cli peerswap-<command>`.
 
-For the standalone daemon you would run `pscli <command>`
+For the LND standalone daemon you would run `pscli <command>`
 
-E.g. the `lbtc-getaddress` command would look like this
+E.g. the `lbtc-getaddress` command would look like this:
 
 ```bash
-lightning-cli peerswap-lbtc-getaddress ## cln plugin call
-pscli lbtc-getaddress                  ## lnd peerswap call
+lightning-cli peerswap-lbtc-getaddress ## CLN plugin call
+pscli lbtc-getaddress                  ## LND peerswap call
 ```
 
-In order to list all peerswap calls run
+In order to list all PeerSwap calls run
+CLN plugin:
+
+`lightning-cli help | grep -A 1 peerswap`
+
 LND:
 
-```pscli help```
+`pscli help`
 
-core-lightning plugin:
-
-```lightning-cli help | grep -A 1 peerswap```
 
 ## Liquid Usage
 
 PeerSwap automatically enables a Liquid L-BTC wallet (asset type `lbtc`) if it detects elementsd in default paths or is otherwise configured to connect to elementsd RPC.
 
-The liquid wallet related commands are
+The Liquid wallet related commands are:
 
-```bash
-lbtc-getaddress ## generates a new lbtc address
-lbtc-getbalance ## gets lbtc bitcoin balance in sats
-lbtc-sendtoaddress ## sends lbtc sats to a provided address
-```
+For CLN:
+Generate a new L-BTC address
+`lightning-cli peerswap-lbtc-getaddress`
 
-The liquid wallet uses an elementsd integrated wallet named `peerswap`. It creates a new wallet of that name if it does not already exist. The default location on disk for this wallet is `~/.elements/liquidv1/wallets/peerswap/wallet.dat`
+Get the L-BTC balance in sats
+`lightning-cli peerswap-lbtc-getbalance`
+
+Send L-BTC to a provided Liquid / L-BTC address
+`lightning-cli peerswap-lbtc-sendtoaddress [address] [amount_sat]` 
+
+
+For LND:
+Generate a new L-BTC address
+`pscli lbtc-getaddress`
+
+Gets L-BTC balance in sats
+`pscli lbtc-getbalance`
+
+Send L-BTC to a provided Liquid / L-BTC address
+`pscli lbtc-sendtoaddress --sat_amt [sat_amt] --address [address]`
+
+
+The Liquid wallet uses an elementsd integrated wallet named `peerswap`. It creates a new wallet of that name if it does not already exist. The default location on disk for this wallet is `~/.elements/liquidv1/wallets/peerswap/wallet.dat`
 
 ## Swaps
 
-PeerSwap facilitates a trustless atomic swap between on-chain and lightning channel balance. Each atomic swap consists of two on-chain transactions and a lightning payment. The first onchain transaction commits to the swap then waits a minimum quantity of confirmations to guard against double-spending. Once confirmed the other party pays the lightning payment which reveals the preimage, thereby enabling the onchain commitment to be claimed and the atomic swap is complete.
+PeerSwap facilitates a trustless atomic swap between on-chain and Lightning channel balance. Each atomic swap consists of two on-chain transactions and a Lightning payment. The first onchain transaction commits to the swap then waits a minimum quantity of confirmations to guard against double-spending. Once confirmed the other party pays the Lightning payment which reveals the preimage, thereby enabling the onchain commitment to be claimed and the atomic swap is complete.
 
 There are two types of swaps.
 
@@ -56,12 +73,12 @@ A swap-out is when the initiator wants to pay a lightning payment in order to re
 
 For CLN:
 ```bash
-swap-out [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc]
 ```
 
 For LND:
 ```bash
-swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
 ```
 
 ### Swap-In
@@ -70,17 +87,18 @@ A swap-in is when the initiator wants to spend onchain bitcoin in order to recei
 
 For CLN:
 ```bash
-swap-in [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc]
 ```
 
 For LND:
 ```bash
-swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
 ```
 
 
 ## Misc
-`listpeers` - command that returns peers that support the peerswap protocol. It also gives statistics about received and sent swaps to a peer.
+
+`listpeers` - A command that returns peers that support the PeerSwap protocol. It also gives statistics about received and sent swaps to a peer.
 
 Example output:
 ```bash
@@ -112,11 +130,11 @@ Example output:
 ]
 ```
 
-`listswaps [detailed bool (optional)]` - command that lists all swaps. If _detailed_ is set the output shows the swap data as it is saved in the database
+`listswaps [detailed bool (optional)]` - A command that lists all swaps. If _detailed_ is set the output shows the swap data as it is saved in the database
 
-`listactiveswaps` - list all ongoing swaps, relevant for upgrading peerswap
+`listactiveswaps` - List all ongoing swaps, useful to track swaps when upgrading PeerSwap
 
-`listswaprequests` - lists rejected swaps requested by peer nodes.
+`listswaprequests` - Lists rejected swaps requested by peer nodes.
 
 Example output:
 ```json
@@ -135,12 +153,35 @@ Example output:
 ]
 ```
 
-`getswap [swapid]` - command that returns the swap with _swapid_
+`getswap` - A command that returns the swap with _swapid_
+For CLN:
+`lightning-cli peerswap-getswap [swapid]` 
+For LND:
+`pscli getswap --id [swapid]`
 
-`reloadpolicy` - updates the changes made to the policy file
 
-`addpeer [peer_pubkey]` - adds a peer to the allowlist file
+`reloadpolicy` - Updates the changes made to the policy file
+For CLN:
+`lightning-cli peerswap-reloadpolicy` 
+For LND:
+`pscli reloadpolicy`
 
-`removepeer [peer_pubkey]` - remove a peer from the allowlist file
+`addpeer` - Adds a peer to the allowlist file
+For CLN:
+`lightning-cli peerswap-addpeer [peer_pubkey]` - Adds a peer to the allowlist file
+For LND:
+`pscli addpeer --peer_pubkey [peer_pubkey]`
 
-`allowswaprequests [bool]` - sets whether peerswap should allow new swap requests.
+
+`removepeer` - Remove a peer from the allowlist file
+For CLN:
+`lightning-cli peerswap-removepeer [peer_pubkey]`
+For LND:
+`pscli removepeer --peer_pubkey [peer_pubkey]`
+
+
+`allowswaprequests` - Sets whether peerswap should allow new swap requests.
+For CLN:
+`lightning-cli peerswap-allowswaprequests [bool] ## 1 to allow, 0 to disallow`
+For LND:
+`pscli allowswaprequests --allow_swaps=[bool] ## true to allow, false to disallow`
