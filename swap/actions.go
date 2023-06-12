@@ -675,9 +675,23 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	_, _, validator, err := services.getOnChainServices(swap.GetChain())
+	txWatcher, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
+	}
+
+	// Check if we are outside of our csv safety limit. This can happen on
+	// restart. We do NOT want to continue if we fail here.
+	if swap.StartingBlockHeight > 0 {
+		now, err := txWatcher.GetBlockHeight()
+		if err != nil {
+			return swap.HandleError(err)
+		}
+
+		if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {
+			err := fmt.Errorf("exceeded csv limit")
+			return swap.HandleError(err)
+		}
 	}
 
 	// todo get opening tx hex
