@@ -1,5 +1,3 @@
-setup_elementsd.md
-
 # Setup `elementsd`
 
 `elementsd` is the daemon used to sync and verify the [Liquid Network](https://docs.liquid.net/docs) and is used for PeerSwap L-BTC swaps. To set up `elementsd` for PeerSwap, follow the steps here. 
@@ -37,9 +35,10 @@ The config file is not created automatically. If one is created it should be pla
 
 If running `elementsd` as the same user as PeerSwap, then configuration is not needed.
 
-Otherwise, you need to set the `rpcport`, `rpcuser`, `rpcpassword`, and other config options depending on how you're deploying, in both `elements.conf` and `peerswap.conf`. Read more:
+Otherwise, you need to set the `rpcport`, `rpcuser`, `rpcpassword`, and other config options depending on how you're deploying, in both `elements.conf` and `peerswap.conf`.
 
- [For CLN](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_cln.md#config-file).
+More details:
+ [For CLN](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_cln.md#config-file)
  
  [For LND](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_lnd.md#config-file)
  
@@ -56,7 +55,7 @@ For Liquid testnet, it is located here:
 `/home/<username>/.elements/liquidtestnet/wallets/peerswap/wallet.dat`
 
 
-### Manually operating the elementsd wallet
+#### Manually operating the elementsd wallet
 
 The `elementsd` wallet is normally automatically controlled by the PeerSwap plugin or standalone daemon (LND) when doing swaps. No user input is required. 
 
