@@ -38,6 +38,7 @@ If running `elementsd` as the same user as PeerSwap, then configuration is not n
 Otherwise, you need to set the `rpcport`, `rpcuser`, `rpcpassword`, and other config options depending on how you're deploying, in both `elements.conf` and `peerswap.conf`.
 
 More details:
+
  [For CLN](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_cln.md#config-file)
  
  [For LND](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_lnd.md#config-file)
