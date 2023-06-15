@@ -45,6 +45,7 @@ More details:
  
  
  >**Note**
+ 
  >It's recommended to add `trim_headers=1` to the config file to reduce RAM usage by roughly 50%. However, this will also mean your node cannot help other nodes sync Liquid Network headers. This mode is not appropriate for "infrastructure" nodes which need to provide support for IBD or block/transaction propagation.
 
 
