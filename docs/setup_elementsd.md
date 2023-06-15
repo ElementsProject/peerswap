@@ -27,11 +27,11 @@ Copy the binaries to your PATH
 
 The default data directory for `elementsd` is located in the home directory:
 
-`/home/<username>/.elements`
+`~/.elements`
 
 The config file is not created automatically. If one is created it should be placed inside the data directory as such:
 
-`/home/<username>/.elements/elements.conf`
+`~/.elements/elements.conf`
 
 If running `elementsd` as the same user as PeerSwap, then configuration is not needed.
 
@@ -49,11 +49,11 @@ More details:
 PeerSwap will automatically create a wallet if running as the same user as `elementsd`. 
 This `elementsd` wallet, used for L-BTC transfers and swaps, is located here for mainnet:
 
-`/home/<username>/.elements/liquidv1/wallets/peerswap/wallet.dat`
+`~/.elements/liquidv1/wallets/peerswap/wallet.dat`
 
 For Liquid testnet, it is located here:
 
-`/home/<username>/.elements/liquidtestnet/wallets/peerswap/wallet.dat`
+`~/.elements/liquidtestnet/wallets/peerswap/wallet.dat`
 
 
 #### Manually operating the elementsd wallet
@@ -73,5 +73,5 @@ To create a new Liquid receiving address:
 
 To send L-BTC to a Liquid address:
 
-`elements-cli sendtoaddress [address] [amount in decimal form, e.g. 0.1 for 0.01000000 L-BTC]`
+`elements-cli sendtoaddress [address] [amount in decimal form, e.g. 0.1 for 0.10000000 L-BTC]`
 
