@@ -65,6 +65,7 @@ func getSwapInReceiverStates() States {
 				Event_OnTxConfirmed:    State_SwapInReceiver_ValidateTxAndPayClaimInvoice,
 				Event_ActionFailed:     State_SwapInReceiver_SendPrivkey,
 				Event_OnCancelReceived: State_SwapInReceiver_SendPrivkey,
+				Event_AlreadyClaimed:   State_ClaimedUndefined,
 			},
 		},
 		State_SwapInReceiver_ValidateTxAndPayClaimInvoice: {

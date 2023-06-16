@@ -123,6 +123,12 @@ test-liquid-lnd: test-bins
 	 ./test
 .PHONY: test-liquid-lnd
 
+test-recovery: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run 'Test_Recover_'\
+	 ./test
+.PHONY: test-recovery
+
 test-misc-integration: test-bins
 	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
 	-run '^('\
@@ -130,7 +136,6 @@ test-misc-integration: test-bins
 	'Test_OnlyOneActiveSwapPerChannelLnd|'\
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
-	'Test_RestoreFromPassedCSV|'\
 	'Test_Wumbo|'\
 	'Test_ClnConfig|'\
 	'Test_ClnPluginConfigFile|'\

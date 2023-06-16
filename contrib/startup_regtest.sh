@@ -87,9 +87,9 @@ EOF
 
     Write alternate peerswap config file
     prefixwith $prefix echo "writing alternate peerswap config file"
-    mkdir -p ${dir}/peerswap
-    touch ${dir}/peerswap/peerswap.conf
-    cat <<-EOF >"${dir}/peerswap/peerswap.conf"
+    mkdir -p ${dir}/${network}/peerswap
+    touch ${dir}/${network}/peerswap/peerswap.conf
+    cat <<-EOF >"${dir}/${network}/peerswap/peerswap.conf"
 [Liquid]
 rpchost="http://127.0.0.1"
 rpcport=${LIQUID_RPC_PORT}
@@ -100,8 +100,8 @@ EOF
 
     # Write policy config
     prefixwith $prefix echo "writing policy file"
-    touch ${dir}/peerswap/policy.conf
-    echo "accept_all_peers=${ACCEPT_ALL_PEERS}" >> ${dir}/peerswap/policy.conf
+    touch ${dir}/${network}/peerswap/policy.conf
+    echo "accept_all_peers=${ACCEPT_ALL_PEERS}" > ${dir}/${network}/peerswap/policy.conf
 
     # Start node
     prefixwith $prefix echo "starting node"

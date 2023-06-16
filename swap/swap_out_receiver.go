@@ -80,6 +80,7 @@ func getSwapOutReceiverStates() States {
 				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
 				Event_OnCsvPassed:         State_SwapOutReceiver_ClaimSwapCsv,
 				Event_OnInvalid_Message:   State_WaitCsv,
+				Event_AlreadyClaimed:      State_ClaimedCsv,
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCoop: {
@@ -94,6 +95,7 @@ func getSwapOutReceiverStates() States {
 			Events: Events{
 				Event_OnCsvPassed:         State_SwapOutReceiver_ClaimSwapCsv,
 				Event_OnCoopCloseReceived: State_SwapOutReceiver_ClaimSwapCoop,
+				Event_AlreadyClaimed:      State_ClaimedCsv,
 			},
 		},
 		State_SwapOutReceiver_ClaimSwapCsv: {

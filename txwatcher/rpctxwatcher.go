@@ -9,6 +9,18 @@ import (
 	"github.com/elementsproject/peerswap/log"
 )
 
+var ErrIsSpent = fmt.Errorf("tx out is already spent")
+
+type TxOutState string
+
+const (
+	TX_OUT_STATE_UNKNOWN             = "unknown"
+	TX_OUT_STATE_UNCONFIRMED         = "unconfirmed"
+	TX_OUT_STATE_CONFIRMED_BELOW_CSV = "confirmed_below"
+	TX_OUT_STATE_CONFIRMED_ABOVE_CSV = "confirmed_above"
+	TX_OUT_STATE_CONFIRMED_SPENT     = "confirmed_spent"
+)
+
 type BlockchainRpc interface {
 	GetBlockHeight() (uint64, error)
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
@@ -151,7 +163,8 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 			continue
 		}
 		if res == nil {
-			continue
+			// If the response is nil, the output is already spent.
+			return ErrIsSpent
 		}
 		if !(res.Confirmations >= s.requiredConfs) {
 			log.Debugf("tx does not have enough confirmations")
@@ -188,7 +201,8 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 			continue
 		}
 		if res == nil {
-			continue
+			// If the response is nil, the output is already spent.
+			return ErrIsSpent
 		}
 		if v.Csv > res.Confirmations {
 			continue
@@ -208,87 +222,128 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	return nil
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingBlockheight uint32, _ []byte) {
-	hex := l.CheckTxConfirmed(swapId, txId, vout)
-	if hex != "" {
+func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingBlockheight uint32, _ []byte) error {
+	// Before we add the tx to the watcher we check if the tx is already
+	// confirmed
+	state, txOut, err := l.getTxOutState(txId, vout)
+	if err != nil {
+		log.Infof("[TxWatcher] %s getTxOutState failed: %s", swapId, err.Error())
+	}
+	log.Debugf("[TxWatcher] %s wait for confirmation, current state: %s", swapId, state)
+	var hex string
+	if txOut != nil {
+		hex, err = l.TxHexFromId(txOut, txId)
+		if err != nil {
+			// Could not get the hex, better watch the tx.
+			log.Infof("[TxWatcher] %s TxHexFromId err: %s", swapId, err.Error())
+			l.addToConfirmationWatchList(swapId, txId, vout, startingBlockheight)
+			return nil
+		}
+	}
+
+	switch state {
+	case TX_OUT_STATE_CONFIRMED_ABOVE_CSV, TX_OUT_STATE_CONFIRMED_BELOW_CSV:
+		// Is already confirmed, skip the watchlist.
 		go func() {
-			err := l.txCallback(swapId, hex)
+			err = l.txCallback(swapId, hex)
 			if err != nil {
-				log.Infof("tx callback error %v", err)
-				return
+				log.Infof("[TxWatcher] %s tx callback error: %s", swapId, err.Error())
+				// Got an error, better add to watchlist.
+				l.addToConfirmationWatchList(swapId, txId, vout, startingBlockheight)
 			}
 		}()
-		return
+		return nil
+	case TX_OUT_STATE_UNCONFIRMED:
+		// Add to watchlist as we are still unconfirmed.
+		l.addToConfirmationWatchList(swapId, txId, vout, startingBlockheight)
+		return nil
+	case TX_OUT_STATE_CONFIRMED_SPENT:
+		// Tx out is already spent. So either we have claimed it (manually or
+		// via peerswap and we did not notice).
+		return ErrIsSpent
+	default:
+		// Something went wrong, better listen for the tx out.
+		log.Infof("[TxWatcher] %s got an TX_OUT_STATE_UNKNOWN", swapId)
+		l.addToConfirmationWatchList(swapId, txId, vout, startingBlockheight)
+		return nil
 	}
+}
+
+func (l *BlockchainRpcTxWatcher) getTxOutState(txId string, vout uint32) (state TxOutState, txout *TxOutResp, err error) {
+	res, err := l.blockchain.GetTxOut(txId, vout)
+	if err != nil {
+		return TX_OUT_STATE_UNKNOWN, nil, err
+	}
+	switch r := res; {
+	case r == nil:
+		return TX_OUT_STATE_CONFIRMED_SPENT, r, nil
+	case r.Confirmations >= l.csv:
+		return TX_OUT_STATE_CONFIRMED_ABOVE_CSV, r, nil
+	case r.Confirmations < l.requiredConfs:
+
+		return TX_OUT_STATE_UNCONFIRMED, r, nil
+	case l.csv > r.Confirmations && r.Confirmations > l.requiredConfs:
+		return TX_OUT_STATE_CONFIRMED_BELOW_CSV, r, nil
+	default:
+		return TX_OUT_STATE_UNKNOWN, r, nil
+	}
+}
+
+func (l *BlockchainRpcTxWatcher) addToConfirmationWatchList(swapId, txId string, vout, startingBlockHeight uint32) {
 	l.Lock()
 	defer l.Unlock()
 	l.txWatchList[swapId] = &SwapTxInfo{
 		TxId:                txId,
 		TxVout:              vout,
 		Csv:                 l.csv,
-		StartingBlockHeight: startingBlockheight,
+		StartingBlockHeight: startingBlockHeight,
 	}
 }
 
-func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vout uint32) string {
-	res, err := s.blockchain.GetTxOut(txId, vout)
-	if err != nil {
-		log.Infof("watchlist fetchtx err: %v", err)
-		return ""
-	}
-	if res == nil {
-		return ""
-	}
-	if !(res.Confirmations >= s.requiredConfs) {
-		log.Infof("tx does not have enough confirmations")
-		return ""
-	}
-	if s.txCallback == nil {
-		return ""
-	}
-	txHex, err := s.TxHexFromId(res, txId)
-	if err != nil {
-		log.Infof("watchlist txfrom hex err: %v", err)
-		return ""
-	}
-
-	return txHex
-}
-
-func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout uint32) (bool, error) {
-	res, err := l.blockchain.GetTxOut(txId, vout)
-	if err != nil {
-		return false, err
-	}
-	if res == nil {
-		return false, fmt.Errorf("empty gettxout response")
-	}
-	return res.Confirmations >= l.csv, nil
-}
-
-func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight uint32, _ []byte) {
-	// Before we add the tx to the watcher we check if the tx is already
-	// above the csv limit.
-	above, err := l.checkTxAboveCsvHight(txId, vout)
-	if err != nil {
-		log.Infof("[TxWatcher] checkTxAboveCsvHeight returned: %s", err.Error())
-	}
-	if above {
-		err = l.csvPassedCallback(swapId)
-		if err == nil {
-			log.Infof("Swap %s already past CSV limit", swapId)
-			return
-		}
-		log.Infof("csv passed callback error: %v", err)
-	}
-
+func (l *BlockchainRpcTxWatcher) addToCsvWatchList(swapId, txId string, vout uint32, startingBlockHeight uint32) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvtxWatchList[swapId] = &SwapTxInfo{
 		TxId:                txId,
 		TxVout:              vout,
 		Csv:                 l.csv,
-		StartingBlockHeight: startingBlockheight,
+		StartingBlockHeight: startingBlockHeight,
+	}
+}
+
+func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight uint32, _ []byte) error {
+	// Before we add the tx to the watcher we check if the tx is already
+	// above the csv limit.
+	state, _, err := l.getTxOutState(txId, vout)
+	if err != nil {
+		log.Infof("[TxWatcher] %s getTxOutState failed: %s", swapId, err.Error())
+	}
+	log.Debugf("[TxWatcher] %s wait for csv, current state: %s", swapId, state)
+	switch state {
+	case TX_OUT_STATE_CONFIRMED_ABOVE_CSV:
+		// Is already above, skip the watchlist.
+		go func() {
+			err = l.csvPassedCallback(swapId)
+			if err != nil {
+				log.Infof("[TxWatcher] %s csv passed callback error: %s", swapId, err.Error())
+				// Got an error, better add to watchlist.
+				l.addToCsvWatchList(swapId, txId, vout, startingBlockheight)
+			}
+		}()
+		return nil
+	case TX_OUT_STATE_CONFIRMED_BELOW_CSV, TX_OUT_STATE_UNCONFIRMED:
+		// Add to watchlist as we are still below our CSV limit.
+		l.addToCsvWatchList(swapId, txId, vout, startingBlockheight)
+		return nil
+	case TX_OUT_STATE_CONFIRMED_SPENT:
+		// Tx out is already spent. So either we have claimed it (manually or
+		// via peerswap and we did not notice).
+		return ErrIsSpent
+	default:
+		// Something went wrong, better listen for the tx out.
+		log.Infof("[TxWatcher] %s got an TX_OUT_STATE_UNKNOWN", swapId)
+		l.addToCsvWatchList(swapId, txId, vout, startingBlockheight)
+		return nil
 	}
 }
 
