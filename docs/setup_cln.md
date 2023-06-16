@@ -1,18 +1,20 @@
-# core-lightning Setup
+# Core Lightning Setup
 
-This guide walks through the steps necessary to run the peerswap plugin on bitcoin signet and liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different linux distributions.
+This guide walks through the steps necessary to run the PeerSwap plugin on Bitcoin signet and Liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
 
 ## Install dependencies
 
-Peerswap requires [Bitcoin Core](https://bitcoin.org/en/bitcoin-core/), [core-lightning](https://github.com/ElementsProject/lightning) and if the liquid testnet should be used also an _elementsd_ installation. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+PeerSwap requires [Bitcoin Core](https://bitcoin.org/en/bitcoin-core/), [Core Lightning](https://github.com/ElementsProject/lightning) and an _elementsd_ installation for L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
 
-## Peerswap
+To setup `elementsd` for PeerSwap, refer to our [guide](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_elementsd.md).
+
+## PeerSwap
 
 ### Build
 
 Install golang from https://golang.org/doc/install
 
-Clone into the peerswap repository and build the peerswap plugin
+Clone the PeerSwap repository and build the plugin
 
 ```bash
 git clone https://github.com/ElementsProject/peerswap.git
@@ -26,7 +28,7 @@ The `peerswap` binary is now located in the repo folder.
 
 ## Config file
 
-In order to run `peerswap` add following lines to your the core-lightning config file:
+In order to run `peerswap` add following lines to your the CLN config file:
 
 
 ```bash
@@ -34,13 +36,14 @@ plugin=/PATH/TO/peerswap
 log-level=debug:plugin-peerswap
 ```
 
-Specify the full path to the `peerswap` binary. For now it is recommended to log all debug messages from peerswap.
+Specify the full path to the `peerswap` binary. For now it is recommended to log all debug messages from PeerSwap.
 
-Peerswap will automatically try to connect to your bitcoind (using the bitcoind rpc settings from core-lightning).
+PeerSwap will automatically try to connect to your `bitcoind` (using the bitcoind rpc settings from CLN).
 
-The swap database will be located at `<lightning-dir>/peerswap/swaps`
+The default location of the swap database is `~/.lightning/bitcoin/peerswap/swaps`
 
-Additional configuration can be specified in a `peerswap.conf` file that is expected to be located in the peerswap data dir `<lightning-dir>/peerswap` (defaults to `/home/<user>/.lightning/<network>/peerswap/peerswap.conf`)
+Additional configuration can be specified in a `peerswap.conf` file that is expected to be located in the default PeerSwap data dir `~/.lightning/bitcoin/peerswap/` for mainnet.
+
 
 The following optional configs can be specified:
 ```bash
@@ -77,14 +80,15 @@ lightning-cli peerswap-reloadpolicy
 
 ### Policy
 
-On first startup of the plugin a policy file will be generated (default path: `~/.lightning/<network>/peerswap/policy.conf`) in which trusted nodes will be specified.
+On first startup of the plugin a policy file will be generated (default path: `~/.lightning/bitcoin/peerswap/policy.conf`) in which trusted nodes will be specified.
 This can be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `lightning-cli peerswap-addpeer <PUBKEY>`.
 
-__WARNING__: One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
+>**Warning**  
+>One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
 
-### Debugging peerswap crashes
+### Debugging PeerSwap crashes
 
-Currently if `peerswap` crashes looks like this in lightningd's log.
+Currently if `peerswap` crashes, it will look like this in CLN's logs.
 
 ```
 INFO    plugin-peerswap: Killing plugin: exited during normal operation

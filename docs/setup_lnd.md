@@ -4,7 +4,9 @@ This guide walks through the steps necessary to setup the PeerSwap standalone da
 
 ## Install dependencies
 
-Peerswap requires [LND](https://github.com/lightningnetwork/lnd) and, for L-BTC swaps, a [Liquid](https://docs.blockstream.com/liquid/node_setup.html) node installation.
+PeerSwap requires [LND](https://github.com/lightningnetwork/lnd). 
+
+For L-BTC swaps, an `elementsd` installation is required. To setup `elementsd` for PeerSwap, check our [guide](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_elementsd.md).
 
 Install golang from https://golang.org/doc/install
 
@@ -20,7 +22,7 @@ cd peerswap && \
 make lnd-release
 ```
 
-This will install `peerswapd` and `pscli` to your go path
+This will install `peerswapd` and `pscli` to your GOPATH
 
 ### Config file
 
@@ -34,7 +36,7 @@ Add config file. Replace the paths to the TLS certificate and macaroon file.
 
 For every peer you want to allow swaps with add a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>`
 
-Bitcoin-swaps only config:
+BTC swaps only config:
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -43,7 +45,7 @@ lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
 EOF
 ```
 
-Liquid-swaps config. Replace the RPC parameters as needed:
+BTC and L-BTC swaps config. Replace the RPC parameters as needed:
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -61,7 +63,8 @@ EOF
 On first startup of the plugin a policy file will be generated (default path: `~/.peerswap/policy.conf`) in which trusted nodes will be specified.
 This can be done manually by adding a line with `allowlisted_peers=<REPLACE_WITH_PUBKEY_OF_PEER>` or with `pscli addpeer <PUBKEY>`.
 
-__WARNING__: One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
+>**Warning**  
+>One could set the `accept_all_peers=true` policy to ignore the allowlist and allow all peers with direct channels to send swap requests.
 
 ### Run
 

@@ -30,20 +30,20 @@ PeerSwap enables Lightning Network nodes to balance their channels by facilitati
   - [Further Information](#further-information)
     - [FAQ](#faq)
     - [Signet Testing](#signet-testing)
-      - [core-lightning](#core-lightning)
-      - [lnd](#lnd)
+      - [Core Lightning](#core-lightning)
+      - [LND](#lnd)
     - [Development](#development)
 
 ## Project Status
 
-PeerSwap is beta-grade software that can be run as a [core-lightning](https://github.com/ElementsProject/lightning) plugin or as a standalone daemon/cli with [LND](https://github.com/lightningnetwork/lnd)
+PeerSwap is beta-grade software that can be run as a [Core Lightning](https://github.com/ElementsProject/lightning) plugin or as a standalone daemon/CLI with [LND](https://github.com/lightningnetwork/lnd)
 
 As we don't have a proven fee model for swaps yet, we only allow swaps with allowlisted peers.
 
 PeerSwap allows two different types of swaps:
 
-- [Swap-in:](./docs/peer-protocol.md#summary) trading an onchain-asset for lightning outbound liquidity
-- [Swap-out:](./docs/peer-protocol.md#summary-1) trading an onchain-asset for lightning inbound liquidity
+- [Swap-in:](./docs/peer-protocol.md#summary) trading an onchain-asset for Lightning outbound liquidity
+- [Swap-out:](./docs/peer-protocol.md#summary-1) trading an onchain-asset for Lightning inbound liquidity
 
 We have a detailed [Spec-draft](./docs/peer-protocol.md) available for review and reimplementation. An interoperable second implementation and discussions toward the next protocol upgrade are currently underway.
 
@@ -57,11 +57,11 @@ Follow <a href="https://twitter.com/PeerswapLN">@PeerSwapLN on Twitter</a> to ke
 ## Getting Started
 
 ### Setup
-you can use peerswap with lnd and core-lighting:
+PeerSwap is usable with both Core Lightning and LND implementations:
 
-To run peerswap as a core-lightning plugin see the [core-lightning setup guide](./docs/setup_cln.md)
+To run PeerSwap as a Core Lightning plugin see the [CLN setup guide](./docs/setup_cln.md).
 
-To run peerswap as a standalone daemon with lnd see the [lnd setup guide](./docs/setup_lnd.md)
+To run PeerSwap as a standalone daemon with LND see the [LND setup guide](./docs/setup_lnd.md).
 
 
 ### Usage
@@ -96,12 +96,11 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
 ### Signet Testing
 
 #### Core Lightning
-For a Core Lightning bitcoin-signet / liquid-testnet setup guide see this [guide](./docs/signetguide_cln.md)
+For a Core Lightning Bitcoin signet / Liquid testnet setup guide see this [guide](./docs/signetguide_cln.md).
 
-#### lnd
-For a lnd bitcoin-signet / liquid-testnet setup guide see this [guide](./docs/signetguide_lnd.md)
+#### LND
+For a LND Bitcoin signet / Liquid testnet setup guide see this [guide](./docs/signetguide_lnd.md).
 
 ### Development
 
-PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment
-In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (bar golang).
+PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment. In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (except golang).

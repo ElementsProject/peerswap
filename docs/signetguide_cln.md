@@ -1,14 +1,14 @@
 # Signet Guide
 
-This guide walks through the steps necessary to run the peerswap plugin on bitcoin signet and liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different linux distributions.
+This guide walks through the steps necessary to run the PeerSwap plugin on Bitcoin signet and Liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
 
 ## Install dependencies
 
-Peerswap requires _core-lightning_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+PeerSwap requires _core-lightning_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
 
 ## Bitcoind (signet)
 
-Download the following files to install bitcoin-core.
+Download the following files to install Bitcoin Core.
 
 ```bash
 wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
@@ -41,13 +41,13 @@ Copy the binaries to the system path
 sudo cp -vnR bitcoin-23.0/* /usr/
 ```
 
-Start the bitoin daemon in signet mode
+Start the Bitcoin daemon in signet mode
 
 ```bash
 bitcoind --signet --daemon
 ```
 
-## Liquid Testnet(optional)
+## Liquid testnet (optional)
 
 Download the following files to install elementsd.
 
@@ -136,17 +136,17 @@ elementsd --daemon
 
 ### Wait for sync
 
-The elements node now has to be synced on liquid testnet for the plugin to work. To check this, compare the _height_ value from
+The elements node now has to be synced on Liquid testnet for the plugin to work. To check this, compare the _height_ value from
 
 ```shell
 elements-cli getchaintips
 ```
 
-with the height of the last block on [liquid-testnet-explorer](https://liquidtestnet.com/explorer)
+with the height of the last block on [Liquid testnet explorer](https://blockstream.info/liquidtestnet/)
 
-## Core-lightning
+## Core Lightning
 
-<!-- We need to build cln ourselves to be able to be interoperable with lnd on signet -->
+<!-- We need to build CLN ourselves to be able to be interoperable with LND on signet -->
 
 Follow the build instructions [here](https://github.com/ElementsProject/lightning/blob/master/doc/INSTALL.md#to-build-on-ubuntu).
 
@@ -180,7 +180,7 @@ sudo tar -C /usr/local -xzf go1.19.linux-amd64.tar.gz && \
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-Clone into the peerswap repository and build the peerswap plugin
+Clone into the PeerSwap repository and build the plugin
 
 ```bash
 git clone git@github.com:elementsproject/peerswap.git && \
@@ -205,9 +205,9 @@ rm SHA256SUMS.asc
 
 ### Config (Enable Liquid)
 
-Peerswap will try to detect the `elementsd` cookie file at the default location.
+PeerSwap will try to detect the `elementsd` cookie file at the default location.
 If you use a different data fir for `elementsd` you need to add the connection
-options to the peerswap config file in order to enable liquid swaps.
+options to the PeerSwap config file in order to enable Liquid swaps.
 ```
 mkdir -p $HOME/.lightning/signet/peerswap
 touch $HOME/.lightning/signet/peerswap/peerswap.conf
@@ -222,7 +222,7 @@ rpcport=18884
 rpcwallet="swap"' > $HOME/.lightning/signet/peerswap.conf
 ```
 
-To disable liquid swaps you can add the following to the peerswap config file:
+To disable Liquid swaps you can add the following to the PeerSwap config file:
 ```
 [Liquid]
 disabled=true
@@ -230,7 +230,7 @@ disabled=true
 
 ### Run
 
-Start the core-lightning daemon with:
+Start the CLN daemon with:
 
 ```bash
 lightningd --daemon \
@@ -243,7 +243,7 @@ Create a new signet address and receive some sats from https://signet.bc-2.jp/
 lightning-cli newaddr
 ```
 
-Now connect to another node that has the peerswap plugin running, for example these development nodes run by @sputn1ck
+Now connect to another node that has the PeerSwap plugin running, for example these development nodes run by @sputn1ck
 
 cln node
 ```bash
@@ -261,7 +261,7 @@ Fund a channel to the connected peer, e.g. @sputn1ck node (replace the nodes pub
 lightning-cli fundchannel 0369aba787f74feb6c1ef1b7984569723b9eb88a1a7bc7323e67d796711d61a7d4 [amt] 
 ```
 
-Get a new lbtc address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
+Get a new testnet L-BTC address and then generate some L-BTC to the address via https://liquidtestnet.com/faucet
 
 ```bash
 lightning-cli peerswap-lbtc-getaddress
@@ -284,5 +284,5 @@ and try a swap-out
 lightning-cli peerswap-swap-out [amt] [short_channel_id] lbtc
 ```
 
-Note: The asset could also be `btc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
+Note: The asset could also be `btc`. This will perform the swap on the Bitcoin signet rather than the Liquid testnet.
 
