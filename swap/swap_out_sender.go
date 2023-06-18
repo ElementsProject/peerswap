@@ -89,9 +89,8 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_AwaitTxConfirmation: {
 			Action: &AwaitTxConfirmationAction{},
 			Events: Events{
-				Event_ActionFailed:   State_SwapOutSender_SendPrivkey,
-				Event_OnTxConfirmed:  State_SwapOutSender_ValidateTxAndPayClaimInvoice,
-				Event_AlreadyClaimed: State_ClaimedUndefined,
+				Event_ActionFailed:  State_SwapOutSender_SendPrivkey,
+				Event_OnTxConfirmed: State_SwapOutSender_ValidateTxAndPayClaimInvoice,
 			},
 		},
 		State_SwapOutSender_ValidateTxAndPayClaimInvoice: {

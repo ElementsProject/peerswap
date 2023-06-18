@@ -78,7 +78,6 @@ func getSwapInSenderStates() States {
 				Event_OnCancelReceived:    State_WaitCsv,
 				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
 				Event_OnInvalid_Message:   State_WaitCsv,
-				Event_AlreadyClaimed:      State_ClaimedCsv,
 			},
 		},
 		State_SwapInSender_ClaimSwapCsv: {
@@ -100,7 +99,6 @@ func getSwapInSenderStates() States {
 			Events: Events{
 				Event_OnCsvPassed:         State_SwapInSender_ClaimSwapCsv,
 				Event_OnCoopCloseReceived: State_SwapInSender_ClaimSwapCoop,
-				Event_AlreadyClaimed:      State_ClaimedCsv,
 			},
 		},
 		State_SendCancel: {

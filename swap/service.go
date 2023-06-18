@@ -25,7 +25,7 @@ var (
 type ErrMinimumSwapSize uint64
 
 func (u ErrMinimumSwapSize) Error() string {
-	return fmt.Sprintf("a minimum swap amount of %dsat is required", uint64(u)/1000)
+	return fmt.Sprintf("a minimum swap amount of %d msat is required", uint64(u))
 }
 
 type ErrUnknownSwapMessageType string

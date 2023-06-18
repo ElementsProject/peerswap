@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_RpcTxWatcherConfirmations(t *testing.T) {
@@ -14,12 +13,8 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	txId := "bar"
 
 	db := &DummyBlockchain{}
-	db.SetBlockHeight(1)
-	db.SetNextTxOutResp(&TxOutResp{
-		Confirmations: 0,
-	})
-
 	txWatcherChan := make(chan string)
+
 	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 100)
 
 	err := txWatcher.StartWatchingTxs()
@@ -27,18 +22,16 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, 0, nil)
 	txWatcher.AddConfirmationCallback(func(swapId string, txHex string) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})
-	err = txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, 0, nil)
-	require.NoError(t, err)
 
-	db.SetBlockHeight(2)
+	db.SetBlockHeight(1)
 	db.SetNextTxOutResp(&TxOutResp{
-		Confirmations: 5,
+		Confirmations: 2,
 	})
-
 	txConfirmedId := <-txWatcherChan
 	assert.Equal(t, swapId, txConfirmedId)
 }
