@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const defaultLines = -1
+const defaultLines = 30
 
 func IsIntegrationTest(t *testing.T) {
 	if os.Getenv("RUN_INTEGRATION_TESTS") != "1" {

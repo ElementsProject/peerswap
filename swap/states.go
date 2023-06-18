@@ -2,13 +2,12 @@ package swap
 
 // Shared States
 const (
-	State_SendCancel       StateType = "State_SendCancel"
-	State_SwapCanceled     StateType = "State_SwapCanceled"
-	State_WaitCsv          StateType = "State_WaitCsv"
-	State_ClaimedCsv       StateType = "State_ClaimedCsv"
-	State_ClaimedPreimage  StateType = "State_ClaimedPreimage"
-	State_ClaimedCoop      StateType = "State_ClaimedCoop"
-	State_ClaimedUndefined StateType = "State_ClaimedUndefined"
+	State_SendCancel      StateType = "State_SendCancel"
+	State_SwapCanceled    StateType = "State_SwapCanceled"
+	State_WaitCsv         StateType = "State_WaitCsv"
+	State_ClaimedCsv      StateType = "State_ClaimedCsv"
+	State_ClaimedPreimage StateType = "State_ClaimedPreimage"
+	State_ClaimedCoop     StateType = "State_ClaimedCoop"
 )
 
 // Swap Out Sender States
@@ -90,8 +89,6 @@ const (
 	Event_ActionFailed                     EventType = "Event_ActionFailed"
 	Event_SwapInReceiver_OnRequestReceived EventType = "Event_SwapInReceiver_OnRequestReceived"
 	Event_Done                             EventType = "Event_Done"
-
-	Event_AlreadyClaimed EventType = "Event_AlreadyClaimed"
 
 	Event_OnInvalid_Message EventType = "Event_Invalid_Message"
 )

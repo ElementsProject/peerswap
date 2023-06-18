@@ -259,7 +259,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() (bool, error) {
-	log.Infof("[Swap:%s]: Recovering from %s", s.SwapId.String(), s.Current)
+	log.Infof("[Swap:%s]: Recovering from state %s", s.SwapId.String(), s.Current)
 	state, ok := s.States[s.Current]
 	if !ok {
 		return false, fmt.Errorf("unknown state: %s for swap %s", s.Current, s.SwapId.String())
@@ -295,7 +295,6 @@ func (s *SwapStateMachine) IsFinished() bool {
 		return true
 	case State_ClaimedCoop:
 		return true
-	case State_ClaimedUndefined:
 	}
 	return false
 }
