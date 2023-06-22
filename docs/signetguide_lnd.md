@@ -1,14 +1,14 @@
 # Signet Guide
 
-This guide walks through the steps necessary to run the peerswap daemon on bitcoin signet and liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different linux distributions.
+This guide walks through the steps necessary to run the PeerSwap daemon on Bitcoin signet and Liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
 
 ## Install dependencies
 
-Peerswap requires _lnd_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the peerswap daemon.
+PeerSwap requires _lnd_, _bitcoind_ and an _elementsd_ installation if testing Liquid L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the PeerSwap daemon.
 
 ## Bitcoind (signet)
 
-Download the following files to install bitcoin-core.
+Download the following files to install Bitcoin Core.
 
 ```bash
 wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
@@ -59,7 +59,7 @@ zmqpubrawtx=tcp://127.0.0.1:28333
 EOF
 ```
 
-Start the bitcoin daemon in signet mode
+Start the Bitcoin daemon in signet mode
 
 ```bash
 bitcoind
@@ -154,15 +154,15 @@ elementsd --daemon
 
 ### Wait for sync
 
-The elements node now has to be synced on liquid testnet for the plugin to work. To check this, compare the _height_ value from
+The Elements node now has to be synced on Liquid testnet for the plugin to work. To check this, compare the _height_ value from
 
 ```shell
 elements-cli getchaintips
 ```
 
-with the height of the last block on [liquid-testnet-explorer](https://liquidtestnet.com/explorer)
+with the height of the last block on [Liquid testnet explorer](https://blockstream.info/liquidtestnet/).
 
-## Lnd
+## LND
 
 _Note: If building from source, be sure to build with the required tags: `make install tags="signrpc walletrpc routerrpc invoicesrpc"` otherwise Peerswap will not work._
 
@@ -212,7 +212,7 @@ listen=0.0.0.0:39735
 EOF
 ```
 
-Start Lnd in background
+Start LND in the background
 
 ```bash
 lnd </dev/null &>/dev/null &
@@ -223,7 +223,7 @@ Create a wallet with
 lncli -n=signet create
 ```
 
-## Peerswap
+## PeerSwap
 
 ### Build
 
@@ -235,7 +235,7 @@ sudo tar -C /usr/local -xzf go1.19.linux-amd64.tar.gz && \
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-Clone into the peerswap repository and build the peerswap plugin
+Clone into the PeerSwap repository and build
 
 ```bash
 git clone git@github.com:elementsproject/peerswap.git && \
@@ -243,7 +243,7 @@ cd peerswap && \
 make lnd-release
 ```
 
-Move the peerswap binaries to the systempath
+Move the PeerSwap binaries to the systempath
 ```bash
 sudo cp -vnR peerswapd /usr/bin/ && \
 sudo cp -vnR pscli /usr/bin/
@@ -260,7 +260,7 @@ mkdir -p ~/.peerswap
 
 Add signet config file. REPLACE USERNAME.
 
-Bitcoin-swaps only config
+BTC swaps only config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -269,7 +269,7 @@ lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/signet/admin.macaroon
 EOF
 ```
 
-lbtc-swaps Config
+L-BTC swaps config
 
 ```bash
 cat <<EOF > ~/.peerswap/peerswap.conf
@@ -304,7 +304,7 @@ rm SHA256SUMS.asc
 
 ### Run
 
-start the peerswap daemon in background:
+start the PeerSwap daemon in background:
 
 ```bash
 peerswapd </dev/null &>/dev/null &
@@ -316,7 +316,7 @@ Create a new signet address and receive some sats from https://signet.bc-2.jp/
 lncli -n=signet newaddress p2wkh
 ```
 
-Now connect to another node that has the peerswap plugin running, for example these development nodes run by @sputn1ck
+Now connect to another node that has the PeerSwap plugin running, for example these development nodes run by @sputn1ck
 
 cln node
 ```bash
@@ -347,9 +347,9 @@ and try a swap-out
 pscli swapout --sat_amt=[sat amount] --channel_id=[chan_id from above] --asset=btc
 ```
 
-Note: The asset could also be `lbtc`. This will perform the swap on the bitcoin signet rather than the liquid testnet.
+Note: The asset could also be `lbtc`. The above command will perform the swap on the Bitcoin signet rather than the Liquid testnet.
 
-Get a new lbtc address and then generate some lbtc to the address via https://liquidtestnet.com/faucet
+Get a new testnet L-BTC address and then generate some test L-BTC to the address via https://liquidtestnet.com/faucet
 
 ```bash
 pscli lbtc-getaddress
