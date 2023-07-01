@@ -1,10 +1,10 @@
 # Core Lightning Setup
 
-This guide walks through the steps necessary to run the PeerSwap plugin on Bitcoin signet and Liquid testnet. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
+This guide walks through the steps necessary to run the PeerSwap plugin on Bitcoin mainnet and Liquid. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
 
 ## Install dependencies
 
-PeerSwap requires [Bitcoin Core](https://bitcoin.org/en/bitcoin-core/), [Core Lightning](https://github.com/ElementsProject/lightning) and an _elementsd_ installation for L-BTC swaps. If you already have all of these installed you can let them run in signet, or testnet mode and skip to the section about using the plugin.
+PeerSwap requires [Bitcoin Core](https://bitcoin.org/en/bitcoin-core/), [Core Lightning](https://github.com/ElementsProject/lightning) and an _elementsd_ installation for L-BTC swaps.
 
 To setup `elementsd` for PeerSwap, refer to our [guide](https://github.com/ElementsProject/peerswap/blob/master/docs/setup_elementsd.md).
 
@@ -38,7 +38,7 @@ log-level=debug:plugin-peerswap
 
 Specify the full path to the `peerswap` binary. For now it is recommended to log all debug messages from PeerSwap.
 
-PeerSwap will automatically try to connect to your `bitcoind` (using the bitcoind rpc settings from CLN).
+PeerSwap will automatically try to connect to your `bitcoind` (using the bitcoind RPC settings from CLN).
 
 The default location of the swap database is `~/.lightning/bitcoin/peerswap/swaps`
 
