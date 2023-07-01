@@ -1,6 +1,6 @@
 # Core Lightning Setup
 
-This guide walks through the steps necessary to run the PeerSwap plugin on Bitcoin mainnet and Liquid. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
+This guide walks through the steps necessary to run the PeerSwap plugin for Bitcoin mainnet and Liquid swaps. This guide was written and tested under _Ubuntu-20.04_ but the same procedure also applies to different Linux distributions.
 
 ## Install dependencies
 
