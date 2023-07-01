@@ -1,6 +1,6 @@
 # LND Setup
 
-This guide walks through the steps necessary to setup the PeerSwap standalone daemon with LND.
+This guide walks through the steps necessary to setup the PeerSwap standalone daemon with LND for mainnet Bitcoin and Liquid swaps.
 
 ## Install dependencies
 
