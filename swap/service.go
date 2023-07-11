@@ -58,6 +58,8 @@ type SwapService struct {
 	BitcoinEnabled bool
 	LiquidEnabled  bool
 	sync.RWMutex
+
+	lastMsgLog map[string]string
 }
 
 func NewSwapService(services *SwapServices) *SwapService {
@@ -66,6 +68,7 @@ func NewSwapService(services *SwapServices) *SwapService {
 		activeSwaps:    map[string]*SwapStateMachine{},
 		LiquidEnabled:  services.liquidEnabled,
 		BitcoinEnabled: services.bitcoinEnabled,
+		lastMsgLog:     map[string]string{},
 	}
 }
 
@@ -142,6 +145,19 @@ func (s *SwapService) RecoverSwaps() error {
 }
 
 func (s *SwapService) logMsg(swapId, peerId, msgTypeString string, payload []byte) {
+	s.Lock()
+	defer s.Unlock()
+	if lastMsgType, ok := s.lastMsgLog[swapId]; ok {
+		if lastMsgType == msgTypeString {
+			// We already logged this message, just tell that we received the
+			// last message again.
+			log.Debugf("[Messenger] From: %s got same message for swap: %s", peerId, swapId)
+			return
+		}
+	}
+	// We see the message type for this swap for the first time, we log the
+	// message.
+	s.lastMsgLog[swapId] = msgTypeString
 	log.Debugf("[Messenger] From: %s got msgtype: %s with payload: %s for swap: %s", peerId, msgTypeString, payload, swapId)
 }
 
@@ -723,6 +739,7 @@ func (s *SwapService) GetActiveSwap(swapId string) (*SwapStateMachine, error) {
 func (s *SwapService) RemoveActiveSwap(swapId string) {
 	s.Lock()
 	defer s.Unlock()
+	delete(s.lastMsgLog, swapId)
 	delete(s.activeSwaps, swapId)
 }
 
