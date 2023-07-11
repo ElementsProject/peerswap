@@ -154,7 +154,6 @@ func (s *BlockchainRpcTxWatcher) HandleConfirmedTx(blockheight uint64) error {
 			continue
 		}
 		if !(res.Confirmations >= s.requiredConfs) {
-			log.Debugf("tx does not have enough confirmations")
 			continue
 		}
 		if s.txCallback == nil {
@@ -240,7 +239,7 @@ func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vo
 		return ""
 	}
 	if !(res.Confirmations >= s.requiredConfs) {
-		log.Infof("tx does not have enough confirmations")
+		log.Infof("tx %s on swap %s does not have enough confirmations", txId, swapId)
 		return ""
 	}
 	if s.txCallback == nil {
