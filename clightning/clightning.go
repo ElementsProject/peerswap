@@ -310,9 +310,11 @@ func (cl *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent
 	}
 	for _, v := range cl.msgHandlers {
 		err := v(event.PeerId, typeString, payloadDecoded)
-		if err != nil {
+		// We silence logging on AlreadyExistsErrors as this is just spammy
+		// and we already log that we received a message of the same type
+		// earlier.
+		if err != nil && !errors.Is(err, swap.AlreadyExistsError) {
 			log.Debugf("\n msghandler err: %v", err)
-			return event.Continue(), nil
 		}
 	}
 	return event.Continue(), nil

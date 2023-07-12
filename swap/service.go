@@ -58,6 +58,8 @@ type SwapService struct {
 	BitcoinEnabled bool
 	LiquidEnabled  bool
 	sync.RWMutex
+
+	lastMsgLog map[string]string
 }
 
 func NewSwapService(services *SwapServices) *SwapService {
@@ -66,6 +68,7 @@ func NewSwapService(services *SwapServices) *SwapService {
 		activeSwaps:    map[string]*SwapStateMachine{},
 		LiquidEnabled:  services.liquidEnabled,
 		BitcoinEnabled: services.bitcoinEnabled,
+		lastMsgLog:     map[string]string{},
 	}
 }
 
@@ -141,6 +144,23 @@ func (s *SwapService) RecoverSwaps() error {
 	return nil
 }
 
+func (s *SwapService) logMsg(swapId, peerId, msgTypeString string, payload []byte) {
+	s.Lock()
+	defer s.Unlock()
+	if lastMsgType, ok := s.lastMsgLog[swapId]; ok {
+		if lastMsgType == msgTypeString {
+			// We already logged this message, just tell that we received the
+			// last message again.
+			log.Debugf("[Messenger] From: %s got same message for swap: %s", peerId, swapId)
+			return
+		}
+	}
+	// We see the message type for this swap for the first time, we log the
+	// message.
+	s.lastMsgLog[swapId] = msgTypeString
+	log.Debugf("[Messenger] From: %s got msgtype: %s with payload: %s for swap: %s", peerId, msgTypeString, payload, swapId)
+}
+
 // OnMessageReceived handles incoming valid peermessages
 func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, payload []byte) error {
 	if len(payload) > 100*1024 {
@@ -156,24 +176,24 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 		// Do nothing here, as it will spam the cln log.
 		return nil
 	case messages.MESSAGETYPE_SWAPOUTREQUEST:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
+		// s.logMsg(peerId, msgTypeString, payload)
 		var msg *SwapOutRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		err = s.OnSwapOutRequestReceived(msg.SwapId, peerId, msg)
 		if err != nil {
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPOUTAGREEMENT:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapOutAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		// Check if sender is expected swap partner peer.
 		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
@@ -188,13 +208,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_OPENINGTXBROADCASTED:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *OpeningTxBroadcastedMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		// Check if sender is expected swap partner peer.
 		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
@@ -209,13 +228,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_CANCELED:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *CancelMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		// Check if sender is expected swap partner peer.
 		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
@@ -230,24 +248,23 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINREQUEST:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapInRequestMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		err = s.OnSwapInRequestReceived(msg.SwapId, peerId, msg)
 		if err != nil {
 			return err
 		}
 	case messages.MESSAGETYPE_SWAPINAGREEMENT:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *SwapInAgreementMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		// Check if sender is expected swap partner peer.
 		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
@@ -262,13 +279,12 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 			return err
 		}
 	case messages.MESSAGETYPE_COOPCLOSE:
-		log.Debugf("[Messenger] From: %s got msgtype: %s payload: %s", peerId, msgTypeString, payload)
 		var msg *CoopCloseMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
 			return err
 		}
-
+		s.logMsg(msg.SwapId.String(), peerId, msgTypeString, payload)
 		// Check if sender is expected swap partner peer.
 		ok, err := s.isMessageSenderExpectedPeer(peerId, msg.SwapId)
 		if err != nil {
@@ -723,6 +739,7 @@ func (s *SwapService) GetActiveSwap(swapId string) (*SwapStateMachine, error) {
 func (s *SwapService) RemoveActiveSwap(swapId string) {
 	s.Lock()
 	defer s.Unlock()
+	delete(s.lastMsgLog, swapId)
 	delete(s.activeSwaps, swapId)
 }
 
