@@ -158,7 +158,9 @@ func (s *SwapService) logMsg(swapId, peerId, msgTypeString string, payload []byt
 	// We see the message type for this swap for the first time, we log the
 	// message.
 	s.lastMsgLog[swapId] = msgTypeString
-	log.Debugf("[Messenger] From: %s got msgtype: %s with payload: %s for swap: %s", peerId, msgTypeString, payload, swapId)
+
+	// The payload is omitted because it includes the blinding key.
+	log.Debugf("[Messenger] From: %s got msgtype: %s for swap: %s", peerId, msgTypeString, swapId)
 }
 
 // OnMessageReceived handles incoming valid peermessages
