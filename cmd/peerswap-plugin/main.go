@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/version"
@@ -176,7 +177,13 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			config.Liquid.RpcPort,
 			config.Liquid.RpcHost,
 		)
-		liquidCli, err = getElementsClient(lightningPlugin.GetLightningRpc(), config)
+		// This call is blocking, waiting for elements to come alive and sync.
+		liquidCli, err = elements.NewClient(
+			config.Liquid.RpcUser,
+			config.Liquid.RpcPassword,
+			config.Liquid.RpcHost,
+			config.Liquid.RpcPort,
+		)
 		if err != nil {
 			return err
 		}
@@ -420,16 +427,6 @@ func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	}
 }
 
-func getElementsClient(li *glightning.Lightning, config *clightning.Config) (*gelements.Elements, error) {
-	elementsCli := gelements.NewElements(config.Liquid.RpcUser, config.Liquid.RpcPassword)
-	err := elementsCli.StartUp(config.Liquid.RpcHost, config.Liquid.RpcPort)
-	if err != nil {
-		log.Infof("Could not connect to elements: %s", err.Error())
-		return nil, err
-	}
-
-	return elementsCli, nil
-}
 func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Config) (*gbitcoin.Bitcoin, error) {
 	rpcUser := pluginConfig.Bitcoin.RpcUser
 	rpcPassword := pluginConfig.Bitcoin.RpcPassword

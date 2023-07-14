@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/log"
@@ -197,20 +198,19 @@ func run() error {
 	if cfg.LiquidEnabled {
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
-		// blockchaincli
 		liquidConfig := cfg.ElementsConfig
-		liquidCli = gelements.NewElements(liquidConfig.RpcUser, liquidConfig.RpcPassword)
-		err = liquidCli.StartUp(liquidConfig.RpcHost, liquidConfig.RpcPort)
+
+		// This call is blocking, waiting for elements to come alive and sync.
+		liquidCli, err = elements.NewClient(
+			liquidConfig.RpcUser,
+			liquidConfig.RpcPassword,
+			liquidConfig.RpcHost,
+			liquidConfig.RpcPort,
+		)
 		if err != nil {
 			return err
 		}
-		// Wallet
-		liquidWalletCli := gelements.NewElements(liquidConfig.RpcUser, liquidConfig.RpcPassword)
-		err = liquidWalletCli.StartUp(liquidConfig.RpcHost, liquidConfig.RpcPort)
-		if err != nil {
-			return err
-		}
-		liquidRpcWallet, err = wallet.NewRpcWallet(liquidWalletCli, liquidConfig.RpcWallet)
+		liquidRpcWallet, err = wallet.NewRpcWallet(liquidCli, liquidConfig.RpcWallet)
 		if err != nil {
 			return err
 		}
