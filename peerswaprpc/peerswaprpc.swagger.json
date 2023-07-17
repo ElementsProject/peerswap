@@ -617,10 +617,6 @@
           "type": "string",
           "format": "uint64"
         },
-        "localPercentage": {
-          "type": "number",
-          "format": "double"
-        },
         "active": {
           "type": "boolean"
         }
@@ -700,6 +696,10 @@
         },
         "cancelMessage": {
           "type": "string"
+        },
+        "lndChanId": {
+          "type": "string",
+          "format": "uint64"
         }
       }
     },
