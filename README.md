@@ -59,10 +59,11 @@ Follow <a href="https://twitter.com/PeerswapLN">@PeerSwapLN on Twitter</a> to ke
 ### Setup
 PeerSwap is usable with both Core Lightning and LND implementations:
 
-To run PeerSwap as a Core Lightning plugin see the [CLN setup guide](./docs/setup_cln.md).
+To run PeerSwap as a Core Lightning plugin, see the [CLN setup guide](./docs/setup_cln.md).
 
-To run PeerSwap as a standalone daemon with LND see the [LND setup guide](./docs/setup_lnd.md).
+To run PeerSwap as a standalone daemon with LND, see the [LND setup guide](./docs/setup_lnd.md).
 
+To run Elements for L-BTC swaps, see the [Elements setup guide](./docs/setup_elementsd.md).
 
 ### Usage
 
@@ -82,7 +83,7 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
   * Lower Cost - PeerSwap is the lowest cost because there is no 3rd party coordinator or intermediary nodes to collect rent.
   * More Private - Swaps are entirely between two consenting nodes. Nobody else is able to record details like who swapped.
 * What is the difference between [splicing](https://github.com/lightning/bolts/pull/863) and PeerSwap?
-  * Splicing will take a long time to become code ready and widely available. Meanwhile PeerSwap is very simple and already works today without changes to existing LN nodes.
+  * Both PeerSwap and splicing (through Phoenix Wallet) are now usable on mainnet. Splicing is in general better, though PeerSwap can be attractive more for L-BTC swaps that don't touch the mainnet blockchain at all. Splicing and PeerSwap L-BTC swaps are both good for mainnet efficiency. 
 * What is the difference between [liquidity-ads](https://github.com/lightning/bolts/pull/878) and PeerSwap?
   * Liquidity Ads is a great way to lease new channels to be opened toward you for the purpose of gaining incoming capacity. New channels add new capacity in a desired direction but only once.
   * PeerSwap lets you repeatedly refill your existing channels at a cost lower than opening, closing, and maintaining additional channels.
