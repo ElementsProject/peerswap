@@ -1119,7 +1119,6 @@ type PeerSwapPeerChannel struct {
 	ChannelId       string  `json:"short_channel_id"`
 	LocalBalance    uint64  `json:"local_balance"`
 	RemoteBalance   uint64  `json:"remote_balance"`
-	LocalPercentage float64 `json:"local_percentage"`
 	State           string  `json:"state"`
 }
 
