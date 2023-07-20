@@ -353,7 +353,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Second, 2*time.Hour, pollStore, lightningPlugin, pol, lightningPlugin, supportedAssets)
+	pollService := poll.NewService(1*time.Second, 2*time.Hour, pollStore, lightningPlugin, pol, supportedAssets)
 	pollService.Start()
 	defer pollService.Stop()
 

@@ -441,7 +441,6 @@ func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPo
 	if err != nil {
 		return nil, err
 	}
-	p.pollService.PollAllPeers()
 	pol := p.policy.Get()
 	return GetPolicyMessage(pol), nil
 }

@@ -32,10 +32,6 @@ type Messenger interface {
 	MessageReceiver
 }
 
-type PeerGetter interface {
-	GetPeers() []string
-}
-
 type Policy interface {
 	IsPeerAllowed(peerId string) bool
 }
@@ -61,7 +57,6 @@ type Service struct {
 	assets           []string
 	messenger        Messenger
 	policy           Policy
-	peers            PeerGetter
 	store            Store
 	tmpStore         map[string]string
 	removeDuration   time.Duration
@@ -77,7 +72,7 @@ type Service struct {
 	pollQueue pollQueue
 }
 
-func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
+func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, allowedAssets []string) *Service {
 	clock := time.NewTicker(tickDuration)
 	ctx, done := context.WithCancel(context.Background())
 	s := &Service{
@@ -87,7 +82,6 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		assets:           allowedAssets,
 		messenger:        messenger,
 		policy:           policy,
-		peers:            peers,
 		store:            store,
 		tmpStore:         make(map[string]string),
 		removeDuration:   removeDuration,
@@ -104,9 +98,6 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 // Start the poll message loop and send the poll
 // messages on every tick.
 func (s *Service) Start() {
-	// Request fresh polls from all peers on startup
-	s.RequestAllPeerPolls()
-	// Start poll loop
 	go func() {
 		for {
 			select {
@@ -161,12 +152,6 @@ func (s *Service) Poll(peer string) {
 	s.sendMessage(peer, msg, int(poll.MessageType()))
 }
 
-func (s *Service) PollAllPeers() {
-	for _, peer := range s.peers.GetPeers() {
-		go s.Poll(peer)
-	}
-}
-
 // RequestPoll sends the REUQEST_POLL message to a
 // single peer.
 func (s *Service) RequestPoll(peer string) {
@@ -183,14 +168,6 @@ func (s *Service) RequestPoll(peer string) {
 	}
 
 	s.sendMessage(peer, msg, int(request.MessageType()))
-}
-
-// RequestAllPeerPolls requests the poll message from
-// every peer.
-func (s *Service) RequestAllPeerPolls() {
-	for _, peer := range s.peers.GetPeers() {
-		go s.RequestPoll(peer)
-	}
 }
 
 // MessageHandler checks for the incoming messages

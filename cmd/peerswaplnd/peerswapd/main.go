@@ -339,7 +339,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Second, 2*time.Hour, pollStore, lnd, pol, lnd, supportedAssets)
+	pollService := poll.NewService(1*time.Second, 2*time.Hour, pollStore, lnd, pol, supportedAssets)
 	pollService.Start()
 	defer pollService.Stop()
 

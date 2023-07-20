@@ -748,8 +748,6 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Resend poll
-	c.cl.pollService.PollAllPeers()
 	return c.cl.policy.Get(), nil
 }
 
