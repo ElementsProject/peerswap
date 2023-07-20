@@ -343,8 +343,22 @@ func run() error {
 	pollService.Start()
 	defer pollService.Stop()
 
+	// Initially add all peers to the poll service
+	peers := lnd.GetPeers()
+	go func() {
+		for _, peer := range peers {
+			pollService.AddPeer(peer)
+			time.Sleep(500 * time.Millisecond)
+		}
+		log.Infof("Added all peers to the poll service")
+	}()
+
 	// Add poll handler to peer event listener.
-	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.Poll)
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.AddPeer)
+	if err != nil {
+		return err
+	}
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_OFFLINE, pollService.RemovePeer)
 	if err != nil {
 		return err
 	}

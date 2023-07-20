@@ -357,6 +357,16 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	pollService.Start()
 	defer pollService.Stop()
 
+	// Initially add all known peers to the poll service.
+	go func() {
+		peers := lightningPlugin.GetPeers()
+		for _, peer := range peers {
+			pollService.AddPeer(peer)
+			time.Sleep(1 * time.Second)
+		}
+		log.Infof("Added all peers to the poll service")
+	}()
+
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
 	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
 

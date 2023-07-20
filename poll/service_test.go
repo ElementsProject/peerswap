@@ -30,16 +30,6 @@ func (m *MessengerMock) SendMessage(peerId string, message []byte, messageType i
 func (m *MessengerMock) AddMessageHandler(func(peerId string, msgType string, payload []byte) error) {
 }
 
-type PeerGetterMock struct {
-	peers  []string
-	called int
-}
-
-func (m *PeerGetterMock) GetPeers() []string {
-	m.called++
-	return m.peers
-}
-
 type PolicyMock struct {
 	allowList []bool
 	called    uint
@@ -63,17 +53,17 @@ func TestSendMessage(t *testing.T) {
 
 	messenger := &MessengerMock{}
 	policy := &PolicyMock{allowList: []bool{true, false}}
-	peerGetter := &PeerGetterMock{
-		peers: []string{"peer1", "peer2"},
-	}
+
+	peers := []string{"peer1", "peer2"}
+
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
-	for _, peer := range peerGetter.peers {
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, assets)
+	for _, peer := range peers {
 		ps.Poll(peer)
 	}
 
-	assert.Len(t, messenger.peersReceived, len(peerGetter.peers))
-	assert.ElementsMatch(t, messenger.peersReceived, peerGetter.peers)
+	assert.Len(t, messenger.peersReceived, len(peers))
+	assert.ElementsMatch(t, messenger.peersReceived, peers)
 
 	var msgs []PollMessage
 	for _, msgByte := range messenger.msgReceived {
@@ -101,11 +91,11 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 
 	messenger := &MessengerMock{}
 	policy := &PolicyMock{allowList: []bool{true, false}}
-	peerGetter := &PeerGetterMock{
-		peers: []string{"peer1", "peer2"},
-	}
+
+	// peers := []string{"peer1", "peer2"}
+
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, assets)
 
 	pmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_POLL)
 	rpmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_REQUEST_POLL)

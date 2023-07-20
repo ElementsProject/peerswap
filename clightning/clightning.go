@@ -148,6 +148,7 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 		return nil, nil, err
 	}
 	cl.Plugin.SubscribeConnect(cl.OnConnect)
+	cl.Plugin.SubscribeDisconnect(cl.OnDisconnect)
 
 	cl.glightning = glightning.NewLightning()
 	cl.glightning.SetTimeout(40)
@@ -440,17 +441,30 @@ func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string
 	cl.initChan <- true
 }
 
-// OnConnect is called after the connect event. The
-// handler sends out a poll to the peer it connected
-// to.
+// OnConnect is called after the connect event. The handler adds the peer to
+// the poll service.
 func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 	go func() {
 		for {
-			time.Sleep(10 * time.Second)
 			if cl.pollService != nil {
-				cl.pollService.RequestPoll(connectEvent.PeerId)
+				cl.pollService.AddPeer(connectEvent.PeerId)
 				return
 			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
+// OnDisconnect is called after the disconnect event. The handler removec the
+// peer from the poll service.
+func (cl *ClightningClient) OnDisconnect(event *glightning.DisconnectEvent) {
+	go func() {
+		for {
+			if cl.pollService != nil {
+				cl.pollService.RemovePeer(event.PeerId)
+				return
+			}
+			time.Sleep(1 * time.Second)
 		}
 	}()
 }
