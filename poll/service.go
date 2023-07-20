@@ -66,6 +66,15 @@ type Service struct {
 	tmpStore         map[string]string
 	removeDuration   time.Duration
 	loggedDisconnect map[string]struct{}
+
+	// pollDelta is the duration between two consecutive messages to
+	// be sent to a peer.
+	pollDelta time.Duration
+
+	// peerList is a list of all known peers to the node. This
+	// includes peers that don't support peerswap.
+	peerList  map[string]struct{}
+	pollQueue pollQueue
 }
 
 func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
@@ -83,6 +92,9 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		tmpStore:         make(map[string]string),
 		removeDuration:   removeDuration,
 		loggedDisconnect: make(map[string]struct{}),
+		pollDelta:        1 * time.Hour,
+		peerList:         make(map[string]struct{}),
+		pollQueue:        pollQueue{},
 	}
 
 	s.messenger.AddMessageHandler(s.MessageHandler)
@@ -99,10 +111,27 @@ func (s *Service) Start() {
 		for {
 			select {
 			case now := <-s.clock.C:
-				// remove unseen
-				s.store.RemoveUnseen(now, s.removeDuration)
-				// poll
-				s.PollAllPeers()
+				// On every tick we check if we need to send out the next poll
+				// message. This is determined by a timestamp telling us when to
+				// send out the next message. Therefore we peek into the next
+				// element of our queue.
+				next, ok := s.pollQueue.Peek()
+
+				if ok && now.After(next.ts) {
+					// We passed the time for the next peer to be polled.
+					_, _ = s.pollQueue.Dequeue()
+					s.Poll(next.peer)
+					_ = s.store.RemoveUnseen(now, s.removeDuration)
+
+					// If the peer is still in our list, we re-enqueue the peer
+					// so that we sent a poll message again when the newly set
+					// timestamp passes.
+					s.RLock()
+					if _, ok := s.peerList[next.peer]; ok {
+						s.pollQueue.Enqueue(nextPeer{ts: now.Add(s.pollDelta), peer: next.peer})
+					}
+					s.RUnlock()
+				}
 			case <-s.ctx.Done():
 				return
 			}
@@ -281,4 +310,25 @@ func (s *Service) sendMessage(peer string, msg []byte, msgType int) {
 			delete(s.loggedDisconnect, peer)
 		}
 	}
+}
+
+// AddPeer adds a new peer to the polling service. This includes adding the
+// peer to the peer list and the message queue. It also sends out the initial
+// poll.
+func (s *Service) AddPeer(peer string) {
+	s.Lock()
+	defer s.Unlock()
+	if _, ok := s.peerList[peer]; !ok {
+		s.peerList[peer] = struct{}{}
+	}
+	s.Poll(peer)
+	s.pollQueue.Enqueue(nextPeer{ts: time.Now().Add(s.pollDelta), peer: peer})
+}
+
+// RemovePeer removes a peer from the peer list. A peer that is not on the peer
+// list will not be enqueued again, the next time a poll is sent.
+func (s *Service) RemovePeer(peer string) {
+	s.Lock()
+	defer s.Unlock()
+	delete(s.peerList, peer)
 }
