@@ -297,9 +297,9 @@ func (s *Service) AddPeer(peer string) {
 	defer s.Unlock()
 	if _, ok := s.peerList[peer]; !ok {
 		s.peerList[peer] = struct{}{}
+		s.Poll(peer)
+		s.pollQueue.Enqueue(nextPeer{ts: time.Now().Add(s.pollDelta), peer: peer})
 	}
-	s.Poll(peer)
-	s.pollQueue.Enqueue(nextPeer{ts: time.Now().Add(s.pollDelta), peer: peer})
 }
 
 // RemovePeer removes a peer from the peer list. A peer that is not on the peer
