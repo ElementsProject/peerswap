@@ -661,7 +661,7 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	_, _, validator, err := services.getOnChainServices(swap.GetChain())
+	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -703,6 +703,15 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		case <-ctx.Done():
 			return swap.HandleError(fmt.Errorf("could not pay invoice, last err %w", err))
 		case <-ticker.C:
+			now, err := onchain.GetBlockHeight()
+			if err != nil {
+				return swap.HandleError(err)
+			}
+			if (now - swap.StartingBlockHeight) > validator.GetCSVHeight()/2 {
+				log.Debugf("[Swap:%s] passed csv limit blockheight now=%d, blockheight starting=%d", swap.GetId(), now, swap.StartingBlockHeight)
+				swap.LastErr = err
+				return swap.HandleError(err)
+			}
 			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
