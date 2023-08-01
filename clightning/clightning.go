@@ -118,7 +118,7 @@ func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, inv
 		// either paid or expired.
 		res, err := cl.glightning.WaitInvoice(getLabel(swapId, invoiceType))
 		if err != nil {
-			log.Debugf("[Payment Notifier] Error %v", err)
+			log.Infof("[Payment Notifier] Error %v, swap %s", err, swapId)
 			return
 		}
 
