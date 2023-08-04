@@ -274,11 +274,11 @@ func (s *Service) sendMessage(peer string, msg []byte, msgType int) {
 		if _, seen := s.loggedDisconnect[peer]; !seen {
 			log.Debugf("poll_service: could not send msg to %s: %v", peer, err)
 			s.loggedDisconnect[peer] = struct{}{}
-		} else {
-			s.Lock()
-			defer s.Unlock()
-			// Message could be sent. Release peer from `loggedDisconnect`.
-			delete(s.loggedDisconnect, peer)
 		}
+	} else {
+		s.Lock()
+		defer s.Unlock()
+		// Message could be send. Release peer from `loggedDisconnect`.
+		delete(s.loggedDisconnect, peer)
 	}
 }
