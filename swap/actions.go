@@ -603,54 +603,79 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	return Event_ActionSucceeded
 }
 
-// AwaitTxConfirmationAction  checks the claim invoice and adds the transaction
-// to the txwatcher.
 type AwaitTxConfirmationAction struct{}
 
 //todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	// This is a state that could be called on recovery and needs to be
+	// idempotent.
+
+	// Get the onchain services (depends on the chain).
 	txWatcher, wallet, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	// Check if we are outside of our csv safety limit. This can happen on
-	// restart. We do NOT want to continue if we fail here.
-	if swap.StartingBlockHeight > 0 {
-		now, err := txWatcher.GetBlockHeight()
-		if err != nil {
-			return swap.HandleError(err)
-		}
-
-		if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {
-			err := fmt.Errorf("exceeded csv limit")
-			return swap.HandleError(err)
-		}
-	}
-
+	// First check the preconditions, invoice min_final_cltv_expiry needs to be
+	// is a safe range. Safe means that the payee can not hodl the htlc to an
+	// overlap with the on-chain htlc in a way that the payee can claim a refund
+	// on-chain before they accept the payment htlc.
 	phash, msatAmount, expiry, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	// Check that invoice min_final_cltv_expiry is safe. Safe means the payee
-	// can not hold the htlc long enough to refund the on-chain part before
-	// accepting it.
-	if (swap.GetChain() == btc_chain && expiry > BitcoinCsv/2) ||
-		(swap.GetChain() == l_btc_chain && expiry > LiquidCsv/2) {
-		return swap.HandleError(fmt.Errorf("unsafe invoice cltv: %d", expiry))
+	safetyLimit := validator.GetCSVHeight() / 2
+	if expiry > int64(safetyLimit) {
+		return swap.HandleError(fmt.Errorf(
+			"unsafe invoice cltv: %d, expected below: %d",
+			expiry, safetyLimit,
+		))
 	}
 
+	// Next we check that the invoice amount matches the requested swap amount.
 	if msatAmount != swap.GetAmount()*1000 {
-		return swap.HandleError(fmt.Errorf("invoice amount does not equal swap amount, invoice: %v, swap %v", swap.OpeningTxBroadcasted.Payreq, swap.GetAmount()))
+		return swap.HandleError(fmt.Errorf(
+			"invoice amount does not equal swap amount, invoice: %v, swap %v",
+			swap.OpeningTxBroadcasted.Payreq,
+			swap.GetAmount(),
+		))
 	}
 
+	// Bind the payment hash to the swap (this is legacy code)
 	swap.ClaimPaymentHash = phash
 
+	// Check that we have a starting block height set. This is to
+	// ensure safety across restarts. If it is not set we better
+	// cancel the swap.
+	if swap.StartingBlockHeight == 0 {
+		return swap.HandleError(fmt.Errorf(
+			"could not get starting block height of the swap.",
+		))
+	}
+
+	// Check if we already passed our safety limit and fail early.
+	// This is a shortcut for recovery scenarios where we already are
+	// above our safety limit.
+	height, err := txWatcher.GetBlockHeight()
+	if err != nil {
+		return swap.HandleError(fmt.Errorf(
+			"could not get block height.",
+		))
+	}
+
+	if height >= swap.StartingBlockHeight+safetyLimit {
+		return swap.HandleError(fmt.Errorf(
+			"exceeded safe swap range.",
+		))
+	}
+
+	// We have to extract and add the script to the watcher for LND
 	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
 	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
 	return NoOp

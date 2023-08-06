@@ -305,11 +305,22 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 }
 
 // OnTxConfirmed sends the txconfirmed event to the corresponding swap
-func (s *SwapService) OnTxConfirmed(swapId string, txHex string) error {
+func (s *SwapService) OnTxConfirmed(swapId string, txHex string, gotErr error) error {
 	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
 		return err
 	}
+
+	// First check if we got an error!
+	if gotErr != nil {
+		swap.Data.LastErr = err
+		log.Infof("[%s]: got an error from the txwatcher, cancel swap: %v", swapId, err)
+		done, _ := swap.SendEvent(Event_ActionFailed, nil)
+		if done {
+			s.RemoveActiveSwap(swap.SwapId.String())
+		}
+	}
+
 	// todo move to eventctx
 	swap.Data.OpeningTxHex = txHex
 	done, err := swap.SendEvent(Event_OnTxConfirmed, nil)
