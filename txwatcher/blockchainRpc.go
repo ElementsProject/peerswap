@@ -114,6 +114,7 @@ var ErrNotFound = errors.New("not found")
 var ErrUnconfirmed = errors.New("unconfirmed")
 var ErrOutOfSync = errors.New("out of sync")
 var ErrBlockHashMismatch = errors.New("block hash mismatch")
+var ErrContextCanceled = errors.New("context canceled")
 
 // IsTxInRange returns the transaction with the given txId if it is found in the
 // given block range and the blockheight it was found at. If it could not be
