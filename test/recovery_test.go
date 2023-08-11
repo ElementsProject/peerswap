@@ -122,16 +122,23 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	require.NoError(err)
 
 	// Confirm claim tx.
-	params.chaind.GenerateBlocks(params.confirms)
+	params.chaind.GenerateBlocks(3)
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Check channel and wallet balance
 	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premium), 1., testframework.TIMEOUT))
 
-	balance, err := params.makerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.InDelta(params.origMakerWallet-commitFee-claimFee, balance, 1., "expected %d, got %d",
-		params.origMakerWallet-commitFee-claimFee, balance)
+	require.NoError(testframework.WaitFor(func() bool {
+		balance, err := params.makerNode.GetBtcBalanceSat()
+		if err != nil {
+			t.Logf("get balance errored: %v", err)
+			return false
+		}
+		if balance == params.origMakerWallet-commitFee-claimFee {
+			return true
+		}
+		return false
+	}, testframework.TIMEOUT))
 }
 
 // Test_Recover_PassedSwap that peerswap can recover from a swap that
