@@ -69,7 +69,7 @@ func getSwapOutReceiverStates() States {
 			Action: &SendMessageWithRetryAction{},
 			Events: Events{
 				Event_ActionSucceeded: State_SwapOutReceiver_AwaitClaimInvoicePayment,
-				Event_ActionFailed:    State_SwapOutReceiver_SwapAborted,
+				Event_ActionFailed:    State_WaitCsv,
 			},
 		},
 		State_SwapOutReceiver_AwaitClaimInvoicePayment: {

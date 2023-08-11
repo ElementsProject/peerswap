@@ -32,7 +32,6 @@ const (
 	State_SwapOutReceiver_BroadcastOpeningTx       StateType = "State_SwapOutReceiver_BroadcastOpeningTx"
 	State_SwapOutReceiver_SendTxBroadcastedMessage StateType = "State_SwapOutReceiver_SendTxBroadcastedMessage"
 	State_SwapOutReceiver_AwaitClaimInvoicePayment StateType = "State_SwapOutReceiver_AwaitClaimInvoicePayment"
-	State_SwapOutReceiver_SwapAborted              StateType = "State_SwapOutReceiver_Aborted"
 	State_SwapOutReceiver_ClaimSwapCsv             StateType = "State_SwapOutReceiver_ClaimSwapCsv"
 	State_SwapOutReceiver_ClaimSwapCoop            StateType = "State_SwapOutReceiver_ClaimSwapCoop"
 )
