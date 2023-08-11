@@ -110,37 +110,47 @@ func (s *SwapService) RecoverSwaps() error {
 	if err != nil {
 		return err
 	}
-	for _, swap := range swaps {
-		if swap.IsFinished() {
-			continue
-		}
-		if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_SENDER {
-			swap = swapInSenderFromStore(swap, s.swapServices)
-		} else if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_RECEIVER {
-			swap = swapInReceiverFromStore(swap, s.swapServices)
 
-		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_SENDER {
-			swap = swapOutSenderFromStore(swap, s.swapServices)
+	wg := &sync.WaitGroup{}
+	for _, sw := range swaps {
+		wg.Add(1)
+		go func(swap *SwapStateMachine) {
+			defer wg.Done()
+			if swap.IsFinished() {
+				return
+			}
+			if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_SENDER {
+				swap = swapInSenderFromStore(swap, s.swapServices)
+			} else if swap.Type == SWAPTYPE_IN && swap.Role == SWAPROLE_RECEIVER {
+				swap = swapInReceiverFromStore(swap, s.swapServices)
 
-		} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
-			swap = swapOutReceiverFromStore(swap, s.swapServices)
-		}
-		swap.stateChange = sync.NewCond(&swap.stateMutex)
+			} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_SENDER {
+				swap = swapOutSenderFromStore(swap, s.swapServices)
 
-		err := s.lockSwap(swap.SwapId.String(), swap.Data.GetScid(), swap)
-		if err != nil {
-			return err
-		}
+			} else if swap.Type == SWAPTYPE_OUT && swap.Role == SWAPROLE_RECEIVER {
+				swap = swapOutReceiverFromStore(swap, s.swapServices)
+			}
+			swap.stateChange = sync.NewCond(&swap.stateMutex)
 
-		done, err := swap.Recover()
-		if err != nil {
-			return err
-		}
+			err := s.lockSwap(swap.SwapId.String(), swap.Data.GetScid(), swap)
+			if err != nil {
+				log.Infof("[%s]: error recovering swap: %v", swap.SwapId.String(), err)
+				return
+			}
 
-		if done {
-			s.RemoveActiveSwap(swap.SwapId.String())
-		}
+			done, err := swap.Recover()
+			if err != nil {
+				log.Infof("[%s]: error recovering swap: %v", swap.SwapId.String(), err)
+				return
+			}
+
+			if done {
+				s.RemoveActiveSwap(swap.SwapId.String())
+			}
+		}(sw)
 	}
+	log.Debugf("Waiting for all open swaps to recover.")
+	wg.Wait()
 	return nil
 }
 
