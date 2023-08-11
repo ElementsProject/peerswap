@@ -35,6 +35,7 @@ type BitcoinConf struct {
 	RpcPort         uint
 	Network         string
 	DataDir         string
+	BitcoinSwaps	*bool
 }
 
 type LiquidConf struct {
@@ -157,6 +158,7 @@ func ReadFromFile() Processor {
 			c.Bitcoin.RpcPasswordFile = fileConf.Bitcoin.RpcPasswordFile
 			c.Bitcoin.RpcHost = fileConf.Bitcoin.RpcHost
 			c.Bitcoin.RpcPort = fileConf.Bitcoin.RpcPort
+			c.Bitcoin.BitcoinSwaps = fileConf.Bitcoin.BitcoinSwaps
 		}
 
 		if fileConf.Liquid != nil {
@@ -296,7 +298,12 @@ func BitcoinFallback() Processor {
 			}
 			c.Bitcoin.DataDir = filepath.Join(home, defaultBitcoinSubDir)
 		}
-
+		
+		if c.Bitcoin.BitcoinSwaps == nil {
+				var swapson = true
+				c.Bitcoin.BitcoinSwaps = &swapson
+		}
+		
 		if c.Bitcoin.RpcHost == "" {
 			c.Bitcoin.RpcHost = defaultRpcHost
 		}

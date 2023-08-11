@@ -228,7 +228,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
-	if bitcoinCli != nil {
+	if  bitcoinCli != nil && *config.Bitcoin.BitcoinSwaps {
 		supportedAssets = append(supportedAssets, "btc")
 		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true

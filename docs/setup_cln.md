@@ -59,6 +59,7 @@ rpcpassword="password"
 rpchost="host"
 rpcport=1234
 cookiefilepath="/path/to/auth/.cookie" ## If set this will be used for authentication
+bitcoinswaps=false ## If set to false, BTC mainchain swaps are disabled
 
 # Liquid section
 # Liquid rpc connection settings.
