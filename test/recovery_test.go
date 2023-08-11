@@ -141,9 +141,9 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	}, testframework.TIMEOUT))
 }
 
-// Test_Recover_PassedSwap that peerswap can recover from a swap that
+// Test_Recover_PassedSwap_BTC that peerswap can recover from a swap that
 // has already been claimed by the other node (passed csv).
-func Test_Recover_PassedSwap(t *testing.T) {
+func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
@@ -202,6 +202,111 @@ func Test_Recover_PassedSwap(t *testing.T) {
 		swapType:         swap.SWAPTYPE_OUT,
 	}
 	asset := "btc"
+
+	// Do swap.
+	go func() {
+		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
+		var response map[string]interface{}
+		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+	}()
+
+	var premium uint64
+	if params.swapType == swap.SWAPTYPE_OUT {
+		// Wait for channel balance to change, this means the invoice was payed.
+		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+
+		// Get premium from difference.
+		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
+		require.NoError(err)
+		premium = params.origTakerBalance - newBalance
+	}
+
+	// Wait for opening tx being broadcasted.
+	_, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	require.NoError(err)
+	params.chaind.GenerateBlocks(1)
+	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
+
+	// Stop taker peer so that csv can trigger
+	params.takerNode.Stop()
+
+	// Generate enought blocks to trigger csv
+	params.chaind.GenerateBlocks(params.csv + 50)
+	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
+
+	// Restart taker node and wait for recover
+	require.NoError(params.takerNode.Run(true, true))
+	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
+	require.NoError(params.takerPeerswap.WaitForLog("Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation", testframework.TIMEOUT))
+
+	balance, err := params.takerNode.GetChannelBalanceSat(params.scid)
+	require.NoError(err)
+	require.InDelta(params.origTakerBalance-premium, balance, 1., "expected %d, got %d",
+		params.origTakerBalance-premium, balance)
+}
+
+// Test_Recover_PassedSwap_LBTC that peerswap can recover from a swap that
+// has already been claimed by the other node (passed csv).
+func Test_Recover_PassedSwap_LBTC(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
+	require := require.New(t)
+
+	bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
+	defer func() {
+		if t.Failed() {
+			filter := os.Getenv("PEERSWAP_TEST_FILTER")
+			pprintFail(
+				tailableProcess{
+					p:     bitcoind.DaemonProcess,
+					lines: defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[0].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[1].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+			)
+		}
+	}()
+
+	var channelBalances []uint64
+	var walletBalances []uint64
+	for _, lightningd := range lightningds {
+		b, err := lightningd.GetBtcBalanceSat()
+		require.NoError(err)
+		walletBalances = append(walletBalances, b)
+
+		b, err = lightningd.GetChannelBalanceSat(scid)
+		require.NoError(err)
+		channelBalances = append(channelBalances, b)
+	}
+
+	params := &testParams{
+		swapAmt:          channelBalances[0] / 2,
+		scid:             scid,
+		origTakerWallet:  walletBalances[0],
+		origMakerWallet:  walletBalances[1],
+		origTakerBalance: channelBalances[0],
+		origMakerBalance: channelBalances[1],
+		takerNode:        lightningds[0],
+		makerNode:        lightningds[1],
+		takerPeerswap:    lightningds[0].DaemonProcess,
+		makerPeerswap:    lightningds[1].DaemonProcess,
+		chainRpc:         liquidd.RpcProxy,
+		chaind:           liquidd,
+		confirms:         LiquidConfirms,
+		csv:              LiquidCsv,
+		swapType:         swap.SWAPTYPE_OUT,
+	}
+	asset := "lbtc"
 
 	// Do swap.
 	go func() {

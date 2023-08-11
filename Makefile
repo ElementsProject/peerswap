@@ -20,7 +20,8 @@ INTEGRATION_TEST_OPTS= \
 	-tags dev \
 	-tags fast_test \
 	-timeout=30m -v \
-	-failfast
+	-failfast \
+	-count=1
 
 BINS= \
 	${OUTDIR}/peerswapd \
@@ -131,6 +132,8 @@ test-misc-integration: test-bins
 	'Test_GrpcReconnectStream|'\
 	'Test_GrpcRetryRequest|'\
 	'Test_RestoreFromPassedCSV|'\
+	'Test_Recover_PassedSwap_BTC|'\
+	'Test_Recover_PassedSwap_LBTC|'\
 	'Test_Wumbo|'\
 	'Test_ClnConfig|'\
 	'Test_ClnPluginConfigFile|'\
