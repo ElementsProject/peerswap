@@ -385,7 +385,7 @@ func (d *dummyPolicy) ShouldPayFee(swapAmount, feeAmount uint64, peerId, channel
 }
 
 type dummyChain struct {
-	txConfirmedFunc func(swapId string, txHex string) error
+	txConfirmedFunc func(swapId string, txHex string, err error) error
 	csvPassedFunc   func(swapId string) error
 	balance         uint64
 
@@ -472,7 +472,7 @@ func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex str
 	return getRandom32ByteHexString(), "txhex", nil
 }
 
-func (d *dummyChain) AddConfirmationCallback(f func(swapId string, txHex string) error) {
+func (d *dummyChain) AddConfirmationCallback(f func(swapId string, txHex string, err error) error) {
 	d.txConfirmedFunc = f
 }
 

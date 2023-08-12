@@ -53,7 +53,7 @@ type LightningClient interface {
 type TxWatcher interface {
 	AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, scriptpubkey []byte)
 	AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte)
-	AddConfirmationCallback(func(swapId string, txHex string) error)
+	AddConfirmationCallback(func(swapId string, txHex string, err error) error)
 	AddCsvCallback(func(swapId string) error)
 	GetBlockHeight() (uint32, error)
 }

@@ -60,7 +60,7 @@ func Test_GoodCase(t *testing.T) {
 	assert.Equal(t, messages.MESSAGETYPE_OPENINGTXBROADCASTED, aliceReceivedMsg)
 
 	// trigger openingtx confirmed
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 
 	// trigger openingtx confirmed
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
-	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex)
+	err = aliceSwapService.swapServices.liquidTxWatcher.(*dummyChain).txConfirmedFunc(aliceSwap.SwapId.String(), aliceSwap.Data.OpeningTxHex, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

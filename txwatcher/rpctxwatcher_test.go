@@ -23,7 +23,7 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	}
 
 	txWatcher.AddWaitForConfirmationTx(swapId, txId, 0, 0, nil)
-	txWatcher.AddConfirmationCallback(func(swapId string, txHex string) error {
+	txWatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
 		go func() { txWatcherChan <- swapId }()
 		return nil
 	})

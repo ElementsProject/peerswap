@@ -37,7 +37,7 @@ type TxWatcher struct {
 	targetConfs uint32
 	targetCsv   uint32
 
-	confirmationCallback func(swapId, txHex string) error
+	confirmationCallback func(swapId, txHex string, err error) error
 	csvPassedCallback    func(swapId string) error
 
 	confirmationWatchers map[string]bool
@@ -226,7 +226,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 					log.Infof("[TxWatcher] Wait for confirmation on swap %s: confirmationCallback is nil", swapId)
 					return
 				}
-				_ = t.confirmationCallback(swapId, hex.EncodeToString(conf.rawTx))
+				_ = t.confirmationCallback(swapId, hex.EncodeToString(conf.rawTx), nil)
 				return
 			case err := <-errChan:
 				if err == io.EOF {
@@ -368,7 +368,7 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 // AddConfirmationCallback adds a callback to the watcher that will be called in
 // the case that an active "wait for confirmation" watcher reached the
 // confirmation limit for a swap.
-func (t *TxWatcher) AddConfirmationCallback(cb func(swapId string, txHex string) error) {
+func (t *TxWatcher) AddConfirmationCallback(cb func(swapId string, txHex string, err error) error) {
 	t.Lock()
 	defer t.Unlock()
 	t.confirmationCallback = cb

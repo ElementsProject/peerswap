@@ -134,7 +134,7 @@ func TestTxWatcher_AddWaitForConfirmationTx(t *testing.T) {
 
 	// Add a confirmation callback.
 	var gotCallback bool
-	txwatcher.AddConfirmationCallback(func(swapId, txHex string) error {
+	txwatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
 		gotCallback = true
 		return nil
 	})
@@ -216,7 +216,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect(t *testing.T) {
 
 	// Add a confirmation callback.
 	var gotCallback bool
-	txwatcher.AddConfirmationCallback(func(swapId, txHex string) error {
+	txwatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
 		gotCallback = true
 		return nil
 	})
@@ -399,7 +399,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop(t *testing.
 
 	// Add a confirmation callback.
 	var gotCallback bool
-	txwatcher.AddConfirmationCallback(func(swapId, txHex string) error {
+	txwatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
 		gotCallback = true
 		return nil
 	})
