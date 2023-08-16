@@ -90,31 +90,30 @@ func Test_OnlyOneActiveSwapPerChannelLnd(t *testing.T) {
 	N_SWAPS := 10
 	var nErr int32
 	ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-	for i:=0; i<N_SWAPS; i++ {
-	wg.Add(1)
-	go func(n int) {
-		defer wg.Done()
-		res, err := peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-			ChannelId:  lcid,
-			SwapAmount: params.swapAmt,
-			Asset:      asset,
-		})
-		t.Logf("[%d] Response: %v",n, res)
-		if err != nil {
-			t.Logf("[%d] Err: %s",n, err.Error())
-			atomic.AddInt32(&nErr, 1)
-		}
-	}(i)
+	defer cancel()
+	for i := 0; i < N_SWAPS; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			res, err := peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
+				ChannelId:  lcid,
+				SwapAmount: params.swapAmt,
+				Asset:      asset,
+			})
+			t.Logf("[%d] Response: %v", n, res)
+			if err != nil {
+				t.Logf("[%d] Err: %s", n, err.Error())
+				atomic.AddInt32(&nErr, 1)
+			}
+		}(i)
 	}
 	wg.Wait()
 
 	res, err := peerswapds[1].PeerswapClient.ListActiveSwaps(ctx, &peerswaprpc.ListSwapsRequest{})
 	assert.NoError(t, err)
-	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d",N_SWAPS-1, nErr)
-	assert.EqualValues(t, len(res.Swaps), 1, "expected only 1 active swap, got: %d", len(res.Swaps))
+	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d", N_SWAPS-1, nErr)
+	assert.EqualValues(t, len(res.Swaps), 1, "expected only 1 active swap, got: %d - %v", len(res.Swaps), res)
 }
-
 
 func Test_LndLnd_Bitcoin_SwapIn(t *testing.T) {
 	IsIntegrationTest(t)
