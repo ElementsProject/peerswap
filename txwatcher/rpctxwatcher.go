@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"os"
 
 	"github.com/elementsproject/peerswap/log"
 )
@@ -117,11 +118,13 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 
 // StartBlockWatcher starts listening for new blocks
 func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(15000 * time.Millisecond)
 	defer ticker.Stop()
 
 	var lastHeight uint64
 	var lastHash string
+	// we want to log only once to reduce logspam
+	logged := 0
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -129,13 +132,23 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 		case <-ticker.C:
 			nextHeight, err := s.blockchain.GetBlockHeight()
 			if err != nil {
-				log.Debugf("block watcher: %v", err)
+				if logged == 0 {
+					log.Infof("block watcher: %v", err)
+					logged++
+				} else {
+					os.Exit(1)
+				}
 			}
 			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
 			if err != nil {
-				log.Debugf("block watcher: %v", err)
-			}
+				if logged == 0 {
+					log.Infof("block watcher: %v", err)
+					logged++
 
+				} else {
+					os.Exit(1)
+				}
+			}
 			if nextHeight > lastHeight || nextHash != lastHash {
 				lastHeight = nextHeight
 				lastHash = nextHash
