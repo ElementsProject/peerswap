@@ -149,7 +149,7 @@ func (s *SwapService) RecoverSwaps() error {
 			}
 		}(sw)
 	}
-	log.Debugf("Waiting for all open swaps to recover.")
+	log.Debugf("Waiting for all pending swaps to recover.")
 	wg.Wait()
 	return nil
 }

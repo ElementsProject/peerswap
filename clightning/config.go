@@ -47,7 +47,7 @@ type LiquidConf struct {
 	RpcWallet       string
 	Network         string
 	DataDir         string
-	Disabled        bool
+	LiquidSwaps     *bool
 }
 
 type Config struct {
@@ -168,7 +168,7 @@ func ReadFromFile() Processor {
 			c.Liquid.RpcHost = fileConf.Liquid.RpcHost
 			c.Liquid.RpcPort = fileConf.Liquid.RpcPort
 			c.Liquid.RpcWallet = fileConf.Liquid.RpcWallet
-			c.Liquid.Disabled = fileConf.Liquid.Disabled
+			c.Liquid.LiquidSwaps = fileConf.Liquid.LiquidSwaps
 		}
 
 		return c, nil
@@ -339,6 +339,11 @@ func ElementsFallback() Processor {
 			}
 			c.Liquid.DataDir = filepath.Join(home, defaultElementsSubDir)
 		}
+		
+		if c.Liquid.LiquidSwaps == nil {
+				var swapson = true
+				c.Liquid.LiquidSwaps = &swapson
+		}		
 
 		if c.Liquid.Network == "" {
 			c.Liquid.Network, err = liquidNetDir(c.Bitcoin.Network)
@@ -407,7 +412,7 @@ func ElementsCookieConnect() Processor {
 	return func(c *Config) (*Config, error) {
 		var err error
 		if c.Liquid.RpcUser == "" && c.Liquid.RpcPassword == "" &&
-			!c.Liquid.Disabled {
+			c.Liquid.LiquidSwaps == nil {
 			if c.Liquid.RpcPasswordFile == "" {
 				return nil, fmt.Errorf("no liquid rpc configuration found")
 			}

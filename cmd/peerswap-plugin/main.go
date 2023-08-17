@@ -169,7 +169,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if !config.Liquid.Disabled && liquidWanted(config) {
+	if *config.Liquid.LiquidSwaps && liquidWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword:******, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
@@ -276,8 +276,12 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		log.Infof("Bitcoin swaps disabled")
 	}
 
+	if !*config.Bitcoin.BitcoinSwaps && !*config.Liquid.LiquidSwaps {
+		return errors.New("Disabling both BTC and L-BTC swaps is invalid.")
+	}
+	
 	if !bitcoinEnabled && !liquidEnabled {
-		return errors.New("bad config, either liquid or bitcoin settings must be set")
+		return errors.New("Bad configuration or daemons are broken.")
 	}
 
 	// db
