@@ -70,7 +70,7 @@ rpchost="host"
 rpcport=1234
 rpcpasswordfile="/path/to/auth/.cookie" ## If set this will be used for authentication
 rpcwallet="swap-wallet" ## (default: peerswap)
-enabled=false ## If set to true, peerswap connects to elementsd
+liquidswaps=true ## If set to false, L-BTC swaps are disabled
 ```
 
 In order to check if your daemon is setup correctly run
