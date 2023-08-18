@@ -412,7 +412,7 @@ func ElementsCookieConnect() Processor {
 	return func(c *Config) (*Config, error) {
 		var err error
 		if c.Liquid.RpcUser == "" && c.Liquid.RpcPassword == "" &&
-			c.Liquid.LiquidSwaps == nil {
+			!*c.Liquid.LiquidSwaps == false {
 			if c.Liquid.RpcPasswordFile == "" {
 				return nil, fmt.Errorf("no liquid rpc configuration found")
 			}
