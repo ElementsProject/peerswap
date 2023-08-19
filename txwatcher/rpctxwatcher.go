@@ -11,6 +11,8 @@ import (
 	"github.com/elementsproject/peerswap/log"
 )
 
+var ErrCookieAuthFailed = errors.New("Authorization failed: Incorrect user or password")
+
 type BlockchainRpc interface {
 	GetBlockHeight() (uint64, error)
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
@@ -122,9 +124,10 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 	defer ticker.Stop()
 
 	var lastHeight uint64
-	var lastHash string
-	// we want to log only once to reduce logspam
+	var lastHash string	
+	
 	logged := 0
+	
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -132,20 +135,27 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 		case <-ticker.C:
 			nextHeight, err := s.blockchain.GetBlockHeight()
 			if err != nil {
-				if logged == 0 {
-					log.Infof("block watcher: %v", err)
+				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					logged++
-				} else {
+				}
+				
+				if err.Error() == ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					time.Sleep(1 * time.Second)
 					os.Exit(1)
 				}
 			}
 			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
 			if err != nil {
-				if logged == 0 {
-					log.Infof("block watcher: %v", err)
-					logged++
-
-				} else {
+				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					logged++	
+				}
+				
+				if err.Error() == ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					time.Sleep(1 * time.Second)
 					os.Exit(1)
 				}
 			}
