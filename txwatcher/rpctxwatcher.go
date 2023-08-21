@@ -120,7 +120,7 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 
 // StartBlockWatcher starts listening for new blocks
 func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
-	ticker := time.NewTicker(15000 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	var lastHeight uint64
@@ -145,7 +145,8 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					time.Sleep(1 * time.Second)
 					os.Exit(1)
 				}
-			}
+				
+			}		
 			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
 			if err != nil {
 				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
@@ -159,6 +160,12 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					os.Exit(1)
 				}
 			}
+			
+			if err == nil && logged != 0 { 
+				log.Infof("block watcher: reconnected to %v daemon", s.blockchain)
+				logged = 0
+			}
+			
 			if nextHeight > lastHeight || nextHash != lastHash {
 				lastHeight = nextHeight
 				lastHash = nextHash
