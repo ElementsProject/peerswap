@@ -11,6 +11,8 @@ import (
 	"github.com/elementsproject/peerswap/log"
 )
 
+var ErrCookieAuthFailed = errors.New("Authorization failed: Incorrect user or password")
+
 type BlockchainRpc interface {
 	GetBlockHeight() (uint64, error)
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
@@ -118,12 +120,11 @@ func (s *BlockchainRpcTxWatcher) StartWatchingTxs() error {
 
 // StartBlockWatcher starts listening for new blocks
 func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
-	ticker := time.NewTicker(15000 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	var lastHeight uint64
-	var lastHash string
-	// we want to log only once to reduce logspam
+	var lastHash string	
 	logged := 0
 	for {
 		select {
@@ -132,22 +133,31 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 		case <-ticker.C:
 			nextHeight, err := s.blockchain.GetBlockHeight()
 			if err != nil {
-				if logged == 0 {
-					log.Infof("block watcher: %v", err)
+				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					logged++
-				} else {
+				}
+				if err.Error() == ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					time.Sleep(1 * time.Second)
+					os.Exit(1)
+				}	
+			}		
+			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
+			if err != nil {
+				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					logged++	
+				}
+				if err.Error() == ErrCookieAuthFailed.Error() {
+					log.Infof("block watcher: %v, %v", s.blockchain, err)
+					time.Sleep(1 * time.Second)
 					os.Exit(1)
 				}
 			}
-			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
-			if err != nil {
-				if logged == 0 {
-					log.Infof("block watcher: %v", err)
-					logged++
-
-				} else {
-					os.Exit(1)
-				}
+			if err == nil && logged != 0 { 
+				log.Infof("block watcher: reconnected to %v daemon", s.blockchain)
+				logged = 0
 			}
 			if nextHeight > lastHeight || nextHash != lastHash {
 				lastHeight = nextHeight
