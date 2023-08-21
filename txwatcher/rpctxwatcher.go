@@ -125,9 +125,7 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 
 	var lastHeight uint64
 	var lastHash string	
-	
 	logged := 0
-	
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -139,13 +137,11 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					logged++
 				}
-				
 				if err.Error() == ErrCookieAuthFailed.Error() {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					time.Sleep(1 * time.Second)
 					os.Exit(1)
-				}
-				
+				}	
 			}		
 			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
 			if err != nil {
@@ -153,19 +149,16 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					logged++	
 				}
-				
 				if err.Error() == ErrCookieAuthFailed.Error() {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					time.Sleep(1 * time.Second)
 					os.Exit(1)
 				}
 			}
-			
 			if err == nil && logged != 0 { 
 				log.Infof("block watcher: reconnected to %v daemon", s.blockchain)
 				logged = 0
 			}
-			
 			if nextHeight > lastHeight || nextHash != lastHash {
 				lastHeight = nextHeight
 				lastHash = nextHash
