@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/elementsproject/glightning/glightning"
@@ -273,11 +272,7 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 					}
 					if v, ok := plugin.Options["bitcoin-rpcport"]; ok {
 						if v != nil {
-							port, err := strconv.Atoi(v.(string))
-							if err != nil {
-								return nil, err
-							}
-							c.Bitcoin.RpcPort = uint(port)
+							c.Bitcoin.RpcPort = uint(v.(float64))
 						}
 					}
 				}
