@@ -35,6 +35,7 @@ type BitcoinConf struct {
 	RpcPort         uint
 	Network         string
 	DataDir         string
+	BitcoinSwaps	*bool
 }
 
 type LiquidConf struct {
@@ -46,7 +47,7 @@ type LiquidConf struct {
 	RpcWallet       string
 	Network         string
 	DataDir         string
-	Disabled        bool
+	LiquidSwaps     *bool
 }
 
 type Config struct {
@@ -157,6 +158,7 @@ func ReadFromFile() Processor {
 			c.Bitcoin.RpcPasswordFile = fileConf.Bitcoin.RpcPasswordFile
 			c.Bitcoin.RpcHost = fileConf.Bitcoin.RpcHost
 			c.Bitcoin.RpcPort = fileConf.Bitcoin.RpcPort
+			c.Bitcoin.BitcoinSwaps = fileConf.Bitcoin.BitcoinSwaps
 		}
 
 		if fileConf.Liquid != nil {
@@ -166,7 +168,7 @@ func ReadFromFile() Processor {
 			c.Liquid.RpcHost = fileConf.Liquid.RpcHost
 			c.Liquid.RpcPort = fileConf.Liquid.RpcPort
 			c.Liquid.RpcWallet = fileConf.Liquid.RpcWallet
-			c.Liquid.Disabled = fileConf.Liquid.Disabled
+			c.Liquid.LiquidSwaps = fileConf.Liquid.LiquidSwaps
 		}
 
 		return c, nil
@@ -296,7 +298,12 @@ func BitcoinFallback() Processor {
 			}
 			c.Bitcoin.DataDir = filepath.Join(home, defaultBitcoinSubDir)
 		}
-
+		
+		if c.Bitcoin.BitcoinSwaps == nil {
+				var swapson = true
+				c.Bitcoin.BitcoinSwaps = &swapson
+		}
+		
 		if c.Bitcoin.RpcHost == "" {
 			c.Bitcoin.RpcHost = defaultRpcHost
 		}
@@ -332,6 +339,11 @@ func ElementsFallback() Processor {
 			}
 			c.Liquid.DataDir = filepath.Join(home, defaultElementsSubDir)
 		}
+		
+		if c.Liquid.LiquidSwaps == nil {
+				var swapson = true
+				c.Liquid.LiquidSwaps = &swapson
+		}		
 
 		if c.Liquid.Network == "" {
 			c.Liquid.Network, err = liquidNetDir(c.Bitcoin.Network)
@@ -400,7 +412,7 @@ func ElementsCookieConnect() Processor {
 	return func(c *Config) (*Config, error) {
 		var err error
 		if c.Liquid.RpcUser == "" && c.Liquid.RpcPassword == "" &&
-			!c.Liquid.Disabled {
+			!*c.Liquid.LiquidSwaps == false {
 			if c.Liquid.RpcPasswordFile == "" {
 				return nil, fmt.Errorf("no liquid rpc configuration found")
 			}

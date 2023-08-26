@@ -46,14 +46,14 @@ type PeerSwapConfig struct {
 	LndConfig      *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
 	ElementsConfig *OnchainConfig `group:"Elements Rpc Config" namespace:"elementsd"`
 
-	LiquidEnabled  bool
+	LiquidEnabled  bool `long:"liquidswaps" description:"enable bitcoin peerswaps"`
 	BitcoinEnabled bool `long:"bitcoinswaps" description:"enable bitcoin peerswaps"`
 }
 
 func (p *PeerSwapConfig) String() string {
 	var liquidString string
 	if p.ElementsConfig != nil {
-		liquidString = fmt.Sprintf("elements: rpcuser: %s, rpchost: %s, rpcport %v, rpcwallet: %s", p.ElementsConfig.RpcUser, p.ElementsConfig.RpcHost, p.ElementsConfig.RpcPort, p.ElementsConfig.RpcWallet)
+		liquidString = fmt.Sprintf("elements: rpcuser: %s, rpchost: %s, rpcport %v, rpcwallet: %s, liquidswaps: %v", p.ElementsConfig.RpcUser, p.ElementsConfig.RpcHost, p.ElementsConfig.RpcPort, p.ElementsConfig.RpcWallet, p.ElementsConfig.LiquidSwaps)
 	}
 	var lndString string
 	if p.LndConfig != nil {
@@ -68,12 +68,14 @@ func (p *PeerSwapConfig) String() string {
 }
 
 func (p *PeerSwapConfig) Validate() error {
-	if p.ElementsConfig.RpcHost != "" {
+	if p.ElementsConfig.RpcHost != "" && p.ElementsConfig.LiquidSwaps != false {
 		err := p.ElementsConfig.Validate()
 		if err != nil {
 			return err
-		}
+		}	
 		p.LiquidEnabled = true
+		
+		
 	}
 	return nil
 }
@@ -86,6 +88,7 @@ type OnchainConfig struct {
 	RpcHost           string `long:"rpchost" description:"host to connect to"`
 	RpcPort           uint   `long:"rpcport" description:"port to connect to"`
 	RpcWallet         string `long:"rpcwallet" description:"wallet to use for swaps (elements only)"`
+	LiquidSwaps	  bool	 `long:"liquidswaps" description:"set to false to disable L-BTC swaps"`
 }
 
 func (o *OnchainConfig) Validate() error {
@@ -156,5 +159,6 @@ func defaultLiquidConfig() *OnchainConfig {
 		RpcHost:           "",
 		RpcPort:           0,
 		RpcWallet:         DefaultLiquidwallet,
+		LiquidSwaps:	   true,
 	}
 }

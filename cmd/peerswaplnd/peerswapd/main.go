@@ -228,8 +228,14 @@ func run() error {
 		log.Infof("Liquid swaps disabled")
 	}
 
+	if !cfg.BitcoinEnabled && !cfg.ElementsConfig.LiquidSwaps {
+		log.Infof("Disabling both BTC and L-BTC swaps is invalid. Check PeerSwap and daemon configs. Exiting.")
+		os.Exit(1)
+	}
+	
 	if !cfg.BitcoinEnabled && !cfg.LiquidEnabled {
-		return errors.New("bad config, either liquid or bitcoin settings must be set")
+		log.Infof("Bad configuration or daemons are broken. Exiting.")
+		os.Exit(1)
 	}
 	// Start lnd listeners and watchers.
 	messageListener, err := lnd_internal.NewMessageListener(ctx, cc)

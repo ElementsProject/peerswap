@@ -26,7 +26,6 @@ func Test_ReadFromFile(t *testing.T) {
 	rpchost="rpchost"
 	rpcport=1234
 	rpcwallet="rpcwallet"
-	enabled=true
 	`
 
 	dir := t.TempDir()
@@ -59,7 +58,7 @@ func Test_ReadFromFile(t *testing.T) {
 			RpcWallet:       "rpcwallet",
 			Network:         "",
 			DataDir:         "",
-			Disabled:        false,
+			LiquidSwaps:     nil,
 		},
 	}
 

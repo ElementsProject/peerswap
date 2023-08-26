@@ -56,8 +56,26 @@ elementsd.rpcpass=<REPLACE_ME>
 elementsd.rpchost=http://127.0.0.1
 elementsd.rpcport=<REPLACE_ME>
 elementsd.rpcwallet=peerswap
+elementsd.liquidswaps=true # set to false to manually disable L-BTC swaps
 EOF
 ```
+
+L-BTC only config. 
+
+```bash
+cat <<EOF > ~/.peerswap/peerswap.conf
+
+bitcoinswaps=false # disables BTC swaps
+lnd.tlscertpath=/home/<username>/.lnd/tls.cert
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
+elementsd.rpcuser=<REPLACE_ME>
+elementsd.rpcpass=<REPLACE_ME>
+elementsd.rpchost=http://127.0.0.1
+elementsd.rpcport=<REPLACE_ME>
+elementsd.rpcwallet=peerswap
+EOF
+```
+
 ### Policy
 
 On first startup of the plugin a policy file will be generated (default path: `~/.peerswap/policy.conf`) in which trusted nodes will be specified.
