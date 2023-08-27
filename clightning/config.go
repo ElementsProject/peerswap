@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"strconv"
-	"reflect"
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/pelletier/go-toml/v2"
@@ -285,7 +284,6 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 							        c.Bitcoin.RpcPort = uint(p)
 							default:
 							        return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
-							}
 							}
 						}
 					}
