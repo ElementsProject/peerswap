@@ -274,14 +274,18 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 					if v, ok := plugin.Options["bitcoin-rpcport"]; ok {
 						if v != nil {
 							// detect if type is string (CLN < v23.08)
-							if reflect.TypeOf(v).String() == "string" {
-								port, err := strconv.Atoi(v.(string))
+							switch p := v.(type) {
+							case string:
+							        port, err := strconv.Atoi(p)
 								if err != nil {
 									return nil, err
-								c.Bitcoin.RpcPort = uint(port)
-								}
-							} else {
-								c.Bitcoin.RpcPort = uint(v.(float64))
+							        }
+							        c.Bitcoin.RpcPort = uint(port)
+							case float64:
+							        c.Bitcoin.RpcPort = uint(p)
+							default:
+							        return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
+							}
 							}
 						}
 					}
