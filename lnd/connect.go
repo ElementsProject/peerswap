@@ -74,6 +74,10 @@ var (
 			Code: codes.Unimplemented,
 			Msg:  "Not Found: HTTP status code 404; transport: received the unexpected content-type \"text/plain; charset=utf-8\"",
 		},
+		{
+			Code: codes.Unknown,
+			Msg:  "server is still in the process of starting",
+		},
 	}
 )
 
