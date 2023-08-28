@@ -7,9 +7,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-
+	"strconv"
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/pelletier/go-toml/v2"
@@ -273,11 +272,19 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 					}
 					if v, ok := plugin.Options["bitcoin-rpcport"]; ok {
 						if v != nil {
-							port, err := strconv.Atoi(v.(string))
-							if err != nil {
-								return nil, err
+							// detect if type is string (CLN < v23.08)
+							switch p := v.(type) {
+							case string:
+							        port, err := strconv.Atoi(p)
+								if err != nil {
+									return nil, err
+							        }
+							        c.Bitcoin.RpcPort = uint(port)
+							case float64:
+							        c.Bitcoin.RpcPort = uint(p)
+							default:
+							        return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
 							}
-							c.Bitcoin.RpcPort = uint(port)
 						}
 					}
 				}
