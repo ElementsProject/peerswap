@@ -12,6 +12,7 @@ import (
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/pelletier/go-toml/v2"
+	"time"
 )
 
 const (
@@ -92,6 +93,35 @@ func SetPeerswapPaths(plugin *glightning.Plugin) Processor {
 		c.PeerswapDir = filepath.Join(c.LightningDir, defaultPeerswapSubDir)
 		c.DbPath = filepath.Join(c.PeerswapDir, dbName)
 		return c, nil
+	}
+}
+
+// CheckForDeprecatedApiConfig tries to detect if allow-deprecated-apis is false
+// in the CLN config. If it is set false, we print a warning and exit because
+// deprecated CLN API fields might break PeerSwap.
+func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
+	return func(c *Config) (*Config, error) {
+		conf, err := client.glightning.ListConfigs()
+			if err != nil {
+				return nil, err
+			}
+		data, err := json.Marshal(conf)
+			if err != nil {
+				return nil, err
+			}
+		var listConfigResponse map[string]interface{}
+		err = json.Unmarshal(data, &listConfigResponse)
+			if err != nil {
+				return nil, err
+			}
+		x := listConfigResponse["configs"].(map[string]interface{})["allow-deprecated-apis"]
+		z := x.(map[string]interface{})["value_bool"]
+		if z == false {
+			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting")
+			time.Sleep(1 * time.Second)
+			os.Exit(1)
+		}
+	return c, nil
 	}
 }
 
@@ -446,7 +476,8 @@ func GetConfig(client *ClightningClient) (*Config, error) {
 		Add(ElementsFallback()).
 		Add(CheckBitcoinRpcIsUrl()).
 		Add(BitcoinCookieConnect()).
-		Add(ElementsCookieConnect())
+		Add(ElementsCookieConnect()).
+		Add(CheckForDeprecatedApiConfig(client))
 
 	return pl.Run()
 }
