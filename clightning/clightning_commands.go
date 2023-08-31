@@ -53,7 +53,7 @@ func (g *LiquidGetAddress) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 	log.Infof("[Wallet] Getting lbtc address %s", res)
-	return &GetAddressResponse{LiquidAddress: res}, nil
+	return &peerswaprpc.GetAddressResponse{Address: res}, nil
 }
 
 func (g *LiquidGetAddress) Description() string {
@@ -68,10 +68,6 @@ func (g *LiquidGetAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 	return &LiquidGetAddress{
 		cl: client,
 	}
-}
-
-type GetAddressResponse struct {
-	LiquidAddress string `json:"lbtc_address"`
 }
 
 // GetBalance returns the liquid balance
@@ -101,8 +97,8 @@ func (g *LiquidGetBalance) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GetBalanceResponse{
-		res,
+	return &peerswaprpc.GetBalanceResponse{
+		SatAmount: res,
 	}, nil
 }
 
@@ -118,10 +114,6 @@ func (g *LiquidGetBalance) Get(client *ClightningClient) jrpc2.ServerMethod {
 	return &LiquidGetBalance{
 		cl: client,
 	}
-}
-
-type GetBalanceResponse struct {
-	LiquidBalance uint64 `json:"lbtc_balance_sat"`
 }
 
 // LiquidSendToAddress sends
@@ -166,11 +158,7 @@ func (s *LiquidSendToAddress) Call() (jrpc2.Result, error) {
 		log.Infof("Error sending to address %v", err)
 		return nil, err
 	}
-	return &SendToAddressResponse{TxId: res}, nil
-}
-
-type SendToAddressResponse struct {
-	TxId string `json:"txid"`
+	return &peerswaprpc.SendToAddressResponse{TxId: res}, nil
 }
 
 func (s *LiquidSendToAddress) Description() string {
@@ -575,7 +563,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		return nil, err
 	}
 
-	peerSwappers := []*PeerSwapPeer{}
+	peerSwappers := []*peerswaprpc.PeerSwapPeer{}
 	for _, peer := range peers {
 		if p, ok := polls[peer.Id]; ok {
 			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
@@ -611,17 +599,17 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 				}
 			}
 
-			peerSwapPeer := &PeerSwapPeer{
+			peerSwapPeer := &peerswaprpc.PeerSwapPeer{
 				NodeId:          peer.Id,
 				SwapsAllowed:    p.PeerAllowed,
 				SupportedAssets: p.Assets,
-				AsSender: &SwapStats{
+				AsSender: &peerswaprpc.SwapStats{
 					SwapsOut: SenderSwapsOut,
 					SwapsIn:  SenderSwapsIn,
 					SatsOut:  SenderSatsOut,
 					SatsIn:   SenderSatsIn,
 				},
-				AsReceiver: &SwapStats{
+				AsReceiver: &peerswaprpc.SwapStats{
 					SwapsOut: ReceiverSwapsOut,
 					SwapsIn:  ReceiverSwapsIn,
 					SatsOut:  ReceiverSatsOut,
@@ -633,14 +621,18 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 			if err != nil {
 				return nil, err
 			}
-			peerSwapPeerChannels := []*PeerSwapPeerChannel{}
+			peerSwapPeerChannels := []*peerswaprpc.PeerSwapPeerChannel{}
 			for _, channel := range channels {
 				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
-					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
-						ChannelId:     c.ShortChannelId,
+					scid, err := peerswaprpc.NewScidFromString(c.ShortChannelId)
+					if err != nil {
+						return nil, err
+					}
+					peerSwapPeerChannels = append(peerSwapPeerChannels, &peerswaprpc.PeerSwapPeerChannel{
+						ChannelId:     scid.ToUint64(),
 						LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
 						RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
-						State:         c.State,
+						Active:        channelActive(c.State),
 					})
 				}
 			}
@@ -650,6 +642,10 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		}
 	}
 	return peerSwappers, nil
+}
+
+func channelActive(state string) bool {
+	return state == "CHANNELD_NORMAL"
 }
 
 type GetSwap struct {
@@ -1095,30 +1091,6 @@ func (c ListConfig) Description() string {
 
 func (c ListConfig) LongDescription() string {
 	return c.Description()
-}
-
-type PeerSwapPeerChannel struct {
-	ChannelId     string `json:"short_channel_id"`
-	LocalBalance  uint64 `json:"local_balance"`
-	RemoteBalance uint64 `json:"remote_balance"`
-	State         string `json:"state"`
-}
-
-type SwapStats struct {
-	SwapsOut uint64 `json:"total_swaps_out"`
-	SwapsIn  uint64 `json:"total_swaps_in"`
-	SatsOut  uint64 `json:"total_sats_swapped_out"`
-	SatsIn   uint64 `json:"total_sats_swapped_in"`
-}
-
-type PeerSwapPeer struct {
-	NodeId          string                 `json:"nodeid"`
-	SwapsAllowed    bool                   `json:"swaps_allowed"`
-	SupportedAssets []string               `json:"supported_assets"`
-	Channels        []*PeerSwapPeerChannel `json:"channels"`
-	AsSender        *SwapStats             `json:"sent,omitempty"`
-	AsReceiver      *SwapStats             `json:"received,omitempty"`
-	PaidFee         uint64                 `json:"total_fee_paid,omitempty"`
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin
