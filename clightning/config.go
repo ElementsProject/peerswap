@@ -117,7 +117,7 @@ func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
 		x := listConfigResponse["configs"].(map[string]interface{})["allow-deprecated-apis"]
 		z := x.(map[string]interface{})["value_bool"]
 		if z == false {
-			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting")
+			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting. More info: https://github.com/ElementsProject/peerswap/issues/232")
 			time.Sleep(1 * time.Second)
 			os.Exit(1)
 		}
