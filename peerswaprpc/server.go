@@ -546,7 +546,7 @@ func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSw
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
-	scid, err := newScidFromString(swap.Data.GetScid())
+	scid, err := NewScidFromString(swap.Data.GetScid())
 	if err != nil {
 		log.Debugf("Could not parse scid from %s: %v", scid, err)
 	}
@@ -574,7 +574,7 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	}
 }
 
-func newScidFromString(scid string) (*lnwire.ShortChannelID, error) {
+func NewScidFromString(scid string) (*lnwire.ShortChannelID, error) {
 	scid = strings.ReplaceAll(scid, "x", ":")
 	parts := strings.Split(scid, ":")
 	if len(parts) != 3 {
