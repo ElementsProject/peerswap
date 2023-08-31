@@ -686,7 +686,7 @@ func (p *PeerswapServer) DeletePremiumRate(ctx context.Context,
 }
 
 func PrettyprintFromServiceSwap(swp *swap.SwapStateMachine) *PrettyPrintSwap {
-	scid, err := newScidFromString(swp.Data.GetScid())
+	scid, err := NewScidFromString(swp.Data.GetScid())
 	if err != nil {
 		log.Debugf("Could not parse scid from %s: %v", scid, err)
 	}
@@ -719,7 +719,7 @@ func PrettyprintFromServiceSwap(swp *swap.SwapStateMachine) *PrettyPrintSwap {
 	}
 }
 
-func newScidFromString(scid string) (*lnwire.ShortChannelID, error) {
+func NewScidFromString(scid string) (*lnwire.ShortChannelID, error) {
 	scid = strings.ReplaceAll(scid, "x", ":")
 	parts := strings.Split(scid, ":")
 	if len(parts) != 3 {
