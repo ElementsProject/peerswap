@@ -272,7 +272,6 @@ func (s *Service) sendMessage(peer string, msg []byte, msgType int) {
 		// these errors will deal with disconnected peers so there is no need to
 		// continue logging if the peer is 'still' disconnected.
 		if _, seen := s.loggedDisconnect[peer]; !seen {
-			log.Debugf("poll_service: could not send msg to %s: %v", peer, err)
 			s.loggedDisconnect[peer] = struct{}{}
 		}
 	} else {
