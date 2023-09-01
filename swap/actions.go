@@ -366,7 +366,6 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
-	// todo replace with premium estimation https://github.com/elementsproject/peerswap/issues/109
 	openingFee, err := wallet.GetFlatSwapOutFee()
 	if err != nil {
 		swap.LastErr = err
