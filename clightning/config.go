@@ -7,12 +7,13 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
+	"time"
+
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/pelletier/go-toml/v2"
-	"time"
 )
 
 const (
@@ -35,7 +36,7 @@ type BitcoinConf struct {
 	RpcPort         uint
 	Network         string
 	DataDir         string
-	BitcoinSwaps	*bool
+	BitcoinSwaps    *bool
 }
 
 type LiquidConf struct {
@@ -102,26 +103,26 @@ func SetPeerswapPaths(plugin *glightning.Plugin) Processor {
 func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
 	return func(c *Config) (*Config, error) {
 		conf, err := client.glightning.ListConfigs()
-			if err != nil {
-				return nil, err
-			}
+		if err != nil {
+			return nil, err
+		}
 		data, err := json.Marshal(conf)
-			if err != nil {
-				return nil, err
-			}
-		var listConfigResponse map[string]interface{}
-		err = json.Unmarshal(data, &listConfigResponse)
-			if err != nil {
-				return nil, err
-			}
-		x := listConfigResponse["configs"].(map[string]interface{})["allow-deprecated-apis"]
-		z := x.(map[string]interface{})["value_bool"]
-		if z == false {
+		if err != nil {
+			return nil, err
+		}
+		var ClnConfig struct {
+			AllowDeprecatedApis bool `json:"allow-deprecated-apis,omitempty"`
+		}
+		err = json.Unmarshal(data, &ClnConfig)
+		if err != nil {
+			return nil, err
+		}
+		if !ClnConfig.AllowDeprecatedApis {
 			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting. More info: https://github.com/ElementsProject/peerswap/issues/232")
 			time.Sleep(1 * time.Second)
 			os.Exit(1)
 		}
-	return c, nil
+		return c, nil
 	}
 }
 
@@ -305,15 +306,15 @@ func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 							// detect if type is string (CLN < v23.08)
 							switch p := v.(type) {
 							case string:
-							        port, err := strconv.Atoi(p)
+								port, err := strconv.Atoi(p)
 								if err != nil {
 									return nil, err
-							        }
-							        c.Bitcoin.RpcPort = uint(port)
+								}
+								c.Bitcoin.RpcPort = uint(port)
 							case float64:
-							        c.Bitcoin.RpcPort = uint(p)
+								c.Bitcoin.RpcPort = uint(p)
 							default:
-							        return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
+								return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
 							}
 						}
 					}
@@ -335,12 +336,12 @@ func BitcoinFallback() Processor {
 			}
 			c.Bitcoin.DataDir = filepath.Join(home, defaultBitcoinSubDir)
 		}
-		
+
 		if c.Bitcoin.BitcoinSwaps == nil {
-				var swapson = true
-				c.Bitcoin.BitcoinSwaps = &swapson
+			var swapson = true
+			c.Bitcoin.BitcoinSwaps = &swapson
 		}
-		
+
 		if c.Bitcoin.RpcHost == "" {
 			c.Bitcoin.RpcHost = defaultRpcHost
 		}
@@ -376,11 +377,11 @@ func ElementsFallback() Processor {
 			}
 			c.Liquid.DataDir = filepath.Join(home, defaultElementsSubDir)
 		}
-		
+
 		if c.Liquid.LiquidSwaps == nil {
-				var swapson = true
-				c.Liquid.LiquidSwaps = &swapson
-		}		
+			var swapson = true
+			c.Liquid.LiquidSwaps = &swapson
+		}
 
 		if c.Liquid.Network == "" {
 			c.Liquid.Network, err = liquidNetDir(c.Bitcoin.Network)
