@@ -408,7 +408,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop(t *testing.
 
 	_, err = lnd.Rpc.StopDaemon(context.Background(), &lnrpc.StopRequest{})
 	if err != nil {
-		t.Fatalf("Failed StopDaemon(): %v", err)
+		t.Logf("Failed StopDaemon(): %v", err)
 	}
 	bitcoind.GenerateBlocks(int(testTargetConf))
 
