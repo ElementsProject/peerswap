@@ -444,6 +444,15 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
+	rs, err := s.swapServices.lightning.ReceivableMsat(channelId)
+	if err != nil {
+		return nil, err
+	}
+
+	if rs <= amtSat*1000 {
+		return nil, fmt.Errorf("exceeding receivable amount_msat: %d", rs)
+	}
+
 	var bitcoinNetwork string
 	var elementsAsset string
 	if chain == l_btc_chain {
@@ -454,7 +463,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, errors.New("invalid chain")
 	}
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
-	err := s.lockSwap(swap.SwapId.String(), channelId, swap)
+	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
 		return nil, err
 	}

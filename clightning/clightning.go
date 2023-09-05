@@ -234,6 +234,33 @@ func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }
 
+// ReceivableMsat returns an estimate of the total we could receive through the
+// channel with given scid.
+func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
+	var res struct {
+		Channels []struct {
+			ShortChannelId string            `json:"short_channel_id,omitempty"`
+			TotalMsat      glightning.Amount `json:"total_msat,omitempty"`
+			ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
+			ReceivableMsat glightning.Amount `json:"receivable_msat,omitempty"`
+		} `json:"channels"`
+	}
+	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range res.Channels {
+		if ch.ShortChannelId == scid {
+			if ch.ReceivableMsat.MSat() > 0 {
+				return ch.ReceivableMsat.MSat(), nil
+			} else {
+				return ch.TotalMsat.MSat() - ch.ToUsMsat.MSat(), nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
 // CheckChannel checks if a channel is eligable for a swap
 func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
 	funds, err := cl.glightning.ListFunds()

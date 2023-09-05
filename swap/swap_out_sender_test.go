@@ -3,6 +3,7 @@ package swap
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/elementsproject/peerswap/lightning"
@@ -255,8 +256,8 @@ type dummyLightningClient struct {
 	canSpendError  error
 	canSpendCalled int
 
-	spendableMsatCalled int
-	spendableMsat       uint64
+	spendableMsatCalled  int
+	receivableMsatCalled int
 }
 
 func (d *dummyLightningClient) Implementation() string {
@@ -265,7 +266,12 @@ func (d *dummyLightningClient) Implementation() string {
 
 func (d *dummyLightningClient) SpendableMsat(scid string) (uint64, error) {
 	d.spendableMsatCalled++
-	return d.spendableMsat, nil
+	return math.MaxUint64, nil
+}
+
+func (d *dummyLightningClient) ReceivableMsat(scid string) (uint64, error) {
+	d.receivableMsatCalled++
+	return math.MaxUint64, nil
 }
 
 func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {

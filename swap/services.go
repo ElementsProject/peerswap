@@ -49,6 +49,7 @@ type LightningClient interface {
 	CanSpend(amountMsat uint64) error
 	Implementation() string
 	SpendableMsat(scid string) (uint64, error)
+	ReceivableMsat(scid string) (uint64, error)
 }
 
 type TxWatcher interface {

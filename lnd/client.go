@@ -99,6 +99,28 @@ func (l *Client) SpendableMsat(scid string) (uint64, error) {
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }
 
+// ReceivableMsat returns an estimate of the total we could receive through the
+// channel with given scid.
+func (l *Client) ReceivableMsat(scid string) (uint64, error) {
+	s := lightning.Scid(scid)
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range r.Channels {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			return uint64(ch.RemoteBalance * 1000), nil
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
 // Implementation returns the name of the lightning network client
 // implementation.
 func (l *Client) Implementation() string {
