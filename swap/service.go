@@ -383,6 +383,15 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, err
 	}
 
+	sp, err := s.swapServices.lightning.SpendableMsat(channelId)
+	if err != nil {
+		return nil, err
+	}
+
+	if sp <= amtSat*1000 {
+		return nil, fmt.Errorf("exceeding spendable amount_msat: %d", sp)
+	}
+
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {

@@ -48,6 +48,7 @@ type LightningClient interface {
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 	CanSpend(amountMsat uint64) error
 	Implementation() string
+	SpendableMsat(scid string) (uint64, error)
 }
 
 type TxWatcher interface {

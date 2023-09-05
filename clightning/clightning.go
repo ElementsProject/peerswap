@@ -196,6 +196,44 @@ func (cl *ClightningClient) Implementation() string {
 	return "CLN"
 }
 
+// ListPeerChannelsRequest is a glightning jrpc2 method to call
+// `listpeerchannels`.
+type ListPeerChannelsRequest struct {
+	// Supplying id will filter the results to only return channel data that
+	// match id, if one exists.
+	Id string `json:"id,omitempty"`
+}
+
+func (r ListPeerChannelsRequest) Name() string {
+	return "listpeerchannels"
+}
+
+// SpendableMsat returns an estimate of the total we could send through the
+// channel with given scid. Falls back to the owned amount in the channel.
+func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
+	var res struct {
+		Channels []struct {
+			ShortChannelId string            `json:"short_channel_id,omitempty"`
+			ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
+			SpendableMsat  glightning.Amount `json:"spendable_msat,omitempty"`
+		} `json:"channels"`
+	}
+	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range res.Channels {
+		if ch.ShortChannelId == scid {
+			if ch.SpendableMsat.MSat() > 0 {
+				return ch.SpendableMsat.MSat(), nil
+			} else {
+				return ch.ToUsMsat.MSat(), nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
 // CheckChannel checks if a channel is eligable for a swap
 func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
 	funds, err := cl.glightning.ListFunds()

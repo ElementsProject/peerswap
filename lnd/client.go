@@ -77,7 +77,29 @@ func (l *Client) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
-// Implementation returns the name of the lightning network client 
+// SpendableMsat returns an estimate of the total we could send through the
+// channel with given scid.
+func (l *Client) SpendableMsat(scid string) (uint64, error) {
+	s := lightning.Scid(scid)
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range r.Channels {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			return uint64(ch.LocalBalance * 1000), nil
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
+// Implementation returns the name of the lightning network client
 // implementation.
 func (l *Client) Implementation() string {
 	return "LND"

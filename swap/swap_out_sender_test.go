@@ -254,10 +254,18 @@ type dummyLightningClient struct {
 
 	canSpendError  error
 	canSpendCalled int
+
+	spendableMsatCalled int
+	spendableMsat       uint64
 }
 
 func (d *dummyLightningClient) Implementation() string {
 	return "dummy"
+}
+
+func (d *dummyLightningClient) SpendableMsat(scid string) (uint64, error) {
+	d.spendableMsatCalled++
+	return d.spendableMsat, nil
 }
 
 func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {
