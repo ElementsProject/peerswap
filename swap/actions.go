@@ -722,10 +722,11 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	defer cancel()
 
 	var preimage string
+	var payErr error
 	for {
 		select {
 		case <-ctx.Done():
-			return swap.HandleError(fmt.Errorf("could not pay invoice, last err %w", err))
+			return swap.HandleError(fmt.Errorf("could not pay invoice: timeout, last err: %v", payErr))
 		case <-ticker.C:
 			now, err := onchain.GetBlockHeight()
 			if err != nil {
@@ -739,6 +740,7 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
+				payErr = err
 				// Another round!
 				continue
 			}
