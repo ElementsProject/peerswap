@@ -444,6 +444,11 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
+	err := s.swapServices.lightning.CanSpend(amtSat * 1000)
+	if err != nil {
+		return nil, err
+	}
+
 	rs, err := s.swapServices.lightning.ReceivableMsat(channelId)
 	if err != nil {
 		return nil, err
