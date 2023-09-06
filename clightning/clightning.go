@@ -211,6 +211,7 @@ func (r ListPeerChannelsRequest) Name() string {
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid. Falls back to the owned amount in the channel.
 func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
+	scid = lightning.Scid(scid).ClnStyle()
 	var res struct {
 		Channels []struct {
 			ShortChannelId string            `json:"short_channel_id,omitempty"`
@@ -237,6 +238,7 @@ func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 // ReceivableMsat returns an estimate of the total we could receive through the
 // channel with given scid.
 func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
+	scid = lightning.Scid(scid).ClnStyle()
 	var res struct {
 		Channels []struct {
 			ShortChannelId string            `json:"short_channel_id,omitempty"`
