@@ -314,11 +314,11 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
 	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
 	if err != nil {
-		t.Fatalf("cln.OpenChannel() %v", err)
+		t.Fatalf("lightningds[0].OpenChannel() %v", err)
 	}
 	_, err = lightningds[1].FundWallet(10*fundAmt, true)
 	if err != nil {
-		t.Fatalf("lnd.FundWallet() %v", err)
+		t.Fatalf("lightningds[1].FundWallet() %v", err)
 	}
 
 	syncPoll(&clnPollableNode{cln}, &peerswapPollableNode{peerswapd, lnd.Id()})
