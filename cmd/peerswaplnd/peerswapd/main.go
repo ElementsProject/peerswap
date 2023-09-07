@@ -232,7 +232,7 @@ func run() error {
 		log.Infof("Disabling both BTC and L-BTC swaps is invalid. Check PeerSwap and daemon configs. Exiting.")
 		os.Exit(1)
 	}
-	
+
 	if !cfg.BitcoinEnabled && !cfg.LiquidEnabled {
 		log.Infof("Bad configuration or daemons are broken. Exiting.")
 		os.Exit(1)

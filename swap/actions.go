@@ -293,7 +293,7 @@ func (a StopSendMessageWithRetryWrapperAction) Execute(services *SwapServices, s
 // AwaitPaymentOrCsvAction checks if the invoice has been paid
 type AwaitPaymentOrCsvAction struct{}
 
-//todo this will never throw an error
+// todo this will never throw an error
 func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
@@ -325,7 +325,7 @@ func (w *AwaitFeeInvoicePayment) Execute(services *SwapServices, swap *SwapData)
 // AwaitCsvAction adds the opening tx to the txwatcher
 type AwaitCsvAction struct{}
 
-//todo this will never throw an error
+// todo this will never throw an error
 func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
@@ -514,7 +514,7 @@ func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData)
 // SwapInSenderCreateSwapAction creates the swap data
 type CreateSwapRequestAction struct{}
 
-//todo validate data
+// todo validate data
 func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(swap.GetRequest())
 	if err != nil {
@@ -604,7 +604,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 
 type AwaitTxConfirmationAction struct{}
 
-//todo this will not ever throw an error
+// todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// This is a state that could be called on recovery and needs to be
 	// idempotent.

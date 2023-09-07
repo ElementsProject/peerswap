@@ -1116,10 +1116,10 @@ func (c ListConfig) LongDescription() string {
 }
 
 type PeerSwapPeerChannel struct {
-	ChannelId       string  `json:"short_channel_id"`
-	LocalBalance    uint64  `json:"local_balance"`
-	RemoteBalance   uint64  `json:"remote_balance"`
-	State           string  `json:"state"`
+	ChannelId     string `json:"short_channel_id"`
+	LocalBalance  uint64 `json:"local_balance"`
+	RemoteBalance uint64 `json:"remote_balance"`
+	State         string `json:"state"`
 }
 
 type SwapStats struct {

@@ -38,8 +38,6 @@ import (
 	"time"
 )
 
-var ()
-
 type Testthing struct {
 	confirmedChan chan string
 }

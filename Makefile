@@ -173,3 +173,7 @@ clean-lnd:
 
 clean: clean-cln clean-lnd
 .PHONY: clean
+
+fmt:
+	gofmt -l -w -s .
+.PHONY: fmt
