@@ -157,18 +157,10 @@ func (w *lockedWriter) Tail(n int, regex string) string {
 	w.RLock()
 	defer w.RUnlock()
 
-	rx, err := regexp.Compile(regex)
-	if err != nil {
-		return ""
-	}
-
 	var lines []string
 	scanner := bufio.NewScanner(bytes.NewReader(w.buf))
 	for scanner.Scan() {
-		match := rx.Find(scanner.Bytes())
-		if match != nil {
-			lines = append(lines, scanner.Text())
-		}
+		lines = append(lines, scanner.Text())
 	}
 
 	// We want to have the possibility to print out the whole log.
