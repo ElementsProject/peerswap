@@ -358,6 +358,7 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 				return false, fmt.Errorf("GetScid() %w", err)
 			}
 			if scid == "" {
+				log.Println("scid is empty")
 				return false, nil
 			}
 
@@ -369,6 +370,7 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 			if err != nil {
 				return false, fmt.Errorf("IsChannelActive() %w", err)
 			}
+			log.Println("localActive:", localActive, "remoteActive:", remoteActive)
 			return remoteActive && localActive, nil
 		}, TIMEOUT)
 		if err != nil {

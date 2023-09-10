@@ -32,7 +32,7 @@ func WaitFor(f WaitFunc, timeout time.Duration) error {
 		select {
 		case <-timer.C:
 			return fmt.Errorf("WaitFor reached timeout with %s",
-				runtime.FuncForPC(uintptr(reflect.ValueOf(f).Pointer())).Name())
+				runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name())
 		default:
 			if f() {
 				return nil
