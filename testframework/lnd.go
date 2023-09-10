@@ -418,6 +418,7 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 				return false, nil
 			}
 			log.Println("ch:", ch)
+			log.Println("chinfo:", chinfo)
 			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
 		}
 	}
