@@ -417,7 +417,7 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 				log.Printf("rpc.GetChanInfo() %v", err)
 				return false, nil
 			}
-			log.Print(chinfo)
+			log.Println("ch:", ch)
 			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
 		}
 	}
@@ -425,10 +425,7 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("GetInfo() %w", err)
 	}
-	log.Print(i)
-	if err != nil {
-		return false, fmt.Errorf("ListChannels() %w", err)
-	}
+	log.Print("GetInfo", i)
 
 	return false, nil
 }

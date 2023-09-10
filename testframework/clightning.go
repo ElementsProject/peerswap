@@ -372,7 +372,7 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 			}
 			log.Println("localActive:", localActive, "remoteActive:", remoteActive)
 			return remoteActive && localActive, nil
-		}, 100*time.Second)
+		}, 20*time.Second)
 		if err != nil {
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
 		}
