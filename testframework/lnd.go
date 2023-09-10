@@ -414,10 +414,20 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 		if chScid == scid {
 			chinfo, err := n.Rpc.GetChanInfo(context.Background(), &lnrpc.ChanInfoRequest{ChanId: ch.ChanId})
 			if err != nil {
+				log.Printf("rpc.GetChanInfo() %v", err)
 				return false, nil
 			}
+			log.Print(chinfo)
 			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
 		}
+	}
+	i, err := n.Rpc.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return false, fmt.Errorf("GetInfo() %w", err)
+	}
+	log.Print(i)
+	if err != nil {
+		return false, fmt.Errorf("ListChannels() %w", err)
 	}
 
 	return false, nil
