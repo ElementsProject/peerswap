@@ -419,7 +419,7 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 			}
 			log.Println("ch:", ch)
 			log.Println("chinfo:", chinfo)
-			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
+			return ch.Active, nil
 		}
 	}
 	i, err := n.Rpc.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
