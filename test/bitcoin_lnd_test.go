@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/swap"
@@ -109,10 +110,21 @@ func Test_OnlyOneActiveSwapPerChannelLnd(t *testing.T) {
 	}
 	wg.Wait()
 
-	res, err := peerswapds[1].PeerswapClient.ListActiveSwaps(ctx, &peerswaprpc.ListSwapsRequest{})
-	assert.NoError(t, err)
 	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d", N_SWAPS-1, nErr)
-	assert.EqualValues(t, len(res.Swaps), 1, "expected only 1 active swap, got: %d - %v", len(res.Swaps), res)
+	err = testframework.WaitForWithErr(func() (bool, error) {
+		res, err := peerswapds[1].PeerswapClient.ListActiveSwaps(ctx, &peerswaprpc.ListSwapsRequest{})
+		if err != nil {
+			return false, err
+		}
+		for _, r := range res.Swaps {
+			if r.State == string(swap.State_SwapInSender_AwaitAgreement) {
+				return false, nil
+			}
+		}
+		assert.EqualValues(t, 1, len(res.Swaps), "expected only 1 active swap, got: %d - %v", len(res.Swaps), res)
+		return true, nil
+	}, 2*time.Second)
+	assert.NoError(t, err)
 }
 
 func Test_LndLnd_Bitcoin_SwapIn(t *testing.T) {
