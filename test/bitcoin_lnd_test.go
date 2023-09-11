@@ -112,7 +112,7 @@ func Test_OnlyOneActiveSwapPerChannelLnd(t *testing.T) {
 	res, err := peerswapds[1].PeerswapClient.ListActiveSwaps(ctx, &peerswaprpc.ListSwapsRequest{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d", N_SWAPS-1, nErr)
-	assert.EqualValues(t, len(res.Swaps), 1, "expected only 1 active swap, got: %d - %v", len(res.Swaps), res)
+	assert.EqualValues(t, 1, len(res.Swaps), "expected only 1 active swap, got: %d - %v", len(res.Swaps), res)
 }
 
 func Test_LndLnd_Bitcoin_SwapIn(t *testing.T) {

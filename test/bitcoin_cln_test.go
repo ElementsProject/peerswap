@@ -101,7 +101,7 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 	t.Logf("GOT: %v", response)
 
 	assert.EqualValues(t, N_SWAPS-1, nErr, "expected nswaps-1=%d errors, got: %d", N_SWAPS-1, nErr)
-	assert.EqualValues(t, len(response.Swaps), 1, "expected only 1 active swap, got: %d", len(response.Swaps))
+	assert.EqualValues(t, 1, len(response.Swaps), "expected only 1 active swap, got: %d", len(response.Swaps))
 }
 
 func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
