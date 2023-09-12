@@ -1,11 +1,11 @@
 let
-# Pinning to revision c65c2f09e5bb54cbbbc4aa72030d62e138d8f0cf 
-# - cln v23.02.2
-# - lnd v0.16.2-beta
-# - bitcoin v24.0.1
-# - elements v22.1.0
+# Pinning to revision d5954b58c980c4fb1d87a938ee65f2013104df26
+# - cln v23.08
+# - lnd v0.16.3-beta
+# - bitcoin v25.0
+# - elements v22.1.1
 
-rev = "c65c2f09e5bb54cbbbc4aa72030d62e138d8f0cf";
+rev = "d5954b58c980c4fb1d87a938ee65f2013104df26";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 

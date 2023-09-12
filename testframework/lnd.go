@@ -412,11 +412,7 @@ func (n *LndNode) IsChannelActive(scid string) (bool, error) {
 	for _, ch := range r.Channels {
 		chScid := ScidFromLndChanId(ch.ChanId)
 		if chScid == scid {
-			chinfo, err := n.Rpc.GetChanInfo(context.Background(), &lnrpc.ChanInfoRequest{ChanId: ch.ChanId})
-			if err != nil {
-				return false, nil
-			}
-			return ch.Active && chinfo.Node1Policy != nil && chinfo.Node2Policy != nil, nil
+			return ch.Active, nil
 		}
 	}
 
