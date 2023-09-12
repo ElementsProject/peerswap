@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -515,4 +516,19 @@ func (n *LndNode) GetMemoFromPayreq(bolt11 string) (string, error) {
 func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)
+}
+
+func (n *LndNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
+	var feeInvoiceAmt uint64
+	r, err := n.Rpc.ListInvoices(context.Background(), &lnrpc.ListInvoiceRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	for _, i := range r.Invoices {
+		if strings.Contains(i.GetMemo(), "fee") {
+			feeInvoiceAmt += uint64(i.GetValue())
+		}
+	}
+	return feeInvoiceAmt, nil
 }

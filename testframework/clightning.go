@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/elementsproject/glightning/glightning"
@@ -503,4 +504,18 @@ func (n *CLightningNode) GetMemoFromPayreq(bolt11 string) (string, error) {
 	}
 
 	return r.Description, nil
+}
+
+func (n *CLightningNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
+	var feeInvoiceAmt uint64
+	r, err := n.Rpc.ListInvoices()
+	if err != nil {
+		return 0, err
+	}
+	for _, i := range r {
+		if strings.Contains(i.Description, "fee") {
+			feeInvoiceAmt += i.AmountMilliSatoshi.MSat() / 1000
+		}
+	}
+	return feeInvoiceAmt, nil
 }

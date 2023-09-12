@@ -44,6 +44,9 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	//
 	// Move local balance from taker to maker so that the taker does not
 	// have enough balance to pay the invoice and cancels the swap coop.
+	feeInvoiceAmt, err := params.makerNode.GetFeeInvoiceAmtSat()
+	require.NoError(err)
+
 	moveAmt := (params.origTakerBalance - params.swapAmt) + 100
 	inv, err := params.makerNode.AddInvoice(moveAmt, "shift balance", "")
 	require.NoError(err)
@@ -56,8 +59,10 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	err = testframework.WaitFor(func() bool {
 		setTakerFunds, err = params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		return params.origTakerBalance-moveAmt-10 < setTakerFunds && setTakerFunds < params.origTakerBalance-moveAmt+10
+		return params.origTakerBalance-moveAmt-10-feeInvoiceAmt < setTakerFunds &&
+			setTakerFunds < params.origTakerBalance-moveAmt+10-feeInvoiceAmt
 	}, testframework.TIMEOUT)
+	require.NoError(err)
 
 	//
 	//	STEP 3: Confirm opening tx
