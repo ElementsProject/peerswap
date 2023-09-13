@@ -47,7 +47,7 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	feeInvoiceAmt, err := params.makerNode.GetFeeInvoiceAmtSat()
 	require.NoError(err)
 
-	moveAmt := (params.origTakerBalance - params.swapAmt) + 100
+	moveAmt := (params.origTakerBalance - feeInvoiceAmt - params.swapAmt) + 1
 	inv, err := params.makerNode.AddInvoice(moveAmt, "shift balance", "")
 	require.NoError(err)
 
@@ -59,8 +59,7 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	err = testframework.WaitFor(func() bool {
 		setTakerFunds, err = params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		return params.origTakerBalance-moveAmt-10-feeInvoiceAmt < setTakerFunds &&
-			setTakerFunds < params.origTakerBalance-moveAmt+10-feeInvoiceAmt
+		return setTakerFunds == params.swapAmt-1
 	}, testframework.TIMEOUT)
 	require.NoError(err)
 
