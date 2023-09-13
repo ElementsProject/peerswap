@@ -1,11 +1,11 @@
 let
-# Pinning to revision d5954b58c980c4fb1d87a938ee65f2013104df26
-# - cln v23.08
+# Pinning to revision be28f5521e1d3fec2bd22928f721120725aba272
+# - cln v23.08 (with fix for clnrest.py crash on NixOS)
 # - lnd v0.16.3-beta
 # - bitcoin v25.0
 # - elements v22.1.1
 
-rev = "d5954b58c980c4fb1d87a938ee65f2013104df26";
+rev = "be28f5521e1d3fec2bd22928f721120725aba272";
 nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 pkgs = import nixpkgs {};
 
