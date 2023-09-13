@@ -8,7 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
@@ -515,6 +515,7 @@ func ScidFromLndChanId(id uint64) string {
 }
 
 func (n *LndNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
+	rx := regexp.MustCompile(`^peerswap .* fee .*`)
 	var feeInvoiceAmt uint64
 	r, err := n.Rpc.ListInvoices(context.Background(), &lnrpc.ListInvoiceRequest{})
 	if err != nil {
@@ -522,7 +523,7 @@ func (n *LndNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
 	}
 
 	for _, i := range r.Invoices {
-		if strings.Contains(i.GetMemo(), "fee") {
+		if rx.MatchString(i.GetMemo()) {
 			feeInvoiceAmt += uint64(i.GetValue())
 		}
 	}
