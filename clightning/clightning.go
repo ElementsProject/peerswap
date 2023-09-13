@@ -208,23 +208,38 @@ func (r ListPeerChannelsRequest) Name() string {
 	return "listpeerchannels"
 }
 
+// ListPeerChannelsResponse is the response to the `listpeerchannels` rpc
+// method. This struct is incomplete, see
+// `https://docs.corelightning.org/reference/lightning-listpeerchannels` for a
+// full list of fields that are returned.
+type ListPeerChannelsResponse struct {
+	Channels []PeerChannel `json:"channels"`
+}
+
+type PeerChannel struct {
+	PeerConnected  bool              `json:"peer_connected"`
+	State          string            `json:"state"`
+	ShortChannelId string            `json:"short_channel_id,omitempty"`
+	TotalMsat      glightning.Amount `json:"total_msat,omitempty"`
+	ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
+	ReceivableMsat glightning.Amount `json:"receivable_msat,omitempty"`
+	SpendableMsat  glightning.Amount `json:"spendable_msat,omitempty"`
+}
+
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid. Falls back to the owned amount in the channel.
 func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 	scid = lightning.Scid(scid).ClnStyle()
-	var res struct {
-		Channels []struct {
-			ShortChannelId string            `json:"short_channel_id,omitempty"`
-			ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
-			SpendableMsat  glightning.Amount `json:"spendable_msat,omitempty"`
-		} `json:"channels"`
-	}
+	var res ListPeerChannelsResponse
 	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
 	if err != nil {
 		return 0, err
 	}
 	for _, ch := range res.Channels {
 		if ch.ShortChannelId == scid {
+			if err = cl.checkChannel(ch); err != nil {
+				return 0, err
+			}
 			if ch.SpendableMsat.MSat() > 0 {
 				return ch.SpendableMsat.MSat(), nil
 			} else {
@@ -239,20 +254,16 @@ func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 // channel with given scid.
 func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
 	scid = lightning.Scid(scid).ClnStyle()
-	var res struct {
-		Channels []struct {
-			ShortChannelId string            `json:"short_channel_id,omitempty"`
-			TotalMsat      glightning.Amount `json:"total_msat,omitempty"`
-			ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
-			ReceivableMsat glightning.Amount `json:"receivable_msat,omitempty"`
-		} `json:"channels"`
-	}
+	var res ListPeerChannelsResponse
 	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
 	if err != nil {
 		return 0, err
 	}
 	for _, ch := range res.Channels {
 		if ch.ShortChannelId == scid {
+			if err = cl.checkChannel(ch); err != nil {
+				return 0, err
+			}
 			if ch.ReceivableMsat.MSat() > 0 {
 				return ch.ReceivableMsat.MSat(), nil
 			} else {
@@ -263,29 +274,14 @@ func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }
 
-// CheckChannel checks if a channel is eligable for a swap
-func (cl *ClightningClient) CheckChannel(channelId string, amountSat uint64) error {
-	funds, err := cl.glightning.ListFunds()
-	if err != nil {
-		return err
+// checkChannel performs a set of sanity checks id the channel is eligible for
+// a swap of amtSat
+func (cl *ClightningClient) checkChannel(ch PeerChannel) error {
+	if !ch.PeerConnected {
+		return fmt.Errorf("channel peer is not connected")
 	}
-
-	var fundingChannels *glightning.FundingChannel
-	for _, v := range funds.Channels {
-		if v.ShortChannelId == channelId {
-			fundingChannels = v
-			break
-		}
-	}
-	if fundingChannels == nil {
-		return errors.New("fundingChannels not found")
-	}
-
-	if fundingChannels.OurAmountMilliSatoshi.MSat() < amountSat*1000 {
-		return errors.New("not enough outbound capacity to perform swapOut")
-	}
-	if !fundingChannels.Connected {
-		return errors.New("fundingChannels is not connected")
+	if ch.State != "CHANNELD_NORMAL" {
+		return fmt.Errorf("channel not in normal operation mode: %s", ch.State)
 	}
 	return nil
 }

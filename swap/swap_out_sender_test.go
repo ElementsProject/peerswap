@@ -324,10 +324,6 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, int6
 	return "foo", 100000 * 1000, 10, nil
 }
 
-func (d *dummyLightningClient) CheckChannel(channelId string, amount uint64) error {
-	return nil
-}
-
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {
 	if d.failpayment {
 		return "", errors.New("payment failed")
