@@ -19,8 +19,6 @@ Note over B: await opening tx has N confirmations
 B-->>A: pay claim invoice
 Note over B: broadcast claim tx
 else refund cooperatively
-Note over B: sign coop claim tx
-Note over B: broadcast claim tx
 B-->>A: send coop close message
 Note over A: broadcast claim tx
 else refund after csv passes
