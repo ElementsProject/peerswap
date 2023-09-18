@@ -77,7 +77,84 @@ func (l *Client) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
-// Implementation returns the name of the lightning network client 
+// SpendableMsat returns an estimate of the total we could send through the
+// channel with given scid.
+func (l *Client) SpendableMsat(scid string) (uint64, error) {
+	s := lightning.Scid(scid)
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range r.Channels {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			if err = l.checkChannel(ch); err != nil {
+				return 0, err
+			}
+			return uint64(ch.LocalBalance * 1000), nil
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
+// ReceivableMsat returns an estimate of the total we could receive through the
+// channel with given scid.
+func (l *Client) ReceivableMsat(scid string) (uint64, error) {
+	s := lightning.Scid(scid)
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range r.Channels {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			if err = l.checkChannel(ch); err != nil {
+				return 0, err
+			}
+			return uint64(ch.RemoteBalance * 1000), nil
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
+// checkChannel checks that a channel channel peer is connected and that the
+// channel is active.
+func (l *Client) checkChannel(ch *lnrpc.Channel) error {
+	if !ch.Active {
+		return fmt.Errorf("channel not active")
+	}
+	if !l.isPeerConnected(ch.RemotePubkey) {
+		return fmt.Errorf("peer is not connected")
+	}
+	return nil
+}
+
+// isPeerConnected returns `true` if the peer can be found in `listpeers`.
+func (l *Client) isPeerConnected(pubkey string) bool {
+	r, err := l.lndClient.ListPeers(context.Background(), &lnrpc.ListPeersRequest{})
+	if err != nil {
+		return false
+	}
+	for _, peer := range r.Peers {
+		if peer.PubKey == pubkey {
+			return true
+		}
+	}
+	return false
+
+}
+
+// Implementation returns the name of the lightning network client
 // implementation.
 func (l *Client) Implementation() string {
 	return "LND"
