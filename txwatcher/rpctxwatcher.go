@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
-	"os"
 
 	"github.com/elementsproject/peerswap/log"
 )
@@ -124,7 +124,7 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 	defer ticker.Stop()
 
 	var lastHeight uint64
-	var lastHash string	
+	var lastHash string
 	logged := 0
 	for {
 		select {
@@ -141,13 +141,13 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
 					time.Sleep(1 * time.Second)
 					os.Exit(1)
-				}	
-			}		
+				}
+			}
 			nextHash, err := s.blockchain.GetBlockHash(uint32(nextHeight))
 			if err != nil {
 				if logged == 0 && err.Error() != ErrCookieAuthFailed.Error() {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
-					logged++	
+					logged++
 				}
 				if err.Error() == ErrCookieAuthFailed.Error() {
 					log.Infof("block watcher: %v, %v", s.blockchain, err)
@@ -155,7 +155,7 @@ func (s *BlockchainRpcTxWatcher) StartBlockWatcher() error {
 					os.Exit(1)
 				}
 			}
-			if err == nil && logged != 0 { 
+			if err == nil && logged != 0 {
 				log.Infof("block watcher: reconnected to %v daemon", s.blockchain)
 				logged = 0
 			}

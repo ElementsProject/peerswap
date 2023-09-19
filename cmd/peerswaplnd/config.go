@@ -72,10 +72,9 @@ func (p *PeerSwapConfig) Validate() error {
 		err := p.ElementsConfig.Validate()
 		if err != nil {
 			return err
-		}	
+		}
 		p.LiquidEnabled = true
-		
-		
+
 	}
 	return nil
 }
@@ -88,7 +87,7 @@ type OnchainConfig struct {
 	RpcHost           string `long:"rpchost" description:"host to connect to"`
 	RpcPort           uint   `long:"rpcport" description:"port to connect to"`
 	RpcWallet         string `long:"rpcwallet" description:"wallet to use for swaps (elements only)"`
-	LiquidSwaps	  bool	 `long:"liquidswaps" description:"set to false to disable L-BTC swaps"`
+	LiquidSwaps       bool   `long:"liquidswaps" description:"set to false to disable L-BTC swaps"`
 }
 
 func (o *OnchainConfig) Validate() error {
@@ -159,6 +158,6 @@ func defaultLiquidConfig() *OnchainConfig {
 		RpcHost:           "",
 		RpcPort:           0,
 		RpcWallet:         DefaultLiquidwallet,
-		LiquidSwaps:	   true,
+		LiquidSwaps:       true,
 	}
 }

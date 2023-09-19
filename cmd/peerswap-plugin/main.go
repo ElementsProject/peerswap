@@ -228,7 +228,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
-	if  bitcoinCli != nil && *config.Bitcoin.BitcoinSwaps {
+	if bitcoinCli != nil && *config.Bitcoin.BitcoinSwaps {
 		supportedAssets = append(supportedAssets, "btc")
 		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true
@@ -279,7 +279,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if !*config.Bitcoin.BitcoinSwaps && !*config.Liquid.LiquidSwaps {
 		return errors.New("Disabling both BTC and L-BTC swaps is invalid.")
 	}
-	
+
 	if !bitcoinEnabled && !liquidEnabled {
 		return errors.New("Bad configuration or daemons are broken.")
 	}
