@@ -9,7 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/elementsproject/peerswap/lightning"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
@@ -528,4 +531,51 @@ func (n *LndNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
 		}
 	}
 	return feeInvoiceAmt, nil
+}
+
+func (n *LndNode) SetHtlcMaximumMilliSatoshis(scid string, maxHtlcMsat uint64) (msat uint64, err error) {
+	s := lightning.Scid(scid)
+	res, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return 0, fmt.Errorf("ListChannels() %w", err)
+	}
+	for _, ch := range res.GetChannels() {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			r, err := n.Rpc.GetChanInfo(context.Background(), &lnrpc.ChanInfoRequest{
+				ChanId: ch.ChanId,
+			})
+			if err != nil {
+				return 0, err
+			}
+			parts := strings.Split(r.ChanPoint, ":")
+			if len(parts) != 2 {
+				return 0, fmt.Errorf("expected scid to be composed of 3 blocks")
+			}
+			txPosition, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return 0, err
+			}
+			_, err = n.Rpc.UpdateChannelPolicy(context.Background(), &lnrpc.PolicyUpdateRequest{
+				Scope: &lnrpc.PolicyUpdateRequest_ChanPoint{ChanPoint: &lnrpc.ChannelPoint{
+					FundingTxid: &lnrpc.ChannelPoint_FundingTxidStr{
+						FundingTxidStr: parts[0],
+					},
+					OutputIndex: uint32(txPosition),
+				}},
+				BaseFeeMsat:          1000,
+				FeeRate:              1,
+				FeeRatePpm:           0,
+				TimeLockDelta:        40,
+				MaxHtlcMsat:          maxHtlcMsat,
+				MinHtlcMsat:          msat,
+				MinHtlcMsatSpecified: false,
+			})
+			if err != nil {
+				return 0, err
+			}
+			return maxHtlcMsat, err
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }

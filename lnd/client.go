@@ -77,6 +77,32 @@ func (l *Client) CanSpend(amtMsat uint64) error {
 	return nil
 }
 
+// getMaxHtlcAmtMsat returns the maximum htlc amount in msat for a channel.
+// If for some reason it cannot be retrieved, return 0.
+func (l *Client) getMaxHtlcAmtMsat(chanId uint64, pubkey string) (uint64, error) {
+	var maxHtlcAmtMsat uint64 = 0
+	r, err := l.lndClient.GetChanInfo(context.Background(), &lnrpc.ChanInfoRequest{
+		ChanId: chanId,
+	})
+	if err != nil {
+		// Ignore err because channel graph information is not always set.
+		return maxHtlcAmtMsat, nil
+	}
+	if r.Node1Pub == pubkey {
+		maxHtlcAmtMsat = r.GetNode1Policy().GetMaxHtlcMsat()
+	} else if r.Node2Pub == pubkey {
+		maxHtlcAmtMsat = r.GetNode2Policy().GetMaxHtlcMsat()
+	}
+	return maxHtlcAmtMsat, nil
+}
+
+func min(x, y uint64) uint64 {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid.
 func (l *Client) SpendableMsat(scid string) (uint64, error) {
@@ -96,7 +122,18 @@ func (l *Client) SpendableMsat(scid string) (uint64, error) {
 			if err = l.checkChannel(ch); err != nil {
 				return 0, err
 			}
-			return uint64(ch.LocalBalance * 1000), nil
+			maxHtlcAmtMsat, err := l.getMaxHtlcAmtMsat(ch.ChanId, l.pubkey)
+			if err != nil {
+				return 0, err
+			}
+			spendable := uint64(ch.LocalBalance * 1000)
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return spendable, nil
+			}
+			return min(maxHtlcAmtMsat, spendable), nil
+
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
