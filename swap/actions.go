@@ -579,6 +579,15 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 		return swap.HandleError(err)
 	}
 
+	sp, err := ll.SpendableMsat(swap.SwapOutRequest.Scid)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
+	if sp <= swap.SwapOutRequest.Amount*1000 {
+		return swap.HandleError(err)
+	}
+
 	swap.OpeningTxFee = msatAmt / 1000
 
 	expectedFee, err := wallet.GetFlatSwapOutFee()
