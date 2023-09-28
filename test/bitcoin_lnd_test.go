@@ -1099,3 +1099,89 @@ func Test_LndCln_Bitcoin_SwapOut(t *testing.T) {
 		csvClaimTest(t, params)
 	})
 }
+
+func Test_LndLnd_ExcessiveAmount(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+	t.Run("exceed_maxhtlc", func(t *testing.T) {
+		t.Parallel()
+		require := require.New(t)
+
+		bitcoind, lightningds, peerswapds, scid := lndlndSetup(t, uint64(math.Pow10(9)))
+		defer func() {
+			if t.Failed() {
+				pprintFail(
+					tailableProcess{
+						p:     bitcoind.DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:     lightningds[0].DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:     lightningds[1].DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:     peerswapds[0].DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:     peerswapds[1].DaemonProcess,
+						lines: defaultLines,
+					},
+				)
+			}
+		}()
+
+		var channelBalances []uint64
+		var walletBalances []uint64
+		for _, lightningd := range lightningds {
+			b, err := lightningd.GetBtcBalanceSat()
+			require.NoError(err)
+			walletBalances = append(walletBalances, b)
+
+			b, err = lightningd.GetChannelBalanceSat(scid)
+			require.NoError(err)
+			channelBalances = append(channelBalances, b)
+		}
+
+		lcid, err := lightningds[0].ChanIdFromScid(scid)
+		if err != nil {
+			t.Fatalf("lightingds[0].ChanIdFromScid() %v", err)
+		}
+
+		params := &testParams{
+			swapAmt:          channelBalances[0] / 2,
+			scid:             scid,
+			origTakerWallet:  walletBalances[0],
+			origMakerWallet:  walletBalances[1],
+			origTakerBalance: channelBalances[0],
+			origMakerBalance: channelBalances[1],
+			takerNode:        lightningds[0],
+			makerNode:        lightningds[1],
+			takerPeerswap:    peerswapds[0].DaemonProcess,
+			makerPeerswap:    peerswapds[1].DaemonProcess,
+			chainRpc:         bitcoind.RpcProxy,
+			chaind:           bitcoind,
+			confirms:         BitcoinConfirms,
+			csv:              BitcoinCsv,
+			swapType:         swap.SWAPTYPE_OUT,
+		}
+		asset := "btc"
+
+		_, err = lightningds[0].SetHtlcMaximumMilliSatoshis(scid, channelBalances[0]*1000/2-1)
+		assert.NoError(t, err)
+		// Swap out should fail as the swap_amt is to high.
+		// Do swap.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		_, err = peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
+			ChannelId:  lcid,
+			SwapAmount: params.swapAmt,
+			Asset:      asset,
+		})
+		assert.Error(t, err)
+	})
+}

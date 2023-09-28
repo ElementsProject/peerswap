@@ -33,5 +33,6 @@ type LightningNode interface {
 	GetFeeInvoiceAmtSat() (sat uint64, err error)
 
 	Run(waitForReady, swaitForBitcoinSynced bool) error
+	SetHtlcMaximumMilliSatoshis(scid string, maxHtlcMsat uint64) (msat uint64, err error)
 	Stop() error
 }

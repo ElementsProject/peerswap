@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/glightning/glightning"
+	"github.com/elementsproject/peerswap/lightning"
 )
 
 type CLightningNode struct {
@@ -518,4 +519,39 @@ func (n *CLightningNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
 		}
 	}
 	return feeInvoiceAmt, nil
+}
+
+type SetChannel struct {
+	Id                       string `json:"id"`
+	HtlcMaximumMilliSatoshis string `json:"htlcmax,omitempty"`
+}
+
+type ChannelInfo struct {
+	PeerID                    string            `json:"peer_id"`
+	ChannelID                 string            `json:"channel_id"`
+	ShortChannelID            string            `json:"short_channel_id"`
+	FeeBaseMsat               glightning.Amount `json:"fee_base_msat"`
+	FeeProportionalMillionths glightning.Amount `json:"fee_proportional_millionths"`
+	MinimumHtlcOutMsat        glightning.Amount `json:"minimum_htlc_out_msat"`
+	MaximumHtlcOutMsat        glightning.Amount `json:"maximum_htlc_out_msat"`
+}
+
+type SetChannelResponse struct {
+	Channels []ChannelInfo `json:"channels"`
+}
+
+func (r *SetChannel) Name() string {
+	return "setchannel"
+}
+
+func (n *CLightningNode) SetHtlcMaximumMilliSatoshis(scid string, maxHtlcMsat uint64) (msat uint64, err error) {
+	var res SetChannelResponse
+	err = n.Rpc.Request(&SetChannel{
+		Id:                       lightning.Scid(scid).ClnStyle(),
+		HtlcMaximumMilliSatoshis: fmt.Sprint(maxHtlcMsat),
+	}, &res)
+	if err != nil {
+		return 0, err
+	}
+	return maxHtlcMsat, err
 }

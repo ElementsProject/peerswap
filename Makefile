@@ -100,7 +100,8 @@ test-bitcoin-lnd: test-bins
 	'Test_LndLnd_Bitcoin_SwapOut|'\
 	'Test_LndLnd_Bitcoin_SwapIn|'\
 	'Test_LndCln_Bitcoin_SwapOut|'\
-	'Test_LndCln_Bitcoin_SwapIn)'\
+	'Test_LndCln_Bitcoin_SwapIn|'\
+	'Test_LndLnd_ExcessiveAmount)'\
 	 ./test
 	${INTEGRATION_TEST_ENV} go test $(INTEGRATION_TEST_OPTS) ./lnd
 .PHONY: test-bitcoin-lnd
