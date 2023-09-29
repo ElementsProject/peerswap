@@ -942,69 +942,202 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 
 func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 	IsIntegrationTest(t)
-
 	t.Parallel()
-	require := require.New(t)
 
-	bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
-	defer func() {
-		if t.Failed() {
-			filter := os.Getenv("PEERSWAP_TEST_FILTER")
-			pprintFail(
-				tailableProcess{
-					p:     bitcoind.DaemonProcess,
-					lines: defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[0].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-				tailableProcess{
-					p:     lightningds[1].DaemonProcess,
-					lines: defaultLines,
-				},
-			)
+	t.Run("excessive", func(t *testing.T) {
+		require := require.New(t)
+
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
+		defer func() {
+			if t.Failed() {
+				filter := os.Getenv("PEERSWAP_TEST_FILTER")
+				pprintFail(
+					tailableProcess{
+						p:     bitcoind.DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:      lightningds[0].DaemonProcess,
+						filter: filter,
+						lines:  defaultLines,
+					},
+					tailableProcess{
+						p:     lightningds[1].DaemonProcess,
+						lines: defaultLines,
+					},
+				)
+			}
+		}()
+
+		var channelBalances []uint64
+		var walletBalances []uint64
+		for _, lightningd := range lightningds {
+			b, err := lightningd.GetBtcBalanceSat()
+			require.NoError(err)
+			walletBalances = append(walletBalances, b)
+
+			b, err = lightningd.GetChannelBalanceSat(scid)
+			require.NoError(err)
+			channelBalances = append(channelBalances, b)
 		}
-	}()
 
-	var channelBalances []uint64
-	var walletBalances []uint64
-	for _, lightningd := range lightningds {
-		b, err := lightningd.GetBtcBalanceSat()
-		require.NoError(err)
-		walletBalances = append(walletBalances, b)
+		params := &testParams{
+			swapAmt:          2 * channelBalances[0],
+			scid:             scid,
+			origTakerWallet:  walletBalances[0],
+			origMakerWallet:  walletBalances[1],
+			origTakerBalance: channelBalances[0],
+			origMakerBalance: channelBalances[1],
+			takerNode:        lightningds[0],
+			makerNode:        lightningds[1],
+			takerPeerswap:    lightningds[0].DaemonProcess,
+			makerPeerswap:    lightningds[1].DaemonProcess,
+			chainRpc:         bitcoind.RpcProxy,
+			chaind:           bitcoind,
+			confirms:         BitcoinConfirms,
+			csv:              BitcoinCsv,
+			swapType:         swap.SWAPTYPE_OUT,
+		}
+		asset := "btc"
 
-		b, err = lightningd.GetChannelBalanceSat(scid)
-		require.NoError(err)
-		channelBalances = append(channelBalances, b)
-	}
+		// Swap out should fail as the swap_amt is to high.
+		var response map[string]interface{}
+		err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		assert.Error(t, err)
 
-	params := &testParams{
-		swapAmt:          2 * channelBalances[0],
-		scid:             scid,
-		origTakerWallet:  walletBalances[0],
-		origMakerWallet:  walletBalances[1],
-		origTakerBalance: channelBalances[0],
-		origMakerBalance: channelBalances[1],
-		takerNode:        lightningds[0],
-		makerNode:        lightningds[1],
-		takerPeerswap:    lightningds[0].DaemonProcess,
-		makerPeerswap:    lightningds[1].DaemonProcess,
-		chainRpc:         bitcoind.RpcProxy,
-		chaind:           bitcoind,
-		confirms:         BitcoinConfirms,
-		csv:              BitcoinCsv,
-		swapType:         swap.SWAPTYPE_OUT,
-	}
-	asset := "btc"
+		// Swap in should fail as the swap_amt is to high.
+		err = lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		assert.Error(t, err)
+	})
+	t.Run("swapout", func(t *testing.T) {
+		t.Parallel()
+		require := require.New(t)
 
-	// Swap out should fail as the swap_amt is to high.
-	var response map[string]interface{}
-	err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
-	assert.Error(t, err)
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
+		defer func() {
+			if t.Failed() {
+				filter := os.Getenv("PEERSWAP_TEST_FILTER")
+				pprintFail(
+					tailableProcess{
+						p:     bitcoind.DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:      lightningds[0].DaemonProcess,
+						filter: filter,
+						lines:  defaultLines,
+					},
+					tailableProcess{
+						p:      lightningds[1].DaemonProcess,
+						filter: filter,
+						lines:  defaultLines,
+					},
+				)
+			}
+		}()
 
-	// Swap in should fail as the swap_amt is to high.
-	err = lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
-	assert.Error(t, err)
+		var channelBalances []uint64
+		var walletBalances []uint64
+		for _, lightningd := range lightningds {
+			b, err := lightningd.GetBtcBalanceSat()
+			require.NoError(err)
+			walletBalances = append(walletBalances, b)
+
+			b, err = lightningd.GetChannelBalanceSat(scid)
+			require.NoError(err)
+			channelBalances = append(channelBalances, b)
+		}
+
+		params := &testParams{
+			swapAmt:          channelBalances[0] / 2,
+			scid:             scid,
+			origTakerWallet:  walletBalances[0],
+			origMakerWallet:  walletBalances[1],
+			origTakerBalance: channelBalances[0],
+			origMakerBalance: channelBalances[1],
+			takerNode:        lightningds[0],
+			makerNode:        lightningds[1],
+			takerPeerswap:    lightningds[0].DaemonProcess,
+			makerPeerswap:    lightningds[1].DaemonProcess,
+			chainRpc:         bitcoind.RpcProxy,
+			chaind:           bitcoind,
+			confirms:         BitcoinConfirms,
+			csv:              BitcoinCsv,
+			swapType:         swap.SWAPTYPE_IN,
+		}
+		asset := "btc"
+
+		_, err := lightningds[0].SetHtlcMaximumMilliSatoshis(scid, channelBalances[0]*1000/2-1)
+		assert.NoError(t, err)
+		// Swap out should fail as the swap_amt is to high.
+		var response map[string]interface{}
+		err = lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		assert.Error(t, err)
+	})
+	t.Run("swapin", func(t *testing.T) {
+		t.Parallel()
+		require := require.New(t)
+
+		bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
+		defer func() {
+			if t.Failed() {
+				filter := os.Getenv("PEERSWAP_TEST_FILTER")
+				pprintFail(
+					tailableProcess{
+						p:     bitcoind.DaemonProcess,
+						lines: defaultLines,
+					},
+					tailableProcess{
+						p:      lightningds[0].DaemonProcess,
+						filter: filter,
+						lines:  defaultLines,
+					},
+					tailableProcess{
+						p:      lightningds[1].DaemonProcess,
+						filter: filter,
+						lines:  defaultLines,
+					},
+				)
+			}
+		}()
+
+		var channelBalances []uint64
+		var walletBalances []uint64
+		for _, lightningd := range lightningds {
+			b, err := lightningd.GetBtcBalanceSat()
+			require.NoError(err)
+			walletBalances = append(walletBalances, b)
+
+			b, err = lightningd.GetChannelBalanceSat(scid)
+			require.NoError(err)
+			channelBalances = append(channelBalances, b)
+		}
+
+		params := &testParams{
+			swapAmt:          channelBalances[0] / 2,
+			scid:             scid,
+			origTakerWallet:  walletBalances[0],
+			origMakerWallet:  walletBalances[1],
+			origTakerBalance: channelBalances[0],
+			origMakerBalance: channelBalances[1],
+			takerNode:        lightningds[0],
+			makerNode:        lightningds[1],
+			takerPeerswap:    lightningds[0].DaemonProcess,
+			makerPeerswap:    lightningds[1].DaemonProcess,
+			chainRpc:         bitcoind.RpcProxy,
+			chaind:           bitcoind,
+			confirms:         BitcoinConfirms,
+			csv:              BitcoinCsv,
+			swapType:         swap.SWAPTYPE_IN,
+		}
+		asset := "btc"
+
+		_, err := lightningds[0].SetHtlcMaximumMilliSatoshis(scid, channelBalances[0]*1000/2-1)
+		assert.NoError(t, err)
+		// Swap in should fail as the swap_amt is to high.
+		var response map[string]interface{}
+		err = lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		assert.Error(t, err)
+	})
+
 }
