@@ -217,21 +217,23 @@ type ListPeerChannelsResponse struct {
 }
 
 type PeerChannel struct {
-	PeerId         string            `json:"peer_id"`
-	PeerConnected  bool              `json:"peer_connected"`
-	State          string            `json:"state"`
-	ShortChannelId string            `json:"short_channel_id,omitempty"`
-	TotalMsat      glightning.Amount `json:"total_msat,omitempty"`
-	ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
-	ReceivableMsat glightning.Amount `json:"receivable_msat,omitempty"`
-	SpendableMsat  glightning.Amount `json:"spendable_msat,omitempty"`
+	PeerId           string            `json:"peer_id"`
+	PeerConnected    bool              `json:"peer_connected"`
+	State            string            `json:"state"`
+	ShortChannelId   string            `json:"short_channel_id,omitempty"`
+	TotalMsat        glightning.Amount `json:"total_msat,omitempty"`
+	ToUsMsat         glightning.Amount `json:"to_us_msat,omitempty"`
+	ReceivableMsat   glightning.Amount `json:"receivable_msat,omitempty"`
+	SpendableMsat    glightning.Amount `json:"spendable_msat,omitempty"`
+	TheirReserveMsat glightning.Amount `json:"their_reserve_msat,omitempty"`
+	OurReserveMsat   glightning.Amount `json:"our_reserve_msat,omitempty"`
 }
 
 func (ch *PeerChannel) GetSpendableMsat() uint64 {
 	if ch.SpendableMsat.MSat() > 0 {
 		return ch.SpendableMsat.MSat()
 	} else {
-		return ch.ToUsMsat.MSat()
+		return ch.ToUsMsat.MSat() - ch.OurReserveMsat.MSat()
 	}
 }
 
@@ -239,7 +241,7 @@ func (ch *PeerChannel) GetReceivableMsat() uint64 {
 	if ch.ReceivableMsat.MSat() > 0 {
 		return ch.ReceivableMsat.MSat()
 	} else {
-		return ch.TotalMsat.MSat() - ch.ToUsMsat.MSat()
+		return ch.TotalMsat.MSat() - ch.ToUsMsat.MSat() - ch.TheirReserveMsat.MSat()
 	}
 }
 
