@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/elementsproject/peerswap/log"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
 	"google.golang.org/grpc"
 )
 
@@ -268,6 +268,9 @@ func (l *Client) AddPaymentCallback(f func(swapId string, invoiceType swap.Invoi
 	l.paymentWatcher.AddPaymentCallback(f)
 }
 
+// PayInvoiceViaChannel ensures that the invoice is payed via the direct channel
+// to the peer. It takes the desired channel as the enforced route and uses the
+// `SendToRouteSync` api for a direct payment via this route.
 func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
@@ -279,83 +282,44 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 		return "", err
 	}
 
-	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
-		PaymentRequest:  payreq,
-		TimeoutSeconds:  30,
-		CltvLimit:       int32(decoded.Expiry),
-		OutgoingChanIds: []uint64{channel.ChanId},
-		MaxParts:        1,
-	})
-
+	v, err := route.NewVertexFromStr(channel.GetRemotePubkey())
 	if err != nil {
 		return "", err
 	}
-
-	for {
-		res, err := paymentStream.Recv()
-		if err != nil {
-			return "", err
-		}
-		switch res.Status {
-		case lnrpc.Payment_UNKNOWN:
-			log.Debugf("PayInvoiceViaChannel: payment is unknown")
-		case lnrpc.Payment_SUCCEEDED:
-			return res.PaymentPreimage, nil
-		case lnrpc.Payment_IN_FLIGHT:
-			log.Debugf("PayInvoiceViaChannel: payment still in flight")
-		case lnrpc.Payment_FAILED:
-			return "", fmt.Errorf("payment failure %s", res.FailureReason)
-		default:
-			log.Debugf("PayInvoiceViaChannel: got unexpected payment status %d", res.Status)
-		}
-		time.Sleep(time.Millisecond * 100)
+	route, err := l.routerClient.BuildRoute(context.Background(), &routerrpc.BuildRouteRequest{
+		AmtMsat:        decoded.NumMsat,
+		FinalCltvDelta: int32(decoded.CltvExpiry),
+		OutgoingChanId: channel.GetChanId(),
+		HopPubkeys:     [][]byte{v[:]},
+	})
+	if err != nil {
+		return "", err
 	}
+	if decoded.GetPaymentAddr() != nil {
+		route.GetRoute().GetHops()[0].MppRecord = &lnrpc.MPPRecord{
+			PaymentAddr:  decoded.GetPaymentAddr(),
+			TotalAmtMsat: decoded.NumMsat,
+		}
+	}
+	rHash, err := hex.DecodeString(decoded.PaymentHash)
+	if err != nil {
+		return "", err
+	}
+	res, err := l.lndClient.SendToRouteSync(context.Background(), &lnrpc.SendToRouteRequest{
+		PaymentHash: rHash,
+		Route:       route.GetRoute(),
+	})
+	if err != nil {
+		return "", err
+	}
+	if res.PaymentError != "" {
+		return "", fmt.Errorf("received payment error: %v", res.PaymentError)
+	}
+	return hex.EncodeToString(res.PaymentPreimage), nil
 }
 
 func (l *Client) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
-	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
-	if err != nil {
-		return "", err
-	}
-
-	channel, err := l.CheckChannel(channelId, uint64(decoded.NumSatoshis))
-	if err != nil {
-		return "", err
-	}
-
-	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
-		PaymentRequest:  payreq,
-		TimeoutSeconds:  30,
-		OutgoingChanIds: []uint64{channel.ChanId},
-		MaxParts:        30,
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		select {
-		case <-l.ctx.Done():
-			return "", errors.New("context done")
-		default:
-			res, err := paymentStream.Recv()
-			if err != nil {
-				return "", err
-			}
-			switch res.Status {
-			case lnrpc.Payment_SUCCEEDED:
-				return res.PaymentPreimage, nil
-			case lnrpc.Payment_IN_FLIGHT:
-				log.Debugf("payment in flight")
-			case lnrpc.Payment_FAILED:
-				return "", fmt.Errorf("payment failure %s", res.FailureReason)
-			default:
-				continue
-			}
-			time.Sleep(time.Millisecond * 10)
-		}
-	}
+	return l.PayInvoiceViaChannel(payreq, channelId)
 }
 
 func (l *Client) SendMessage(peerId string, message []byte, messageType int) error {
