@@ -126,7 +126,8 @@ func (l *Client) SpendableMsat(scid string) (uint64, error) {
 			if err != nil {
 				return 0, err
 			}
-			spendable := uint64(ch.LocalBalance * 1000)
+			spendable := (uint64(ch.GetLocalBalance()) -
+				ch.GetLocalConstraints().GetChanReserveSat()*1000)
 			// since the max htlc limit is not always set reliably,
 			// the check is skipped if it is not set.
 			if maxHtlcAmtMsat == 0 {
@@ -158,7 +159,18 @@ func (l *Client) ReceivableMsat(scid string) (uint64, error) {
 			if err = l.checkChannel(ch); err != nil {
 				return 0, err
 			}
-			return uint64(ch.RemoteBalance * 1000), nil
+			maxHtlcAmtMsat, err := l.getMaxHtlcAmtMsat(ch.ChanId, ch.GetRemotePubkey())
+			if err != nil {
+				return 0, err
+			}
+			receivable := (uint64(ch.GetRemoteBalance()) -
+				ch.GetRemoteConstraints().GetChanReserveSat()*1000)
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return receivable, nil
+			}
+			return min(maxHtlcAmtMsat, receivable), nil
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)

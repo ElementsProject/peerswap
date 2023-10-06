@@ -217,13 +217,46 @@ type ListPeerChannelsResponse struct {
 }
 
 type PeerChannel struct {
-	PeerConnected  bool              `json:"peer_connected"`
-	State          string            `json:"state"`
-	ShortChannelId string            `json:"short_channel_id,omitempty"`
-	TotalMsat      glightning.Amount `json:"total_msat,omitempty"`
-	ToUsMsat       glightning.Amount `json:"to_us_msat,omitempty"`
-	ReceivableMsat glightning.Amount `json:"receivable_msat,omitempty"`
-	SpendableMsat  glightning.Amount `json:"spendable_msat,omitempty"`
+	PeerId           string            `json:"peer_id"`
+	PeerConnected    bool              `json:"peer_connected"`
+	State            string            `json:"state"`
+	ShortChannelId   string            `json:"short_channel_id,omitempty"`
+	TotalMsat        glightning.Amount `json:"total_msat,omitempty"`
+	ToUsMsat         glightning.Amount `json:"to_us_msat,omitempty"`
+	ReceivableMsat   glightning.Amount `json:"receivable_msat,omitempty"`
+	SpendableMsat    glightning.Amount `json:"spendable_msat,omitempty"`
+	TheirReserveMsat glightning.Amount `json:"their_reserve_msat,omitempty"`
+	OurReserveMsat   glightning.Amount `json:"our_reserve_msat,omitempty"`
+}
+
+func (ch *PeerChannel) GetSpendableMsat() uint64 {
+	if ch.SpendableMsat.MSat() > 0 {
+		return ch.SpendableMsat.MSat()
+	} else {
+		return ch.ToUsMsat.MSat() - ch.OurReserveMsat.MSat()
+	}
+}
+
+func (ch *PeerChannel) GetReceivableMsat() uint64 {
+	if ch.ReceivableMsat.MSat() > 0 {
+		return ch.ReceivableMsat.MSat()
+	} else {
+		return ch.TotalMsat.MSat() - ch.ToUsMsat.MSat() - ch.TheirReserveMsat.MSat()
+	}
+}
+
+func (cl *ClightningClient) getMaxHtlcAmtMsat(scid, nodeId string) (uint64, error) {
+	var htlcMaximumMilliSatoshis uint64
+	chgs, err := cl.glightning.GetChannel(scid)
+	if err != nil {
+		return htlcMaximumMilliSatoshis, nil
+	}
+	for _, c := range chgs {
+		if c.Source == nodeId {
+			htlcMaximumMilliSatoshis = c.HtlcMaximumMilliSatoshis.MSat()
+		}
+	}
+	return htlcMaximumMilliSatoshis, nil
 }
 
 // SpendableMsat returns an estimate of the total we could send through the
@@ -240,14 +273,26 @@ func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 			if err = cl.checkChannel(ch); err != nil {
 				return 0, err
 			}
-			if ch.SpendableMsat.MSat() > 0 {
-				return ch.SpendableMsat.MSat(), nil
-			} else {
-				return ch.ToUsMsat.MSat(), nil
+			maxHtlcAmtMsat, err := cl.getMaxHtlcAmtMsat(scid, cl.nodeId)
+			if err != nil {
+				return 0, err
 			}
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return ch.GetSpendableMsat(), nil
+			}
+			return min(maxHtlcAmtMsat, ch.GetSpendableMsat()), nil
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
+func min(x, y uint64) uint64 {
+	if x < y {
+		return x
+	}
+	return y
 }
 
 // ReceivableMsat returns an estimate of the total we could receive through the
@@ -264,11 +309,16 @@ func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
 			if err = cl.checkChannel(ch); err != nil {
 				return 0, err
 			}
-			if ch.ReceivableMsat.MSat() > 0 {
-				return ch.ReceivableMsat.MSat(), nil
-			} else {
-				return ch.TotalMsat.MSat() - ch.ToUsMsat.MSat(), nil
+			maxHtlcAmtMsat, err := cl.getMaxHtlcAmtMsat(scid, ch.PeerId)
+			if err != nil {
+				return 0, err
 			}
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return ch.GetReceivableMsat(), nil
+			}
+			return min(maxHtlcAmtMsat, ch.GetReceivableMsat()), nil
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
