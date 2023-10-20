@@ -178,3 +178,28 @@ clean: clean-cln clean-lnd
 fmt:
 	gofmt -l -w -s .
 .PHONY: fmt
+
+TOOLS_DIR := ${CURDIR}/tools
+
+.PHONY: tool
+tool:
+	## Install an individual dependent tool.
+	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath github.com/golangci/golangci-lint/cmd/golangci-lint
+
+.PHONY: clean
+clean:  ## clean project directory.
+	env GOBIN=${TOOLS_DIR}/bin && @rm -rf ${GOBIN} $(TOOLS_DIR)/bin
+
+
+.PHONY: lint
+lint: lint/golangci-lint
+lint: ## Lint source.
+
+.PHONY: lint/golangci-lint
+lint/golangci-lint: ## Lint source with golangci-lint.
+	$(TOOLS_DIR)/bin/golangci-lint version
+	${CURDIR}/tools/bin/golangci-lint run -v
+
+.PHONY: lint/fix
+lint/fix: ## Lint and fix source.
+	@${MAKE} lint/golangci-lint args='--fix'

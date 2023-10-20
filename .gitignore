@@ -33,3 +33,6 @@ out/pscli
 out/test-builds/peerswapd
 out/test-builds/peerswap
 out/test-builds/pscli
+
+# # build output of tools
+tools/bin/
