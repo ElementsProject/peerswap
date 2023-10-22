@@ -30,3 +30,7 @@ ${DIR}/peerswaprpc.swagger.json:
 ${DIR}/peerswaprpc_grpc.pb.go ${DIR}/peerswaprpc.pb.go ${DIR}/peerswaprpc.pb.gw.go: ${DIR}/peerswaprpc.proto
 	protoc ${PROTOC_OPTS} ${DIR}/peerswaprpc.proto
 PHONY:
+
+.PHONY: all-rpc-docker
+all-rpc-docker:
+	./gen_protos_docker.sh
