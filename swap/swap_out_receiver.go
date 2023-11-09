@@ -114,7 +114,7 @@ func getSwapOutReceiverStates() States {
 			Action: &CancelAction{},
 		},
 		State_ClaimedCsv: {
-			Action: &NoOpDoneAction{},
+			Action: &AddSuspiciousPeerAction{next: &NoOpDoneAction{}},
 		},
 		State_ClaimedPreimage: {
 			Action: &NoOpDoneAction{},

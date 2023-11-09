@@ -33,6 +33,7 @@ type PeerMessage interface {
 type Policy interface {
 	IsPeerAllowed(peer string) bool
 	IsPeerSuspicious(peer string) bool
+	AddToSuspiciousPeerList(pubkey string) error
 	GetReserveOnchainMsat() uint64
 	GetMinSwapAmountMsat() uint64
 	NewSwapsAllowed() bool

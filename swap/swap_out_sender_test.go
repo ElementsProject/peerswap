@@ -381,6 +381,10 @@ func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
 	return true
 }
 
+func (d *dummyPolicy) AddToSuspiciousPeerList(pubkey string) error {
+	return nil
+}
+
 func (d *dummyPolicy) IsPeerSuspicious(peer string) bool {
 	d.isPeerSuspiciousParam = peer
 	return d.isPeerSuspiciousReturn
