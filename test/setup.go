@@ -65,7 +65,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 		if err != nil {
 			t.Fatal("could not create dir", err)
 		}
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -227,7 +227,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	if err != nil {
 		t.Fatal("could not create dir", err)
 	}
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}
@@ -359,7 +359,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		if err != nil {
 			t.Fatal("could not create dir", err)
 		}
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -524,7 +524,7 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		t.Cleanup(peerswapd.Kill)
 
 		// Create policy file and accept all peers
-		err = os.WriteFile(filepath.Join(peerswapd.DataDir, "..", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(peerswapd.DataDir, "..", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -623,7 +623,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	if err != nil {
 		t.Fatal("could not create dir", err)
 	}
-	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1"), os.ModePerm)
+	err = os.WriteFile(filepath.Join(cln.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
 	if err != nil {
 		t.Fatal("could not create policy file", err)
 	}

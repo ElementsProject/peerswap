@@ -288,4 +288,7 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	require.InDelta(params.origMakerWallet-commitFee-claimFee, balance, 1., "expected %d, got %d",
 		params.origMakerWallet-commitFee-claimFee, balance)
 
+	require.NoError(params.makerPeerswap.WaitForLog(
+		fmt.Sprintf("added peer %s to suspicious peer list", params.takerNode.Id()),
+		testframework.TIMEOUT))
 }

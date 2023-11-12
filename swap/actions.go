@@ -813,3 +813,17 @@ func (c *CancelAction) Execute(services *SwapServices, swap *SwapData) EventType
 
 	return Event_Done
 }
+
+type AddSuspiciousPeerAction struct {
+	next Action
+}
+
+func (c *AddSuspiciousPeerAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if err := services.policy.AddToSuspiciousPeerList(swap.PeerNodeId); err != nil {
+		// Since retries are unlikely to succeed,log output and move to the next state.
+		log.Infof("error adding peer %s to suspicious peer list: %v", swap.PeerNodeId, err)
+		return c.next.Execute(services, swap)
+	}
+	log.Infof("added peer %s to suspicious peer list", swap.PeerNodeId)
+	return c.next.Execute(services, swap)
+}

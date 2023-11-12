@@ -115,7 +115,7 @@ func getSwapInSenderStates() States {
 			Action: &NoOpDoneAction{},
 		},
 		State_ClaimedCsv: {
-			Action: &NoOpDoneAction{},
+			Action: &AddSuspiciousPeerAction{next: &NoOpDoneAction{}},
 		},
 		State_ClaimedCoop: {
 			Action: &NoOpDoneAction{},
