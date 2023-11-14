@@ -55,6 +55,7 @@ func getSwapOutSenderStates() States {
 				Event_OnTimeout:            State_SendCancel,
 				Event_OnFeeInvoiceReceived: State_SwapOutSender_PayFeeInvoice,
 				Event_OnInvalid_Message:    State_SendCancel,
+				Event_ActionFailed:         State_SwapCanceled,
 			},
 			FailOnrecover: true,
 		},
