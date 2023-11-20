@@ -336,12 +336,12 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	}
 	confOutputScript, err := address.ToOutputScript(redeemAddr)
 	if err != nil {
-		return nil, [32]byte{}, pset.ErrGenerateSurjectionProof
+		return nil, [32]byte{}, err
 	}
 
 	confAddr, err := address.FromConfidential(redeemAddr)
 	if err != nil {
-		return nil, [32]byte{}, pset.ErrGenerateSurjectionProof
+		return nil, [32]byte{}, err
 	}
 
 	// create new transaction
@@ -357,7 +357,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	nonce, err := confidential.NonceHash(confAddr.BlindingKey, ephemeralPrivKey.Serialize())
 	if err != nil {
-		return nil, [32]byte{}, pset.ErrGenerateSurjectionProof
+		return nil, [32]byte{}, err
 	}
 
 	// build rangeproof
@@ -375,7 +375,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	rangeProof, err := confidential.RangeProof(rangeProofArgs)
 	if err != nil {
-		return nil, [32]byte{}, pset.ErrGenerateSurjectionProof
+		return nil, [32]byte{}, err
 	}
 
 	//create output
