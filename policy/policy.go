@@ -78,10 +78,7 @@ type Policy struct {
 	// MinSwapAmountMsat is the minimum swap amount in msat that is needed to
 	// perform a swap. Below this amount it might be uneconomical to do a swap
 	// due to the on-chain costs.
-	// TODO: This can not be set in the policy by now but this is the place
-	// where this value belongs. Eventually we might want to make this value
-	// editable as a policy setting.
-	MinSwapAmountMsat uint64 `json:"min_swap_amount_msat"`
+	MinSwapAmountMsat uint64 `json:"min_swap_amount_msat" long:"min_swap_amount_msat" description:"The minimum amount in msat that is needed to perform a swap."`
 
 	// AllowNewSwaps can be used to disallow any new swaps. This can be useful
 	// when we want to upgrade the node and do not want to allow for any new
