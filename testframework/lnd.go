@@ -292,7 +292,7 @@ func (n *LndNode) FundWallet(sats uint64, mineBlock bool) (string, error) {
 	return addr.Address, nil
 }
 
-func (n *LndNode) OpenChannel(peer LightningNode, capacity uint64, connect, confirm, waitForChannelActive bool) (string, error) {
+func (n *LndNode) OpenChannel(peer LightningNode, capacity, pushAmt uint64, connect, confirm, waitForChannelActive bool) (string, error) {
 	// fund wallet 10*cap
 	_, err := n.FundWallet(uint64(1.1*float64(capacity)), true)
 	if err != nil {
@@ -318,6 +318,7 @@ func (n *LndNode) OpenChannel(peer LightningNode, capacity uint64, connect, conf
 	stream, err := n.Rpc.OpenChannel(context.Background(), &lnrpc.OpenChannelRequest{
 		NodePubkey:         pk,
 		LocalFundingAmount: int64(capacity),
+		PushSat:            int64(pushAmt),
 	})
 	if err != nil {
 		return "", fmt.Errorf("OpenChannel() %w", err)

@@ -31,14 +31,14 @@ const (
 )
 
 func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
-	return clnclnSetupWithConfig(t, fundAmt, []string{
+	return clnclnSetupWithConfig(t, fundAmt, 0, []string{
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
 		"--large-channels",
 	})
 }
 
-func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
+func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []string) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
@@ -65,7 +65,8 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 		if err != nil {
 			t.Fatal("could not create dir", err)
 		}
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), []byte("accept_all_peers=1\n"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"),
+			[]byte("accept_all_peers=1\nmin_swap_amount_msat=1\n"), os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
@@ -107,7 +108,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt uint64, clnConf []string) (*tes
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, pushAmt, true, true, true)
 	if err != nil {
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
@@ -185,7 +186,7 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
 	if err != nil {
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
@@ -312,7 +313,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
 	if err != nil {
 		t.Fatalf("lightningds[0].OpenChannel() %v", err)
 	}
@@ -454,7 +455,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	require.NoError(t, err)
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1]).
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
 	if err != nil {
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
@@ -575,7 +576,7 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	require.NoError(t, err)
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
 	if err != nil {
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
@@ -764,7 +765,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
 	if err != nil {
 		t.Fatalf("cln.OpenChannel() %v", err)
 	}

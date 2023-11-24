@@ -299,7 +299,7 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 	return addr, nil
 }
 
-func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
+func (n *CLightningNode) OpenChannel(remote LightningNode, capacity, pushAmt uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
 	_, err := n.FundWallet(uint64(1.5*float64(capacity)), true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
@@ -317,7 +317,8 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 		}
 	}
 
-	fr, err := n.Rpc.FundChannel(remote.Id(), &glightning.Sat{Value: capacity})
+	pushAmtSat := &glightning.Sat{Value: pushAmt}
+	fr, err := n.Rpc.FundChannelExt(remote.Id(), &glightning.Sat{Value: capacity}, nil, true, nil, pushAmtSat.ConvertMsat())
 	if err != nil {
 		return "", fmt.Errorf("FundChannel() %w", err)
 	}
