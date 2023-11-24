@@ -262,7 +262,7 @@ func paymentwatcherNodeSetup(t *testing.T, dir string) (
 		return nil, nil, nil, nil, fmt.Errorf("Could not create lnd client connection: %v", err)
 	}
 
-	_, err = payer.OpenChannel(payee, uint64(math.Pow10(7)), true, true, true)
+	_, err = payer.OpenChannel(payee, uint64(math.Pow10(7)), 0, true, true, true)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("Could not open channel: %v", err)
 	}
