@@ -352,6 +352,10 @@ func (d *dummyLightningClient) PayInvoiceViaChannel(payreq, scid string) (preima
 	return pi.String(), nil
 }
 
+func (d *dummyLightningClient) ProbePayment(scid string, amountMsat uint64) (bool, string, error) {
+	return true, "", nil
+}
+
 type dummyPolicy struct {
 	isPeerSuspiciousReturn bool
 	isPeerSuspiciousParam  string

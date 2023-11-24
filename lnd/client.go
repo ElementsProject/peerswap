@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
@@ -101,43 +102,6 @@ func min(x, y uint64) uint64 {
 		return x
 	}
 	return y
-}
-
-// SpendableMsat returns an estimate of the total we could send through the
-// channel with given scid.
-func (l *Client) SpendableMsat(scid string) (uint64, error) {
-	s := lightning.Scid(scid)
-	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
-		ActiveOnly:   false,
-		InactiveOnly: false,
-		PublicOnly:   false,
-		PrivateOnly:  false,
-	})
-	if err != nil {
-		return 0, err
-	}
-	for _, ch := range r.Channels {
-		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
-		if channelShortId.String() == s.LndStyle() {
-			if err = l.checkChannel(ch); err != nil {
-				return 0, err
-			}
-			maxHtlcAmtMsat, err := l.getMaxHtlcAmtMsat(ch.ChanId, l.pubkey)
-			if err != nil {
-				return 0, err
-			}
-			spendable := (uint64(ch.GetLocalBalance()) -
-				ch.GetLocalConstraints().GetChanReserveSat()*1000)
-			// since the max htlc limit is not always set reliably,
-			// the check is skipped if it is not set.
-			if maxHtlcAmtMsat == 0 {
-				return spendable, nil
-			}
-			return min(maxHtlcAmtMsat, spendable), nil
-
-		}
-	}
-	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }
 
 // ReceivableMsat returns an estimate of the total we could receive through the
@@ -371,6 +335,63 @@ func (l *Client) GetPeers() []string {
 		peerlist = append(peerlist, peer.PubKey)
 	}
 	return peerlist
+}
+
+// ProbePayment trying to pay via a route with a random payment hash
+// that the receiver doesn't have the preimage of.
+// The receiver node aren't able to settle the payment.
+// When the probe is successful, the receiver will return
+// a incorrect_or_unknown_payment_details error to the sender.
+func (l *Client) ProbePayment(scid string, amountMsat uint64) (bool, string, error) {
+	chsRes, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return false, "", fmt.Errorf("ListChannels() %w", err)
+	}
+	var channel *lnrpc.Channel
+	for _, ch := range chsRes.GetChannels() {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == lightning.Scid(scid).LndStyle() {
+			channel = ch
+		}
+	}
+	if channel.GetChanId() == 0 {
+		return false, "", fmt.Errorf("could not find a channel with scid: %s", scid)
+	}
+	v, err := route.NewVertexFromStr(channel.GetRemotePubkey())
+	if err != nil {
+		return false, "", fmt.Errorf("NewVertexFromStr() %w", err)
+	}
+
+	route, err := l.routerClient.BuildRoute(context.Background(), &routerrpc.BuildRouteRequest{
+		AmtMsat:        int64(amountMsat),
+		FinalCltvDelta: 9,
+		OutgoingChanId: channel.GetChanId(),
+		HopPubkeys:     [][]byte{v[:]},
+	})
+	if err != nil {
+		return false, "", fmt.Errorf("BuildRoute() %w", err)
+	}
+	preimage, err := lightning.GetPreimage()
+	if err != nil {
+		return false, "", fmt.Errorf("GetPreimage() %w", err)
+	}
+	pHash, err := hex.DecodeString(preimage.Hash().String())
+	if err != nil {
+		return false, "", fmt.Errorf("DecodeString() %w", err)
+	}
+
+	res2, err := l.lndClient.SendToRouteSync(context.Background(), &lnrpc.SendToRouteRequest{
+		PaymentHash: pHash,
+		Route:       route.GetRoute(),
+	})
+	if err != nil {
+		return false, "", fmt.Errorf("SendToRouteSync() %w", err)
+	}
+	if !strings.Contains(res2.PaymentError, "IncorrectOrUnknownPaymentDetails") {
+		log.Debugf("send pay would be failed. reason:%w", res2.PaymentError)
+		return false, res2.PaymentError, nil
+	}
+	return true, "", nil
 }
 
 func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {
