@@ -266,6 +266,35 @@ func min(x, y uint64) uint64 {
 	return y
 }
 
+// SpendableMsat returns an estimate of the total we could send through the
+// channel with given scid. Falls back to the owned amount in the channel.
+func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
+	scid = lightning.Scid(scid).ClnStyle()
+	var res ListPeerChannelsResponse
+	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range res.Channels {
+		if ch.ShortChannelId == scid {
+			if err = cl.checkChannel(ch); err != nil {
+				return 0, err
+			}
+			maxHtlcAmtMsat, err := cl.getMaxHtlcAmtMsat(scid, cl.nodeId)
+			if err != nil {
+				return 0, err
+			}
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return ch.GetSpendableMsat(), nil
+			}
+			return min(maxHtlcAmtMsat, ch.GetSpendableMsat()), nil
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
 // ReceivableMsat returns an estimate of the total we could receive through the
 // channel with given scid.
 func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
