@@ -21,6 +21,7 @@ type LightningNode interface {
 	IsBlockHeightSynced() (bool, error)
 	IsChannelActive(scid string) (bool, error)
 	IsConnected(peer LightningNode) (bool, error)
+	HasRoute(remote, scid string) (bool, error)
 
 	AddInvoice(amtSat uint64, desc, label string) (payreq string, err error)
 	PayInvoice(payreq string) error

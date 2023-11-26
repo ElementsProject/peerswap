@@ -371,7 +371,11 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity, pushAmt uin
 			if err != nil {
 				return false, fmt.Errorf("IsChannelActive() %w", err)
 			}
-			return remoteActive && localActive, nil
+			hasRoute, err := n.HasRoute(remote.Id(), scid)
+			if err != nil {
+				return false, nil
+			}
+			return remoteActive && localActive && hasRoute, nil
 		}, TIMEOUT)
 		if err != nil {
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
@@ -384,6 +388,15 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity, pushAmt uin
 	}
 
 	return scid, nil
+}
+
+// HasRoute check the route is constructed
+func (n *CLightningNode) HasRoute(remote, scid string) (bool, error) {
+	routes, err := n.Rpc.GetRoute(remote, 1, 1, 0, n.Info.Id, 0, nil, 1)
+	if err != nil {
+		return false, fmt.Errorf("GetRoute() %w", err)
+	}
+	return len(routes) > 0, nil
 }
 
 func (n *CLightningNode) IsBlockHeightSynced() (bool, error) {
