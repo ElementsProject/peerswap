@@ -104,6 +104,43 @@ func min(x, y uint64) uint64 {
 	return y
 }
 
+// SpendableMsat returns an estimate of the total we could send through the
+// channel with given scid.
+func (l *Client) SpendableMsat(scid string) (uint64, error) {
+	s := lightning.Scid(scid)
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return 0, err
+	}
+	for _, ch := range r.Channels {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == s.LndStyle() {
+			if err = l.checkChannel(ch); err != nil {
+				return 0, err
+			}
+			maxHtlcAmtMsat, err := l.getMaxHtlcAmtMsat(ch.ChanId, l.pubkey)
+			if err != nil {
+				return 0, err
+			}
+			spendable := (uint64(ch.GetLocalBalance()) -
+				ch.GetLocalConstraints().GetChanReserveSat()*1000)
+			// since the max htlc limit is not always set reliably,
+			// the check is skipped if it is not set.
+			if maxHtlcAmtMsat == 0 {
+				return spendable, nil
+			}
+			return min(maxHtlcAmtMsat, spendable), nil
+
+		}
+	}
+	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
 // ReceivableMsat returns an estimate of the total we could receive through the
 // channel with given scid.
 func (l *Client) ReceivableMsat(scid string) (uint64, error) {

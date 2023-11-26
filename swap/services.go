@@ -49,6 +49,7 @@ type LightningClient interface {
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
 	CanSpend(amountMsat uint64) error
 	Implementation() string
+	SpendableMsat(scid string) (uint64, error)
 	ReceivableMsat(scid string) (uint64, error)
 	ProbePayment(scid string, amountMsat uint64) (bool, string, error)
 }

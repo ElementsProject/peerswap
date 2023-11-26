@@ -383,6 +383,14 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, err
 	}
 
+	sp, err := s.swapServices.lightning.SpendableMsat(channelId)
+	if err != nil {
+		return nil, err
+	}
+	if sp <= amtSat*1000 {
+		return nil, fmt.Errorf("exceeding spendable amount_msat: %d", sp)
+	}
+
 	success, failureReason, err := s.swapServices.lightning.ProbePayment(channelId, amtSat*1000)
 	if err != nil {
 		return nil, err
@@ -496,6 +504,30 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
 	err := s.swapServices.lightning.CanSpend(message.Amount * 1000)
 	if err != nil {
+		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+		// We want to tell our peer why we can not do this swap.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: msg,
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
+
+	sp, err := s.swapServices.lightning.SpendableMsat(message.Scid)
+	if err != nil {
+		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+		// We want to tell our peer why we can not do this swap.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: msg,
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
+
+	if sp <= message.Amount*1000 {
+		err = fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
 		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
