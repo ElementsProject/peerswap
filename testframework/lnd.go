@@ -14,7 +14,9 @@ import (
 
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing/route"
 )
 
 func getLndConfig() map[string]string {
@@ -375,7 +377,11 @@ func (n *LndNode) OpenChannel(peer LightningNode, capacity, pushAmt uint64, conn
 					return false, fmt.Errorf("IsChannelActive() %w", err)
 				}
 			}
-			return remoteActive && localActive, nil
+			hasRoute, err := n.HasRoute(peer.Id(), scid)
+			if err != nil {
+				return false, nil
+			}
+			return remoteActive && localActive && hasRoute, nil
 		}, TIMEOUT)
 		if err != nil {
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
@@ -388,6 +394,39 @@ func (n *LndNode) OpenChannel(peer LightningNode, capacity, pushAmt uint64, conn
 	}
 
 	return scid, nil
+}
+
+// HasRoute check the route is constructed
+func (n *LndNode) HasRoute(remote, scid string) (bool, error) {
+	chsRes, err := n.Rpc.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return false, fmt.Errorf("ListChannels() %w", err)
+	}
+	var channel *lnrpc.Channel
+	for _, ch := range chsRes.GetChannels() {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == lightning.Scid(scid).LndStyle() {
+			channel = ch
+		}
+	}
+	if channel.GetChanId() == 0 {
+		return false, fmt.Errorf("could not find a channel with scid: %s", scid)
+	}
+	v, err := route.NewVertexFromStr(channel.GetRemotePubkey())
+	if err != nil {
+		return false, fmt.Errorf("NewVertexFromStr() %w", err)
+	}
+
+	routeres, err := n.RpcV2.BuildRoute(context.Background(), &routerrpc.BuildRouteRequest{
+		AmtMsat:        channel.GetLocalBalance() * 1000 / 2,
+		FinalCltvDelta: 9,
+		OutgoingChanId: channel.GetChanId(),
+		HopPubkeys:     [][]byte{v[:]},
+	})
+	if err != nil {
+		return false, fmt.Errorf("BuildRoute() %w", err)
+	}
+	return len(routeres.GetRoute().Hops) > 0, nil
 }
 
 func (n *LndNode) IsBlockHeightSynced() (bool, error) {
