@@ -124,7 +124,7 @@ func (r *ElementsRpcWallet) GetBalance() (uint64, error) {
 
 // GetAddress returns a new blech32 address
 func (r *ElementsRpcWallet) GetAddress() (string, error) {
-	address, err := r.rpcClient.GetNewAddress(0)
+	address, err := r.rpcClient.GetNewAddress(3)
 	if err != nil {
 		return "", err
 	}
