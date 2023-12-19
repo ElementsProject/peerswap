@@ -1141,3 +1141,77 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 	})
 
 }
+
+// Test_ClnCln_StuckChannels tests that the swap fails if the channel is stuck.
+// For more information about stuck channel, please check the link.
+// https://github.com/lightning/bolts/issues/728
+func Test_ClnCln_StuckChannels(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
+	require := require.New(t)
+	// repro by using the push_msat in the open_channel.
+	// Assumption that feperkw is 253perkw in reg test.
+	bitcoind, lightningds, scid := clnclnSetupWithConfig(t, 3794, 3573, []string{
+		"--dev-bitcoind-poll=1",
+		"--dev-fast-gossip",
+		"--large-channels",
+		"--min-capacity-sat=1000",
+	})
+
+	defer func() {
+		if t.Failed() {
+			filter := os.Getenv("PEERSWAP_TEST_FILTER")
+			pprintFail(
+				tailableProcess{
+					p:     bitcoind.DaemonProcess,
+					lines: defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[0].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+				tailableProcess{
+					p:     lightningds[1].DaemonProcess,
+					lines: defaultLines,
+				},
+			)
+		}
+	}()
+
+	var channelBalances []uint64
+	var walletBalances []uint64
+	for _, lightningd := range lightningds {
+		b, err := lightningd.GetBtcBalanceSat()
+		require.NoError(err)
+		walletBalances = append(walletBalances, b)
+
+		b, err = lightningd.GetChannelBalanceSat(scid)
+		require.NoError(err)
+		channelBalances = append(channelBalances, b)
+	}
+
+	params := &testParams{
+		swapAmt:          channelBalances[0],
+		scid:             scid,
+		origTakerWallet:  walletBalances[0],
+		origMakerWallet:  walletBalances[1],
+		origTakerBalance: channelBalances[0],
+		origMakerBalance: channelBalances[1],
+		takerNode:        lightningds[0],
+		makerNode:        lightningds[1],
+		takerPeerswap:    lightningds[0].DaemonProcess,
+		makerPeerswap:    lightningds[1].DaemonProcess,
+		chainRpc:         bitcoind.RpcProxy,
+		chaind:           bitcoind,
+		confirms:         BitcoinConfirms,
+		csv:              BitcoinCsv,
+		swapType:         swap.SWAPTYPE_IN,
+	}
+
+	// Swap in should fail by probing payment as the channel is stuck.
+	var response map[string]interface{}
+	err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: 100, ShortChannelId: params.scid, Asset: "btc"}, &response)
+	assert.Error(t, err)
+}

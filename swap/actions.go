@@ -578,7 +578,6 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
 	sp, err := ll.SpendableMsat(swap.SwapOutRequest.Scid)
 	if err != nil {
 		return swap.HandleError(err)
@@ -586,6 +585,13 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 
 	if sp <= swap.SwapOutRequest.Amount*1000 {
 		return swap.HandleError(err)
+	}
+	success, failureReason, err := ll.ProbePayment(swap.SwapOutRequest.Scid, swap.SwapOutRequest.Amount*1000)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	if !success {
+		return swap.HandleError(fmt.Errorf("the prepayment probe was unsuccessful: %s", failureReason))
 	}
 
 	swap.OpeningTxFee = msatAmt / 1000

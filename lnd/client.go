@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
@@ -371,6 +372,63 @@ func (l *Client) GetPeers() []string {
 		peerlist = append(peerlist, peer.PubKey)
 	}
 	return peerlist
+}
+
+// ProbePayment trying to pay via a route with a random payment hash
+// that the receiver doesn't have the preimage of.
+// The receiver node aren't able to settle the payment.
+// When the probe is successful, the receiver will return
+// a incorrect_or_unknown_payment_details error to the sender.
+func (l *Client) ProbePayment(scid string, amountMsat uint64) (bool, string, error) {
+	chsRes, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
+	if err != nil {
+		return false, "", fmt.Errorf("ListChannels() %w", err)
+	}
+	var channel *lnrpc.Channel
+	for _, ch := range chsRes.GetChannels() {
+		channelShortId := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		if channelShortId.String() == lightning.Scid(scid).LndStyle() {
+			channel = ch
+		}
+	}
+	if channel.GetChanId() == 0 {
+		return false, "", fmt.Errorf("could not find a channel with scid: %s", scid)
+	}
+	v, err := route.NewVertexFromStr(channel.GetRemotePubkey())
+	if err != nil {
+		return false, "", fmt.Errorf("NewVertexFromStr() %w", err)
+	}
+
+	route, err := l.routerClient.BuildRoute(context.Background(), &routerrpc.BuildRouteRequest{
+		AmtMsat:        int64(amountMsat),
+		FinalCltvDelta: 9,
+		OutgoingChanId: channel.GetChanId(),
+		HopPubkeys:     [][]byte{v[:]},
+	})
+	if err != nil {
+		return false, "", fmt.Errorf("BuildRoute() %w", err)
+	}
+	preimage, err := lightning.GetPreimage()
+	if err != nil {
+		return false, "", fmt.Errorf("GetPreimage() %w", err)
+	}
+	pHash, err := hex.DecodeString(preimage.Hash().String())
+	if err != nil {
+		return false, "", fmt.Errorf("DecodeString() %w", err)
+	}
+
+	res2, err := l.lndClient.SendToRouteSync(context.Background(), &lnrpc.SendToRouteRequest{
+		PaymentHash: pHash,
+		Route:       route.GetRoute(),
+	})
+	if err != nil {
+		return false, "", fmt.Errorf("SendToRouteSync() %w", err)
+	}
+	if !strings.Contains(res2.PaymentError, "IncorrectOrUnknownPaymentDetails") {
+		log.Debugf("send pay would be failed. reason:%w", res2.PaymentError)
+		return false, res2.PaymentError, nil
+	}
+	return true, "", nil
 }
 
 func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {

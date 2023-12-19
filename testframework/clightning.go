@@ -299,7 +299,7 @@ func (n *CLightningNode) FundWallet(sats uint64, mineBlock bool) (string, error)
 	return addr, nil
 }
 
-func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
+func (n *CLightningNode) OpenChannel(remote LightningNode, capacity, pushAmt uint64, connect, confirm, waitForActiveChannel bool) (string, error) {
 	_, err := n.FundWallet(uint64(1.5*float64(capacity)), true)
 	if err != nil {
 		return "", fmt.Errorf("FundWallet() %w", err)
@@ -317,7 +317,8 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 		}
 	}
 
-	fr, err := n.Rpc.FundChannel(remote.Id(), &glightning.Sat{Value: capacity})
+	pushAmtSat := &glightning.Sat{Value: pushAmt}
+	fr, err := n.Rpc.FundChannelExt(remote.Id(), &glightning.Sat{Value: capacity}, nil, true, nil, pushAmtSat.ConvertMsat())
 	if err != nil {
 		return "", fmt.Errorf("FundChannel() %w", err)
 	}
@@ -370,7 +371,11 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 			if err != nil {
 				return false, fmt.Errorf("IsChannelActive() %w", err)
 			}
-			return remoteActive && localActive, nil
+			hasRoute, err := n.HasRoute(remote.Id(), scid)
+			if err != nil {
+				return false, nil
+			}
+			return remoteActive && localActive && hasRoute, nil
 		}, TIMEOUT)
 		if err != nil {
 			return "", fmt.Errorf("error waiting for active channel: %w", err)
@@ -383,6 +388,15 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity uint64, conn
 	}
 
 	return scid, nil
+}
+
+// HasRoute check the route is constructed
+func (n *CLightningNode) HasRoute(remote, scid string) (bool, error) {
+	routes, err := n.Rpc.GetRoute(remote, 1, 1, 0, n.Info.Id, 0, nil, 1)
+	if err != nil {
+		return false, fmt.Errorf("GetRoute() %w", err)
+	}
+	return len(routes) > 0, nil
 }
 
 func (n *CLightningNode) IsBlockHeightSynced() (bool, error) {

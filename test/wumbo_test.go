@@ -108,7 +108,7 @@ func Test_Wumbo(t *testing.T) {
 			}
 
 			// Test Swap-out
-			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, options)
+			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options)
 			defer func() {
 				if t.Failed() {
 					filter := os.Getenv("PEERSWAP_TEST_FILTER")

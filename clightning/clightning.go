@@ -259,6 +259,13 @@ func (cl *ClightningClient) getMaxHtlcAmtMsat(scid, nodeId string) (uint64, erro
 	return htlcMaximumMilliSatoshis, nil
 }
 
+func min(x, y uint64) uint64 {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid. Falls back to the owned amount in the channel.
 func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
@@ -286,13 +293,6 @@ func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
-}
-
-func min(x, y uint64) uint64 {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 // ReceivableMsat returns an estimate of the total we could receive through the
@@ -617,6 +617,69 @@ func (cl *ClightningClient) GetPeers() []string {
 		}
 	}
 	return peerlist
+}
+
+// ProbePayment trying to pay via a route with a random payment hash
+// that the receiver doesn't have the preimage of.
+// The receiver node aren't able to settle the payment.
+// When the probe is successful, the receiver will return
+// a incorrect_or_unknown_payment_details error to the sender.
+func (cl *ClightningClient) ProbePayment(scid string, amountMsat uint64) (bool, string, error) {
+	var res ListPeerChannelsResponse
+	err := cl.glightning.Request(ListPeerChannelsRequest{}, &res)
+	if err != nil {
+		return false, "", fmt.Errorf("ListPeerChannelsRequest() %w", err)
+	}
+	var channel PeerChannel
+	for _, ch := range res.Channels {
+		if ch.ShortChannelId == lightning.Scid(scid).ClnStyle() {
+			if err := cl.checkChannel(ch); err != nil {
+				return false, "", err
+			}
+			channel = ch
+		}
+	}
+
+	preimage, err := lightning.GetPreimage()
+	if err != nil {
+		return false, "", fmt.Errorf("GetPreimage() %w", err)
+	}
+	paymentHash := preimage.Hash().String()
+	_, err = cl.glightning.SendPay(
+		[]glightning.RouteHop{
+			{
+				Id:             channel.PeerId,
+				ShortChannelId: channel.ShortChannelId,
+				AmountMsat:     glightning.AmountFromMSat(amountMsat),
+				// The total expected CLTV.
+				// The default GetRoute value of 9 is set here.
+				Delay:     9,
+				Direction: 0,
+			},
+		},
+		paymentHash,
+		"",
+		amountMsat,
+		"",
+		"",
+		0,
+	)
+	if err != nil {
+		return false, "", fmt.Errorf("SendPay() %w", err)
+	}
+	_, err = cl.glightning.WaitSendPay(paymentHash, 0)
+	if err != nil {
+		pe, ok := err.(*glightning.PaymentError)
+		if !ok {
+			return false, "", fmt.Errorf("WaitSendPay() %w", err)
+		}
+		failCodeWireIncorrectOrUnknownPaymentDetails := 203
+		if pe.RpcError.Code != failCodeWireIncorrectOrUnknownPaymentDetails {
+			log.Debugf("send pay would be failed. reason:%w", err)
+			return false, pe.Error(), nil
+		}
+	}
+	return true, "", nil
 }
 
 type Glightninglogger struct {

@@ -16,11 +16,12 @@ type LightningNode interface {
 
 	Connect(peer LightningNode, waitForConnection bool) error
 	FundWallet(sats uint64, mineBlock bool) (addr string, err error)
-	OpenChannel(peer LightningNode, capacity uint64, connect, confirm, waitForChannelActive bool) (scid string, err error)
+	OpenChannel(peer LightningNode, capacity, pushAmt uint64, connect, confirm, waitForChannelActive bool) (scid string, err error)
 
 	IsBlockHeightSynced() (bool, error)
 	IsChannelActive(scid string) (bool, error)
 	IsConnected(peer LightningNode) (bool, error)
+	HasRoute(remote, scid string) (bool, error)
 
 	AddInvoice(amtSat uint64, desc, label string) (payreq string, err error)
 	PayInvoice(payreq string) error
