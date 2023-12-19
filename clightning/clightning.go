@@ -650,7 +650,17 @@ func (cl *ClightningClient) ProbePayment(scid string, amountMsat uint64) (bool, 
 	}
 	paymentHash := preimage.Hash().String()
 	_, err = cl.glightning.SendPay(
-		route,
+		[]glightning.RouteHop{
+			{
+				Id:             channel.PeerId,
+				ShortChannelId: channel.ShortChannelId,
+				AmountMsat:     glightning.AmountFromMSat(amountMsat),
+				// The total expected CLTV.
+				// The default GetRoute value of 9 is set here.
+				Delay:     9,
+				Direction: 0,
+			},
+		},
 		paymentHash,
 		"",
 		amountMsat,
