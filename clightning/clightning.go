@@ -640,10 +640,6 @@ func (cl *ClightningClient) ProbePayment(scid string, amountMsat uint64) (bool, 
 		}
 	}
 
-	route, err := cl.glightning.GetRoute(channel.PeerId, amountMsat, 1, 0, cl.nodeId, 0, nil, 1)
-	if err != nil {
-		return false, "", fmt.Errorf("GetRoute() %w", err)
-	}
 	preimage, err := lightning.GetPreimage()
 	if err != nil {
 		return false, "", fmt.Errorf("GetPreimage() %w", err)
@@ -677,8 +673,8 @@ func (cl *ClightningClient) ProbePayment(scid string, amountMsat uint64) (bool, 
 		if !ok {
 			return false, "", fmt.Errorf("WaitSendPay() %w", err)
 		}
-		faiCodeWireIncorrectOrUnknownPaymentDetails := 203
-		if pe.RpcError.Code != faiCodeWireIncorrectOrUnknownPaymentDetails {
+		failCodeWireIncorrectOrUnknownPaymentDetails := 203
+		if pe.RpcError.Code != failCodeWireIncorrectOrUnknownPaymentDetails {
 			log.Debugf("send pay would be failed. reason:%w", err)
 			return false, pe.Error(), nil
 		}
