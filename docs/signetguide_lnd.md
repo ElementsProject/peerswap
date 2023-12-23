@@ -115,13 +115,14 @@ rpcport=18884
 rpcuser=admin1
 rpcpassword=123
 rpcbind=127.0.0.1
+trim_headers=1
 EOF
 ```
 
 Start the daemon in testnet node
 
 ```shell
-elementsd -chain=liquidtestnet
+elementsd --daemon
 ```
 
 ### Wait for sync
