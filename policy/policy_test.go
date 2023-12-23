@@ -25,12 +25,14 @@ func Test_Create(t *testing.T) {
 	policy, err := create(strings.NewReader(""))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerAllowlist:      defaultPeerAllowlist,
-		SuspiciousPeerList: defaultSuspiciousPeerList,
-		AcceptAllPeers:     defaultAcceptAllPeers,
-		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
-		AllowNewSwaps:      defaultAllowNewSwaps,
+		ReserveOnchainMsat:    defaultReserveOnchainMsat,
+		PeerAllowlist:         defaultPeerAllowlist,
+		SuspiciousPeerList:    defaultSuspiciousPeerList,
+		AcceptAllPeers:        defaultAcceptAllPeers,
+		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
+		AllowNewSwaps:         defaultAllowNewSwaps,
+		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
+		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
 	}, policy)
 
 	peer1 := "123"
@@ -57,12 +59,14 @@ func Test_Create(t *testing.T) {
 	policy2, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerAllowlist:      []string{peer1, peer2},
-		SuspiciousPeerList: []string{peer1, peer2},
-		AcceptAllPeers:     accept,
-		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
-		AllowNewSwaps:      defaultAllowNewSwaps,
+		ReserveOnchainMsat:    defaultReserveOnchainMsat,
+		PeerAllowlist:         []string{peer1, peer2},
+		SuspiciousPeerList:    []string{peer1, peer2},
+		AcceptAllPeers:        accept,
+		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
+		AllowNewSwaps:         defaultAllowNewSwaps,
+		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
+		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
 	}, policy2)
 }
 

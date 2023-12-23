@@ -60,7 +60,7 @@ func getSwapOutSenderStates() States {
 			FailOnrecover: true,
 		},
 		State_SwapOutSender_PayFeeInvoice: {
-			Action: &PayFeeInvoiceAction{},
+			Action: &CheckPremiumAmount{next: &PayFeeInvoiceAction{}},
 			Events: Events{
 				Event_ActionFailed:    State_SendCancel,
 				Event_ActionSucceeded: State_SwapOutSender_AwaitTxBroadcastedMessage,
