@@ -25,6 +25,10 @@ const (
 	// to perform a swap. We need this lower boundary as it is uneconomical to
 	// swap small amounts.
 	defaultMinSwapAmountMsat uint64 = 100000000
+	// defaultSwapInPremiumRatePPM is the default of the swap in premium rate in ppm.
+	defaultSwapInPremiumRatePPM int64 = 10000
+	// defaultSwapOutPremiumRatePPM is the default of the swap out premium rate in ppm.
+	defaultSwapOutPremiumRatePPM int64 = 10000
 )
 
 // Global Mutex
@@ -83,7 +87,9 @@ type Policy struct {
 	// AllowNewSwaps can be used to disallow any new swaps. This can be useful
 	// when we want to upgrade the node and do not want to allow for any new
 	// swap request from the peer or the node operator.
-	AllowNewSwaps bool `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
+	AllowNewSwaps         bool  `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
+	SwapInPremiumRatePPM  int64 `json:"swap_in_premium_rate_ppm" long:"swap_in_premium_rate_ppm" description:"The premium rate for swaps in."`
+	SwapOutPremiumRatePPM int64 `json:"swap_out_premium_rate_ppm" long:"swap_out_premium_rate_ppm" description:"The premium rate for swaps out."`
 }
 
 func (p *Policy) String() string {
@@ -133,6 +139,22 @@ func (p *Policy) GetMinSwapAmountMsat() uint64 {
 	mu.Lock()
 	defer mu.Unlock()
 	return p.MinSwapAmountMsat
+}
+
+// GetSwapInPremiumRatePPM returns the minimum swap amount in msat that is needed
+// to perform a swap.
+func (p *Policy) GetSwapInPremiumRatePPM() int64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return p.SwapInPremiumRatePPM
+}
+
+// GetSwapInPremiumRatePPM returns the minimum swap amount in msat that is needed
+// to perform a swap.
+func (p *Policy) GetSwapOutPremiumRatePPM() int64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return p.SwapOutPremiumRatePPM
 }
 
 // NewSwapsAllowed returns the boolean value of AllowNewSwaps.
@@ -416,12 +438,14 @@ func (p *Policy) reload(r io.Reader) error {
 // the default values.
 func DefaultPolicy() *Policy {
 	return &Policy{
-		ReserveOnchainMsat: defaultReserveOnchainMsat,
-		PeerAllowlist:      defaultPeerAllowlist,
-		SuspiciousPeerList: defaultSuspiciousPeerList,
-		AcceptAllPeers:     defaultAcceptAllPeers,
-		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
-		AllowNewSwaps:      defaultAllowNewSwaps,
+		ReserveOnchainMsat:    defaultReserveOnchainMsat,
+		PeerAllowlist:         defaultPeerAllowlist,
+		SuspiciousPeerList:    defaultSuspiciousPeerList,
+		AcceptAllPeers:        defaultAcceptAllPeers,
+		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
+		AllowNewSwaps:         defaultAllowNewSwaps,
+		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
+		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
 	}
 }
 

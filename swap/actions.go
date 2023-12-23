@@ -148,8 +148,7 @@ func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapDat
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
-		// todo: set premium
-		Premium: 0,
+		Premium:         ComputePremium(swap.GetAmount(), services.policy.GetSwapInPremiumRatePPM()),
 	}
 	swap.SwapInAgreement = agreementMessage
 
@@ -205,6 +204,27 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 	return Event_ActionSucceeded
 }
 
+type CheckPremiumAmount struct {
+	next Action
+}
+
+func (v *CheckPremiumAmount) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.SwapInAgreement != nil {
+		if swap.SwapInAgreement.Premium > swap.SwapInRequest.PremiumLimit {
+			return swap.HandleError(fmt.Errorf("premium amt too high: %d, limit : %d",
+				swap.SwapInAgreement.Premium, swap.SwapInRequest.PremiumLimit))
+		}
+		return v.next.Execute(services, swap)
+	} else if swap.SwapOutAgreement != nil {
+		if swap.SwapOutAgreement.Premium > swap.SwapOutRequest.PremiumLimit {
+			return swap.HandleError(fmt.Errorf("premium amt too high: %d, limit : %d",
+				swap.SwapOutAgreement.Premium, swap.SwapInRequest.PremiumLimit))
+		}
+		return v.next.Execute(services, swap)
+	}
+	return swap.HandleError(fmt.Errorf("unexpected swap data: %v", swap))
+}
+
 type CreateAndBroadcastOpeningTransaction struct{}
 
 func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, swap *SwapData) EventType {
@@ -226,7 +246,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 
 	// Construct memo
 	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_CLAIM, swap.GetScidInBoltFormat(), swap.GetId())
-	payreq, err := services.lightning.GetPayreq((swap.GetAmount())*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry(), swap.GetInvoiceCltv())
+	payreq, err := services.lightning.GetPayreq(swap.GetClaimAmount()*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry(), swap.GetInvoiceCltv())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -243,7 +263,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		TakerPubkey:      swap.GetTakerPubkey(),
 		MakerPubkey:      swap.GetMakerPubkey(),
 		ClaimPaymentHash: preimage.Hash().String(),
-		Amount:           swap.GetAmount(),
+		Amount:           swap.GetOpeningTXAmount(),
 		BlindingKey:      blindingKey,
 	})
 	if err != nil {
@@ -405,6 +425,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		Payreq:          feeInvoice,
+		Premium:         ComputePremium(swap.GetAmount(), services.policy.GetSwapOutPremiumRatePPM()),
 	}
 	swap.SwapOutAgreement = message
 
@@ -669,11 +690,11 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	}
 
 	// Next we check that the invoice amount matches the requested swap amount.
-	if msatAmount != swap.GetAmount()*1000 {
+	if msatAmount != swap.GetClaimAmount()*1000 {
 		return swap.HandleError(fmt.Errorf(
 			"invoice amount does not equal swap amount, invoice: %v, swap %v",
 			swap.OpeningTxBroadcasted.Payreq,
-			swap.GetAmount(),
+			swap.GetClaimAmount(),
 		))
 	}
 
