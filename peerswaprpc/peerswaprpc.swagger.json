@@ -599,6 +599,14 @@
         "paidFee": {
           "type": "string",
           "format": "uint64"
+        },
+        "swapInPremiumRatePpm": {
+          "type": "string",
+          "format": "int64"
+        },
+        "swapOutPremiumRatePpm": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -700,6 +708,10 @@
         "lndChanId": {
           "type": "string",
           "format": "uint64"
+        },
+        "premiumAmount": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -776,6 +788,10 @@
         },
         "force": {
           "type": "boolean"
+        },
+        "premiumLimit": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -795,6 +811,10 @@
         },
         "force": {
           "type": "boolean"
+        },
+        "premiumLimit": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
