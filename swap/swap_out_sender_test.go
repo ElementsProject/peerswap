@@ -321,7 +321,7 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, int6
 	if payreq == "fee" {
 		return "foo", 100 * 1000, 10, nil
 	}
-	return "foo", 100000 * 1000, 10, nil
+	return "foo", (100000 + 1000) * 1000, 10, nil
 }
 
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {
@@ -363,8 +363,10 @@ type dummyPolicy struct {
 	getMinSwapAmountMsatCalled int
 	getMinSwapAmountMsatReturn uint64
 
-	newSwapsAllowedCalled int
-	newSwapsAllowedReturn bool
+	newSwapsAllowedCalled    int
+	newSwapsAllowedReturn    bool
+	getSwapInPremiumRatePPM  int64
+	getSwapOutPremiumRatePPM int64
 }
 
 func (d *dummyPolicy) NewSwapsAllowed() bool {
@@ -379,6 +381,14 @@ func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
 func (d *dummyPolicy) GetMinSwapAmountMsat() uint64 {
 	d.getMinSwapAmountMsatCalled++
 	return d.getMinSwapAmountMsatReturn
+}
+
+func (d *dummyPolicy) GetSwapInPremiumRatePPM() int64 {
+	return d.getSwapInPremiumRatePPM
+}
+
+func (d *dummyPolicy) GetSwapOutPremiumRatePPM() int64 {
+	return d.getSwapOutPremiumRatePPM
 }
 
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
