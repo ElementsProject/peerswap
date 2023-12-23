@@ -50,6 +50,14 @@ func (m *PolicyMock) IsPeerAllowed(peerId string) bool {
 	return m.allowList[m.called-1]
 }
 
+func (m *PolicyMock) GetSwapInPremiumRatePPM() int64 {
+	return 1000000
+}
+
+func (m *PolicyMock) GetSwapOutPremiumRatePPM() int64 {
+	return 1000000
+}
+
 func TestSendMessage(t *testing.T) {
 	dir := t.TempDir()
 	db, err := bbolt.Open(path.Join(dir, "poll-db"), os.ModePerm, nil)
