@@ -10,7 +10,8 @@ service PeerSwap {
     rpc GetSwap(GetSwapRequest) returns (SwapResponse);
     rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
     rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
-    rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
+    rpc ListRequestedSwaps(ListRequestedSwapsRequest)
+        returns (ListRequestedSwapsResponse);
     rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
 
     // policy
@@ -24,12 +25,11 @@ service PeerSwap {
     // Liquid Stuff
     rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
     rpc LiquidGetBalance(GetBalanceRequest) returns (GetBalanceResponse);
-    rpc LiquidSendToAddress(SendToAddressRequest) returns (SendToAddressResponse);
+    rpc LiquidSendToAddress(SendToAddressRequest)
+        returns (SendToAddressResponse);
 
     rpc Stop(Empty) returns (Empty);
 }
-
-
 
 message GetAddressRequest {}
 
@@ -44,7 +44,7 @@ message GetBalanceResponse {
 }
 
 message SendToAddressRequest {
-    string address = 1;
+    string address    = 1;
     uint64 sat_amount = 2;
 }
 
@@ -53,10 +53,11 @@ message SendToAddressResponse {
 }
 
 message SwapOutRequest {
-    uint64 channel_id = 1;
-    uint64 swap_amount = 2;
-    string asset = 3;
-    bool force = 4;
+    uint64 channel_id   = 1;
+    uint64 swap_amount  = 2;
+    string asset        = 3;
+    bool force          = 4;
+    int64 premium_limit = 5;
 }
 
 message SwapOutResponse {
@@ -64,10 +65,11 @@ message SwapOutResponse {
 }
 
 message SwapInRequest {
-    uint64 channel_id = 1;
-    uint64 swap_amount = 2;
-    string asset = 3;
-    bool force = 4;
+    uint64 channel_id   = 1;
+    uint64 swap_amount  = 2;
+    string asset        = 3;
+    bool force          = 4;
+    int64 premium_limit = 5;
 }
 
 message SwapResponse {
@@ -111,56 +113,59 @@ message RequestSwapList {
 }
 
 message RequestedSwap {
-    string asset = 1;
-    uint64 amount_sat = 2;
-    SwapType swap_type = 3;
+    string asset            = 1;
+    uint64 amount_sat       = 2;
+    SwapType swap_type      = 3;
     string rejection_reason = 4;
 
     enum SwapType {
-        SWAP_IN = 0;
+        SWAP_IN  = 0;
         SWAP_OUT = 1;
     }
 }
 
 message PrettyPrintSwap {
-    string id = 1;
-    int64 created_at = 2;
-    string asset = 3;
-    string type = 4;
-    string role = 5;
-    string state = 6;
+    string id                = 1;
+    int64 created_at         = 2;
+    string asset             = 3;
+    string type              = 4;
+    string role              = 5;
+    string state             = 6;
     string initiator_node_id = 7;
-    string peer_node_id = 8;
-    uint64 amount = 9;
-    string channel_id = 10;;
-    string opening_tx_id = 11;
-    string claim_tx_id = 12;
-    string cancel_message = 13;
-    uint64 lnd_chan_id = 14;
+    string peer_node_id      = 8;
+    uint64 amount            = 9;
+    string channel_id        = 10;
+    string opening_tx_id     = 11;
+    string claim_tx_id       = 12;
+    string cancel_message    = 13;
+    uint64 lnd_chan_id       = 14;
+    int64 premium_amount     = 15;
 }
 
 message PeerSwapPeer {
-    string node_id = 1;
-    bool swaps_allowed = 2;
-    repeated string supported_assets = 3;
+    string node_id                        = 1;
+    bool swaps_allowed                    = 2;
+    repeated string supported_assets      = 3;
     repeated PeerSwapPeerChannel channels = 4;
-    SwapStats as_sender = 5;
-    SwapStats as_receiver = 6;
-    uint64 paid_fee = 7;
+    SwapStats as_sender                   = 5;
+    SwapStats as_receiver                 = 6;
+    uint64 paid_fee                       = 7;
+    int64 swap_in_premium_rate_ppm        = 8;
+    int64 swap_out_premium_rate_ppm       = 9;
 }
 
 message PeerSwapPeerChannel {
-    uint64 channel_id = 1;
-    uint64 local_balance = 2;
+    uint64 channel_id     = 1;
+    uint64 local_balance  = 2;
     uint64 remote_balance = 3;
-    bool active = 5;
+    bool active           = 5;
 }
 
 message SwapStats {
     uint64 swaps_out = 1;
-    uint64 swaps_in = 2;
-    uint64 sats_out = 3;
-    uint64 sats_in = 4;
+    uint64 swaps_in  = 2;
+    uint64 sats_out  = 3;
+    uint64 sats_in   = 4;
 }
 
 message PeerSwapNodes {
@@ -168,11 +173,11 @@ message PeerSwapNodes {
 }
 
 message Policy {
-    uint64 reserve_onchain_msat = 1;
-    uint64 min_swap_amount_msat = 2;
-    bool accept_all_peers = 3;
-    bool allow_new_swaps = 4;
-    repeated string allowlisted_peers = 5;
+    uint64 reserve_onchain_msat          = 1;
+    uint64 min_swap_amount_msat          = 2;
+    bool accept_all_peers                = 3;
+    bool allow_new_swaps                 = 4;
+    repeated string allowlisted_peers    = 5;
     repeated string suspicious_peer_list = 6;
 }
 
@@ -184,7 +189,4 @@ message AllowSwapRequestsResponse {
     bool allow = 1;
 }
 
-
-message Empty {
-
-}
+message Empty {}
