@@ -25,6 +25,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		SwapId:          swapId,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +36,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
-		Payreq:      "invoice",
+		Payreq:      "swapin",
 		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
@@ -105,6 +106,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		SwapId:          swapId,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +117,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
-		Payreq:      "invoice",
+		Payreq:      "swapin",
 		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",

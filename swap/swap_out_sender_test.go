@@ -52,6 +52,7 @@ func Test_ValidSwap(t *testing.T) {
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -64,8 +65,9 @@ func Test_ValidSwap(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
-		Payreq: FeeInvoice,
-		Pubkey: peer,
+		Payreq:  FeeInvoice,
+		Pubkey:  peer,
+		Premium: 1000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -166,6 +168,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -175,8 +178,9 @@ func Test_AbortCsvClaim(t *testing.T) {
 	assert.NotEqual(t, "", swapFSM.Data.SwapOutRequest.Pubkey)
 
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
-		Payreq: FeeInvoice,
-		Pubkey: peer,
+		Payreq:  FeeInvoice,
+		Pubkey:  peer,
+		Premium: 1000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -320,6 +324,9 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, int6
 	}
 	if payreq == "fee" {
 		return "foo", 100 * 1000, 10, nil
+	}
+	if payreq == "swapin" {
+		return "foo", 100000 * 1000, 10, nil
 	}
 	return "foo", (100000 + 1000) * 1000, 10, nil
 }
