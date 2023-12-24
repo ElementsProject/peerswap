@@ -143,7 +143,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount)
+	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimit())
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount)
+	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimit())
 	if err != nil {
 		return nil, err
 	}
@@ -358,10 +358,12 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 			}
 
 			peerSwapPeers = append(peerSwapPeers, &PeerSwapPeer{
-				NodeId:          v.PubKey,
-				SwapsAllowed:    poll.PeerAllowed,
-				SupportedAssets: poll.Assets,
-				Channels:        getPeerSwapChannels(v.PubKey, channelRes.Channels),
+				NodeId:                v.PubKey,
+				SwapsAllowed:          poll.PeerAllowed,
+				SwapInPremiumRatePpm:  poll.SwapInPremiumRatePPM,
+				SwapOutPremiumRatePpm: poll.SwapOutPremiumRatePPM,
+				SupportedAssets:       poll.Assets,
+				Channels:              getPeerSwapChannels(v.PubKey, channelRes.Channels),
 				AsSender: &SwapStats{
 					SwapsOut: SenderSwapsOut,
 					SwapsIn:  SenderSwapsIn,
@@ -547,6 +549,7 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 		ClaimTxId:       swap.Data.ClaimTxId,
 		CancelMessage:   swap.Data.GetCancelMessage(),
 		LndChanId:       lnd_chan_id,
+		PremiumAmount:   swap.Data.GetPremium(),
 	}
 }
 

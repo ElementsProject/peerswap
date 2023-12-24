@@ -36,11 +36,10 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
 		"--large-channels",
-	}, true)
+	}, true, []byte("accept_all_peers=1\nmin_swap_amount_msat=1\n"))
 }
 
-func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
-	clnConf []string, waitForActiveChannel bool) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
+func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []string, waitForActiveChannel bool, policyConf []byte) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
@@ -79,8 +78,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
 		if err != nil {
 			t.Fatal("could not create dir", err)
 		}
-		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"),
-			[]byte("accept_all_peers=1\nmin_swap_amount_msat=1\n"), os.ModePerm)
+		err = os.WriteFile(filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"), policyConf, os.ModePerm)
 		if err != nil {
 			t.Fatal("could not create policy file", err)
 		}
