@@ -95,6 +95,6 @@ Currently if `peerswap` crashes, it will look like this in CLN's logs.
 INFO    plugin-peerswap: Killing plugin: exited during normal operation
 ```
 
-When this happens you can find the traceback in `~/.lightning/bitcoin/peerswap/peerswap-panic-log`. Look at the file timestap to confirm it corresponds to the current crash. When you report an issue please include your CLN version, PeerSwap githash, this crash traceback, peerswap log messages during the event, and any other relevant details of what led to the failure.
+When this happens you can find the traceback in `~/.lightning/bitcoin/peerswap/peerswap-panic-log`. Look at the file timestamp to confirm it corresponds to the current crash. When you report an issue please include your CLN version, PeerSwap githash, this crash traceback, peerswap log messages during the event, and any other relevant details of what led to the failure.
 
 We plan to improve this in [issue #6](https://github.com/ElementsProject/peerswap/issues/6) where glightning learns how to print the traceback via CLN's logging API.
