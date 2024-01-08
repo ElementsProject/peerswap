@@ -17,27 +17,15 @@ bitcoind = (pkgs.bitcoind.overrideAttrs (attrs: {
     };
 }));
 
-# Build a clightning version with developer features enabled.
-# Clightning is way more responsive with dev features.
-clightning-dev = (pkgs.clightning.overrideDerivation (attrs: {
-    configureFlags = [ "--disable-valgrind" ];
-
-    pname = "clightning-dev";
-    postInstall = ''
-        mv $out/bin/lightningd $out/bin/lightningd-dev
-    '';
-}));
-
 in with pkgs;
 {
     execs = {
         clightning = clightning;
-        clightning-dev = clightning-dev;
         bitcoind = bitcoind;
         elementsd = elementsd;
         mermaid = nodePackages.mermaid-cli;
         lnd = lnd;
     };
-    testpkgs = [ go bitcoind elementsd clightning-dev lnd ];
-    devpkgs = [ go_1_19 gotools bitcoind elementsd clightning clightning-dev lnd ];
+    testpkgs = [ go bitcoind elementsd lnd ];
+    devpkgs = [ go_1_19 gotools bitcoind elementsd clightning lnd ];
 }

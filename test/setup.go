@@ -81,8 +81,8 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []stri
 			os.ModePerm,
 		)
 
-		// Use lightningd with dev flags enabled
-		lightningd.WithCmd("lightningd-dev")
+		// Use lightningd with --developer turned on 
+		lightningd.WithCmd("lightningd")
 
 		// Add plugin to cmd line options
 		lightningd.AppendCmdLine(append([]string{fmt.Sprint("--plugin=", pathToPlugin)}, clnConf...))
@@ -243,8 +243,8 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 		os.ModePerm,
 	)
 
-	// Use lightningd with dev flags enabled
-	cln.WithCmd("lightningd-dev")
+	// Use lightningd with --developer turned on 
+	cln.WithCmd("lightningd")
 
 	// Add plugin to cmd line options
 	cln.AppendCmdLine([]string{
@@ -405,8 +405,8 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			os.ModePerm,
 		)
 
-		// Use lightningd with dev flags enabled
-		lightningd.WithCmd("lightningd-dev")
+		// Use lightningd with --developer turned on 
+		lightningd.WithCmd("lightningd")
 
 		// Add plugin to cmd line options
 		lightningd.AppendCmdLine([]string{
@@ -665,8 +665,8 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		os.ModePerm,
 	)
 
-	// Use lightningd with dev flags enabled
-	cln.WithCmd("lightningd-dev")
+	// Use lightningd with --developer turned on 
+	cln.WithCmd("lightningd")
 
 	// Add plugin to cmd line options
 	cln.AppendCmdLine([]string{
