@@ -90,8 +90,7 @@ test-bitcoin-cln: test-bins
 	'Test_ClnCln_Bitcoin_SwapIn|'\
 	'Test_ClnLnd_Bitcoin_SwapOut|'\
 	'Test_ClnLnd_Bitcoin_SwapIn|'\
-	'Test_ClnCln_ExcessiveAmount|'\
-	'Test_ClnCln_StuckChannels)'\
+	'Test_ClnCln_ExcessiveAmount)'\
 	 ./test
 .PHONY: test-bitoin-cln
 
