@@ -285,7 +285,7 @@ EOF
 
 ## Cleanup
 
-Remove all unneccessary files and folders
+Remove all unnecessary files and folders
 ```bash
 rm go1.19.linux-amd64.tar.gz && \
 rm lnd-linux-amd64-v0.15.5-beta.tar.gz && \
