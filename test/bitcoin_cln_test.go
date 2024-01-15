@@ -1152,7 +1152,7 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 	require := require.New(t)
 	// repro by using the push_msat in the open_channel.
 	// Assumption that feperkw is 253perkw in reg test.
-	bitcoind, lightningds, scid := clnclnSetupWithConfig(t, 3794, 3573, []string{
+	bitcoind, lightningds, scid := clnclnSetupWithConfig(t, 37500, 35315, []string{
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
 		"--large-channels",
@@ -1210,6 +1210,10 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 		swapType:         swap.SWAPTYPE_IN,
 	}
 
+	assert.NoError(t, lightningds[0].ForceFeeUpdate(scid, "2530"))
+	assert.NoError(t, testframework.WaitForWithErr(func() (bool, error) {
+		return lightningds[1].IsChannelActive(scid)
+	}, testframework.TIMEOUT))
 	// Swap in should fail by probing payment as the channel is stuck.
 	var response map[string]interface{}
 	err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: 100, ShortChannelId: params.scid, Asset: "btc"}, &response)
