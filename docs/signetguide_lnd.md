@@ -8,7 +8,7 @@ PeerSwap requires _lnd_, _bitcoind_ and an _elementsd_ installation if testing L
 
 ## Bitcoind (signet)
 
-Download the following files to install Bitcoin Core.
+Download the following files to install Bitcoin Core (replace with the latests version).
 
 ```bash
 wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
@@ -67,7 +67,7 @@ bitcoind
 
 ## Liquid Testnet(optional)
 
-Download the following files to install elementsd.
+Download the following files to install elementsd (replace with the latests version).
 
 ```bash
 wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
@@ -111,38 +111,11 @@ cat <<EOF > ~/.elements/elements.conf
 chain=liquidtestnet
 # Liquid Testnet (liquidtestnet) settings:
 [liquidtestnet]
-
-# General settings:
-listen=1
-txindex=1
-validatepegin=0
-anyonecanspendaremine=0
-initialfreecoins=2100000000000000
-con_dyna_deploy_start=0
-con_max_block_sig_size=150
-checkblockindex=0 
-addnode=liquid-testnet.blockstream.com:18892
-addnode=liquidtestnet.com:18891
-fallbackfee=0.00000100
-daemon=1
-con_has_parent_chain=0
-parentgenesisblockhash=NULL
-pubkeyprefix=36
-scriptprefix=19
-blindedprefix=23
-bech32_hrp=tex
-blech32_hrp=tlq
-pchmessagestart=410edd62
-dynamic_epoch_length=1000
-signblockscript=51210217e403ddb181872c32a0cd468c710040b2f53d8cac69f18dad07985ee37e9a7151ae
-
 rpcport=18884
 rpcuser=admin1
 rpcpassword=123
 rpcbind=127.0.0.1
-addnode=95.217.184.148:18444
-evbparams=dynafed:0:::
-multi_data_permitted=1
+trim_headers=1
 EOF
 ```
 
@@ -157,7 +130,7 @@ elementsd --daemon
 The Elements node now has to be synced on Liquid testnet for the plugin to work. To check this, compare the _height_ value from
 
 ```shell
-elements-cli getchaintips
+elements-cli -rpcport=18884 -rpcuser=admin1 -rpcpassword=123 getchaintips
 ```
 
 with the height of the last block on [Liquid testnet explorer](https://blockstream.info/liquidtestnet/).
@@ -166,7 +139,7 @@ with the height of the last block on [Liquid testnet explorer](https://blockstre
 
 _Note: If building from source, be sure to build with the required tags: `make install tags="signrpc walletrpc routerrpc invoicesrpc"` otherwise Peerswap will not work._
 
-Download the following files
+Download the following files (replace with the latests version)
 ```bash
 curl https://raw.githubusercontent.com/lightningnetwork/lnd/master/scripts/keys/roasbeef.asc | gpg --import \
 wget https://github.com/lightningnetwork/lnd/releases/download/v0.15.5-beta/manifest-roasbeef-v0.15.5-beta.sig && \
@@ -245,8 +218,8 @@ make lnd-release
 
 Move the PeerSwap binaries to the systempath
 ```bash
-sudo cp -vnR peerswapd /usr/bin/ && \
-sudo cp -vnR pscli /usr/bin/
+sudo cp -vnR ~/go/bin/peerswapd /usr/bin/ && \
+sudo cp -vnR ~/go/bin/pscli /usr/bin/
 ```
 
 ### Config file
@@ -283,6 +256,19 @@ elementsd.rpcwallet=swaplnd
 EOF
 ```
 
+L-BTC testnet swaps config
+
+```bash
+cat <<EOF > ~/.peerswap/peerswap.conf
+lnd.tlscertpath=/home/<username>/.lnd/tls.cert
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/testnet/admin.macaroon
+elementsd.rpcuser=admin1
+elementsd.rpcpass=123 
+elementsd.rpchost=http://127.0.0.1
+elementsd.rpcport=18884
+elementsd.rpcwallet=swaplnd
+EOF
+```
 ## Cleanup
 
 Remove all unnecessary files and folders
