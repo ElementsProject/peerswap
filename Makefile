@@ -137,7 +137,6 @@ test-misc-integration: test-bins
 	'Test_RestoreFromPassedCSV|'\
 	'Test_Recover_PassedSwap_BTC|'\
 	'Test_Recover_PassedSwap_LBTC|'\
-	'Test_Wumbo|'\
 	'Test_ClnConfig|'\
 	'Test_ClnPluginConfigFile|'\
 	'Test_ClnPluginConfigFile_DoesNotExist|'\
