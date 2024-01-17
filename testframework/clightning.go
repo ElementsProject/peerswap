@@ -425,7 +425,7 @@ func (n *CLightningNode) IsChannelActive(scid string) (bool, error) {
 
 	for _, ch := range funds.Channels {
 		if ch.ShortChannelId == scid {
-			return ch.State == "CHANNELD_NORMAL", nil
+			return ch.State == "CHANNELD_NORMAL" && ch.Connected, nil
 		}
 	}
 
@@ -568,4 +568,30 @@ func (n *CLightningNode) SetHtlcMaximumMilliSatoshis(scid string, maxHtlcMsat ui
 		return 0, err
 	}
 	return maxHtlcMsat, err
+}
+
+// ForceFeeUpdate force a fee update by restarting the node with the new feerate.
+// Up to 5 values, separated by '/' can be provided for feerates
+// if fewer are provided, then the final value is used for the
+// remainder. The values are in per-kw (roughly 1/4 of bitcoind's per-kb
+// values), and the order is "opening", "mutual_close", "unilateral_close",
+// "delayed_to_us", "htlc_resolution", and "penalty".
+// ref: https://docs.corelightning.org/reference/lightningd-config
+func (n *CLightningNode) ForceFeeUpdate(scid, feerates string) error {
+	err := n.Stop()
+	if err != nil {
+		return err
+	}
+	n.AppendCmdLine([]string{fmt.Sprintf("--force-feerates=%s", feerates)})
+	err = n.Run(true, true)
+	if err != nil {
+		return err
+	}
+	err = n.WaitForLog("peerswap initialized", TIMEOUT)
+	if err != nil {
+		return err
+	}
+	return WaitForWithErr(func() (bool, error) {
+		return n.IsChannelActive(scid)
+	}, TIMEOUT)
 }
