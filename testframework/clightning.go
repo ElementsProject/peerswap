@@ -82,6 +82,8 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		fmt.Sprintf("--bitcoin-rpcpassword=%s", bitcoinRpcPass),
 		fmt.Sprintf("--bitcoin-rpcport=%s", bitcoinRpcPort),
 		fmt.Sprintf("--bitcoin-datadir=%s", bitcoin.DataDir),
+		fmt.Sprintf("--developer"),
+		fmt.Sprintf("--allow-deprecated-apis=true"),
 	}
 
 	// socketPath := filepath.Join(networkDir, "lightning-rpc")
