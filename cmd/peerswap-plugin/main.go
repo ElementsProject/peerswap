@@ -38,7 +38,7 @@ var supportedAssets = []string{}
 var GitCommit string
 
 const (
-	minClnVersion = "23.02"
+	minClnVersion = "23.11"
 )
 
 func main() {
