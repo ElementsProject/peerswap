@@ -41,7 +41,7 @@ func NewClient(rpcUser, rpcPassword, rpcHost string, rpcPort uint) (*gelements.E
 		}
 		if info.VerificationProgress < 1. {
 			// Waiting for block verification to catch up.
-			log.Infof("Elementsd still syncing, progress: %d", info.VerificationProgress)
+			log.Infof("Elementsd still syncing, progress: %f", info.VerificationProgress)
 			time.Sleep(time.Duration(backoff*10) * time.Second)
 			backoff *= 2
 			continue
