@@ -186,8 +186,8 @@ type SwapOut struct {
 	ShortChannelId string            `json:"short_channel_id"`
 	SatAmt         uint64            `json:"amt_sat"`
 	Asset          string            `json:"asset"`
-	Force          bool              `json:"force"`
 	PremiumLimit   int64             `json:"premium_limit"`
+	Force          bool              `json:"force"`
 	cl             *ClightningClient `json:"-"`
 }
 
@@ -628,7 +628,9 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 					SatsOut:  ReceiverSatsOut,
 					SatsIn:   ReceiverSatsIn,
 				},
-				PaidFee: paidFees,
+				PaidFee:               paidFees,
+				SwapInPremiumRatePpm:  p.SwapInPremiumRatePPM,
+				SwapOutPremiumRatePpm: p.SwapOutPremiumRatePPM,
 			}
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
 			if err != nil {
@@ -1113,13 +1115,15 @@ type SwapStats struct {
 }
 
 type PeerSwapPeer struct {
-	NodeId          string                 `json:"nodeid"`
-	SwapsAllowed    bool                   `json:"swaps_allowed"`
-	SupportedAssets []string               `json:"supported_assets"`
-	Channels        []*PeerSwapPeerChannel `json:"channels"`
-	AsSender        *SwapStats             `json:"sent,omitempty"`
-	AsReceiver      *SwapStats             `json:"received,omitempty"`
-	PaidFee         uint64                 `json:"total_fee_paid,omitempty"`
+	NodeId                string                 `json:"nodeid"`
+	SwapsAllowed          bool                   `json:"swaps_allowed"`
+	SupportedAssets       []string               `json:"supported_assets"`
+	Channels              []*PeerSwapPeerChannel `json:"channels"`
+	AsSender              *SwapStats             `json:"sent,omitempty"`
+	AsReceiver            *SwapStats             `json:"received,omitempty"`
+	PaidFee               uint64                 `json:"total_fee_paid,omitempty"`
+	SwapInPremiumRatePpm  int64
+	SwapOutPremiumRatePpm int64
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin
