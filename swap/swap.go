@@ -235,10 +235,10 @@ func (s *SwapData) GetAsset() string {
 	return ""
 }
 func (s *SwapData) GetPremium() int64 {
-	if s.SwapInRequest != nil {
+	if s.SwapInAgreement != nil {
 		return s.SwapInAgreement.Premium
 	}
-	if s.SwapOutRequest != nil {
+	if s.SwapOutAgreement != nil {
 		return s.SwapOutAgreement.Premium
 	}
 	return 0
