@@ -648,7 +648,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapOutRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
-	premium := ComputePremium(message.Amount, s.swapServices.policy.GetSwapInPremiumRatePPM())
+	premium := ComputePremium(message.Amount, s.swapServices.policy.GetSwapOutPremiumRatePPM())
 	if premium > message.PremiumLimit {
 		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())

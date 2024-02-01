@@ -218,7 +218,7 @@ func (v *CheckPremiumAmount) Execute(services *SwapServices, swap *SwapData) Eve
 	} else if swap.SwapOutAgreement != nil {
 		if swap.SwapOutAgreement.Premium > swap.SwapOutRequest.PremiumLimit {
 			return swap.HandleError(fmt.Errorf("premium amt too high: %d, limit : %d",
-				swap.SwapOutAgreement.Premium, swap.SwapInRequest.PremiumLimit))
+				swap.SwapOutAgreement.Premium, swap.SwapOutRequest.PremiumLimit))
 		}
 		return v.next.Execute(services, swap)
 	}
