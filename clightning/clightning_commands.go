@@ -306,8 +306,8 @@ type SwapIn struct {
 	ShortChannelId string            `json:"short_channel_id"`
 	SatAmt         uint64            `json:"amt_sat"`
 	Asset          string            `json:"asset"`
-	Force          bool              `json:"force"`
 	PremiumLimit   int64             `json:"premium_limit"`
+	Force          bool              `json:"force"`
 	cl             *ClightningClient `json:"-"`
 }
 
