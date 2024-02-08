@@ -31,6 +31,7 @@ type LightningNode interface {
 	// invoices.
 	GetLatestInvoice() (payreq string, err error)
 	GetMemoFromPayreq(payreq string) (memo string, err error)
+	GetLatestPayReqOfPayment() (payreq string, err error)
 	GetFeeInvoiceAmtSat() (sat uint64, err error)
 
 	Run(waitForReady, swaitForBitcoinSynced bool) error

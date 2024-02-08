@@ -552,6 +552,17 @@ func (n *LndNode) GetMemoFromPayreq(bolt11 string) (string, error) {
 	return r.Description, nil
 }
 
+func (n *LndNode) GetLatestPayReqOfPayment() (string, error) {
+	ps, err := n.Rpc.ListPayments(context.Background(), &lnrpc.ListPaymentsRequest{})
+	if err != nil {
+		return "", err
+	}
+	if ps.GetPayments() != nil {
+		return ps.GetPayments()[len(ps.GetPayments())-1].PaymentRequest, nil
+	}
+	return "", fmt.Errorf("payments list is nil")
+}
+
 func ScidFromLndChanId(id uint64) string {
 	lndScid := lnwire.NewShortChanIDFromInt(id)
 	return fmt.Sprintf("%dx%dx%d", lndScid.BlockHeight, lndScid.TxIndex, lndScid.TxPosition)

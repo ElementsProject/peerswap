@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/elementsproject/peerswap/log"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/lightningnetwork/lnd/routing"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"google.golang.org/grpc"
 )
@@ -289,46 +291,45 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 	if err != nil {
 		return "", err
 	}
-
 	channel, err := l.CheckChannel(scid, uint64(decoded.NumSatoshis))
 	if err != nil {
 		return "", err
 	}
+	// Ensures that the invoice is paied via the direct channel to the peer.
+	if decoded.GetDestination() != channel.RemotePubkey {
+		return "", fmt.Errorf(`destination pubkey in invoice does not match remote pubkey of channel. 
+		destination pubkey in invoice: %s, remote pubkey of channel: %s `, decoded.GetDestination(), channel.RemotePubkey)
+	}
+	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
+		PaymentRequest:  payreq,
+		TimeoutSeconds:  30,
+		CltvLimit:       int32(decoded.GetCltvExpiry() + int64(routing.BlockPadding) + 1),
+		OutgoingChanIds: []uint64{channel.ChanId},
+		MaxParts:        1,
+	})
 
-	v, err := route.NewVertexFromStr(channel.GetRemotePubkey())
 	if err != nil {
 		return "", err
 	}
-	route, err := l.routerClient.BuildRoute(context.Background(), &routerrpc.BuildRouteRequest{
-		AmtMsat:        decoded.NumMsat,
-		FinalCltvDelta: int32(decoded.CltvExpiry),
-		OutgoingChanId: channel.GetChanId(),
-		HopPubkeys:     [][]byte{v[:]},
-	})
-	if err != nil {
-		return "", err
-	}
-	if decoded.GetPaymentAddr() != nil {
-		route.GetRoute().GetHops()[0].MppRecord = &lnrpc.MPPRecord{
-			PaymentAddr:  decoded.GetPaymentAddr(),
-			TotalAmtMsat: decoded.NumMsat,
+	for {
+		res, err := paymentStream.Recv()
+		if err != nil {
+			return "", err
 		}
+		switch res.Status {
+		case lnrpc.Payment_UNKNOWN:
+			log.Debugf("PayInvoiceViaChannel: payment is unknown")
+		case lnrpc.Payment_SUCCEEDED:
+			return res.PaymentPreimage, nil
+		case lnrpc.Payment_IN_FLIGHT:
+			log.Debugf("PayInvoiceViaChannel: payment still in flight")
+		case lnrpc.Payment_FAILED:
+			return "", fmt.Errorf("payment failure %s", res.FailureReason)
+		default:
+			log.Debugf("PayInvoiceViaChannel: got unexpected payment status %d", res.Status)
+		}
+		time.Sleep(time.Second)
 	}
-	rHash, err := hex.DecodeString(decoded.PaymentHash)
-	if err != nil {
-		return "", err
-	}
-	res, err := l.lndClient.SendToRouteSync(context.Background(), &lnrpc.SendToRouteRequest{
-		PaymentHash: rHash,
-		Route:       route.GetRoute(),
-	})
-	if err != nil {
-		return "", err
-	}
-	if res.PaymentError != "" {
-		return "", fmt.Errorf("received payment error: %v", res.PaymentError)
-	}
-	return hex.EncodeToString(res.PaymentPreimage), nil
 }
 
 func (l *Client) RebalancePayment(payreq string, channelId string) (preimage string, err error) {

@@ -522,6 +522,17 @@ func (n *CLightningNode) GetMemoFromPayreq(bolt11 string) (string, error) {
 	return r.Description, nil
 }
 
+func (n *CLightningNode) GetLatestPayReqOfPayment() (string, error) {
+	ps, err := n.Rpc.ListPays()
+	if err != nil {
+		return "", err
+	}
+	if len(ps) > 0 {
+		return ps[len(ps)-1].Bolt11, nil
+	}
+	return "", fmt.Errorf("payments list is nil")
+}
+
 func (n *CLightningNode) GetFeeInvoiceAmtSat() (sat uint64, err error) {
 	rx := regexp.MustCompile(`^peerswap .* fee .*`)
 	var feeInvoiceAmt uint64
