@@ -220,6 +220,14 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 	return txId, txHex, nil
 }
 
+func (l *LiquidOnChain) LabelTransaction(txID, label string) error {
+	// TODO: implement
+	// This function assigns an identifiable label to the target transaction based on the txid.
+	// Currently no such functionality is available, so it has not been implemented.
+	// Supported by lnd only.
+	return nil
+}
+
 func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) (err error) {
 	claimParams.OutputAssetBlindingFactor = generateRandom32Bytes()
 	claimParams.BlindingSeed = generateRandom32Bytes()

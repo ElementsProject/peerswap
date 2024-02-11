@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	BitcoinCsv = 1008
-	LiquidCsv  = 60
+	BitcoinCsv    = 1008
+	LiquidCsv     = 60
+	peerswapLabel = "peerswap"
 )
 
 type CheckRequestWrapperAction struct {
@@ -194,6 +195,10 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
+		err = wallet.LabelTransaction(txId, peerswapLabel)
+		if err != nil {
+			log.Infof("Error labeling trnasaction %v", err)
+		}
 	}
 
 	return Event_ActionSucceeded
@@ -248,6 +253,10 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	if err != nil {
 		// todo: idempotent states
 		return swap.HandleError(err)
+	}
+	err = wallet.LabelTransaction(txId, peerswapLabel)
+	if err != nil {
+		log.Infof("Error labeling trnasaction %v", err)
 	}
 	startingHeight, err := txWatcher.GetBlockHeight()
 	if err != nil {
@@ -437,6 +446,10 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
+		err = wallet.LabelTransaction(txId, peerswapLabel)
+		if err != nil {
+			log.Infof("Error labeling trnasaction %v", err)
+		}
 	}
 
 	return Event_ActionSucceeded
@@ -463,6 +476,10 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 			return swap.HandleError(err)
 		}
 		swap.ClaimTxId = txId
+		err = wallet.LabelTransaction(txId, peerswapLabel)
+		if err != nil {
+			log.Infof("Error labeling trnasaction %v", err)
+		}
 	}
 
 	return Event_ActionSucceeded
