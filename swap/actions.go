@@ -13,14 +13,14 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/isdev"
+	"github.com/elementsproject/peerswap/labels"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/messages"
 )
 
 const (
-	BitcoinCsv    = 1008
-	LiquidCsv     = 60
-	peerswapLabel = "peerswap"
+	BitcoinCsv = 1008
+	LiquidCsv  = 60
 )
 
 type CheckRequestWrapperAction struct {
@@ -195,9 +195,10 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, peerswapLabel)
+		err = wallet.LabelTransaction(txId, labels.ClaimByInvoice(swap.GetId().Short()))
 		if err != nil {
-			log.Infof("Error labeling trnasaction %v", err)
+			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
+				txId, labels.ClaimByInvoice(swap.GetId().Short()), err)
 		}
 	}
 
@@ -254,9 +255,10 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		// todo: idempotent states
 		return swap.HandleError(err)
 	}
-	err = wallet.LabelTransaction(txId, peerswapLabel)
+	err = wallet.LabelTransaction(txId, labels.Opening(swap.GetId().Short()))
 	if err != nil {
-		log.Infof("Error labeling trnasaction %v", err)
+		log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
+			txId, labels.Opening(swap.GetId().Short()), err)
 	}
 	startingHeight, err := txWatcher.GetBlockHeight()
 	if err != nil {
@@ -446,9 +448,10 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, peerswapLabel)
+		err = wallet.LabelTransaction(txId, labels.ClaimByCsv(swap.GetId().Short()))
 		if err != nil {
-			log.Infof("Error labeling trnasaction %v", err)
+			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
+				txId, labels.ClaimByCsv(swap.GetId().Short()), err)
 		}
 	}
 
@@ -476,9 +479,10 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 			return swap.HandleError(err)
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, peerswapLabel)
+		err = wallet.LabelTransaction(txId, labels.ClaimByCoop(swap.GetId().Short()))
 		if err != nil {
-			log.Infof("Error labeling trnasaction %v", err)
+			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
+				txId, labels.ClaimByCoop(swap.GetId().Short()), err)
 		}
 	}
 
@@ -717,7 +721,7 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
+	onchain, wallet, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -729,6 +733,15 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
+	}
+	txId, err := validator.TxIdFromHex(swap.OpeningTxHex)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	err = wallet.LabelTransaction(txId, labels.Opening(swap.GetId().Short()))
+	if err != nil {
+		log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
+			txId, labels.Opening(swap.GetId().Short()), err)
 	}
 
 	var retryTime time.Duration = 120 * time.Second
