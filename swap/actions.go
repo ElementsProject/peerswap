@@ -721,7 +721,7 @@ type ValidateTxAndPayClaimInvoiceAction struct{}
 
 func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	lc := services.lightning
-	onchain, wallet, validator, err := services.getOnChainServices(swap.GetChain())
+	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -733,15 +733,6 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
-	}
-	txId, err := validator.TxIdFromHex(swap.OpeningTxHex)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	err = wallet.LabelTransaction(txId, labels.Opening(swap.GetId().Short()))
-	if err != nil {
-		log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
-			txId, labels.Opening(swap.GetId().Short()), err)
 	}
 
 	var retryTime time.Duration = 120 * time.Second
