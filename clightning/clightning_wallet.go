@@ -13,10 +13,10 @@ import (
 	"github.com/elementsproject/peerswap/version"
 )
 
-func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error) {
 	addr, err := cl.bitcoinChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	outputs := []*glightning.Outputs{
 		{
@@ -26,7 +26,7 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 	}
 	prepRes, err := cl.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	// Backwards compatibility layer. Since `v23.05`, `preparetx` returns a
@@ -34,27 +34,27 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 	// conversion of the psbt (from v2 to v0).
 	isV2, err := version.CompareVersionStrings(cl.Version(), "v23.05")
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	if isV2 {
 		res, err := cl.glightning.SetPSBTVersion(prepRes.Psbt, 0)
 		if err != nil {
-			return "", 0, 0, err
+			return "", "", 0, 0, err
 		}
 		prepRes.Psbt = res.Psbt
 	}
 
 	fee, err = cl.bitcoinChain.GetFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	_, vout, err = cl.bitcoinChain.GetVoutAndVerify(prepRes.UnsignedTx, swapParams)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	cl.hexToIdMap[prepRes.UnsignedTx] = prepRes.TxId
-	return prepRes.UnsignedTx, fee, vout, nil
+	return prepRes.UnsignedTx, addr, fee, vout, nil
 }
 
 func (cl *ClightningClient) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
@@ -71,30 +71,30 @@ func (cl *ClightningClient) BroadcastOpeningTx(unpreparedTxHex string) (txId, tx
 	return sendRes.TxId, sendRes.SignedTx, nil
 }
 
-func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, err error) {
+func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, err error) {
 
 	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx, sigHash, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, 0, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	preimage, err := lightning.MakePreimageFromStr(claimParams.Preimage)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx.TxIn[0].Witness = onchain.GetPreimageWitness(sigBytes.Serialize(), preimage[:], redeemScript)
@@ -103,37 +103,37 @@ func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.O
 
 	err = tx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
 	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return txId, txHex, nil
+	return txId, txHex, newAddr, nil
 }
 
-func (cl *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, error error) {
+func (cl *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
 	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx, sigHash, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, onchain.BitcoinCsv, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx.TxIn[0].Witness = onchain.GetCsvWitness(sigBytes.Serialize(), redeemScript)
@@ -142,43 +142,43 @@ func (cl *ClightningClient) CreateCsvSpendingTransaction(swapParams *swap.Openin
 
 	err = tx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
 	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return txId, txHex, nil
+	return txId, txHex, address, nil
 }
 
-func (cl *ClightningClient) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+func (cl *ClightningClient) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
 	refundAddr, err := cl.NewAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	refundFee, err := cl.GetRefundFee()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	_, vout, err := cl.bitcoinChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	spendingTx, sigHashBytes, redeemScript, err := cl.bitcoinChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddr, vout, 0, refundFee)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	takerSig, err := takerSigner.Sign(sigHashBytes[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	makerSig, err := claimParams.Signer.Sign(sigHashBytes[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	spendingTx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
@@ -187,24 +187,20 @@ func (cl *ClightningClient) CreateCoopSpendingTransaction(swapParams *swap.Openi
 
 	err = spendingTx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
 	txId, err = cl.gbitcoin.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return spendingTx.TxHash().String(), txHex, nil
+	return spendingTx.TxHash().String(), txHex, address, nil
 }
 
-func (cl *ClightningClient) LabelTransaction(txId, label string) error {
-	// todo implement
-	// This function assigns an identifiable label to the target transaction based on the txid.
-	// Currently no such functionality is available, so it has not been implemented.
-	// Supported by lnd only.
-	return nil
+func (cl *ClightningClient) SetLabel(txID, address, label string) error {
+	return cl.gbitcoin.SetLabel(address, label)
 }
 
 func (cl *ClightningClient) NewAddress() (string, error) {

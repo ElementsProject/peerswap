@@ -254,14 +254,6 @@ func (b *BitcoinOnChain) PrepareSpendingTransaction(swapParams *swap.OpeningPara
 	return spendingTx, sigHash, redeemScript, nil
 }
 
-func (b *BitcoinOnChain) LabelTransaction(txID, label string) error {
-	// TODO: implement
-	// This function assigns an identifiable label to the target transaction based on the txid.
-	// Currently no such functionality is available, so it has not been implemented.
-	// Supported by lnd only.
-	return nil
-}
-
 func (b *BitcoinOnChain) CreateOpeningAddress(params *swap.OpeningParams, csv uint32) (string, error) {
 	redeemScript, err := ParamsToTxScript(params, csv)
 	if err != nil {

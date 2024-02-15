@@ -57,10 +57,10 @@ func (l *LiquidOnChain) GetOnchainBalance() (uint64, error) {
 	return l.liquidWallet.GetBalance()
 }
 
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, newAddress string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
@@ -71,12 +71,12 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 
 	blindedScriptAddr, err := redeemPayment.ConfidentialWitnessScriptHash()
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	swapParams.OpeningAddress = blindedScriptAddr
 	outputscript, err := address.ToOutputScript(blindedScriptAddr)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	output := transaction.NewTxOutput(l.asset, sats, outputscript)
@@ -87,15 +87,15 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 
 	unpreparedTxHex, fee, err = l.liquidWallet.CreateFundedTransaction(tx)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	vout, err = l.VoutFromTxHex(unpreparedTxHex, redeemScript)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
-	return unpreparedTxHex, fee, vout, nil
+	return unpreparedTxHex, blindedScriptAddr, fee, vout, nil
 }
 
 func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (string, string, error) {
@@ -111,121 +111,124 @@ func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (string, stri
 	return txId, txHex, nil
 }
 
-func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
 
 	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, 0, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex, err := tx.ToHex()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	preimage, err := lightning.MakePreimageFromStr(claimParams.Preimage)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx.Inputs[0].Witness = GetPreimageWitness(sigBytes, preimage[:], redeemScript)
 
 	txHex, err = tx.ToHex()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	//txId, err = l.elements.SendRawTx(txHex)
-	//if err != nil {
-	//	return "", "", err
-	//}
 	txHex, err = tx.ToHex()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	txId, err := l.elements.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return txId, txHex, nil
+	return txId, txHex, newAddr, nil
 }
 
-func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex string, error error) {
+func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
 	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	tx.Inputs[0].Witness = GetCsvWitness(sigBytes, redeemScript)
 	txHex, err = tx.ToHex()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	txId, err = l.elements.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return txId, txHex, nil
+	return txId, txHex, newAddr, nil
 }
 
-func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
 	refundAddr, err := l.NewAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	refundFee, err := l.getFee(l.getCoopClaimTxSize())
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	err = l.AddBlindingRandomFactors(claimParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, 0, l.asset, redeemScript, refundAddr, refundFee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	takerSig, err := takerSigner.Sign(sigHash[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	makerSig, err := claimParams.Signer.Sign(sigHash[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	spendingTx.Inputs[0].Witness = GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
 
 	txHex, err = spendingTx.ToHex()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	txId, err = l.elements.SendRawTx(txHex)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return txId, txHex, nil
+	return txId, txHex, refundAddr, nil
 }
 
-func (l *LiquidOnChain) LabelTransaction(txID, label string) error {
-	// TODO: implement
-	// This function assigns an identifiable label to the target transaction based on the txid.
-	// Currently no such functionality is available, so it has not been implemented.
-	// Supported by lnd only.
-	return nil
+// SetLabelRequest is a request to label a transaction.
+// https://developer.bitcoin.org/reference/rpc/setlabel.html
+type SetLabelRequest struct {
+	Address string `json:"address"`
+	Label   string `json:"label"`
+}
+
+func (l *LiquidOnChain) Name() string {
+	return "LabelTransactionRequest"
+}
+
+func (l *LiquidOnChain) SetLabel(txID, address, label string) error {
+	return l.elements.SetLabel(address, label)
 }
 
 func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) (err error) {
@@ -444,7 +447,6 @@ func (l *LiquidOnChain) ValidateTx(openingParams *swap.OpeningParams, txHex stri
 	// unblind output
 	ubRes, err := confidential.UnblindOutputWithKey(openingTx.Outputs[vout], openingParams.BlindingKey.Serialize())
 	if err != nil {
-
 		return false, err
 	}
 

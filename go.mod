@@ -124,7 +124,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0 // indirect
-	golang.org/x/sys v0.0.0-20221010160319-abe0a0adba9c // indirect
+	golang.org/x/sys v0.0.0-20221010160319-abe0a0adba9c
 	golang.org/x/term v0.0.0-20220919170432-7a66f970e087 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
@@ -151,3 +151,5 @@ require (
 
 // This fork contains some options we need to reconnect to lnd.
 replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220824133300-340e95267339
+
+replace github.com/elementsproject/glightning => github.com/yusukeshimizu/glightning v0.0.0-20240214001938-06d9e0562297
