@@ -209,6 +209,9 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 		expectedMemo,
 		memo,
 	)
+	payreq, err := params.takerNode.GetLatestPayReqOfPayment()
+	require.NoError(err)
+	require.Equal(bolt11, payreq)
 }
 
 func csvClaimTest(t *testing.T, params *testParams) {
