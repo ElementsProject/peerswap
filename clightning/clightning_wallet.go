@@ -199,6 +199,14 @@ func (cl *ClightningClient) CreateCoopSpendingTransaction(swapParams *swap.Openi
 	return spendingTx.TxHash().String(), txHex, nil
 }
 
+func (cl *ClightningClient) LabelTransaction(txId, label string) error {
+	// todo implement
+	// This function assigns an identifiable label to the target transaction based on the txid.
+	// Currently no such functionality is available, so it has not been implemented.
+	// Supported by lnd only.
+	return nil
+}
+
 func (cl *ClightningClient) NewAddress() (string, error) {
 	newAddr, err := cl.glightning.NewAddr()
 	if err != nil {

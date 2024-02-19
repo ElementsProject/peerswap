@@ -455,6 +455,11 @@ func (s *SwapId) FromString(str string) error {
 	return nil
 }
 
+// Short returns a shortened version of the id suitable for use in observing.
+func (s *SwapId) Short() string {
+	return s.String()[:6]
+}
+
 func ParseSwapIdFromString(str string) (*SwapId, error) {
 	data, err := hex.DecodeString(str)
 	if err != nil {

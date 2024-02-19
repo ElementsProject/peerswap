@@ -458,6 +458,10 @@ func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startin
 
 }
 
+func (d *dummyChain) LabelTransaction(txId, label string) error {
+	return nil
+}
+
 func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) {
 
 }

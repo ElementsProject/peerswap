@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
@@ -205,6 +206,22 @@ func (l *Client) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, c
 		return "", "", err
 	}
 	return spendingTx.TxHash().String(), txHex, nil
+}
+
+// LabelTransaction labels a transaction with a given label.
+// This makes it easier to audit the transactions from faraday.
+// This is performed by LND's LabelTransaction RPC.
+func (l *Client) LabelTransaction(txID, label string) error {
+	txIDHash, err := chainhash.NewHashFromStr(txID)
+	if err != nil {
+		return err
+	}
+	_, err = l.walletClient.LabelTransaction(l.ctx,
+		&walletrpc.LabelTransactionRequest{
+			Txid:      txIDHash.CloneBytes(),
+			Label:     label,
+			Overwrite: true})
+	return err
 }
 
 func (l *Client) GetOnchainBalance() (uint64, error) {
