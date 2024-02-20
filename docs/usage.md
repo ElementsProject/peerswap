@@ -185,3 +185,14 @@ For CLN:
 `lightning-cli peerswap-allowswaprequests [bool] ## 1 to allow, 0 to disallow`
 For LND:
 `pscli allowswaprequests --allow_swaps=[bool] ## true to allow, false to disallow`
+
+## transaction labels
+The label of the on-chain transaction corresponding to the swap is set as follows.
+
+* peerswap -- Opening(swap id=b171ee)
+* peerswap -- ClaimByCoop(swap id=b171ee)
+* peerswap -- ClaimByCsv(swap id=b171ee)
+* peerswap -- ClaimByInvoice(swap id=b171ee)
+
+For now, there is a limitation that only peerswap LNDs have on-chain labels.  
+To check the label attached to a transaction use `lncli listchaintxns`.
