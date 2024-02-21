@@ -1606,12 +1606,14 @@ type Policy struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ReserveOnchainMsat uint64   `protobuf:"varint,1,opt,name=reserve_onchain_msat,json=reserveOnchainMsat,proto3" json:"reserve_onchain_msat,omitempty"`
-	MinSwapAmountMsat  uint64   `protobuf:"varint,2,opt,name=min_swap_amount_msat,json=minSwapAmountMsat,proto3" json:"min_swap_amount_msat,omitempty"`
-	AcceptAllPeers     bool     `protobuf:"varint,3,opt,name=accept_all_peers,json=acceptAllPeers,proto3" json:"accept_all_peers,omitempty"`
-	AllowNewSwaps      bool     `protobuf:"varint,4,opt,name=allow_new_swaps,json=allowNewSwaps,proto3" json:"allow_new_swaps,omitempty"`
-	AllowlistedPeers   []string `protobuf:"bytes,5,rep,name=allowlisted_peers,json=allowlistedPeers,proto3" json:"allowlisted_peers,omitempty"`
-	SuspiciousPeerList []string `protobuf:"bytes,6,rep,name=suspicious_peer_list,json=suspiciousPeerList,proto3" json:"suspicious_peer_list,omitempty"`
+	ReserveOnchainMsat    uint64   `protobuf:"varint,1,opt,name=reserve_onchain_msat,json=reserveOnchainMsat,proto3" json:"reserve_onchain_msat,omitempty"`
+	MinSwapAmountMsat     uint64   `protobuf:"varint,2,opt,name=min_swap_amount_msat,json=minSwapAmountMsat,proto3" json:"min_swap_amount_msat,omitempty"`
+	AcceptAllPeers        bool     `protobuf:"varint,3,opt,name=accept_all_peers,json=acceptAllPeers,proto3" json:"accept_all_peers,omitempty"`
+	AllowNewSwaps         bool     `protobuf:"varint,4,opt,name=allow_new_swaps,json=allowNewSwaps,proto3" json:"allow_new_swaps,omitempty"`
+	AllowlistedPeers      []string `protobuf:"bytes,5,rep,name=allowlisted_peers,json=allowlistedPeers,proto3" json:"allowlisted_peers,omitempty"`
+	SuspiciousPeerList    []string `protobuf:"bytes,6,rep,name=suspicious_peer_list,json=suspiciousPeerList,proto3" json:"suspicious_peer_list,omitempty"`
+	SwapInPremiumRatePpm  int64    `protobuf:"varint,7,opt,name=swap_in_premium_rate_ppm,json=swapInPremiumRatePpm,proto3" json:"swap_in_premium_rate_ppm,omitempty"`
+	SwapOutPremiumRatePpm int64    `protobuf:"varint,8,opt,name=swap_out_premium_rate_ppm,json=swapOutPremiumRatePpm,proto3" json:"swap_out_premium_rate_ppm,omitempty"`
 }
 
 func (x *Policy) Reset() {
@@ -1686,6 +1688,20 @@ func (x *Policy) GetSuspiciousPeerList() []string {
 		return x.SuspiciousPeerList
 	}
 	return nil
+}
+
+func (x *Policy) GetSwapInPremiumRatePpm() int64 {
+	if x != nil {
+		return x.SwapInPremiumRatePpm
+	}
+	return 0
+}
+
+func (x *Policy) GetSwapOutPremiumRatePpm() int64 {
+	if x != nil {
+		return x.SwapOutPremiumRatePpm
+	}
+	return 0
 }
 
 type AllowSwapRequestsRequest struct {

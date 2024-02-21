@@ -179,6 +179,8 @@ message Policy {
     bool allow_new_swaps                 = 4;
     repeated string allowlisted_peers    = 5;
     repeated string suspicious_peer_list = 6;
+    int64 swap_in_premium_rate_ppm       = 7;
+    int64 swap_out_premium_rate_ppm      = 8;
 }
 
 message AllowSwapRequestsRequest {
