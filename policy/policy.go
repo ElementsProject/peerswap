@@ -115,12 +115,14 @@ func (p *Policy) Get() Policy {
 	defer mu.Unlock()
 
 	return Policy{
-		ReserveOnchainMsat: p.ReserveOnchainMsat,
-		PeerAllowlist:      p.PeerAllowlist,
-		SuspiciousPeerList: p.SuspiciousPeerList,
-		AcceptAllPeers:     p.AcceptAllPeers,
-		MinSwapAmountMsat:  p.MinSwapAmountMsat,
-		AllowNewSwaps:      p.AllowNewSwaps,
+		ReserveOnchainMsat:    p.ReserveOnchainMsat,
+		PeerAllowlist:         p.PeerAllowlist,
+		SuspiciousPeerList:    p.SuspiciousPeerList,
+		AcceptAllPeers:        p.AcceptAllPeers,
+		MinSwapAmountMsat:     p.MinSwapAmountMsat,
+		AllowNewSwaps:         p.AllowNewSwaps,
+		SwapInPremiumRatePPM:  p.SwapInPremiumRatePPM,
+		SwapOutPremiumRatePPM: p.SwapOutPremiumRatePPM,
 	}
 }
 

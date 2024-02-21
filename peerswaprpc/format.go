@@ -7,12 +7,14 @@ import (
 
 func GetPolicyMessage(p policy.Policy) *Policy {
 	return &Policy{
-		ReserveOnchainMsat: p.ReserveOnchainMsat,
-		MinSwapAmountMsat:  p.MinSwapAmountMsat,
-		AcceptAllPeers:     p.AcceptAllPeers,
-		AllowNewSwaps:      p.AllowNewSwaps,
-		AllowlistedPeers:   p.PeerAllowlist,
-		SuspiciousPeerList: p.SuspiciousPeerList,
+		ReserveOnchainMsat:    p.ReserveOnchainMsat,
+		MinSwapAmountMsat:     p.MinSwapAmountMsat,
+		AcceptAllPeers:        p.AcceptAllPeers,
+		AllowNewSwaps:         p.AllowNewSwaps,
+		AllowlistedPeers:      p.PeerAllowlist,
+		SuspiciousPeerList:    p.SuspiciousPeerList,
+		SwapInPremiumRatePpm:  p.SwapInPremiumRatePPM,
+		SwapOutPremiumRatePpm: p.SwapOutPremiumRatePPM,
 	}
 }
 
