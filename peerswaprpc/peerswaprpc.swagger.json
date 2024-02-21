@@ -658,6 +658,14 @@
           "items": {
             "type": "string"
           }
+        },
+        "swapInPremiumRatePpm": {
+          "type": "string",
+          "format": "int64"
+        },
+        "swapOutPremiumRatePpm": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
