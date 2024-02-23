@@ -56,7 +56,7 @@ policypath="/path/to/policy" ## Path to policy file (default: $HOME/.lightning/<
 [Bitcoin]
 rpcuser="user"
 rpcpassword="password"
-rpchost="host"
+rpchost="http://host" ## the http:// is mandatory
 rpcport=1234
 cookiefilepath="/path/to/auth/.cookie" ## If set this will be used for authentication
 bitcoinswaps=true ## If set to false, BTC mainchain swaps are disabled
@@ -66,7 +66,7 @@ bitcoinswaps=true ## If set to false, BTC mainchain swaps are disabled
 [Liquid]
 rpcuser="user"
 rpcpassword="password"
-rpchost="host"
+rpchost="http://host" ## the http:// is mandatory 
 rpcport=1234
 rpcpasswordfile="/path/to/auth/.cookie" ## If set this will be used for authentication
 rpcwallet="swap-wallet" ## (default: peerswap)

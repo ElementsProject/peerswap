@@ -8,7 +8,7 @@ PeerSwap requires _core-lightning_, _bitcoind_ and an _elementsd_ installation i
 
 ## Bitcoind (signet)
 
-Download the following files to install Bitcoin Core.
+Download the following files to install Bitcoin Core. Make sure to download the latest release.
 
 ```bash
 wget https://bitcoincore.org/bin/bitcoin-core-23.0/bitcoin-23.0-x86_64-linux-gnu.tar.gz && \
@@ -49,7 +49,7 @@ bitcoind --signet --daemon
 
 ## Liquid testnet (optional)
 
-Download the following files to install elementsd.
+Download the following files to install elementsd. Make sure to download the latest release.
 
 ```bash
 wget https://github.com/ElementsProject/elements/releases/download/elements-0.21.0.2/elements-elements-0.21.0.2-x86_64-linux-gnu.tar.gz && \
@@ -94,37 +94,15 @@ chain=liquidtestnet
 # Liquid Testnet (liquidtestnet) settings:
 [liquidtestnet]
 
-# General settings:
 listen=1
 txindex=1
 validatepegin=0
-anyonecanspendaremine=0
-initialfreecoins=2100000000000000
-con_dyna_deploy_start=0
-con_max_block_sig_size=150
-checkblockindex=0 
-addnode=liquid-testnet.blockstream.com:18892
-addnode=liquidtestnet.com:18891
 fallbackfee=0.00000100
 daemon=1
-con_has_parent_chain=0
-parentgenesisblockhash=NULL
-pubkeyprefix=36
-scriptprefix=19
-blindedprefix=23
-bech32_hrp=tex
-blech32_hrp=tlq
-pchmessagestart=410edd62
-dynamic_epoch_length=1000
-signblockscript=51210217e403ddb181872c32a0cd468c710040b2f53d8cac69f18dad07985ee37e9a7151ae
-
 rpcport=18884
 rpcuser=admin1
 rpcpassword=123
 rpcbind=127.0.0.1
-addnode=95.217.184.148:18444
-evbparams=dynafed:0:::
-multi_data_permitted=1
 EOF
 ```
 
@@ -217,7 +195,7 @@ touch $HOME/.lightning/signet/peerswap/peerswap.conf
 echo '[Liquid]
 rpcuser="admin1"
 rpcpassword="123"
-rpchost="http://localhost"
+rpchost="http://localhost" # the http:// is mandatory
 rpcport=18884
 rpcwallet="swap"' > $HOME/.lightning/signet/peerswap.conf
 ```
