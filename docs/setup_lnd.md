@@ -53,7 +53,7 @@ lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
 elementsd.rpcuser=<REPLACE_ME>
 elementsd.rpcpass=<REPLACE_ME>
-elementsd.rpchost=http://127.0.0.1
+elementsd.rpchost=http://127.0.0.1 # the http:// is mandatory
 elementsd.rpcport=<REPLACE_ME>
 elementsd.rpcwallet=peerswap
 elementsd.liquidswaps=true # set to false to manually disable L-BTC swaps
@@ -70,7 +70,7 @@ lnd.tlscertpath=/home/<username>/.lnd/tls.cert
 lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
 elementsd.rpcuser=<REPLACE_ME>
 elementsd.rpcpass=<REPLACE_ME>
-elementsd.rpchost=http://127.0.0.1
+elementsd.rpchost=http://127.0.0.1 # the http:// is mandatory
 elementsd.rpcport=<REPLACE_ME>
 elementsd.rpcwallet=peerswap
 EOF
