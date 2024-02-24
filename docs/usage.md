@@ -187,6 +187,7 @@ For LND:
 `pscli allowswaprequests --allow_swaps=[bool] ## true to allow, false to disallow`
 
 ## transaction labels
+To make the related transactions identifiable, peerswap sets the label.
 The label of the on-chain transaction corresponding to the swap is set as follows.
 
 * peerswap -- Opening(swap id=b171ee)
@@ -194,5 +195,12 @@ The label of the on-chain transaction corresponding to the swap is set as follow
 * peerswap -- ClaimByCsv(swap id=b171ee)
 * peerswap -- ClaimByInvoice(swap id=b171ee)
 
-For now, there is a limitation that only peerswap LNDs have on-chain labels.  
+The way the label is set up in each wallet is different.
+
+For CLN:
+Currently, it is not possible to set a label on the cln wallet
+
+For LND:
 To check the label attached to a transaction use `lncli listchaintxns`.
+
+For LBTC transactions, elementsd `SetLabel` will attach a label to the associated address.
