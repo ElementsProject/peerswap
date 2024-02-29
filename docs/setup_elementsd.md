@@ -2,6 +2,9 @@
 
 `elementsd` is the daemon used to sync and verify the [Liquid Network](https://docs.liquid.net/docs) and is used for PeerSwap L-BTC swaps. To set up `elementsd` for PeerSwap, follow the steps here. 
 
+> [!IMPORTANT]
+> Musl-based Linux distributions such as Alpine Linux require manually building `elementsd` with additional [compile-time flags](https://github.com/ElementsProject/elements/issues/1299#issuecomment-1843435091) to account for musl's different stack size.
+
 
 ## Building from source
 
