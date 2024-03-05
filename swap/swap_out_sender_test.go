@@ -442,23 +442,23 @@ func (d *dummyChain) TxIdFromHex(txHex string) (string, error) {
 	return getRandom32ByteHexString(), nil
 }
 
-func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, error) {
-	return getRandom32ByteHexString(), "txhex", nil
+func (d *dummyChain) CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (string, string, string, error) {
+	return getRandom32ByteHexString(), "txhex", "addr", nil
 }
 
-func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex string, error error) {
-	return getRandom32ByteHexString(), "txhex", nil
+func (d *dummyChain) CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex, address string, error error) {
+	return getRandom32ByteHexString(), "txhex", "addr", nil
 }
 
-func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex string, error error) {
-	return getRandom32ByteHexString(), "txhex", nil
+func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex, address string, error error) {
+	return getRandom32ByteHexString(), "txhex", "addr", nil
 }
 
 func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) {
 
 }
 
-func (d *dummyChain) LabelTransaction(txId, label string) error {
+func (d *dummyChain) SetLabel(txID, address, label string) error {
 	return nil
 }
 
@@ -478,8 +478,8 @@ func (d *dummyChain) GetFlatSwapOutFee() (uint64, error) {
 	return 100, nil
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
-	return "txhex", 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error) {
+	return "txhex", "addr", 0, 0, nil
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {

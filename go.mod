@@ -9,7 +9,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
-	github.com/elementsproject/glightning v0.0.0-20231126051537-e32b4dae6cbb
+	github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/jessevdk/go-flags v1.5.0
@@ -124,7 +124,7 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0 // indirect
-	golang.org/x/sys v0.0.0-20221010160319-abe0a0adba9c // indirect
+	golang.org/x/sys v0.0.0-20221010160319-abe0a0adba9c
 	golang.org/x/term v0.0.0-20220919170432-7a66f970e087 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect

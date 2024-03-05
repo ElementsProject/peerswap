@@ -11,8 +11,8 @@ import (
 type ElementsClientBuilder struct {
 }
 
-func NewClient(rpcUser, rpcPassword, rpcHost string, rpcPort uint) (*gelements.Elements, error) {
-	c := gelements.NewElements(rpcUser, rpcPassword)
+func NewClient(rpcUser, rpcPassword, rpcHost, RpcPasswordFile string, rpcPort uint) (*gelements.Elements, error) {
+	c := gelements.NewElements(rpcUser, rpcPassword, RpcPasswordFile)
 
 	var backoff int64 = 1
 	for {

@@ -205,6 +205,7 @@ func run() error {
 			liquidConfig.RpcUser,
 			liquidConfig.RpcPassword,
 			liquidConfig.RpcHost,
+			liquidConfig.RpcPasswordFile,
 			liquidConfig.RpcPort,
 		)
 		if err != nil {
@@ -441,7 +442,7 @@ func getBitcoinChain(ctx context.Context, li lnrpc.LightningClient) (*chaincfg.P
 }
 
 func getBitcoinClient(cfg *peerswaplnd.OnchainConfig) (*gbitcoin.Bitcoin, error) {
-	bitcoin := gbitcoin.NewBitcoin(cfg.RpcUser, cfg.RpcPassword)
+	bitcoin := gbitcoin.NewBitcoin(cfg.RpcUser, cfg.RpcPassword, cfg.RpcCookieFilePath)
 	err := bitcoin.StartUp(cfg.RpcHost, "", cfg.RpcPort)
 	if err != nil {
 		return nil, err

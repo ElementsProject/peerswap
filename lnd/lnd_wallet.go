@@ -16,10 +16,10 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
 )
 
-func (l *Client) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex string, fee uint64, vout uint32, err error) {
+func (l *Client) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error) {
 	addr, err := l.bitcoinOnChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	fundPsbtTemplate := &walletrpc.TxTemplate{
@@ -32,37 +32,37 @@ func (l *Client) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpre
 		Fees:     &walletrpc.FundPsbtRequest_TargetConf{TargetConf: 3},
 	})
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	unsignedPacket, err := psbt.NewFromRawBytes(bytes.NewReader(fundRes.FundedPsbt), false)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	bytesBuffer := new(bytes.Buffer)
 	err = unsignedPacket.Serialize(bytesBuffer)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	finalizeRes, err := l.walletClient.FinalizePsbt(l.ctx, &walletrpc.FinalizePsbtRequest{
 		FundedPsbt: bytesBuffer.Bytes(),
 	})
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 	psbtString := base64.StdEncoding.EncodeToString(finalizeRes.SignedPsbt)
 	rawTxHex := hex.EncodeToString(finalizeRes.RawFinalTx)
 
 	fee, err = l.bitcoinOnChain.GetFeeSatsFromTx(psbtString, rawTxHex)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
 
 	_, vout, err = l.bitcoinOnChain.GetVoutAndVerify(rawTxHex, swapParams)
 	if err != nil {
-		return "", 0, 0, err
+		return "", "", 0, 0, err
 	}
-	return rawTxHex, fee, vout, nil
+	return rawTxHex, address, fee, vout, nil
 }
 
 func (l *Client) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
@@ -83,29 +83,29 @@ func (l *Client) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string,
 	return openingTx.TxHash().String(), unpreparedTxHex, nil
 }
 
-func (l *Client) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+func (l *Client) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	newAddr, err := l.NewAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, 0, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	preimage, err := lightning.MakePreimageFromStr(claimParams.Preimage)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx.TxIn[0].Witness = onchain.GetPreimageWitness(sigBytes.Serialize(), preimage[:], redeemScript)
@@ -114,35 +114,35 @@ func (l *Client) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParam
 
 	err = tx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex := hex.EncodeToString(bytesBuffer.Bytes())
 
 	_, err = l.walletClient.PublishTransaction(l.ctx, &walletrpc.Transaction{TxHex: bytesBuffer.Bytes()})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return tx.TxHash().String(), txHex, nil
+	return tx.TxHash().String(), txHex, newAddr, nil
 }
 
-func (l *Client) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, error) {
+func (l *Client) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
 	newAddr, err := l.NewAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	tx, sigHash, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, newAddr, vout, onchain.BitcoinCsv, 0)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	sigBytes, err := claimParams.Signer.Sign(sigHash)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	tx.TxIn[0].Witness = onchain.GetCsvWitness(sigBytes.Serialize(), redeemScript)
@@ -151,43 +151,43 @@ func (l *Client) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, cl
 
 	err = tx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex := hex.EncodeToString(bytesBuffer.Bytes())
 
 	_, err = l.walletClient.PublishTransaction(l.ctx, &walletrpc.Transaction{TxHex: bytesBuffer.Bytes()})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return tx.TxHash().String(), txHex, nil
+	return tx.TxHash().String(), txHex, newAddr, nil
 }
 
-func (l *Client) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex string, error error) {
+func (l *Client) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
 	refundAddr, err := l.NewAddress()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	refundFee, err := l.GetRefundFee()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	_, vout, err := l.bitcoinOnChain.GetVoutAndVerify(claimParams.OpeningTxHex, swapParams)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	spendingTx, sigHashBytes, redeemScript, err := l.bitcoinOnChain.PrepareSpendingTransaction(swapParams, claimParams, refundAddr, vout, 0, refundFee)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	takerSig, err := takerSigner.Sign(sigHashBytes[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	makerSig, err := claimParams.Signer.Sign(sigHashBytes[:])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	spendingTx.TxIn[0].Witness = onchain.GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
@@ -196,22 +196,22 @@ func (l *Client) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, c
 
 	err = spendingTx.Serialize(bytesBuffer)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	txHex = hex.EncodeToString(bytesBuffer.Bytes())
 
 	_, err = l.walletClient.PublishTransaction(l.ctx, &walletrpc.Transaction{TxHex: bytesBuffer.Bytes()})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return spendingTx.TxHash().String(), txHex, nil
+	return spendingTx.TxHash().String(), txHex, refundAddr, nil
 }
 
-// LabelTransaction labels a transaction with a given label.
+// SetLabel labels a transaction with a given label.
 // This makes it easier to audit the transactions from faraday.
 // This is performed by LND's LabelTransaction RPC.
-func (l *Client) LabelTransaction(txID, label string) error {
+func (l *Client) SetLabel(txID, address, label string) error {
 	txIDHash, err := chainhash.NewHashFromStr(txID)
 	if err != nil {
 		return err

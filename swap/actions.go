@@ -189,13 +189,13 @@ func (s *ClaimSwapTransactionWithPreimageAction) Execute(services *SwapServices,
 	}
 
 	if swap.ClaimTxId == "" {
-		txId, _, err := wallet.CreatePreimageSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
+		txId, _, address, err := wallet.CreatePreimageSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
 		if err != nil {
 			log.Infof("Error claiming tx with preimage %v", err)
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, labels.ClaimByInvoice(swap.GetId().Short()))
+		err = wallet.SetLabel(txId, address, labels.ClaimByInvoice(swap.GetId().Short()))
 		if err != nil {
 			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
 				txId, labels.ClaimByInvoice(swap.GetId().Short()), err)
@@ -239,7 +239,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 
 	// Create the opening transaction
-	txHex, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
+	txHex, address, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkey:      swap.GetTakerPubkey(),
 		MakerPubkey:      swap.GetMakerPubkey(),
 		ClaimPaymentHash: preimage.Hash().String(),
@@ -255,7 +255,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		// todo: idempotent states
 		return swap.HandleError(err)
 	}
-	err = wallet.LabelTransaction(txId, labels.Opening(swap.GetId().Short()))
+	err = wallet.SetLabel(txId, address, labels.Opening(swap.GetId().Short()))
 	if err != nil {
 		log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
 			txId, labels.Opening(swap.GetId().Short()), err)
@@ -442,13 +442,13 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 	}
 
 	if swap.ClaimTxId == "" {
-		txId, _, err := wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
+		txId, _, address, err := wallet.CreateCsvSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams())
 		if err != nil {
 			swap.HandleError(err)
 			return Event_OnRetry
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, labels.ClaimByCsv(swap.GetId().Short()))
+		err = wallet.SetLabel(txId, address, labels.ClaimByCsv(swap.GetId().Short()))
 		if err != nil {
 			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
 				txId, labels.ClaimByCsv(swap.GetId().Short()), err)
@@ -474,12 +474,12 @@ func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapDat
 	takerKey, _ := btcec.PrivKeyFromBytes(takerKeyBytes)
 
 	if swap.ClaimTxId == "" {
-		txId, _, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), &Secp256k1Signer{key: takerKey})
+		txId, _, address, err := wallet.CreateCoopSpendingTransaction(swap.GetOpeningParams(), swap.GetClaimParams(), &Secp256k1Signer{key: takerKey})
 		if err != nil {
 			return swap.HandleError(err)
 		}
 		swap.ClaimTxId = txId
-		err = wallet.LabelTransaction(txId, labels.ClaimByCoop(swap.GetId().Short()))
+		err = wallet.SetLabel(txId, address, labels.ClaimByCoop(swap.GetId().Short()))
 		if err != nil {
 			log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",
 				txId, labels.ClaimByCoop(swap.GetId().Short()), err)

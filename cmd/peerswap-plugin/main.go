@@ -182,6 +182,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			config.Liquid.RpcUser,
 			config.Liquid.RpcPassword,
 			config.Liquid.RpcHost,
+			config.Liquid.RpcPasswordFile,
 			config.Liquid.RpcPort,
 		)
 		if err != nil {
@@ -436,8 +437,9 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Config)
 	rpcPassword := pluginConfig.Bitcoin.RpcPassword
 	rpcHost := pluginConfig.Bitcoin.RpcHost
 	rpcPort := pluginConfig.Bitcoin.RpcPort
+	ppcCookie := pluginConfig.Bitcoin.RpcPasswordFile
 
-	bitcoin := gbitcoin.NewBitcoin(rpcUser, rpcPassword)
+	bitcoin := gbitcoin.NewBitcoin(rpcUser, rpcPassword, ppcCookie)
 	bitcoin.SetTimeout(10)
 	err := bitcoin.StartUp(rpcHost, "", uint(rpcPort))
 	if err != nil {

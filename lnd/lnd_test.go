@@ -10,6 +10,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math/rand"
+	"path/filepath"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -29,13 +37,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	"log"
-	"math/rand"
-	"path/filepath"
-	"strconv"
-	"testing"
-	"time"
 )
 
 type Testthing struct {

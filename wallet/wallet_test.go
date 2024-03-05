@@ -8,9 +8,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (
