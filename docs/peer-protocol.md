@@ -7,6 +7,9 @@ The PeerSwap protocol describes on-chain to off-chain atomic swaps between direc
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](#https://datatracker.ietf.org/doc/html/rfc2119).
 
 ## Table of Contents
+- [Peer Protocol for PeerSwap Swaps](#peer-protocol-for-peerswap-swaps)
+  - [Introduction](#introduction)
+  - [Table of Contents](#table-of-contents)
   - [General](#general)
     - [Supported Chains](#supported-chains)
     - [Terminology Guide](#terminology-guide)
@@ -15,21 +18,29 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
     - [The Swap](#the-swap)
     - [Negotiation](#negotiation)
       - [The `swap_in_request` message](#the-swap_in_request-message)
+        - [Requirements](#requirements)
       - [The `swap_in_agreement` message](#the-swap_in_agreement-message)
+        - [Requirements](#requirements-1)
   - [Swap Out](#swap-out)
     - [Summary](#summary-1)
     - [The Swap](#the-swap-1)
     - [Negotiation](#negotiation-1)
       - [The `swap_out_request` message](#the-swap_out_request-message)
+        - [Requirements](#requirements-2)
       - [The `swap_out_agreement` message](#the-swap_out_agreement-message)
+        - [Requirements](#requirements-3)
   - [Doing the Swap](#doing-the-swap)
-    - [Messages](#messages-1)
       - [The `opening_tx_broadcasted` message](#the-opening_tx_broadcasted-message)
+        - [Requirements](#requirements-4)
   - [Failing a Swap](#failing-a-swap)
-    - [Messages](#messages-2)
+    - [Messages](#messages)
       - [The `cancel` message](#the-cancel-message)
+        - [Requirements](#requirements-5)
       - [The `coop_close` message](#the-coop_close-message)
+        - [Requirements](#requirements-6)
   - [Transactions](#transactions)
+    - [CSV Times and Confirmations](#csv-times-and-confirmations)
+      - [Timeouts and Invoice expiry](#timeouts-and-invoice-expiry)
     - [Opening Transaction](#opening-transaction)
       - [Opening Transaction Output](#opening-transaction-output)
     - [Claim transaction](#claim-transaction)
@@ -38,7 +49,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
       - [The `claim_by_csv` path](#the-claim_by_csv-path)
 
 ## General
-The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `1`.
+The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `4`.
 
 PeerSwap utilizes custom messages as described in [BOLT#1](https://github.com/Lightning/bolts/blob/master/01-messaging.md). The types are in range `42069`-`42085`. The `payload` is JSON encoded.
 
