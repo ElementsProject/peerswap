@@ -186,6 +186,7 @@ type SwapOut struct {
 	ShortChannelId string            `json:"short_channel_id"`
 	SatAmt         uint64            `json:"amt_sat"`
 	Asset          string            `json:"asset"`
+	PremiumLimit   int64             `json:"premium_limit"`
 	Force          bool              `json:"force"`
 	cl             *ClightningClient `json:"-"`
 }
@@ -260,7 +261,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -302,12 +303,12 @@ func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
 
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
-	ShortChannelId string `json:"short_channel_id"`
-	SatAmt         uint64 `json:"amt_sat"`
-	Asset          string `json:"asset"`
-	Force          bool   `json:"force"`
-
-	cl *ClightningClient `json:"-"`
+	ShortChannelId string            `json:"short_channel_id"`
+	SatAmt         uint64            `json:"amt_sat"`
+	Asset          string            `json:"asset"`
+	PremiumLimit   int64             `json:"premium_limit"`
+	Force          bool              `json:"force"`
+	cl             *ClightningClient `json:"-"`
 }
 
 func (l *SwapIn) New() interface{} {
@@ -397,7 +398,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +649,9 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 					SatsOut:  ReceiverSatsOut,
 					SatsIn:   ReceiverSatsIn,
 				},
-				PaidFee: paidFees,
+				PaidFee:               paidFees,
+				SwapInPremiumRatePpm:  p.SwapInPremiumRatePPM,
+				SwapOutPremiumRatePpm: p.SwapOutPremiumRatePPM,
 			}
 
 			peerSwapPeerChannels := []*PeerSwapPeerChannel{}
@@ -1130,13 +1133,15 @@ type SwapStats struct {
 }
 
 type PeerSwapPeer struct {
-	NodeId          string                 `json:"nodeid"`
-	SwapsAllowed    bool                   `json:"swaps_allowed"`
-	SupportedAssets []string               `json:"supported_assets"`
-	Channels        []*PeerSwapPeerChannel `json:"channels"`
-	AsSender        *SwapStats             `json:"sent,omitempty"`
-	AsReceiver      *SwapStats             `json:"received,omitempty"`
-	PaidFee         uint64                 `json:"total_fee_paid,omitempty"`
+	NodeId                string                 `json:"nodeid"`
+	SwapsAllowed          bool                   `json:"swaps_allowed"`
+	SupportedAssets       []string               `json:"supported_assets"`
+	Channels              []*PeerSwapPeerChannel `json:"channels"`
+	AsSender              *SwapStats             `json:"sent,omitempty"`
+	AsReceiver            *SwapStats             `json:"received,omitempty"`
+	PaidFee               uint64                 `json:"total_fee_paid,omitempty"`
+	SwapInPremiumRatePpm  int64
+	SwapOutPremiumRatePpm int64
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin
