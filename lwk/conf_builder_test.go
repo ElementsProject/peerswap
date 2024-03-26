@@ -26,7 +26,7 @@ func Test_confBuilder_DefaultConf(t *testing.T) {
 	if c.GetLWKEndpoint() != "http://localhost:32111" {
 		t.Fatalf("unexpected lwk endpoint: %v", c.GetLWKEndpoint())
 	}
-	if c.GetLiquidSwaps() != true {
+	if c.GetLiquidSwaps() {
 		t.Fatalf("unexpected liquid swaps: %v", c.GetLiquidSwaps())
 	}
 	if c.GetNetwork() != lwk.NetworkTestnet.String() {
@@ -60,7 +60,7 @@ func Test_confBuilder_SetConfs(t *testing.T) {
 		if c.GetLWKEndpoint() != "http://localhost:32111" {
 			t.Fatalf("unexpected lwk endpoint: %v", c.GetLWKEndpoint())
 		}
-		if c.GetLiquidSwaps() != true {
+		if c.GetLiquidSwaps() {
 			t.Fatalf("unexpected liquid swaps: %v", c.GetLiquidSwaps())
 		}
 		if c.GetNetwork() != lwk.NetworkTestnet.String() {

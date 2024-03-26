@@ -106,6 +106,16 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	// Check no invoice was paid.
 	testframework.RequireWaitForChannelBalance(t, params.takerNode, params.scid, float64(setTakerFunds), 1., testframework.TIMEOUT)
 
+	// Wait for balance change
+	require.NoError(
+		testframework.WaitFor(func() bool {
+			b, err2 := params.makerNode.GetBtcBalanceSat()
+			if err2 != nil {
+				return false
+			}
+			return b != params.origMakerWallet-commitFee-params.swapAmt
+		}, testframework.TIMEOUT))
+
 	// Check Wallet balance.
 	// Expect:
 	// - [0] before
@@ -181,6 +191,24 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	default:
 		t.Fatal("unknown role")
 	}
+
+	// Wait for balance change
+	require.NoError(
+		testframework.WaitFor(func() bool {
+			b, err2 := params.takerNode.GetBtcBalanceSat()
+			if err2 != nil {
+				return false
+			}
+			return b != params.origTakerWallet
+		}, testframework.TIMEOUT))
+	require.NoError(
+		testframework.WaitFor(func() bool {
+			b, err2 := params.makerNode.GetBtcBalanceSat()
+			if err2 != nil {
+				return false
+			}
+			return b != params.origMakerWallet
+		}, testframework.TIMEOUT))
 
 	// Check Wallet balance.
 	// Expect: (WITHOUT PREMIUM)
@@ -285,6 +313,16 @@ func csvClaimTest(t *testing.T, params *testParams) {
 
 	// Check channel and wallet balance
 	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premium), 1., testframework.TIMEOUT))
+
+	// Wait for balance change
+	require.NoError(
+		testframework.WaitFor(func() bool {
+			b, err2 := params.makerNode.GetBtcBalanceSat()
+			if err2 != nil {
+				return false
+			}
+			return b != params.origMakerWallet-commitFee-params.swapAmt
+		}, testframework.TIMEOUT))
 
 	balance, err := params.makerNode.GetBtcBalanceSat()
 	require.NoError(err)

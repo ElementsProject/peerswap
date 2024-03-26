@@ -19,14 +19,14 @@ func (b *confBuilder) DefaultConf() (*confBuilder, error) {
 	switch b.network {
 	case NetworkTestnet:
 		lwkEndpoint = "http://localhost:32111"
-		electrumEndpoint = "blockstream.info:465"
+		electrumEndpoint = "tcp://blockstream.info:465"
 	case NetworkRegtest:
 		lwkEndpoint = "http://localhost:32112"
-		electrumEndpoint = "localhost:60401"
+		electrumEndpoint = "tcp://localhost:60401"
 	default:
 		// mainnet is the default port
 		lwkEndpoint = "http://localhost:32110"
-		electrumEndpoint = "blockstream.info:995"
+		electrumEndpoint = "tcp://blockstream.info:995"
 	}
 	lwkURL, err := NewConfURL(lwkEndpoint)
 	if err != nil {

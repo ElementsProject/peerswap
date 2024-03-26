@@ -95,7 +95,7 @@ func (o *observeOpeningTX) Callback(ctx context.Context, currentHeight BlocKHeig
 	if err != nil {
 		return false, fmt.Errorf("failed to get raw transaction: %w", err)
 	}
-	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidConfs)) {
+	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidConfs)-1) {
 		return false, fmt.Errorf("not enough confirmations for opening transaction. txhash: %s.height: %d, current: %d",
 			o.txID.String(), getHeight(hs, o.txID).Height(), currentHeight.Height())
 	}
@@ -141,7 +141,7 @@ func (o *observeCSVTX) Callback(ctx context.Context, currentHeight BlocKHeight) 
 	if !(getHeight(hs, o.txID).Confirmed()) {
 		return false, fmt.Errorf("the transaction is unconfirmed")
 	}
-	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidCsv)) {
+	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidCsv-1)) {
 		return false, fmt.Errorf("not enough confirmations for csv transaction. txhash: %s.height: %d, current: %d",
 			o.txID.String(), getHeight(hs, o.txID).Height(), currentHeight.Height())
 	}

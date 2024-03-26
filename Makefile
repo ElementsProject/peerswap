@@ -127,6 +127,20 @@ test-liquid-lnd: test-bins
 	 ./test
 .PHONY: test-liquid-lnd
 
+test-lwk-cln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run '^('\
+	'Test_ClnCln_LWK_SwapIn)'\
+	 ./test
+.PHONY: test-lwk-cln
+
+test-lwk-lnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run '^('\
+	'Test_LndLnd_LWK_SwapIn)'\
+	 ./test
+.PHONY: test-lwk-lnd
+
 test-misc-integration: test-bins
 	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
 	-run '^('\

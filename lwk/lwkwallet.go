@@ -12,7 +12,6 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
 	"github.com/vulpemventures/go-elements/network"
-	"github.com/vulpemventures/go-elements/psetv2"
 )
 
 // Satoshi represents a satoshi value.
@@ -139,23 +138,11 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	if err != nil {
 		return "", "", 0, err
 	}
-	p, err := psetv2.NewPsetFromBase64(signed.Pset)
+	hex, err := r.electrumClient.GetRawTransaction(ctx, broadcasted.Txid)
 	if err != nil {
 		return "", "", 0, err
 	}
-	err = psetv2.FinalizeAll(p)
-	if err != nil {
-		return "", "", 0, err
-	}
-	tx, err := psetv2.Extract(p)
-	if err != nil {
-		return "", "", 0, err
-	}
-	txhex, err := tx.ToHex()
-	if err != nil {
-		return "", "", 0, err
-	}
-	return broadcasted.Txid, txhex, SatPerKVByte(feerate), nil
+	return broadcasted.Txid, hex, 0, nil
 }
 
 // GetBalance returns the balance in sats
