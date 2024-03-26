@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/lwk"
 	"github.com/elementsproject/peerswap/version"
 	"golang.org/x/sys/unix"
 
@@ -164,12 +166,16 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
-	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
+	var liquidTxWatcher swap.TxWatcher
 	var liquidRpcWallet *wallet.ElementsRpcWallet
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if *config.Liquid.LiquidSwaps && liquidWanted(config) {
+	if *config.Liquid.LiquidSwaps && config.LWK != nil {
+		return errors.New("both L-BTC and LWK swaps is invalid")
+	}
+
+	if *config.Liquid.LiquidSwaps && elementsWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword:******, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
@@ -201,7 +207,25 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			return err
 		}
 
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
+		supportedAssets = append(supportedAssets, "lbtc")
+		log.Infof("Liquid swaps enabled")
+	} else if config.LWK.GetLiquidSwaps() {
+		liquidEnabled = true
+		ec, err2 := electrum.NewClientTCP(ctx, config.LWK.GetElectrumEndpoint())
+		if err2 != nil {
+			return err2
+		}
+		lwkWallet, err2 := lwk.NewLWKRpcWallet(lwk.NewLwk(config.LWK.GetLWKEndpoint()),
+			ec, config.LWK.GetWalletName(), config.LWK.GetSignerName())
+		if err2 != nil {
+			return err2
+		}
+		liquidTxWatcher, err = lwk.NewElectrumTxWatcher(ec)
+		if err != nil {
+			return err
+		}
+		liquidOnChainService = onchain.NewLiquidOnChain(lwkWallet, config.LWK.GetChain())
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
 	} else {
@@ -392,7 +416,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	return nil
 }
 
-func liquidWanted(cfg *clightning.Config) bool {
+func elementsWanted(cfg *clightning.Config) bool {
 	return cfg.Liquid.RpcUser != "" && cfg.Liquid.RpcPassword != ""
 }
 
@@ -412,6 +436,7 @@ func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
 		return &network.Testnet, nil
 	}
 }
+
 func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	gi, err := li.GetInfo()
 	if err != nil {
