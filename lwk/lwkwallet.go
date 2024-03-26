@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 
 	"github.com/checksum0/go-electrum/electrum"
 
@@ -13,9 +14,14 @@ import (
 	"github.com/vulpemventures/go-elements/psetv2"
 )
 
+// Satoshi represents a satoshi value.
+type Satoshi = uint64
+
+// SatPerKVByte represents a fee rate in sat/kb.
+type SatPerKVByte = uint64
+
 const (
-	kiloByte          = 1000
-	minimumSatPerByte = 0.1
+	minimumSatPerByte = 200
 )
 
 // LWKRpcWallet uses the elementsd rpc wallet
@@ -67,8 +73,9 @@ func (r *LWKRpcWallet) setupWallet() error {
 
 // CreateFundedTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
-	asset []byte) (txid, rawTx string, fee uint64, err error) {
+	asset []byte) (txid, rawTx string, fee SatPerKVByte, err error) {
 	ctx := context.Background()
+	feerate := float64(r.getFeePerKb(ctx))
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
 		Addressees: []*unvalidatedAddressee{
 			{
@@ -77,6 +84,7 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 			},
 		},
 		WalletName: r.walletName,
+		FeeRate:    &feerate,
 	})
 	if err != nil {
 		return "", "", 0, err
@@ -111,11 +119,11 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	if err != nil {
 		return "", "", 0, err
 	}
-	return broadcasted.Txid, txhex, 0, nil
+	return broadcasted.Txid, txhex, SatPerKVByte(feerate), nil
 }
 
 // GetBalance returns the balance in sats
-func (r *LWKRpcWallet) GetBalance() (uint64, error) {
+func (r *LWKRpcWallet) GetBalance() (Satoshi, error) {
 	ctx := context.Background()
 	balance, err := r.lwkClient.balance(ctx, &balanceRequest{
 		WalletName: r.walletName,
@@ -138,7 +146,7 @@ func (r *LWKRpcWallet) GetAddress() (string, error) {
 }
 
 // SendToAddress sends an amount to an address
-func (r *LWKRpcWallet) SendToAddress(address string, amount uint64) (string, error) {
+func (r *LWKRpcWallet) SendToAddress(address string, amount Satoshi) (string, error) {
 	ctx := context.Background()
 	sendres, err := r.lwkClient.send(ctx, &sendRequest{
 		WalletName: r.walletName,
@@ -179,21 +187,24 @@ func (r *LWKRpcWallet) SendRawTx(txHex string) (string, error) {
 	return res, nil
 }
 
-func (r *LWKRpcWallet) GetFee(txSize int64) (uint64, error) {
-	ctx := context.Background()
-	feeRes, err := r.electrumClient.GetFee(ctx, wallet.LiquidTargetBlocks)
-
-	satPerByte := float64(feeRes) / float64(kiloByte)
+func (r *LWKRpcWallet) getFeePerKb(ctx context.Context) SatPerKVByte {
+	feeBTCPerKb, err := r.electrumClient.GetFee(ctx, wallet.LiquidTargetBlocks)
+	// convert to sat per byte
+	satPerByte := uint64(float64(feeBTCPerKb) * math.Pow10(int(8)))
 	if satPerByte < minimumSatPerByte {
 		satPerByte = minimumSatPerByte
 	}
 	if err != nil {
 		satPerByte = minimumSatPerByte
 	}
-	// assume largest witness
-	fee := satPerByte * float64(txSize)
+	return satPerByte
+}
 
-	return uint64(fee), nil
+func (r *LWKRpcWallet) GetFee(txSize int64) (Satoshi, error) {
+	ctx := context.Background()
+	// assume largest witness
+	fee := r.getFeePerKb(ctx) * uint64(txSize)
+	return fee, nil
 }
 
 func (r *LWKRpcWallet) SetLabel(txID, address, label string) error {

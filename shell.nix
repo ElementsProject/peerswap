@@ -23,4 +23,5 @@ stdenv.mkDerivation rec {
     . ./contrib/startup_regtest.sh
     setup_alias
     '';
+    hardeningDisable = [ "all" ];
 }
