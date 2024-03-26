@@ -8,7 +8,7 @@ import (
 )
 
 func Test_ScriptAddress(t *testing.T) {
-	liquidOnCain := NewLiquidOnChain(nil, nil, &network.Testnet)
+	liquidOnCain := NewLiquidOnChain(nil, &network.Testnet)
 	swapParams := &swap.OpeningParams{
 		TakerPubkey:      "02752e1beeeeb6472959117a0aa5d172900680c033ddf86b1a8318311e2b10223f",
 		MakerPubkey:      "02c30ff537639962f493d326a77f1c6cb591ee3d21ca8d89194bb69cb288f497e8",
