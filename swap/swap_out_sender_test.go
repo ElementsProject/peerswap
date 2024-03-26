@@ -411,6 +411,10 @@ type dummyChain struct {
 	returnGetCSVHeight uint32
 }
 
+func (d *dummyChain) StartWatchingTxs() error {
+	return nil
+}
+
 func (d *dummyChain) SetBalance(balance uint64) {
 	d.balance = balance
 }
