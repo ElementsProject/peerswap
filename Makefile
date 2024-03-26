@@ -185,11 +185,11 @@ TOOLS_DIR := ${CURDIR}/tools
 tool:
 	## Install an individual dependent tool.
 	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath github.com/golangci/golangci-lint/cmd/golangci-lint
+	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath go.uber.org/mock/mockgen@latest
 
 .PHONY: clean
 clean:  ## clean project directory.
 	env GOBIN=${TOOLS_DIR}/bin && @rm -rf ${GOBIN} $(TOOLS_DIR)/bin
-
 
 .PHONY: lint
 lint: lint/golangci-lint
@@ -203,3 +203,11 @@ lint/golangci-lint: ## Lint source with golangci-lint.
 .PHONY: lint/fix
 lint/fix: ## Lint and fix source.
 	@${MAKE} lint/golangci-lint args='--fix'
+
+
+.PHONY: mockgen
+mockgen: mockgen/lwk
+
+.PHONY: mockgen/lwk
+mockgen/lwk:
+	$(TOOLS_DIR)/bin/mockgen -source=lwk/electrumRPC.go -destination=lwk/mock/electrumRPC.go
