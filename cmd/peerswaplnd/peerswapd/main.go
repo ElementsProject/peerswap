@@ -211,9 +211,58 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		liquidRpcWallet, err = wallet.NewRpcWallet(liquidCli, liquidConfig.RpcWallet)
-		if err != nil {
-			return err
+		if cfg.ElementsConfig.RpcUser != "" {
+			supportedAssets = append(supportedAssets, "lbtc")
+			log.Infof("Liquid swaps enabled")
+			liquidConfig := cfg.ElementsConfig
+
+			// This call is blocking, waiting for elements to come alive and sync.
+			liquidCli, err = elements.NewClient(
+				liquidConfig.RpcUser,
+				liquidConfig.RpcPassword,
+				liquidConfig.RpcHost,
+				liquidConfig.RpcCookieFilePath,
+				liquidConfig.RpcPort,
+			)
+			if err != nil {
+				return err
+			}
+			liquidRpcWallet, err = wallet.NewRpcWallet(liquidCli, liquidConfig.RpcWallet)
+			if err != nil {
+				return err
+			}
+
+			// txwatcher
+			liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
+
+			// LiquidChain
+			liquidChain, err := getLiquidChain(liquidCli)
+			if err != nil {
+				return err
+			}
+			liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
+		} else if cfg.LWKConfig != nil {
+			log.Infof("Liquid swaps enabled with LWK. Network: %s, wallet: %s", cfg.LWKConfig.GetNetwork(), cfg.LWKConfig.GetWalletName())
+			ec, err := electrum.NewClientTCP(ctx, cfg.LWKConfig.GetElectrumEndpoint())
+			if err != nil {
+				return err
+			}
+
+			// This call is blocking, waiting for elements to come alive and sync.
+			liquidRpcWallet, err = lwk.NewLWKRpcWallet(lwk.NewLwk(cfg.LWKConfig.GetElectrumEndpoint()),
+				ec, cfg.LWKConfig.GetWalletName(), cfg.LWKConfig.GetSignerName())
+			if err != nil {
+				return err
+			}
+			cfg.LiquidEnabled = true
+			liquidTxWatcher, err = lwk.NewElectrumTxWatcher(ec)
+			if err != nil {
+				return err
+			}
+			liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, cfg.LWKConfig.GetChain())
+			supportedAssets = append(supportedAssets, "lbtc")
+		} else {
+			return errors.New("Liquid swaps enabled but no config found")
 		}
 
 		// txwatcher
@@ -224,7 +273,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
 	} else {
 		log.Infof("Liquid swaps disabled")
 	}

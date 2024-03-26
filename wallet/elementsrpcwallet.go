@@ -6,6 +6,9 @@ import (
 	"strings"
 
 	"github.com/elementsproject/glightning/gelements"
+	"github.com/elementsproject/peerswap/swap"
+	"github.com/vulpemventures/go-elements/address"
+	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/transaction"
 )
 
@@ -26,6 +29,8 @@ type RpcClient interface {
 	BlindRawTransaction(txHex string) (string, error)
 	SignRawTransactionWithWallet(txHex string) (gelements.SignRawTransactionWithWalletRes, error)
 	SendRawTx(txHex string) (string, error)
+	EstimateFee(blocks uint32, mode string) (*gelements.FeeResponse, error)
+	SetLabel(address, label string) error
 }
 
 // ElementsRpcWallet uses the elementsd rpc wallet
@@ -62,26 +67,40 @@ func (r *ElementsRpcWallet) FinalizeTransaction(rawTx string) (string, error) {
 	return finalized.Hex, nil
 }
 
-// CreateFundedTransaction takes a tx with outputs and adds inputs in order to spend the tx
-func (r *ElementsRpcWallet) CreateFundedTransaction(preparedTx *transaction.Transaction) (rawTx string, fee uint64, err error) {
-	txHex, err := preparedTx.ToHex()
+// CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
+func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
+	asset []byte) (txid, rawTx string, fee uint64, err error) {
+	outputscript, err := address.ToOutputScript(swapParams.OpeningAddress)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
+	}
+	sats, err := elementsutil.ValueToBytes(swapParams.Amount)
+	if err != nil {
+		return "", "", 0, err
+	}
+	output := transaction.NewTxOutput(asset, sats, outputscript)
+	output.Nonce = swapParams.BlindingKey.PubKey().SerializeCompressed()
+
+	tx := transaction.NewTx(2)
+	tx.Outputs = append(tx.Outputs, output)
+
+	txHex, err := tx.ToHex()
+	if err != nil {
+		return "", "", 0, err
 	}
 	fundedTx, err := r.rpcClient.FundRawTx(txHex)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, err
 	}
-	return fundedTx.TxString, gelements.ConvertBtc(fundedTx.Fee), nil
-}
-
-// FinalizeAndBroadcastFundedTransaction finalizes a tx and broadcasts it
-func (r *ElementsRpcWallet) FinalizeFundedTransaction(rawTx string) (txId string, err error) {
-	finalized, err := r.FinalizeTransaction(rawTx)
+	finalized, err := r.FinalizeTransaction(fundedTx.TxString)
 	if err != nil {
-		return "", err
+		return "", "", 0, err
 	}
-	return finalized, nil
+	txid, err = r.SendRawTx(finalized)
+	if err != nil {
+		return "", "", 0, err
+	}
+	return txid, finalized, gelements.ConvertBtc(fundedTx.Fee), nil
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
@@ -138,6 +157,33 @@ func (r *ElementsRpcWallet) SendToAddress(address string, amount uint64) (string
 		return "", err
 	}
 	return txId, nil
+}
+
+func (r *ElementsRpcWallet) SendRawTx(txHex string) (string, error) {
+	return r.rpcClient.SendRawTx(txHex)
+}
+
+func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
+	feeRes, err := r.rpcClient.EstimateFee(LiquidTargetBlocks, "ECONOMICAL")
+	if err != nil {
+		return 0, err
+	}
+	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
+	if satPerByte < 0.1 {
+		satPerByte = 0.1
+	}
+	if len(feeRes.Errors) > 0 {
+		//todo sane default sat per byte
+		satPerByte = 0.1
+	}
+	// assume largest witness
+	fee := satPerByte * float64(txSize)
+
+	return uint64(fee), nil
+}
+
+func (r *ElementsRpcWallet) SetLabel(txID, address, label string) error {
+	return r.rpcClient.SetLabel(address, label)
 }
 
 // satsToAmountString returns the amount in btc from sats

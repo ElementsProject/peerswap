@@ -247,9 +247,6 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
-		if l.cl.Gelements == nil {
-			return nil, errors.New("peerswap was not started with liquid node config")
-		}
 
 	} else if strings.Compare(l.Asset, "btc") == 0 {
 		if !l.cl.swaps.BitcoinEnabled {
@@ -365,9 +362,6 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if l.Asset == "lbtc" {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
-		}
-		if l.cl.Gelements == nil {
-			return nil, errors.New("peerswap was not started with liquid node config")
 		}
 		liquidBalance, err := l.cl.liquidWallet.GetBalance()
 		if err != nil {

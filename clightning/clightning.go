@@ -16,7 +16,6 @@ import (
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/peerswap/onchain"
 
-	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
 	"github.com/elementsproject/peerswap/lightning"
@@ -64,13 +63,11 @@ type ClightningClient struct {
 	glightning *glightning.Lightning
 	Plugin     *glightning.Plugin
 
-	liquidWallet   *wallet.ElementsRpcWallet
+	liquidWallet   wallet.Wallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
 	pollService    *poll.Service
-
-	Gelements *gelements.Elements
 
 	gbitcoin       *gbitcoin.Bitcoin
 	bitcoinChain   *onchain.BitcoinOnChain
@@ -323,14 +320,13 @@ func (cl *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 }
 
 // SetupClients injects the required services
-func (cl *ClightningClient) SetupClients(liquidWallet *wallet.ElementsRpcWallet,
+func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
-	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter, elements *gelements.Elements,
+	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter,
 	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service) {
 	cl.liquidWallet = liquidWallet
 	cl.requestedSwaps = requestedSwaps
 	cl.swaps = swaps
-	cl.Gelements = elements
 	cl.policy = policy
 	cl.gbitcoin = bitcoin
 	cl.pollService = pollService

@@ -164,8 +164,8 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
-	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
-	var liquidRpcWallet *wallet.ElementsRpcWallet
+	var liquidTxWatcher swap.TxWatcher
+	var liquidRpcWallet wallet.Wallet
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
@@ -202,7 +202,25 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			return err
 		}
 
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
+		supportedAssets = append(supportedAssets, "lbtc")
+		log.Infof("Liquid swaps enabled")
+	} else if config.LWK != nil && config.LWK.Enabled() {
+		liquidEnabled = true
+		ec, err2 := electrum.NewClientTCP(ctx, config.LWK.GetElectrumEndpoint())
+		if err2 != nil {
+			return err2
+		}
+		liquidRpcWallet, err2 = lwk.NewLWKRpcWallet(lwk.NewLwk(config.LWK.GetLWKEndpoint()),
+			ec, config.LWK.GetWalletName(), config.LWK.GetSignerName())
+		if err2 != nil {
+			return err2
+		}
+		liquidTxWatcher, err = lwk.NewElectrumTxWatcher(ec)
+		if err != nil {
+			return err
+		}
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, config.LWK.GetChain())
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
 	} else {
@@ -363,7 +381,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	defer pollService.Stop()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, bitcoinCli, bitcoinOnChainService, pollService)
 
 	// We are ready to accept and handle requests.
 	// FIXME: Once we reworked the recovery service (non-blocking) we want to
