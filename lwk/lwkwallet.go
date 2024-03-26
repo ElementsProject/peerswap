@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"math"
+	"strings"
 
 	"github.com/checksum0/go-electrum/electrum"
 
@@ -45,7 +46,7 @@ func NewLWKRpcWallet(lwkClient *lwkclient, electrumClient *electrum.Client, wall
 		lwkClient:      lwkClient,
 		electrumClient: electrumClient,
 	}
-	err := rpcWallet.setupWallet()
+	err := rpcWallet.setupWallet(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +54,15 @@ func NewLWKRpcWallet(lwkClient *lwkclient, electrumClient *electrum.Client, wall
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
-func (r *LWKRpcWallet) setupWallet() error {
-	ctx := context.Background()
+func (r *LWKRpcWallet) setupWallet(ctx context.Context) error {
 	res, err := r.lwkClient.walletDetails(ctx, &walletDetailsRequest{
 		WalletName: r.walletName,
 	})
 	if err != nil {
+		// 32008 is the error code for wallet not found of lwk
+		if strings.HasPrefix(err.Error(), "-32008") {
+			return r.createWallet(ctx, r.walletName, r.signerName)
+		}
 		return err
 	}
 	signers := res.Signers
@@ -67,6 +71,38 @@ func (r *LWKRpcWallet) setupWallet() error {
 	}
 	if signers[0].Name != r.signerName {
 		return errors.New("signer name is not correct. expected: " + r.signerName + " got: " + signers[0].Name)
+	}
+	return nil
+}
+
+func (r *LWKRpcWallet) createWallet(ctx context.Context, walletName, signerName string) error {
+	res, err := r.lwkClient.generateSigner(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = r.lwkClient.loadSoftwareSigner(ctx, &loadSoftwareSignerRequest{
+		Mnemonic:   res.Mnemonic,
+		SignerName: signerName,
+	})
+	// 32011 is the error code for signer already loaded
+	if err != nil && !strings.HasPrefix(err.Error(), "-32011") {
+		return err
+	}
+	descres, err := r.lwkClient.singlesigDescriptor(ctx, &singlesigDescriptorRequest{
+		SignerName:            signerName,
+		DescriptorBlindingKey: "slip77",
+		SinglesigKind:         "wpkh",
+	})
+	if err != nil {
+		return err
+	}
+	_, err = r.lwkClient.loadWallet(ctx, &loadWalletRequest{
+		Descriptor: descres.Descriptor,
+		WalletName: walletName,
+	})
+	// 32011 is the error code for wallet already loaded
+	if err != nil && !strings.HasPrefix(err.Error(), "-32009") {
+		return err
 	}
 	return nil
 }

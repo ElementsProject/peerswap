@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/lwk"
 	"github.com/elementsproject/peerswap/version"
 	"golang.org/x/sys/unix"
 
@@ -169,7 +171,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if *config.Liquid.LiquidSwaps && liquidWanted(config) {
+	if *config.Liquid.LiquidSwaps && elementsWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword:******, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
@@ -411,7 +413,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	return nil
 }
 
-func liquidWanted(cfg *clightning.Config) bool {
+func elementsWanted(cfg *clightning.Config) bool {
 	return cfg.Liquid.RpcUser != "" && cfg.Liquid.RpcPassword != ""
 }
 
@@ -431,6 +433,7 @@ func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
 		return &network.Testnet, nil
 	}
 }
+
 func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	gi, err := li.GetInfo()
 	if err != nil {

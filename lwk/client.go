@@ -212,3 +212,94 @@ func (l *lwkclient) walletDetails(ctx context.Context, w *walletDetailsRequest) 
 	}
 	return &resp, nil
 }
+
+type generateSignerRequest struct {
+}
+
+func (r *generateSignerRequest) Name() string {
+	return "generate_signer"
+}
+
+type generateSignerResponse struct {
+	Mnemonic string `json:"mnemonic"`
+}
+
+func (l *lwkclient) generateSigner(ctx context.Context) (*generateSignerResponse, error) {
+	var resp generateSignerResponse
+	err := l.request(ctx, &generateSignerRequest{}, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+type loadSoftwareSignerRequest struct {
+	Mnemonic   string `json:"mnemonic"`
+	SignerName string `json:"name"`
+}
+
+func (r *loadSoftwareSignerRequest) Name() string {
+	return "signer_load_software"
+}
+
+type loadSoftwareSignerResponse struct {
+	Fingerprint string `json:"fingerprint"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Xpub        string `json:"xpub"`
+}
+
+func (l *lwkclient) loadSoftwareSigner(ctx context.Context, req *loadSoftwareSignerRequest) (*loadSoftwareSignerResponse, error) {
+	var resp loadSoftwareSignerResponse
+	err := l.request(ctx, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+type singlesigDescriptorRequest struct {
+	DescriptorBlindingKey string `json:"descriptor_blinding_key"`
+	SignerName            string `json:"name"`
+	SinglesigKind         string `json:"singlesig_kind"`
+}
+
+func (r *singlesigDescriptorRequest) Name() string {
+	return "singlesig_descriptor"
+}
+
+type singlesigDescriptorResponse struct {
+	Descriptor string `json:"descriptor"`
+}
+
+func (l *lwkclient) singlesigDescriptor(ctx context.Context, req *singlesigDescriptorRequest) (*singlesigDescriptorResponse, error) {
+	var resp singlesigDescriptorResponse
+	err := l.request(ctx, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+type loadWalletRequest struct {
+	Descriptor string `json:"descriptor"`
+	WalletName string `json:"name"`
+}
+
+func (r *loadWalletRequest) Name() string {
+	return "load_wallet"
+}
+
+type loadWalletResponse struct {
+	Descriptor string `json:"descriptor"`
+	Name       string `json:"name"`
+}
+
+func (l *lwkclient) loadWallet(ctx context.Context, req *loadWalletRequest) (*loadWalletResponse, error) {
+	var resp loadWalletResponse
+	err := l.request(ctx, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
