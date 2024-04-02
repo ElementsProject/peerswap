@@ -1157,7 +1157,8 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 		"--dev-fast-gossip",
 		"--large-channels",
 		"--min-capacity-sat=1000",
-	})
+		"--min-emergency-msat=600000",
+	}, false)
 
 	defer func() {
 		if t.Failed() {
