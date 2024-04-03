@@ -11,6 +11,7 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
@@ -380,7 +381,29 @@ func (l *Client) GetPeers() []string {
 // The receiver node aren't able to settle the payment.
 // When the probe is successful, the receiver will return
 // a incorrect_or_unknown_payment_details error to the sender.
-func (l *Client) ProbePayment(scid string, amountMsat uint64) (bool, string, error) {
+func (l *Client) ProbePayment(scid string, amountMsat uint64) (success bool, paymentError string, err error) {
+	// maxRetries is the maximum number of retries for the probePayment.
+	const maxRetries = 5
+	// Set backoff retry to avoid swap failures
+	// due to temporary channel failures such as `TemporaryChannelFailure`
+	err = backoff.Retry(func() error {
+		var innerErr error
+		success, paymentError, innerErr = l.probePayment(scid, amountMsat)
+		if innerErr != nil {
+			return innerErr
+		}
+		if paymentError != "" {
+			return fmt.Errorf("probePayment() %w", errors.New(paymentError))
+		}
+		if !success {
+			return errors.New("probePayment() failed")
+		}
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetries))
+	return success, paymentError, err
+}
+
+func (l *Client) probePayment(scid string, amountMsat uint64) (bool, string, error) {
 	chsRes, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{})
 	if err != nil {
 		return false, "", fmt.Errorf("ListChannels() %w", err)
