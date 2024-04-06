@@ -217,20 +217,27 @@ func (n *CLightningNode) GetChannelBalanceSat(scid string) (sats uint64, err err
 }
 
 func (n *CLightningNode) GetScid(remote LightningNode) (string, error) {
-	peers, err := n.Rpc.ListPeers()
-	if err != nil {
-		return "", fmt.Errorf("ListPeers() %w", err)
-	}
-
-	for _, peer := range peers {
-		if peer.Id == remote.Id() {
-			if peer.Channels != nil {
-				return peer.Channels[0].ShortChannelId, nil
-			}
-			return "", fmt.Errorf("no channel to peer")
+	scid := ""
+	err := WaitForWithErr(func() (bool, error) {
+		peers, err := n.Rpc.ListPeers()
+		if err != nil {
+			return false, fmt.Errorf("ListPeers() %w", err)
 		}
+		for _, peer := range peers {
+			if peer.Id == remote.Id() {
+				if peer.Channels != nil {
+					scid = peer.Channels[0].ShortChannelId
+					return scid != "", nil
+				}
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("peer not found")
+	}, TIMEOUT)
+	if err != nil {
+		return "", err
 	}
-	return "", fmt.Errorf("peer not found")
+	return scid, nil
 }
 
 func (n *CLightningNode) Connect(peer LightningNode, waitForConnection bool) error {

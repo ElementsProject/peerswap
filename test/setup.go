@@ -35,10 +35,11 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 		"--dev-bitcoind-poll=1",
 		"--dev-fast-gossip",
 		"--large-channels",
-	})
+	}, true)
 }
 
-func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []string) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
+func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
+	clnConf []string, waitForActiveChannel bool) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
@@ -81,7 +82,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []stri
 			os.ModePerm,
 		)
 
-		// Use lightningd with --developer turned on 
+		// Use lightningd with --developer turned on
 		lightningd.WithCmd("lightningd")
 
 		// Add plugin to cmd line options
@@ -108,7 +109,7 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []stri
 	}
 
 	// Setup channel ([0] fundAmt(10^7) ---- 0 [1])
-	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, pushAmt, true, true, true)
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, pushAmt, true, true, waitForActiveChannel)
 	if err != nil {
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
@@ -243,7 +244,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 		os.ModePerm,
 	)
 
-	// Use lightningd with --developer turned on 
+	// Use lightningd with --developer turned on
 	cln.WithCmd("lightningd")
 
 	// Add plugin to cmd line options
@@ -405,7 +406,7 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 			os.ModePerm,
 		)
 
-		// Use lightningd with --developer turned on 
+		// Use lightningd with --developer turned on
 		lightningd.WithCmd("lightningd")
 
 		// Add plugin to cmd line options
@@ -665,7 +666,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 		os.ModePerm,
 	)
 
-	// Use lightningd with --developer turned on 
+	// Use lightningd with --developer turned on
 	cln.WithCmd("lightningd")
 
 	// Add plugin to cmd line options
