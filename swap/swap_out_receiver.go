@@ -56,7 +56,9 @@ func getSwapOutReceiverStates() States {
 			Events: Events{
 				Event_OnFeeInvoicePaid: State_SwapOutReceiver_BroadcastOpeningTx,
 				Event_OnCancelReceived: State_SwapCanceled,
+				Event_ActionFailed:     State_SendCancel,
 			},
+			FailOnrecover: true,
 		},
 		State_SwapOutReceiver_BroadcastOpeningTx: {
 			Action: &CreateAndBroadcastOpeningTransaction{},
