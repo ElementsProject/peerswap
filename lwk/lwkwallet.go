@@ -18,10 +18,12 @@ import (
 type Satoshi = uint64
 
 // SatPerKVByte represents a fee rate in sat/kb.
-type SatPerKVByte = uint64
+type SatPerKVByte = float64
 
 const (
-	minimumSatPerByte = 200
+	minimumSatPerByte SatPerKVByte = 0.1
+	// 1 kb = 1000 bytes
+	kb float64 = 1000
 )
 
 // LWKRpcWallet uses the elementsd rpc wallet
@@ -108,9 +110,9 @@ func (r *LWKRpcWallet) createWallet(ctx context.Context, walletName, signerName 
 
 // CreateFundedTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
-	asset []byte) (txid, rawTx string, fee SatPerKVByte, err error) {
+	asset []byte) (txid, rawTx string, fee Satoshi, err error) {
 	ctx := context.Background()
-	feerate := float64(r.getFeePerKb(ctx))
+	feerate := float64(r.getFeePerKb(ctx)) * kb
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
 		Addressees: []*unvalidatedAddressee{
 			{
@@ -212,8 +214,7 @@ func (r *LWKRpcWallet) SendRawTx(txHex string) (string, error) {
 
 func (r *LWKRpcWallet) getFeePerKb(ctx context.Context) SatPerKVByte {
 	feeBTCPerKb, err := r.electrumClient.GetFee(ctx, wallet.LiquidTargetBlocks)
-	// convert to sat per byte
-	satPerByte := uint64(float64(feeBTCPerKb) * math.Pow10(int(8)))
+	satPerByte := float64(feeBTCPerKb) * math.Pow10(int(8)) / kb
 	if satPerByte < minimumSatPerByte {
 		satPerByte = minimumSatPerByte
 	}
@@ -226,8 +227,8 @@ func (r *LWKRpcWallet) getFeePerKb(ctx context.Context) SatPerKVByte {
 func (r *LWKRpcWallet) GetFee(txSize int64) (Satoshi, error) {
 	ctx := context.Background()
 	// assume largest witness
-	fee := r.getFeePerKb(ctx) * uint64(txSize)
-	return fee, nil
+	fee := r.getFeePerKb(ctx) * float64(txSize)
+	return Satoshi(fee), nil
 }
 
 func (r *LWKRpcWallet) SetLabel(txID, address, label string) error {
