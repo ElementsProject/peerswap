@@ -1,6 +1,7 @@
 package lwk_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/checksum0/go-electrum/electrum"
@@ -58,13 +59,18 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 				return nil
 			},
 		)
-		err = r.StartWatchingTxs()
-		assert.NoError(t, err)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			err = r.StartWatchingTxs()
+			assert.NoError(t, err)
+			wg.Done()
+		}()
 		r.AddWaitForConfirmationTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
 			Height: onchain.LiquidConfs + targetTXHeight + 1,
 		}
-
+		wg.Wait()
 		assert.Equal(t, <-callbackChan, wantSwapID)
 	})
 
@@ -109,13 +115,18 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 				return nil
 			},
 		)
-		err = r.StartWatchingTxs()
-		assert.NoError(t, err)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			err = r.StartWatchingTxs()
+			assert.NoError(t, err)
+			wg.Done()
+		}()
 		r.AddWaitForCsvTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
 			Height: onchain.LiquidCsv + targetTXHeight + 1,
 		}
-
+		wg.Wait()
 		assert.Equal(t, <-callbackChan, wantSwapID)
 	})
 

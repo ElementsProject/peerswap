@@ -340,13 +340,11 @@ func run() error {
 	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil {
-		go func() {
-			err := liquidTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Infof("%v", err)
-				os.Exit(1)
-			}
-		}()
+		err := liquidTxWatcher.StartWatchingTxs()
+		if err != nil {
+			log.Infof("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	err = swapService.Start()

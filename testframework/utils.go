@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // WaitFunc returns just a bool value to check if
@@ -103,6 +105,25 @@ func AssertWaitForChannelBalance(t *testing.T, node LightningNode, scid string, 
 		return false
 	}
 	return true
+}
+
+func AssertOnchainBalanceInDelta(t *testing.T,
+	node LightningNode, expected, delta uint64, timeout time.Duration) {
+	var actual uint64
+	t.Helper()
+	err := WaitFor(func() bool {
+		var err error
+		actual, err = node.GetBtcBalanceSat()
+		require.NoError(t, err)
+		if expected >= actual {
+			return expected-actual <= delta
+		} else {
+			return actual-expected <= delta
+		}
+	}, timeout)
+	if err != nil {
+		t.Errorf("expected: %d, got: %d, err: %v", expected, actual, err)
+	}
 }
 
 func RequireWaitForChannelBalance(t *testing.T, node LightningNode, scid string, expected, delta float64, timeout time.Duration) {

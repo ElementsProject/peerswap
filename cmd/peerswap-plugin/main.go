@@ -350,23 +350,19 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil && liquidEnabled {
-		go func() {
-			err := liquidTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Infof("%v", err)
-				os.Exit(1)
-			}
-		}()
+		err := liquidTxWatcher.StartWatchingTxs()
+		if err != nil {
+			log.Infof("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	if bitcoinTxWatcher != nil {
-		go func() {
-			err := bitcoinTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Infof("%v", err)
-				os.Exit(1)
-			}
-		}()
+		err := bitcoinTxWatcher.StartWatchingTxs()
+		if err != nil {
+			log.Infof("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	err = swapService.Start()

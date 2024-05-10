@@ -2,12 +2,18 @@ package lwk
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/elementsproject/peerswap/electrum"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
 )
+
+// initialBlockHeaderSubscriptionTimeout is
+// the initial block header subscription timeout.
+const initialBlockHeaderSubscriptionTimeout = 1000 * time.Second
 
 type electrumTxWatcher struct {
 	electrumClient       electrum.RPC
@@ -53,7 +59,24 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 			}
 		}
 	}()
-	return nil
+	return r.waitForInitialBlockHeaderSubscription(ctx)
+}
+
+// waitForInitialBlockHeaderSubscription waits for the initial block header subscription to be confirmed.
+func (r *electrumTxWatcher) waitForInitialBlockHeaderSubscription(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, initialBlockHeaderSubscriptionTimeout)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("Initial block header subscription timeout.")
+			return ctx.Err()
+		default:
+			if r.blockHeight.Confirmed() {
+				return nil
+			}
+		}
+	}
 }
 
 func (r *electrumTxWatcher) AddWaitForConfirmationTx(swapIDStr, txIDStr string, vout, startingHeight uint32, scriptpubkeyByte []byte) {
@@ -85,6 +108,9 @@ func (r *electrumTxWatcher) AddCsvCallback(f func(swapId string) error) {
 }
 
 func (r *electrumTxWatcher) GetBlockHeight() (uint32, error) {
+	if !r.blockHeight.Confirmed() {
+		return 0, fmt.Errorf("block height not confirmed")
+	}
 	return r.blockHeight.Height(), nil
 }
 
