@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/checksum0/go-electrum/electrum"
+	mock_txwatcher "github.com/elementsproject/peerswap/electrum/mock"
 	"github.com/elementsproject/peerswap/lwk"
-	mock_txwatcher "github.com/elementsproject/peerswap/lwk/mock"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +36,7 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 			targetTXHeight int32 = 100
 		)
 
-		electrumRPC := mock_txwatcher.NewMockelectrumRPC(gomock.NewController(t))
+		electrumRPC := mock_txwatcher.NewMockRPC(gomock.NewController(t))
 		headerResultChan := make(chan *electrum.SubscribeHeadersResult, 1)
 		electrumRPC.EXPECT().SubscribeHeaders(gomock.Any()).
 			Return(headerResultChan, nil)
@@ -94,7 +94,7 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 			targetTXHeight = int32(100)
 		)
 
-		electrumRPC := mock_txwatcher.NewMockelectrumRPC(gomock.NewController(t))
+		electrumRPC := mock_txwatcher.NewMockRPC(gomock.NewController(t))
 		headerResultChan := make(chan *electrum.SubscribeHeadersResult, 1)
 		electrumRPC.EXPECT().SubscribeHeaders(gomock.Any()).
 			Return(headerResultChan, nil)

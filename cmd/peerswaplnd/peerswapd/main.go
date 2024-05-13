@@ -16,7 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/lnd"
@@ -231,22 +230,17 @@ func run() error {
 			liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
 		} else if cfg.LWKConfig.Enabled() {
 			log.Infof("Liquid swaps enabled with LWK. Network: %s, wallet: %s", cfg.LWKConfig.GetNetwork(), cfg.LWKConfig.GetWalletName())
-			ec, err := electrum.NewClientTCP(ctx, cfg.LWKConfig.GetElectrumEndpoint())
-			if err != nil {
-				return err
-			}
-
 			// This call is blocking, waiting for elements to come alive and sync.
-			liquidRpcWallet, err = lwk.NewLWKRpcWallet(lwk.NewLwk(cfg.LWKConfig.GetLWKEndpoint()),
-				ec, cfg.LWKConfig.GetWalletName(), cfg.LWKConfig.GetSignerName())
-			if err != nil {
-				return err
+			lc, err2 := lwk.NewLWKRpcWallet(ctx, cfg.LWKConfig)
+			if err2 != nil {
+				return err2
 			}
 			cfg.LiquidEnabled = true
-			liquidTxWatcher, err = lwk.NewElectrumTxWatcher(ec)
+			liquidTxWatcher, err = lwk.NewElectrumTxWatcher(lc.GetElectrumClient())
 			if err != nil {
 				return err
 			}
+			liquidRpcWallet = lc
 			liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, cfg.LWKConfig.GetChain())
 			supportedAssets = append(supportedAssets, "lbtc")
 		} else {

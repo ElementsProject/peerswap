@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
@@ -209,22 +208,19 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		log.Infof("Liquid swaps enabled")
 	} else if config.LWK != nil && config.LWK.Enabled() {
 		liquidEnabled = true
-		ec, err2 := electrum.NewClientTCP(ctx, config.LWK.GetElectrumEndpoint())
+		lc, err2 := lwk.NewLWKRpcWallet(ctx, config.LWK)
 		if err2 != nil {
 			return err2
 		}
-		liquidRpcWallet, err2 = lwk.NewLWKRpcWallet(lwk.NewLwk(config.LWK.GetLWKEndpoint()),
-			ec, config.LWK.GetWalletName(), config.LWK.GetSignerName())
-		if err2 != nil {
-			return err2
-		}
-		liquidTxWatcher, err = lwk.NewElectrumTxWatcher(ec)
+		liquidTxWatcher, err = lwk.NewElectrumTxWatcher(lc.GetElectrumClient())
 		if err != nil {
 			return err
 		}
+		liquidRpcWallet = lc
 		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, config.LWK.GetChain())
 		supportedAssets = append(supportedAssets, "lbtc")
-		log.Infof("Liquid swaps enabled")
+		log.Infof("Liquid swaps enabled with LWK. Network: %s, wallet: %s",
+			config.LWK.GetNetwork(), config.LWK.GetWalletName())
 	} else {
 		log.Infof("Liquid swaps disabled")
 	}

@@ -224,4 +224,4 @@ mockgen: mockgen/lwk
 
 .PHONY: mockgen/lwk
 mockgen/lwk:
-	$(TOOLS_DIR)/bin/mockgen -source=lwk/electrumRPC.go -destination=lwk/mock/electrumRPC.go
+	$(TOOLS_DIR)/bin/mockgen -source=electrum/electrum.go -destination=electrum/mock/electrum.go

@@ -32,6 +32,10 @@ func (c *Conf) GetElectrumEndpoint() string {
 	return c.electrumEndpoint.Host
 }
 
+func (c *Conf) IsElectrumWithTLS() bool {
+	return c.electrumEndpoint.Scheme == "ssl"
+}
+
 func (c *Conf) GetNetwork() string {
 	return c.network.String()
 }
@@ -50,6 +54,19 @@ func (c *Conf) GetChain() *network.Network {
 		return &network.Testnet
 	default:
 		return &network.Testnet
+	}
+}
+
+func (c *Conf) GetAssetID() string {
+	switch c.network {
+	case NetworkMainnet:
+		return network.Liquid.AssetID
+	case NetworkRegtest:
+		return network.Regtest.AssetID
+	case NetworkTestnet:
+		return network.Testnet.AssetID
+	default:
+		return network.Testnet.AssetID
 	}
 }
 
