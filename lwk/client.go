@@ -303,3 +303,24 @@ func (l *lwkclient) loadWallet(ctx context.Context, req *loadWalletRequest) (*lo
 	}
 	return &resp, nil
 }
+
+type versionRequest struct {
+}
+
+func (r *versionRequest) Name() string {
+	return "version"
+}
+
+type versionResponse struct {
+	Version string `json:"version"`
+	Network string `json:"network"`
+}
+
+func (l *lwkclient) version(ctx context.Context) (*versionResponse, error) {
+	var resp versionResponse
+	err := l.request(ctx, &versionRequest{}, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}

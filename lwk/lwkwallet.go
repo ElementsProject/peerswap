@@ -26,6 +26,7 @@ const (
 	// Set up here because ctx is not inherited throughout the current codebase.
 	defaultContextTimeout              = time.Second * 5
 	minimumSatPerByte     SatPerKVByte = 0.1
+	supportedVersion                   = "0.3.0"
 )
 
 // SatPerKVByte represents a fee rate in sat/kb.
@@ -53,6 +54,7 @@ type LWKRpcWallet struct {
 	c              *Conf
 	lwkClient      *lwkclient
 	electrumClient electrum.RPC
+	lwkVersion     string
 }
 
 func NewLWKRpcWallet(ctx context.Context, c *Conf) (*LWKRpcWallet, error) {
@@ -80,10 +82,23 @@ func (c *LWKRpcWallet) GetElectrumClient() electrum.RPC {
 	return c.electrumClient
 }
 
+func (r *LWKRpcWallet) IsSupportedVersion() bool {
+	return r.lwkVersion == supportedVersion
+}
+
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
 func (r *LWKRpcWallet) setupWallet(ctx context.Context) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, defaultContextTimeout)
 	defer cancel()
+	vres, err := r.lwkClient.version(timeoutCtx)
+	if err != nil {
+		return err
+	}
+	r.lwkVersion = vres.Version
+	if !r.IsSupportedVersion() {
+		return errors.New("unsupported lwk version. expected: " + supportedVersion + " got: " + r.lwkVersion)
+	}
+
 	res, err := r.lwkClient.walletDetails(timeoutCtx, &walletDetailsRequest{
 		WalletName: r.c.GetWalletName(),
 	})
