@@ -13,7 +13,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/vulpemventures/go-elements/confidential"
-	"github.com/vulpemventures/go-elements/pset"
 
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/elementsproject/peerswap/lightning"
@@ -329,7 +328,9 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	surjectionProof, ok := confidential.SurjectionProof(surjectionProofArgs)
 	if !ok {
-		return nil, [32]byte{}, pset.ErrGenerateSurjectionProof
+		return nil, [32]byte{}, errors.New(
+			"failed to generate surjection proof, please retry",
+		)
 	}
 	confOutputScript, err := address.ToOutputScript(redeemAddr)
 	if err != nil {
