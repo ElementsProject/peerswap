@@ -2,6 +2,7 @@ package lwk
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/vulpemventures/go-elements/network"
@@ -10,8 +11,8 @@ import (
 type Conf struct {
 	signerName       confname
 	walletName       confname
-	lwkEndpoint      confurl
-	electrumEndpoint confurl
+	lwkEndpoint      lwkurl
+	electrumEndpoint electsurl
 	network          LwkNetwork
 	liquidSwaps      bool
 }
@@ -100,7 +101,7 @@ func NewlwkNetwork(lekNetwork string) (LwkNetwork, error) {
 	case "liquid-regtest":
 		return NetworkRegtest, nil
 	default:
-		return "", errors.New("invalid network")
+		return "", fmt.Errorf("expected liquid, liquid-testnet or liquid-regtest, got %s", lekNetwork)
 	}
 }
 
@@ -130,24 +131,52 @@ func (n confname) String() string {
 	return string(n)
 }
 
-type confurl struct {
+type lwkurl struct {
 	*url.URL
 }
 
-func NewConfURL(endpoint string) (*confurl, error) {
+func NewLWKURL(endpoint string) (*lwkurl, error) {
 	u, err := url.ParseRequestURI(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return &confurl{u}, nil
+	return &lwkurl{u}, nil
 }
 
-func (n confurl) validate() error {
-	if n.URL == nil {
+func (u lwkurl) validate() error {
+	if u.URL == nil {
 		return errors.New("url must be set")
 	}
-	if n.URL.String() == "" {
+	if u.URL.String() == "" {
 		return errors.New("could not parse url")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("expected http or https scheme, got %s", u.Scheme)
+	}
+	return nil
+}
+
+type electsurl struct {
+	*url.URL
+}
+
+func NewElectrsURL(endpoint string) (*electsurl, error) {
+	u, err := url.ParseRequestURI(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return &electsurl{u}, nil
+}
+
+func (u electsurl) validate() error {
+	if u.URL == nil {
+		return errors.New("url must be set")
+	}
+	if u.URL.String() == "" {
+		return errors.New("could not parse url")
+	}
+	if u.Scheme != "ssl" && u.Scheme != "tcp" {
+		return fmt.Errorf("expected ssl or tcp scheme, got %s", u.Scheme)
 	}
 	return nil
 }

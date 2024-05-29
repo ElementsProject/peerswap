@@ -42,7 +42,7 @@ The following settings are available
 * signer name
 * lwk endpoint : lwk jsonrpc endpoint
 * electrumEndpoint : electrum JSON-RPC serverのendpoint
-* network : `liquid`、`liquid-testnet`.`"liquid-regtest`
+* network : **`liquid`, `liquid-testnet`, `liquid-regtest`**
 * liquidSwaps : `true` if used
 
 Set up in INI (.ini) File Format for lnd and in toml format for cln
@@ -52,7 +52,6 @@ Example configuration in lnd
 ```sh
 lwk.signername=signername
 lwk.walletname=walletname
-lwk.lwkendpoint=http://localhost:32110
 lwk.network=liquid
 lwk.liquidswaps=true
 ```
@@ -62,7 +61,6 @@ Example configuration in cln
 [LWK]
 signername="signername"
 walletname="walletname"
-lwkendpoint="http://localhost:32110"
 network="liquid"
 liquidswaps=true
 ```

@@ -41,7 +41,7 @@ func TestNewlwkNetwork(t *testing.T) {
 	}
 }
 
-func TestNewConfURL(t *testing.T) {
+func TestLWKURL(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		endpoint string
@@ -65,7 +65,43 @@ func TestNewConfURL(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got, err := lwk.NewConfURL(tt.endpoint)
+			got, err := lwk.NewLWKURL(tt.endpoint)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			if got.String() != tt.want {
+				t.Errorf("NewConfURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestElectrsURL(t *testing.T) {
+	t.Parallel()
+	tests := map[string]struct {
+		endpoint string
+		want     string
+		wantErr  bool
+	}{
+		"valid url": {
+			endpoint: "ssl://localhost:32111",
+			want:     "ssl://localhost:32111",
+		},
+		"without protocol": {
+			endpoint: "localhost:32111",
+			want:     "localhost:32111",
+		},
+		"invalid url": {
+			endpoint: "invalid url",
+			wantErr:  true,
+		},
+	}
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := lwk.NewElectrsURL(tt.endpoint)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

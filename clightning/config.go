@@ -257,14 +257,14 @@ func LWKConfigFromToml(filePath string) (*lwk.Conf, error) {
 		c.SetSignerName(lwk.NewConfName(cfg.LWK.SignerName))
 	}
 	if cfg.LWK.LWKEndpoint != "" {
-		lwkEndpoint, err := lwk.NewConfURL(cfg.LWK.LWKEndpoint)
+		lwkEndpoint, err := lwk.NewLWKURL(cfg.LWK.LWKEndpoint)
 		if err != nil {
 			return nil, err
 		}
 		c.SetLWKEndpoint(*lwkEndpoint)
 	}
 	if cfg.LWK.ElectrumEndpoint != "" {
-		electrumEndpoint, err := lwk.NewConfURL(cfg.LWK.ElectrumEndpoint)
+		electrumEndpoint, err := lwk.NewElectrsURL(cfg.LWK.ElectrumEndpoint)
 		if err != nil {
 			return nil, err
 		}

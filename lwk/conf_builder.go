@@ -28,11 +28,11 @@ func (b *confBuilder) DefaultConf() (*confBuilder, error) {
 		lwkEndpoint = "http://localhost:32110"
 		electrumEndpoint = "ssl://blockstream.info:995"
 	}
-	lwkURL, err := NewConfURL(lwkEndpoint)
+	lwkURL, err := NewLWKURL(lwkEndpoint)
 	if err != nil {
 		return nil, err
 	}
-	elementsURL, err := NewConfURL(electrumEndpoint)
+	elementsURL, err := NewElectrsURL(electrumEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +53,12 @@ func (b *confBuilder) SetWalletName(name confname) *confBuilder {
 	return b
 }
 
-func (b *confBuilder) SetLWKEndpoint(endpoint confurl) *confBuilder {
+func (b *confBuilder) SetLWKEndpoint(endpoint lwkurl) *confBuilder {
 	b.lwkEndpoint = endpoint
 	return b
 }
 
-func (b *confBuilder) SetElectrumEndpoint(endpoint confurl) *confBuilder {
+func (b *confBuilder) SetElectrumEndpoint(endpoint electsurl) *confBuilder {
 	b.electrumEndpoint = endpoint
 	return b
 }
