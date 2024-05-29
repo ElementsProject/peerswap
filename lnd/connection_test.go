@@ -10,8 +10,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	testgrpc "google.golang.org/grpc/test/grpc_testing"
-	testpb "google.golang.org/grpc/test/grpc_testing"
+	testgrpc "google.golang.org/grpc/interop/grpc_testing"
+	testpb "google.golang.org/grpc/interop/grpc_testing"
 )
 
 func TestWaitForReady_OnStop(t *testing.T) {
@@ -283,7 +283,7 @@ func (t testServer) StreamingOutputCall(req *testpb.StreamingOutputCallRequest, 
 				if err := srv.Send(
 					&testpb.StreamingOutputCallResponse{
 						Payload: &testpb.Payload{
-							Type: testpb.PayloadType_RANDOM,
+							Type: testgrpc.PayloadType_COMPRESSABLE,
 							Body: []byte("whatever"),
 						},
 					},
