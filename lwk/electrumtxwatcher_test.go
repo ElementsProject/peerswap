@@ -110,7 +110,6 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 		r.AddCsvCallback(
 			func(swapId string) error {
 				assert.Equal(t, wantSwapID, swapId)
-				assert.NoError(t, err)
 				callbackChan <- swapId
 				return nil
 			},

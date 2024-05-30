@@ -2,6 +2,7 @@ package electrum
 
 import (
 	"context"
+	"sync"
 
 	"github.com/elementsproject/peerswap/log"
 )
@@ -24,6 +25,7 @@ type BlockHeaderSubscriber interface {
 
 type liquidBlockHeaderSubscriber struct {
 	txObservers []TXObserver
+	mu          sync.Mutex
 }
 
 func NewLiquidBlockHeaderSubscriber() *liquidBlockHeaderSubscriber {
@@ -33,14 +35,24 @@ func NewLiquidBlockHeaderSubscriber() *liquidBlockHeaderSubscriber {
 var _ BlockHeaderSubscriber = (*liquidBlockHeaderSubscriber)(nil)
 
 func (h *liquidBlockHeaderSubscriber) Register(tx TXObserver) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	h.txObservers = append(h.txObservers, tx)
 }
 
 func (h *liquidBlockHeaderSubscriber) Deregister(o TXObserver) {
-	h.txObservers = remove(h.txObservers, o)
+	newObservers := make([]TXObserver, 0, len(h.txObservers))
+	for _, observer := range h.txObservers {
+		if observer.GetSwapID() != o.GetSwapID() {
+			newObservers = append(newObservers, observer)
+		}
+	}
+	h.txObservers = newObservers
 }
 
 func (h *liquidBlockHeaderSubscriber) Update(ctx context.Context, blockHeight BlocKHeight) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	for _, observer := range h.txObservers {
 		callbacked, err := observer.Callback(ctx, blockHeight)
 		if callbacked && err == nil {
@@ -52,14 +64,4 @@ func (h *liquidBlockHeaderSubscriber) Update(ctx context.Context, blockHeight Bl
 		}
 	}
 	return nil
-}
-
-func remove(observerList []TXObserver, observerToRemove TXObserver) []TXObserver {
-	newObservers := make([]TXObserver, len(observerList)-1)
-	for _, observer := range observerList {
-		if observer.GetSwapID() != observerToRemove.GetSwapID() {
-			newObservers = append(newObservers, observer)
-		}
-	}
-	return newObservers
 }

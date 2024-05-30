@@ -3,6 +3,7 @@ package lwk
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -28,6 +29,7 @@ type electrumTxWatcher struct {
 	// The connection with the electrum client is
 	// disconnected after a certain period of time.
 	resubscribeTicker *time.Ticker
+	mu                sync.Mutex
 }
 
 func NewElectrumTxWatcher(electrumClient electrum.RPC) (*electrumTxWatcher, error) {
@@ -59,7 +61,9 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 				if r.blockHeight.Confirmed() && blockHeader.Height <= int32(r.blockHeight.Height()) {
 					continue
 				}
+				r.mu.Lock()
 				r.blockHeight = electrum.BlocKHeight(blockHeader.Height)
+				r.mu.Unlock()
 				log.Infof("New block received. block height:%d", r.blockHeight)
 				err = r.subscriber.Update(ctx, r.blockHeight)
 				if err != nil {
@@ -89,9 +93,12 @@ func (r *electrumTxWatcher) waitForInitialBlockHeaderSubscription(ctx context.Co
 			log.Infof("Initial block header subscription timeout.")
 			return ctx.Err()
 		default:
+			r.mu.Lock()
 			if r.blockHeight.Confirmed() {
+				r.mu.Unlock()
 				return nil
 			}
+			r.mu.Unlock()
 		}
 		time.Sleep(heartbeatInterval)
 	}
@@ -119,9 +126,13 @@ func (r *electrumTxWatcher) AddWaitForConfirmationTx(swapIDStr, txIDStr string, 
 }
 
 func (r *electrumTxWatcher) AddConfirmationCallback(f func(swapId string, txHex string, err error) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.confirmationCallback = f
 }
 func (r *electrumTxWatcher) AddCsvCallback(f func(swapId string) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.csvCallback = f
 }
 
