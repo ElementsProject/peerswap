@@ -62,12 +62,17 @@ func (p *PeerSwapConfig) String() string {
 	if p.LndConfig != nil {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
+	var lwkConf string
+	if p.LWKConfig != nil {
+		lwkConf = fmt.Sprintf("lwk: signername: %s, walletname: %s, lwkendpoint: %s, electrumendpoint: %s, network: %s, liquidswaps: %v", p.LWKConfig.GetSignerName(), p.LWKConfig.GetWalletName(), p.LWKConfig.GetLWKEndpoint(), p.LWKConfig.GetElectrumEndpoint(), p.LWKConfig.GetNetwork(), p.LWKConfig.GetLiquidSwaps())
+	}
 
 	if p.DataDir != DefaultDatadir && p.PolicyFile == DefaultPolicyFile {
 		p.PolicyFile = filepath.Join(p.DataDir, "policy.conf")
 	}
 
-	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
+	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s, lwk config: %s",
+		p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString, lwkConf)
 }
 
 func (p *PeerSwapConfig) Validate() error {
