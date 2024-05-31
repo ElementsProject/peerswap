@@ -35,7 +35,8 @@ type SatPerKVByte float64
 func SatPerKVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerKVByte {
 	s := SatPerKVByte(feeBTCPerKb * math.Pow10(btcToSatoshiExp) / kb)
 	if s < minimumSatPerByte {
-		log.Infof("using minimum fee: %v.", minimumSatPerByte)
+		log.Debugf("Using minimum fee rate of %v sat/kw",
+			minimumSatPerByte)
 		return minimumSatPerByte
 	}
 	return s

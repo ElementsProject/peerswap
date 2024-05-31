@@ -64,7 +64,7 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 				r.mu.Lock()
 				r.blockHeight = electrum.BlocKHeight(blockHeader.Height)
 				r.mu.Unlock()
-				log.Infof("New block received. block height:%d", r.blockHeight)
+				log.Debugf("New block received. block height:%d", r.blockHeight)
 				err = r.subscriber.Update(ctx, r.blockHeight)
 				if err != nil {
 					log.Infof("Error notifying tx observers: %v", err)

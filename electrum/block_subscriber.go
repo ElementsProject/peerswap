@@ -2,9 +2,11 @@ package electrum
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/swap"
 )
 
 type BlocKHeight uint32
@@ -55,13 +57,21 @@ func (h *liquidBlockHeaderSubscriber) Update(ctx context.Context, blockHeight Bl
 	defer h.mu.Unlock()
 	for _, observer := range h.txObservers {
 		callbacked, err := observer.Callback(ctx, blockHeight)
-		if callbacked && err == nil {
-			// callbacked and no error, remove observer
-			h.Deregister(observer)
+		if callbacked {
+			if err == nil || errors.Is(err, swap.ErrSwapDoesNotExist) {
+				// callbacked and no error, remove observer
+				h.Deregister(observer)
+			}
 		}
-		if err != nil {
+		if err != nil && !errors.Is(err, swap.ErrSwapDoesNotExist) {
 			log.Infof("Error in callback: %v", err)
 		}
 	}
 	return nil
+}
+
+func (h *liquidBlockHeaderSubscriber) Count() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.txObservers)
 }

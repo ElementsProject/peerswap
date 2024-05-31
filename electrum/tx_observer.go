@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/checksum0/go-electrum/electrum"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
 )
@@ -93,11 +94,11 @@ func (o *observeOpeningTX) Callback(ctx context.Context, currentHeight BlocKHeig
 	}
 	rawTx, err := o.electrumClient.GetRawTransaction(ctx, o.txID.String())
 	if err != nil {
-		return false, fmt.Errorf("failed to get raw transaction: %w", err)
+		log.Debugf("failed to get raw transaction: %s", o.txID.String())
+		return false, nil
 	}
 	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidConfs)-1) {
-		return false, fmt.Errorf("not enough confirmations for opening transaction. txhash: %s.height: %d, current: %d",
-			o.txID.String(), getHeight(hs, o.txID).Height(), currentHeight.Height())
+		return false, nil
 	}
 	return true, o.cb(o.swapID.String(), rawTx, nil)
 }
@@ -139,11 +140,11 @@ func (o *observeCSVTX) Callback(ctx context.Context, currentHeight BlocKHeight) 
 		return false, fmt.Errorf("failed to get history: %w", err)
 	}
 	if !(getHeight(hs, o.txID).Confirmed()) {
-		return false, fmt.Errorf("the transaction is unconfirmed")
+		log.Debugf("the transaction is unconfirmed. txhash: %s", o.txID.String())
+		return false, nil
 	}
 	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidCsv-1)) {
-		return false, fmt.Errorf("not enough confirmations for csv transaction. txhash: %s.height: %d, current: %d",
-			o.txID.String(), getHeight(hs, o.txID).Height(), currentHeight.Height())
+		return false, nil
 	}
 	return true, o.cb(o.swapID.String())
 }
