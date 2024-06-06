@@ -355,6 +355,14 @@ func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
 		LiquidDisabled:         *config.Liquid.LiquidSwaps,
 		PeerswapDir:            config.PeerswapDir,
 	}
+	if config.LWK != nil {
+		cl.peerswapConfig.LWKSignerName = config.LWK.GetSignerName()
+		cl.peerswapConfig.LWKWalletName = config.LWK.GetWalletName()
+		cl.peerswapConfig.LWKEndpoint = config.LWK.GetLWKEndpoint()
+		cl.peerswapConfig.ElectrumEndpoint = config.LWK.GetElectrumEndpoint()
+		cl.peerswapConfig.LWKNetwork = config.LWK.GetNetwork()
+		cl.peerswapConfig.LWKLiquidSwaps = config.LWK.GetLiquidSwaps()
+	}
 }
 
 func (cl *ClightningClient) GetLightningRpc() *glightning.Lightning {
