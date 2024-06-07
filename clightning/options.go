@@ -28,7 +28,7 @@ var legacyOptions = []string{
 	liquidRpcUserOption,
 	liquidRpcPasswordOption,
 	liquidRpcPasswordFilepathOption,
-	liquidEnabledOption,
+	liquidSwapsOption,
 	liquidRpcWalletOption,
 	bitcoinRpcHostOption,
 	bitcoinRpcPortOption,
@@ -112,7 +112,7 @@ func (cl *ClightningClient) RegisterOptions() error {
 		return err
 	}
 
-	err = cl.Plugin.RegisterNewBoolOption(liquidEnabledOption, "enable/disable liquid", false)
+	err = cl.Plugin.RegisterNewBoolOption(liquidSwapsOption, "enable/disable liquid", false)
 	if err != nil {
 		return err
 	}
