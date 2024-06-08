@@ -356,7 +356,7 @@ func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
 		LiquidRpcHost:          config.Liquid.RpcHost,
 		LiquidRpcPort:          config.Liquid.RpcPort,
 		LiquidRpcWallet:        config.Liquid.RpcWallet,
-		LiquidDisabled:         *config.Liquid.LiquidSwaps,
+		LiquidSwaps:          *config.Liquid.LiquidSwaps,
 		PeerswapDir:            config.PeerswapDir,
 	}
 }
