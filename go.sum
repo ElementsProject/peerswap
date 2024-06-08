@@ -39,6 +39,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/Masterminds/semver/v3 v3.1.1 h1:hLg3sBzpNErnxhQtUy/mmLR2I9foDujNK030IGemrRc=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+github.com/YusukeShimizu/glightning v0.0.0-20240520211135-78482ea0af41 h1:/vLMO9683hBy6S3Ogldba+FqdJZ5e/hhpnF9W76A1Hk=
+github.com/YusukeShimizu/glightning v0.0.0-20240520211135-78482ea0af41/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmHS9iAKVt9AyzRSqNU1qabPih5BY=
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/siphash v1.0.1 h1:FwHfE/T45KPKYuuSAKyyvE+oPWcaQ+CUmFW0bPlM+kg=
@@ -186,8 +188,6 @@ github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6 h1:sE4tvxWw01v7K3MAHwKF2UF3xQbgy23PRURntuV1CkU=
 github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6/go.mod h1:11Gm+ccJnvAhCNLlf5+cS9KjtbaD5I5zaZpFMsTHWTw=
-github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a h1:xnVQmVqGmSs3m8zPQF4iYEYiUAmJx8MlT9vJ3lAaOjc=
-github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
@@ -665,8 +665,6 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
-github.com/yusukeshimizu/glightning v0.0.0-20240214001938-06d9e0562297 h1:j/R71Kv5Cvgds6OrqTPKLx2/sBL3WTt1xyMETp5qHf8=
-github.com/yusukeshimizu/glightning v0.0.0-20240214001938-06d9e0562297/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.5-0.20200615073812-232d8fc87f50/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=

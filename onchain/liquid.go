@@ -31,6 +31,8 @@ const (
 	LiquidCsv          = 60
 	LiquidConfs        = 2
 	LiquidTargetBlocks = 7
+	// todo: Update when version is decided.
+	elementsdFeeDiscountedVersion = 240201
 )
 
 type LiquidOnChain struct {
@@ -567,13 +569,17 @@ func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 0.1 {
-		satPerByte = 0.1
+	defaultSatPerByte := 0.1
+	ni, err := l.elements.GetNetworkInfo()
+	if err != nil {
+		return 0, err
 	}
-	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 0.1
+	if ni.Version >= elementsdFeeDiscountedVersion {
+		defaultSatPerByte = 0.01
+	}
+	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
+	if satPerByte < defaultSatPerByte || len(feeRes.Errors) > 0 {
+		satPerByte = defaultSatPerByte
 	}
 	// assume largest witness
 	fee := satPerByte * float64(txSize)
