@@ -16,7 +16,10 @@ const (
 	// initialBlockHeaderSubscriptionTimeout is
 	// the initial block header subscription timeout.
 	initialBlockHeaderSubscriptionTimeout = 1000 * time.Second
-	blockHeaderSubscriptionTicker         = 30 * time.Second
+	// Set prime seconds.
+	// This way, it prevents many automated clients from attacking the server at the same time.
+	// For example, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89 and 97 are good numbers.
+	blockHeaderSubscriptionTicker = 37 * time.Second
 )
 
 type electrumTxWatcher struct {
