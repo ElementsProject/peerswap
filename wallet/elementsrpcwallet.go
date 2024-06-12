@@ -31,6 +31,7 @@ type RpcClient interface {
 	SendRawTx(txHex string) (string, error)
 	EstimateFee(blocks uint32, mode string) (*gelements.FeeResponse, error)
 	SetLabel(address, label string) error
+	Ping() (bool, error)
 }
 
 // ElementsRpcWallet uses the elementsd rpc wallet
@@ -190,4 +191,8 @@ func (r *ElementsRpcWallet) SetLabel(txID, address, label string) error {
 func satsToAmountString(sats uint64) string {
 	bitcoinAmt := float64(sats) / 100000000
 	return fmt.Sprintf("%f", bitcoinAmt)
+}
+
+func (r *ElementsRpcWallet) Ping() (bool, error) {
+	return r.rpcClient.Ping()
 }

@@ -84,3 +84,7 @@ func (c *electrumClient) GetFee(ctx context.Context, target uint32) (float32, er
 	}
 	return c.client.GetFee(ctx, target)
 }
+
+func (c *electrumClient) Ping(ctx context.Context) error {
+	return c.reconnect(ctx)
+}

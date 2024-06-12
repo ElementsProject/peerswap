@@ -22,4 +22,5 @@ type Wallet interface {
 	SendRawTx(rawTx string) (txid string, err error)
 	GetFee(txSize int64) (uint64, error)
 	SetLabel(txID, address, label string) error
+	Ping() (bool, error)
 }

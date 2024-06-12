@@ -12,4 +12,5 @@ type RPC interface {
 	GetRawTransaction(ctx context.Context, txHash string) (string, error)
 	BroadcastTransaction(ctx context.Context, rawTx string) (string, error)
 	GetFee(ctx context.Context, target uint32) (float32, error)
+	Ping(ctx context.Context) error
 }

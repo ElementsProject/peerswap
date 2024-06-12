@@ -280,3 +280,14 @@ func (r *LWKRpcWallet) SetLabel(txID, address, label string) error {
 	// TODO: call set label
 	return nil
 }
+
+func (r *LWKRpcWallet) Ping() (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
+	defer cancel()
+	_, err := r.lwkClient.version(ctx)
+	if err != nil {
+		return false, errors.New("lwk connection failed: " + err.Error())
+	}
+	err = r.electrumClient.Ping(ctx)
+	return err == nil, err
+}

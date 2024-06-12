@@ -100,6 +100,20 @@ func (mr *MockRPCMockRecorder) GetRawTransaction(ctx, txHash any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRawTransaction", reflect.TypeOf((*MockRPC)(nil).GetRawTransaction), ctx, txHash)
 }
 
+// Ping mocks base method.
+func (m *MockRPC) Ping(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockRPCMockRecorder) Ping(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRPC)(nil).Ping), ctx)
+}
+
 // SubscribeHeaders mocks base method.
 func (m *MockRPC) SubscribeHeaders(ctx context.Context) (<-chan *electrum.SubscribeHeadersResult, error) {
 	m.ctrl.T.Helper()
