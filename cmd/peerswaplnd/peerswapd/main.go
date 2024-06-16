@@ -397,9 +397,7 @@ func run() error {
 	}
 	defer lis.Close()
 
-	grpcSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(livenessCheckInterceptor(liquidRpcWallet)),
-	)
+	grpcSrv := grpc.NewServer()
 
 	peerswaprpc.RegisterPeerSwapServer(grpcSrv, peerswaprpcServer)
 
@@ -439,23 +437,6 @@ func run() error {
 	}
 	<-shutdown
 	return nil
-}
-
-func livenessCheckInterceptor(liquidWallet wallet.Wallet) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		if liquidWallet != nil {
-			ok, err := liquidWallet.Ping()
-			if err != nil {
-				log.Infof("trying to send command %s, but failed to connect: %v", info.FullMethod, err)
-				return nil, fmt.Errorf("liquid backend not reachable: %v", err)
-			}
-			if !ok {
-				log.Infof("trying to send command %s, but failed to connect", info.FullMethod)
-				return nil, errors.New("liquid backend not reachable")
-			}
-		}
-		return handler(ctx, req)
-	}
 }
 
 func getBitcoinChain(ctx context.Context, li lnrpc.LightningClient) (*chaincfg.Params, error) {

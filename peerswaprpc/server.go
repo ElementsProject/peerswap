@@ -114,6 +114,9 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
+		if ok, perr := p.liquidWallet.Ping(); perr != nil || !ok {
+			return nil, fmt.Errorf("liquid wallet not reachable: %v", perr)
+		}
 
 	} else if strings.Compare(request.Asset, "btc") == 0 {
 		if !p.swaps.BitcoinEnabled {

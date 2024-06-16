@@ -131,7 +131,6 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 	cl.Plugin = glightning.NewPlugin(cl.onInit)
 	err := cl.Plugin.RegisterHooks(&glightning.Hooks{
 		CustomMsgReceived: cl.OnCustomMsg,
-		RpcCommand:        cl.OnRPCCommand,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -411,25 +410,6 @@ func (cl *ClightningClient) OnCustomMsg(event *glightning.CustomMsgReceivedEvent
 
 type Message struct {
 	Message string `json:"message"`
-}
-
-func (cl *ClightningClient) OnRPCCommand(event *glightning.RpcCommandEvent) (*glightning.RpcCommandResponse, error) {
-	if cl.gbitcoin != nil {
-		ok, err := cl.gbitcoin.Ping()
-		if err != nil || !ok {
-			log.Infof("trying to send command %s, but failed to connect: %v", event.Cmd.MethodName, err)
-			return event.ReturnError("bitcoin_unavailable", -1)
-		}
-	}
-
-	if cl.liquidWallet != nil {
-		ok, err := cl.liquidWallet.Ping()
-		if err != nil || !ok {
-			log.Infof("trying to send command %s, but failed to connect: %v", event.Cmd.MethodName, err)
-			return event.ReturnError("liquid_unavailable", -1)
-		}
-	}
-	return event.Continue(), nil
 }
 
 // AddMessageHandler adds a listener for incoming peermessages

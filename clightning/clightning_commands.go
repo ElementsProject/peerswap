@@ -247,6 +247,9 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
+		if ok, perr := l.cl.liquidWallet.Ping(); perr != nil || !ok {
+			return nil, fmt.Errorf("liquid wallet not reachable: %v", perr)
+		}
 
 	} else if strings.Compare(l.Asset, "btc") == 0 {
 		if !l.cl.swaps.BitcoinEnabled {
