@@ -1,11 +1,11 @@
 let
     fetchNixpkgs = rev: fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    # Pinning to revision f54322490f509985fa8be4ac9304f368bd8ab924 
-    # - cln v24.02.1
-    # - lnd v0.17.4-beta
-    # - bitcoin v26.0
+    # Pinning to revision 755b915a158c9d588f08e9b08da9f7f3422070cc 
+    # - cln v24.05
+    # - lnd v0.18.0-beta
+    # - bitcoin v27.1
     # - elements v23.2.1
-    rev1 = "f54322490f509985fa8be4ac9304f368bd8ab924";
+    rev1 = "755b915a158c9d588f08e9b08da9f7f3422070cc";
     nixpkgs1 = fetchNixpkgs rev1;
     pkgs1 = import nixpkgs1 {};
 
