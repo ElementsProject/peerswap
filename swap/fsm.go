@@ -3,6 +3,8 @@ package swap
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -26,6 +28,11 @@ const (
 
 	// NoOp represents a no-op event.
 	NoOp EventType = "NoOp"
+
+	// exponentialBackoffBase is the base value for the exponential backoff as milliseconds
+	exponentialBackoffBase int = 1000
+	// exponentialBackoffCap is the maximum value for the exponential backoff as milliseconds
+	exponentialBackoffCap int = 20000
 )
 
 // StateType represents an extensible state type in the state machine.
@@ -243,6 +250,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 			return false, nil
 		case Event_OnRetry:
 			s.retries++
+			s.exponentialBackoffAndJitter()
 			if s.retries > 20 {
 				s.retries = 0
 				return false, nil
@@ -255,6 +263,17 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 
 		event = nextEvent
 	}
+}
+
+// exponentialBackoffAndJitter is function to wait for
+// exponential backoff and jitter.
+func (s *SwapStateMachine) exponentialBackoffAndJitter() {
+	temp := exponentialBackoffBase * int(math.Pow(2, float64(s.retries)))
+	if temp > exponentialBackoffCap {
+		temp = exponentialBackoffCap
+	}
+	sleep := rand.Intn(temp)
+	time.Sleep(time.Duration(sleep) * time.Millisecond)
 }
 
 // Recover tries to continue from the current state, by doing the associated Action
