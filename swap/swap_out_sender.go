@@ -106,6 +106,7 @@ func getSwapOutSenderStates() States {
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedPreimage,
 				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
+				Event_OnTimeout:       State_SwapOutSender_SendPrivkey,
 			},
 		},
 		State_SwapOutSender_SendPrivkey: {
