@@ -50,10 +50,17 @@ func newClient(ctx context.Context, endpoint string, isTLS bool) (*electrum.Clie
 	return electrum.NewClientTCP(ctx, endpoint)
 }
 
-func (c *electrumClient) SubscribeHeaders(ctx context.Context) (<-chan *electrum.SubscribeHeadersResult, error) {
-	if err := c.reconnect(ctx); err != nil {
-		return nil, err
+func (c *electrumClient) Reboot(ctx context.Context) error {
+	c.client.Shutdown()
+	client, err := newClient(ctx, c.endpoint, c.isTLS)
+	if err != nil {
+		return err
 	}
+	c.client = client
+	return nil
+}
+
+func (c *electrumClient) SubscribeHeaders(ctx context.Context) (<-chan *electrum.SubscribeHeadersResult, error) {
 	return c.client.SubscribeHeaders(ctx)
 }
 

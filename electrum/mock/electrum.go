@@ -114,6 +114,20 @@ func (mr *MockRPCMockRecorder) Ping(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRPC)(nil).Ping), ctx)
 }
 
+// Reboot mocks base method.
+func (m *MockRPC) Reboot(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reboot", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reboot indicates an expected call of Reboot.
+func (mr *MockRPCMockRecorder) Reboot(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reboot", reflect.TypeOf((*MockRPC)(nil).Reboot), ctx)
+}
+
 // SubscribeHeaders mocks base method.
 func (m *MockRPC) SubscribeHeaders(ctx context.Context) (<-chan *electrum.SubscribeHeadersResult, error) {
 	m.ctrl.T.Helper()

@@ -29,7 +29,7 @@ type electrumTxWatcher struct {
 	confirmationCallback func(swapId string, txHex string, err error) error
 	csvCallback          func(swapId string) error
 	// resubscribeTicker periodically resubscribes to the block header subscription.
-	// The connection with the electrum client is
+	// Because the connection with the electrum client is
 	// disconnected after a certain period of time.
 	resubscribeTicker *time.Ticker
 	mu                sync.Mutex
@@ -74,9 +74,16 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 					continue
 				}
 			case <-r.resubscribeTicker.C:
+				// The old subsription topic will remain in the memory
+				// and needs to be cleared by rebooting.
+				err := r.electrumClient.Reboot(ctx)
+				if err != nil {
+					log.Infof("Error rebooting electrum client: %v", err)
+					continue
+				}
 				headerSubscription, err = r.electrumClient.SubscribeHeaders(ctx)
 				if err != nil {
-					log.Infof("Error reloading electrum client: %v", err)
+					log.Infof("Error subsribe headers: %v", err)
 					continue
 				}
 			}

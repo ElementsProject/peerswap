@@ -13,4 +13,5 @@ type RPC interface {
 	BroadcastTransaction(ctx context.Context, rawTx string) (string, error)
 	GetFee(ctx context.Context, target uint32) (float32, error)
 	Ping(ctx context.Context) error
+	Reboot(ctx context.Context) error
 }
