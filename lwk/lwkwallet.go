@@ -26,7 +26,7 @@ const (
 	// Set up here because ctx is not inherited throughout the current codebase.
 	defaultContextTimeout              = time.Second * 5
 	minimumSatPerByte     SatPerKVByte = 0.1
-	supportedVersion                   = "0.3.0"
+	supportedCLIVersion               = "0.5.1"
 )
 
 // SatPerKVByte represents a fee rate in sat/kb.
@@ -84,7 +84,7 @@ func (c *LWKRpcWallet) GetElectrumClient() electrum.RPC {
 }
 
 func (r *LWKRpcWallet) IsSupportedVersion() bool {
-	return r.lwkVersion == supportedVersion
+	return r.lwkVersion == supportedCLIVersion
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
@@ -97,7 +97,7 @@ func (r *LWKRpcWallet) setupWallet(ctx context.Context) error {
 	}
 	r.lwkVersion = vres.Version
 	if !r.IsSupportedVersion() {
-		return errors.New("unsupported lwk version. expected: " + supportedVersion + " got: " + r.lwkVersion)
+		return errors.New("unsupported lwk version. expected: " + supportedCLIVersion + " got: " + r.lwkVersion)
 	}
 
 	res, err := r.lwkClient.walletDetails(timeoutCtx, &walletDetailsRequest{
@@ -129,6 +129,7 @@ func (r *LWKRpcWallet) createWallet(ctx context.Context, walletName, signerName 
 	_, err = r.lwkClient.loadSoftwareSigner(ctx, &loadSoftwareSignerRequest{
 		Mnemonic:   res.Mnemonic,
 		SignerName: signerName,
+		Persist:    true,
 	})
 	// 32011 is the error code for signer already loaded
 	if err != nil && !strings.HasPrefix(err.Error(), "-32011") {

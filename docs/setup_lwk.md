@@ -3,7 +3,7 @@
 **[Liquid Wallet Kit](https://github.com/Blockstream/lwk/tree/master)** is a collection of Rust crates for [Liquid](https://liquid.net) Wallets and is used for PeerSwap L-BTC swaps.  
 To set up `lwk` for PeerSwap, follow the steps here.  
 lwk is currently under development and changes are being made.  
-**peerswap has been tested only with [cli_0.3.0](https://github.com/Blockstream/lwk/tree/cli_0.3.0)**.
+**peerswap has been tested only with [cli_0.5.1](https://github.com/Blockstream/lwk/releases/tag/cli_0.5.1)**.
 
 ## wallet
 peerswap assumes a wallet with blinding-key set in singlesig to lwk.

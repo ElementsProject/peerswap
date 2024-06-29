@@ -68,10 +68,12 @@ type addressRequest struct {
 	Index      *uint32 `json:"index,omitempty"`
 	WalletName string  `json:"name"`
 	Signer     *string `json:"signer,omitempty"`
+	WithTextQr bool    `json:"with_text_qr"`
+	WithUriQr  *uint8  `json:"with_uri_qr,omitempty"`
 }
 
 func (r *addressRequest) Name() string {
-	return "address"
+	return "wallet_address"
 }
 
 type addressResponse struct {
@@ -106,7 +108,7 @@ type sendResponse struct {
 }
 
 func (s *sendRequest) Name() string {
-	return "send_many"
+	return "wallet_send_many"
 }
 
 func (l *lwkclient) send(ctx context.Context, s *sendRequest) (*sendResponse, error) {
@@ -128,7 +130,7 @@ type signResponse struct {
 }
 
 func (s *signRequest) Name() string {
-	return "sign"
+	return "signer_sign"
 }
 
 func (l *lwkclient) sign(ctx context.Context, s *signRequest) (*signResponse, error) {
@@ -151,7 +153,7 @@ type broadcastResponse struct {
 }
 
 func (b *broadcastRequest) Name() string {
-	return "broadcast"
+	return "wallet_broadcast"
 }
 
 func (l *lwkclient) broadcast(ctx context.Context, b *broadcastRequest) (*broadcastResponse, error) {
@@ -169,7 +171,7 @@ type balanceRequest struct {
 }
 
 func (b *balanceRequest) Name() string {
-	return "balance"
+	return "wallet_balance"
 }
 
 type balanceResponse struct {
@@ -217,7 +219,7 @@ type generateSignerRequest struct {
 }
 
 func (r *generateSignerRequest) Name() string {
-	return "generate_signer"
+	return "signer_generate"
 }
 
 type generateSignerResponse struct {
@@ -236,6 +238,7 @@ func (l *lwkclient) generateSigner(ctx context.Context) (*generateSignerResponse
 type loadSoftwareSignerRequest struct {
 	Mnemonic   string `json:"mnemonic"`
 	SignerName string `json:"name"`
+	Persist    bool   `json:"persist"`
 }
 
 func (r *loadSoftwareSignerRequest) Name() string {
@@ -265,7 +268,7 @@ type singlesigDescriptorRequest struct {
 }
 
 func (r *singlesigDescriptorRequest) Name() string {
-	return "singlesig_descriptor"
+	return "signer_singlesig_descriptor"
 }
 
 type singlesigDescriptorResponse struct {
@@ -287,7 +290,7 @@ type loadWalletRequest struct {
 }
 
 func (r *loadWalletRequest) Name() string {
-	return "load_wallet"
+	return "wallet_load"
 }
 
 type loadWalletResponse struct {
