@@ -17,6 +17,9 @@ import (
 // Satoshi represents a Satoshi value.
 type Satoshi = uint64
 
+// SatPerVByte represents a fee rate in sat/vb.
+type SatPerVByte float64
+
 const (
 	// 1 kb = 1000 bytes
 	kb              = 1000
@@ -24,30 +27,27 @@ const (
 	// TODO: Basically, the inherited ctx should be used
 	// and there is no need to specify a timeout here.
 	// Set up here because ctx is not inherited throughout the current codebase.
-	defaultContextTimeout              = time.Second * 5
-	minimumSatPerByte     SatPerKVByte = 0.1
+	defaultContextTimeout             = time.Second * 5
+	minimumFee            SatPerVByte = 0.1
 	supportedCLIVersion               = "0.5.1"
 )
 
-// SatPerKVByte represents a fee rate in sat/kb.
-type SatPerKVByte float64
-
-func SatPerKVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerKVByte {
-	s := SatPerKVByte(feeBTCPerKb * math.Pow10(btcToSatoshiExp) / kb)
-	if s < minimumSatPerByte {
-		log.Debugf("Using minimum fee rate of %v sat/kw",
-			minimumSatPerByte)
-		return minimumSatPerByte
+func SatPerVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerVByte {
+	s := SatPerVByte(feeBTCPerKb * math.Pow10(btcToSatoshiExp) / kb)
+	if s < minimumFee {
+		log.Debugf("using minimum fee rate of %v sat/vbyte",
+			minimumFee)
+		return minimumFee
 	}
 	return s
 }
 
-func (s SatPerKVByte) GetSatPerKVByte() float64 {
+func (s SatPerVByte) getValue() float64 {
 	return float64(s)
 }
 
-func (s SatPerKVByte) GetFee(txSize int64) Satoshi {
-	return Satoshi(s.GetSatPerKVByte() * float64(txSize))
+func (s SatPerVByte) GetFee(txSizeBytes int64) Satoshi {
+	return Satoshi(s.getValue() * float64(txSizeBytes))
 }
 
 // LWKRpcWallet uses the elementsd rpc wallet
@@ -159,7 +159,7 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	asset []byte) (txid, rawTx string, fee Satoshi, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
-	feerate := float64(r.getFeePerKb(ctx)) * kb
+	feerate := r.getFeeSatPerVByte(ctx).getValue() * kb
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
 		Addressees: []*unvalidatedAddressee{
 			{
@@ -263,18 +263,18 @@ func (r *LWKRpcWallet) SendRawTx(txHex string) (string, error) {
 	return res, nil
 }
 
-func (r *LWKRpcWallet) getFeePerKb(ctx context.Context) SatPerKVByte {
+func (r *LWKRpcWallet) getFeeSatPerVByte(ctx context.Context) SatPerVByte {
 	feeBTCPerKb, err := r.electrumClient.GetFee(ctx, wallet.LiquidTargetBlocks)
 	if err != nil {
 		log.Infof("error getting fee: %v.", err)
 	}
-	return SatPerKVByteFromFeeBTCPerKb(float64(feeBTCPerKb))
+	return SatPerVByteFromFeeBTCPerKb(float64(feeBTCPerKb))
 }
 
-func (r *LWKRpcWallet) GetFee(txSize int64) (Satoshi, error) {
+func (r *LWKRpcWallet) GetFee(txSizeBytes int64) (Satoshi, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
-	return r.getFeePerKb(ctx).GetFee(txSize), nil
+	return r.getFeeSatPerVByte(ctx).GetFee(txSizeBytes), nil
 }
 
 func (r *LWKRpcWallet) SetLabel(txID, address, label string) error {
