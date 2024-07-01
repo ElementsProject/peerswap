@@ -239,7 +239,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 
 	// Create the opening transaction
-	txHex, address, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
+	txHex, address, txId, _, vout, err := wallet.CreateOpeningTransaction(&OpeningParams{
 		TakerPubkey:      swap.GetTakerPubkey(),
 		MakerPubkey:      swap.GetMakerPubkey(),
 		ClaimPaymentHash: preimage.Hash().String(),
@@ -250,11 +250,6 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 
-	txId, txHex, err := wallet.BroadcastOpeningTx(txHex)
-	if err != nil {
-		// todo: idempotent states
-		return swap.HandleError(err)
-	}
 	err = wallet.SetLabel(txId, address, labels.Opening(swap.GetId().Short()))
 	if err != nil {
 		log.Infof("Error labeling transaction. txid: %s, label: %s, error: %v",

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/glightning/glightning"
+	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/lightning"
 )
 
@@ -219,17 +220,15 @@ func (n *CLightningNode) GetChannelBalanceSat(scid string) (sats uint64, err err
 func (n *CLightningNode) GetScid(remote LightningNode) (string, error) {
 	scid := ""
 	err := WaitForWithErr(func() (bool, error) {
-		peers, err := n.Rpc.ListPeers()
+		var res clightning.ListPeerChannelsResponse
+		err := n.Rpc.Request(clightning.ListPeerChannelsRequest{}, &res)
 		if err != nil {
 			return false, fmt.Errorf("ListPeers() %w", err)
 		}
-		for _, peer := range peers {
-			if peer.Id == remote.Id() {
-				if peer.Channels != nil {
-					scid = peer.Channels[0].ShortChannelId
-					return scid != "", nil
-				}
-				return false, nil
+		for _, c := range res.Channels {
+			if c.PeerId == remote.Id() {
+				scid = c.ShortChannelId
+				return scid != "", nil
 			}
 		}
 		return false, fmt.Errorf("peer not found")

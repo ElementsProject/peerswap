@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/elementsproject/peerswap/lwk"
+	"github.com/jessevdk/go-flags"
 )
 
 type LogLevel uint8
@@ -45,6 +47,7 @@ type PeerSwapConfig struct {
 
 	LndConfig      *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
 	ElementsConfig *OnchainConfig `group:"Elements Rpc Config" namespace:"elementsd"`
+	LWKConfig      *lwk.Conf
 
 	LiquidEnabled  bool `long:"liquidswaps" description:"enable bitcoin peerswaps"`
 	BitcoinEnabled bool `long:"bitcoinswaps" description:"enable bitcoin peerswaps"`
@@ -59,12 +62,17 @@ func (p *PeerSwapConfig) String() string {
 	if p.LndConfig != nil {
 		lndString = fmt.Sprintf("host: %s, macaroonpath %s, tlspath %s", p.LndConfig.LndHost, p.LndConfig.MacaroonPath, p.LndConfig.TlsCertPath)
 	}
+	var lwkConf string
+	if p.LWKConfig != nil {
+		lwkConf = fmt.Sprintf("lwk: signername: %s, walletname: %s, lwkendpoint: %s, electrumendpoint: %s, network: %s, liquidswaps: %v", p.LWKConfig.GetSignerName(), p.LWKConfig.GetWalletName(), p.LWKConfig.GetLWKEndpoint(), p.LWKConfig.GetElectrumEndpoint(), p.LWKConfig.GetNetwork(), p.LWKConfig.GetLiquidSwaps())
+	}
 
 	if p.DataDir != DefaultDatadir && p.PolicyFile == DefaultPolicyFile {
 		p.PolicyFile = filepath.Join(p.DataDir, "policy.conf")
 	}
 
-	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s", p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString)
+	return fmt.Sprintf("Host %s, ConfigFile %s, Datadir %s, Bitcoin enabled: %v, Lnd Config: %s, elements: %s, lwk config: %s",
+		p.Host, p.ConfigFile, p.DataDir, p.BitcoinEnabled, lndString, liquidString, lwkConf)
 }
 
 func (p *PeerSwapConfig) Validate() error {
@@ -74,7 +82,8 @@ func (p *PeerSwapConfig) Validate() error {
 			return err
 		}
 		p.LiquidEnabled = true
-
+	} else if p.LWKConfig.Enabled() {
+		p.LiquidEnabled = true
 	}
 	return nil
 }
@@ -160,4 +169,68 @@ func defaultLiquidConfig() *OnchainConfig {
 		RpcWallet:         DefaultLiquidwallet,
 		LiquidSwaps:       true,
 	}
+}
+
+func LWKFromIniFileConfig(filePath string) (*lwk.Conf, error) {
+	type LWK struct {
+		SignerName       string `long:"signername" description:"name of the signer"`
+		WalletName       string `long:"walletname" description:"name of the wallet"`
+		LWKEndpoint      string `long:"lwkendpoint" description:"endpoint for the liquid wallet kit"`
+		ElectrumEndpoint string `long:"elementsendpoint" description:"endpoint for the elements rpc"`
+		Network          string `long:"network" description:"network to use"`
+		LiquidSwaps      bool   `long:"liquidswaps" description:"enable liquid swaps"`
+	}
+	type IniConf struct {
+		LWK *LWK `group:"Elements Rpc Config" namespace:"lwk"`
+	}
+	cfg := &IniConf{}
+	if _, err := os.Stat(filePath); err == nil {
+		fileParser := flags.NewParser(cfg, flags.Default|flags.IgnoreUnknown)
+		err = flags.NewIniParser(fileParser).ParseFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	flagParser := flags.NewParser(cfg, flags.Default|flags.IgnoreUnknown)
+	if _, err := flagParser.Parse(); err != nil {
+		return nil, err
+	}
+
+	ln, err := lwk.NewlwkNetwork("liquid-testnet")
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.LWK.Network != "" {
+		n, e := lwk.NewlwkNetwork(cfg.LWK.Network)
+		if e != nil {
+			return nil, e
+		}
+		ln = n
+	}
+	c, err := lwk.NewConfBuilder(ln).DefaultConf()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LWK.WalletName != "" {
+		c.SetWalletName(lwk.NewConfName(cfg.LWK.WalletName))
+	}
+	if cfg.LWK.SignerName != "" {
+		c.SetSignerName(lwk.NewConfName(cfg.LWK.SignerName))
+	}
+	if cfg.LWK.LWKEndpoint != "" {
+		lwkEndpoint, err := lwk.NewLWKURL(cfg.LWK.LWKEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		c.SetLWKEndpoint(*lwkEndpoint)
+	}
+	if cfg.LWK.ElectrumEndpoint != "" {
+		electrumEndpoint, err := lwk.NewElectrsURL(cfg.LWK.ElectrumEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		c.SetElectrumEndpoint(*electrumEndpoint)
+	}
+	return c.SetLiquidSwaps(cfg.LWK.LiquidSwaps).Build()
 }

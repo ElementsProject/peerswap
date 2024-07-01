@@ -75,7 +75,7 @@ ${TEST_BIN_DIR}/peerswap:
 
 # Test section. Has commads for local and ci testing.
 test:
-	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -timeout=10m -v ./...
+	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -race -timeout=10m -v ./...
 .PHONY: test
 
 test-integration: test-bins
@@ -126,6 +126,20 @@ test-liquid-lnd: test-bins
 	'Test_LndCln_Liquid_SwapIn)'\
 	 ./test
 .PHONY: test-liquid-lnd
+
+test-lwk-cln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run '^('\
+	'Test_ClnCln_LWK_SwapIn)'\
+	 ./test
+.PHONY: test-lwk-cln
+
+test-lwk-lnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run '^('\
+	'Test_LndLnd_LWK_SwapIn)'\
+	 ./test
+.PHONY: test-lwk-lnd
 
 test-misc-integration: test-bins
 	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
@@ -185,11 +199,11 @@ TOOLS_DIR := ${CURDIR}/tools
 tool:
 	## Install an individual dependent tool.
 	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath github.com/golangci/golangci-lint/cmd/golangci-lint
+	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath go.uber.org/mock/mockgen@latest
 
 .PHONY: clean
 clean:  ## clean project directory.
 	env GOBIN=${TOOLS_DIR}/bin && @rm -rf ${GOBIN} $(TOOLS_DIR)/bin
-
 
 .PHONY: lint
 lint: lint/golangci-lint
@@ -203,3 +217,11 @@ lint/golangci-lint: ## Lint source with golangci-lint.
 .PHONY: lint/fix
 lint/fix: ## Lint and fix source.
 	@${MAKE} lint/golangci-lint args='--fix'
+
+
+.PHONY: mockgen
+mockgen: mockgen/lwk
+
+.PHONY: mockgen/lwk
+mockgen/lwk:
+	$(TOOLS_DIR)/bin/mockgen -source=electrum/electrum.go -destination=electrum/mock/electrum.go

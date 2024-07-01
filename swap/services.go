@@ -60,6 +60,7 @@ type TxWatcher interface {
 	AddConfirmationCallback(func(swapId string, txHex string, err error) error)
 	AddCsvCallback(func(swapId string) error)
 	GetBlockHeight() (uint32, error)
+	StartWatchingTxs() error
 }
 
 type Validator interface {
@@ -69,12 +70,11 @@ type Validator interface {
 }
 
 type Wallet interface {
-	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error)
-	BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error)
+	SetLabel(txID, address, label string) error
+	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address, txid string, fee uint64, vout uint32, err error)
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex, address string, err error)
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex, address string, error error)
 	CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex, address string, error error)
-	SetLabel(txID, address, label string) error
 	GetOutputScript(params *OpeningParams) ([]byte, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)

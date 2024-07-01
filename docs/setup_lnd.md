@@ -76,6 +76,18 @@ elementsd.rpcwallet=peerswap
 EOF
 ```
 
+LWK BTC and L-BTC swaps config. Replace the RPC parameters as needed:
+```bash
+cat <<EOF > ~/.peerswap/peerswap.conf
+lnd.tlscertpath=/home/<username>/.lnd/tls.cert
+lnd.macaroonpath=/home/<username>/.lnd/data/chain/bitcoin/mainnet/admin.macaroon
+lwk.signername=signername
+lwk.walletname=walletname
+lwk.Network=liquid
+lwk.liquidswaps=true
+EOF
+```
+
 ### Policy
 
 On first startup of the plugin a policy file will be generated (default path: `~/.peerswap/policy.conf`) in which trusted nodes will be specified.

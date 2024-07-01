@@ -65,6 +65,8 @@ To run PeerSwap as a standalone daemon with LND, see the [LND setup guide](./doc
 
 To run Elements for L-BTC swaps, see the [Elements setup guide](./docs/setup_elementsd.md).
 
+To run LWK for L-BTC swaps, see the [LWK setup guide](./docs/setup_lwk.md).
+
 > **Note**  
 > Most of the benefits of PeerSwap come from using L-BTC. Swaps using L-BTC are more private, faster, and avoid the mainchain blockchain during high fee environments that can make swaps uneconomical. 
 

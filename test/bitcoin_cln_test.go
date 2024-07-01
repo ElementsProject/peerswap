@@ -170,7 +170,6 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 		go func() {
 			var response map[string]interface{}
 			lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
-
 		}()
 		preimageClaimTest(t, params)
 	})
@@ -723,7 +722,6 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 		}()
 		csvClaimTest(t, params)
 	})
-
 }
 
 func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
