@@ -327,3 +327,20 @@ func (l *lwkclient) version(ctx context.Context) (*versionResponse, error) {
 	}
 	return &resp, nil
 }
+
+type WalletSetTxMemoRequest struct {
+	Memo       string `json:"memo"`
+	WalletName string `json:"name"`
+	Txid       string `json:"txid"`
+}
+
+func (r *WalletSetTxMemoRequest) Name() string {
+	return "wallet_set_tx_memo"
+}
+
+type WalletSetTxMemoResponse struct {
+}
+
+func (l *lwkclient) walletSetTxMemo(ctx context.Context, req *WalletSetTxMemoRequest) error {
+	return l.request(ctx, req, &WalletSetTxMemoResponse{})
+}

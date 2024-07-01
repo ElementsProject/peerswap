@@ -278,8 +278,13 @@ func (r *LWKRpcWallet) GetFee(txSizeBytes int64) (Satoshi, error) {
 }
 
 func (r *LWKRpcWallet) SetLabel(txID, address, label string) error {
-	// TODO: call set label
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
+	defer cancel()
+	return r.lwkClient.walletSetTxMemo(ctx, &WalletSetTxMemoRequest{
+		WalletName: r.c.GetWalletName(),
+		Txid:       txID,
+		Memo:       label,
+	})
 }
 
 func (r *LWKRpcWallet) Ping() (bool, error) {
