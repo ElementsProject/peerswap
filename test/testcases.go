@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
@@ -110,14 +111,10 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	// Expect:
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
-	balance, err := params.takerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.EqualValues(params.origTakerWallet, float64(balance), "expected %d, got %d", params.origTakerWallet, balance)
-
-	balance, err = params.makerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.InDelta((params.origMakerWallet - commitFee - claimFee), float64(balance), 1., "expected %d, got %d",
-		(params.origMakerWallet - commitFee - claimFee), balance)
+	testframework.AssertOnchainBalanceInDelta(t,
+		params.takerNode, params.origTakerWallet, 1, time.Second*30)
+	testframework.AssertOnchainBalanceInDelta(t,
+		params.makerNode, params.origMakerWallet-commitFee-claimFee, 1, time.Second*30)
 }
 
 func preimageClaimTest(t *testing.T, params *testParams) {
@@ -186,15 +183,10 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	// Expect: (WITHOUT PREMIUM)
 	// - taker -> before - claim_fee + swapamt
 	// - maker -> before - commitment_fee - swapamt
-	balance, err := params.takerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.InDelta(params.origTakerWallet-claimFee+params.swapAmt, float64(balance), 1., "expected %d, got %d",
-		params.origTakerWallet-claimFee+params.swapAmt, balance)
-
-	balance, err = params.makerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.InDelta((params.origMakerWallet - commitFee - params.swapAmt), float64(balance), 1., "expected %d, got %d",
-		(params.origMakerWallet - commitFee - params.swapAmt), balance)
+	testframework.AssertOnchainBalanceInDelta(t,
+		params.takerNode, params.origTakerWallet-claimFee+params.swapAmt, 1, time.Second*10)
+	testframework.AssertOnchainBalanceInDelta(t,
+		params.makerNode, params.origMakerWallet-commitFee-params.swapAmt, 1, time.Second*10)
 
 	// Check latest invoice memo should be of the form "swap-in btc claim <swap_id>"
 	bolt11, err := params.makerNode.GetLatestInvoice()
@@ -286,10 +278,9 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	// Check channel and wallet balance
 	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premium), 1., testframework.TIMEOUT))
 
-	balance, err := params.makerNode.GetBtcBalanceSat()
-	require.NoError(err)
-	require.InDelta(params.origMakerWallet-commitFee-claimFee, balance, 1., "expected %d, got %d",
-		params.origMakerWallet-commitFee-claimFee, balance)
+	// Check Wallet balance.
+	testframework.AssertOnchainBalanceInDelta(t,
+		params.makerNode, params.origMakerWallet-commitFee-claimFee, 1, time.Second*10)
 
 	require.NoError(params.makerPeerswap.WaitForLog(
 		fmt.Sprintf("added peer %s to suspicious peer list", params.takerNode.Id()),

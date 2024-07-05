@@ -33,31 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration]
-
+        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration, lwk-cln, lwk-lnd]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: "Cache Nix store"
-        uses: actions/cache@v3.0.8
-        id: nix-cache
+        uses: actions/checkout@v4
         with:
-          path: /tmp/nixcache
-          key: nix-${{ hashFiles('packages.nix') }}
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      
-      - name: "Import Nix store cache"
-        if: "steps.nix-cache.outputs.cache-hit == 'true'"
-        run: "nix-store --import < /tmp/nixcache"
-
-      - name: Run tests
-        run: nix-shell --run "make test-${{matrix.test-vector}}"
-
-      - name: "Export Nix store cache"
-        if: "steps.nix-cache.outputs.cache-hit != 'true'"
-        run: "nix-store --export $(find /nix/store -maxdepth 1 -name '*-*') > /tmp/nixcache"
+          fetch-depth: 0
+      - name: Install Nix and run tests
+        uses: determinateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+      - uses: DeterminateSystems/flake-checker-action@v8
+      - run: nix-shell --run "make test-${{matrix.test-vector}}"

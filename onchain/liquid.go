@@ -9,16 +9,16 @@ import (
 	"fmt"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/wallet"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/vulpemventures/go-elements/confidential"
 	"github.com/vulpemventures/go-elements/pset"
 
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/elementsproject/peerswap/wallet"
+
 	"github.com/vulpemventures/go-elements/address"
 	address2 "github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"
@@ -28,25 +28,23 @@ import (
 )
 
 const (
-	LiquidCsv          = 60
-	LiquidConfs        = 2
-	LiquidTargetBlocks = 7
+	LiquidCsv   = 60
+	LiquidConfs = 2
 )
 
 type LiquidOnChain struct {
-	elements     *gelements.Elements
 	liquidWallet wallet.Wallet
 	network      *network.Network
 	asset        []byte
 }
 
-func NewLiquidOnChain(elements *gelements.Elements, wallet wallet.Wallet, network *network.Network) *LiquidOnChain {
+func NewLiquidOnChain(wallet wallet.Wallet, network *network.Network) *LiquidOnChain {
 	lbtc := append(
 		[]byte{0x01},
 		elementsutil.ReverseBytes(h2b(network.AssetID))...,
 	)
 
-	return &LiquidOnChain{elements: elements, liquidWallet: wallet, network: network, asset: lbtc}
+	return &LiquidOnChain{liquidWallet: wallet, network: network, asset: lbtc}
 }
 
 func (l *LiquidOnChain) GetCSVHeight() uint32 {
@@ -57,58 +55,26 @@ func (l *LiquidOnChain) GetOnchainBalance() (uint64, error) {
 	return l.liquidWallet.GetBalance()
 }
 
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, newAddress string, fee uint64, vout uint32, err error) {
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (txHex, address, txid string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
 	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
 
 	redeemPayment, _ := payment.FromScript(scriptPubKey, l.network, swapParams.BlindingKey.PubKey())
-	sats, _ := elementsutil.ValueToBytes(swapParams.Amount)
-
 	blindedScriptAddr, err := redeemPayment.ConfidentialWitnessScriptHash()
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 	swapParams.OpeningAddress = blindedScriptAddr
-	outputscript, err := address.ToOutputScript(blindedScriptAddr)
+	txId, txHex, fee, err := l.liquidWallet.CreateAndBroadcastTransaction(swapParams, l.asset)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
-
-	output := transaction.NewTxOutput(l.asset, sats, outputscript)
-	output.Nonce = swapParams.BlindingKey.PubKey().SerializeCompressed()
-
-	tx := transaction.NewTx(2)
-	tx.Outputs = append(tx.Outputs, output)
-
-	unpreparedTxHex, fee, err = l.liquidWallet.CreateFundedTransaction(tx)
-	if err != nil {
-		return "", "", 0, 0, err
-	}
-
-	vout, err = l.VoutFromTxHex(unpreparedTxHex, redeemScript)
-	if err != nil {
-		return "", "", 0, 0, err
-	}
-
-	return unpreparedTxHex, blindedScriptAddr, fee, vout, nil
-}
-
-func (l *LiquidOnChain) BroadcastOpeningTx(unpreparedTxHex string) (string, string, error) {
-	txHex, err := l.liquidWallet.FinalizeFundedTransaction(unpreparedTxHex)
-	if err != nil {
-		return "", "", err
-	}
-
-	txId, err := l.elements.SendRawTx(txHex)
-	if err != nil {
-		return "", "", err
-	}
-	return txId, txHex, nil
+	return txHex, blindedScriptAddr, txId, fee, vout, nil
 }
 
 func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
@@ -140,11 +106,7 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 		return "", "", "", err
 	}
 
-	txHex, err = tx.ToHex()
-	if err != nil {
-		return "", "", "", err
-	}
-	txId, err := l.elements.SendRawTx(txHex)
+	txId, err := l.liquidWallet.SendRawTx(txHex)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -166,7 +128,7 @@ func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPar
 	if err != nil {
 		return "", "", "", err
 	}
-	txId, err = l.elements.SendRawTx(txHex)
+	txId, err = l.liquidWallet.SendRawTx(txHex)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -178,7 +140,7 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", "", err
 	}
-	refundFee, err := l.getFee(l.getCoopClaimTxSize())
+	refundFee, err := l.liquidWallet.GetFee(int64(l.getCoopClaimTxSize()))
 	if err != nil {
 		return "", "", "", err
 	}
@@ -209,7 +171,7 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", "", err
 	}
-	txId, err = l.elements.SendRawTx(txHex)
+	txId, err = l.liquidWallet.SendRawTx(txHex)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -228,7 +190,7 @@ func (l *LiquidOnChain) Name() string {
 }
 
 func (l *LiquidOnChain) SetLabel(txID, address, label string) error {
-	return l.elements.SetLabel(address, label)
+	return l.liquidWallet.SetLabel(txID, address, label)
 }
 
 func (l *LiquidOnChain) AddBlindingRandomFactors(claimParams *swap.ClaimParams) (err error) {
@@ -300,7 +262,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	feeAmountPlaceholder := uint64(500)
 	fee := preparedFee
 	if preparedFee == 0 {
-		fee, err = l.getFee(l.getClaimTxSize())
+		fee, err = l.liquidWallet.GetFee(int64(l.getClaimTxSize()))
 		if err != nil {
 			fee = feeAmountPlaceholder
 		}
@@ -562,34 +524,15 @@ func (l *LiquidOnChain) Blech32ToScript(blech32Addr string) ([]byte, error) {
 	return blechPayment.WitnessScript, nil
 }
 
-func (l *LiquidOnChain) getFee(txSize int) (uint64, error) {
-	feeRes, err := l.elements.EstimateFee(LiquidTargetBlocks, "ECONOMICAL")
-	if err != nil {
-		return 0, err
-	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 0.1 {
-		satPerByte = 0.1
-	}
-	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 0.1
-	}
-	// assume largest witness
-	fee := satPerByte * float64(txSize)
-
-	return uint64(fee), nil
-}
-
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
-	return l.getFee(l.getClaimTxSize())
+	return l.liquidWallet.GetFee(int64(l.getClaimTxSize()))
 }
 
 // GetFlatSwapOutFee returns an estimate of the fee for the opening transaction.
 // The size is a calculate 2672 bytes for 3 inputs and 3 ouputs of which 2 are
 // blinded. An additional safety margin is added for a total of 3000 bytes.
 func (l *LiquidOnChain) GetFlatSwapOutFee() (uint64, error) {
-	return l.getFee(3000)
+	return l.liquidWallet.GetFee(3000)
 }
 
 func (l *LiquidOnChain) GetAsset() string {

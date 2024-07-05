@@ -55,6 +55,13 @@ type PeerswapClightningConfig struct {
 	LiquidRpcWallet       string `json:"liquid.rpcwallet"`
 	LiquidSwaps         bool   `json:"liquid.swaps"`
 
+	LWKSignerName    string `json:"lwksignername"`
+	LWKWalletName    string `json:"lwkwalletname"`
+	LWKEndpoint      string `json:"lwkendpoint"`
+	ElectrumEndpoint string `json:"electrumendpoint"`
+	LWKNetwork       string `json:"lwknetwork"`
+	LWKLiquidSwaps   bool   `json:"lwkliquidswaps"`
+
 	PeerswapDir string `json:"peerswap-dir"`
 }
 

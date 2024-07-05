@@ -77,6 +77,9 @@ func NewTxWatcher(ctx context.Context, cc *grpc.ClientConn, network *chaincfg.Pa
 func (t *TxWatcher) Start() error {
 	return nil
 }
+func (t *TxWatcher) StartWatchingTxs() error {
+	return nil
+}
 
 func (t *TxWatcher) Stop() error {
 	t.cancel()

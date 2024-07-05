@@ -18,7 +18,6 @@ type BlockchainRpc interface {
 	GetTxOut(txid string, vout uint32) (*TxOutResp, error)
 	GetBlockHash(height uint32) (string, error)
 	GetRawtransactionWithBlockHash(txId string, blockHash string) (string, error)
-	GetBlockHeightByHash(blockhash string) (uint32, error)
 }
 
 type TxOutResp struct {
@@ -217,31 +216,6 @@ func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, v
 	newBlock <- uint32(height)
 }
 
-func (s *BlockchainRpcTxWatcher) CheckTxConfirmed(swapId string, txId string, vout uint32) string {
-	res, err := s.blockchain.GetTxOut(txId, vout)
-	if err != nil {
-		log.Infof("watchlist fetchtx err: %v", err)
-		return ""
-	}
-	if res == nil {
-		return ""
-	}
-	if !(res.Confirmations >= s.requiredConfs) {
-		log.Infof("tx %s on swap %s does not have enough confirmations", txId, swapId)
-		return ""
-	}
-	if s.txCallback == nil {
-		return ""
-	}
-	txHex, err := s.TxHexFromId(res, txId)
-	if err != nil {
-		log.Infof("watchlist txfrom hex err: %v", err)
-		return ""
-	}
-
-	return txHex
-}
-
 func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout uint32) (bool, error) {
 	res, err := l.blockchain.GetTxOut(txId, vout)
 	if err != nil {
@@ -298,24 +272,6 @@ func (l *BlockchainRpcTxWatcher) AddCsvCallback(f func(swapId string) error) {
 	l.Lock()
 	defer l.Unlock()
 	l.csvPassedCallback = f
-}
-
-func (l *BlockchainRpcTxWatcher) TxHexFromId(resp *TxOutResp, txId string) (string, error) {
-	blockheight, err := l.blockchain.GetBlockHeightByHash(resp.BestBlockHash)
-	if err != nil {
-		return "", err
-	}
-
-	blockhash, err := l.blockchain.GetBlockHash(uint32(blockheight) - resp.Confirmations + 1)
-	if err != nil {
-		return "", err
-	}
-
-	rawTxHex, err := l.blockchain.GetRawtransactionWithBlockHash(txId, blockhash)
-	if err != nil {
-		return "", err
-	}
-	return rawTxHex, nil
 }
 
 func (l *BlockchainRpcTxWatcher) observationLoop(

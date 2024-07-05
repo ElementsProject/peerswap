@@ -13,10 +13,10 @@ import (
 	"github.com/elementsproject/peerswap/version"
 )
 
-func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error) {
+func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningParams) (unpreparedTxHex, address, txId string, fee uint64, vout uint32, err error) {
 	addr, err := cl.bitcoinChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 	outputs := []*glightning.Outputs{
 		{
@@ -26,7 +26,7 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 	}
 	prepRes, err := cl.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 
 	// Backwards compatibility layer. Since `v23.05`, `preparetx` returns a
@@ -34,41 +34,30 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 	// conversion of the psbt (from v2 to v0).
 	isV2, err := version.CompareVersionStrings(cl.Version(), "v23.05")
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 	if isV2 {
 		res, err := cl.glightning.SetPSBTVersion(prepRes.Psbt, 0)
 		if err != nil {
-			return "", "", 0, 0, err
+			return "", "", "", 0, 0, err
 		}
 		prepRes.Psbt = res.Psbt
 	}
 
 	fee, err = cl.bitcoinChain.GetFeeSatsFromTx(prepRes.Psbt, prepRes.UnsignedTx)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
 
 	_, vout, err = cl.bitcoinChain.GetVoutAndVerify(prepRes.UnsignedTx, swapParams)
 	if err != nil {
-		return "", "", 0, 0, err
+		return "", "", "", 0, 0, err
 	}
-	cl.hexToIdMap[prepRes.UnsignedTx] = prepRes.TxId
-	return prepRes.UnsignedTx, addr, fee, vout, nil
-}
-
-func (cl *ClightningClient) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
-	var unpreparedTxId string
-	var ok bool
-	if unpreparedTxId, ok = cl.hexToIdMap[unpreparedTxHex]; !ok {
-		return "", "", errors.New("tx was not prepared not found in map")
-	}
-	delete(cl.hexToIdMap, unpreparedTxHex)
-	sendRes, err := cl.glightning.SendTx(unpreparedTxId)
+	sendRes, err := cl.glightning.SendTx(prepRes.TxId)
 	if err != nil {
-		return "", "", errors.New(fmt.Sprintf("tx was not prepared %v", err))
+		return "", "", "", 0, 0, errors.New(fmt.Sprintf("tx was not prepared %v", err))
 	}
-	return sendRes.TxId, sendRes.SignedTx, nil
+	return sendRes.SignedTx, addr, sendRes.TxId, fee, vout, nil
 }
 
 func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, err error) {

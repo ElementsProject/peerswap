@@ -63,7 +63,7 @@ func printFailedFiltered(t *testing.T, process *testframework.DaemonProcess) {
 			tailableProcess{
 				p:      process,
 				filter: filter,
-				lines:  defaultLines,
+				lines:  3000,
 			},
 		)
 	}

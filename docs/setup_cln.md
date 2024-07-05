@@ -62,6 +62,7 @@ cookiefilepath="/path/to/auth/.cookie" ## If set this will be used for authentic
 bitcoinswaps=true ## If set to false, BTC mainchain swaps are disabled
 
 # Liquid section
+# Select either Liquid or LWK
 # Liquid rpc connection settings.
 [Liquid]
 rpcuser="user"
@@ -70,6 +71,13 @@ rpchost="http://host" ## the http:// is mandatory
 rpcport=1234
 rpcpasswordfile="/path/to/auth/.cookie" ## If set this will be used for authentication
 rpcwallet="swap-wallet" ## (default: peerswap)
+liquidswaps=true ## If set to false, L-BTC swaps are disabled
+
+# LWK section
+# LWK rpc connection settings.
+[LWK]
+signername=signername
+walletname=walletname
 liquidswaps=true ## If set to false, L-BTC swaps are disabled
 ```
 

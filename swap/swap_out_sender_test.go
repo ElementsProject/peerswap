@@ -411,6 +411,10 @@ type dummyChain struct {
 	returnGetCSVHeight uint32
 }
 
+func (d *dummyChain) StartWatchingTxs() error {
+	return nil
+}
+
 func (d *dummyChain) SetBalance(balance uint64) {
 	d.balance = balance
 }
@@ -478,8 +482,8 @@ func (d *dummyChain) GetFlatSwapOutFee() (uint64, error) {
 	return 100, nil
 }
 
-func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address string, fee uint64, vout uint32, err error) {
-	return "txhex", "addr", 0, 0, nil
+func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address, txid string, fee uint64, vout uint32, err error) {
+	return "txhex", "address", getRandom32ByteHexString(), 0, 0, nil
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
@@ -488,10 +492,6 @@ func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
 
 func (d *dummyChain) NewAddress() (string, error) {
 	return "addr", nil
-}
-
-func (d *dummyChain) BroadcastOpeningTx(unpreparedTxHex string) (txId, txHex string, error error) {
-	return getRandom32ByteHexString(), "txhex", nil
 }
 
 func (d *dummyChain) AddConfirmationCallback(f func(swapId string, txHex string, err error) error) {

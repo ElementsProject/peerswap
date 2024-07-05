@@ -1,26 +1,2 @@
-let
-    peerswap-pkgs = import ./packages.nix;
-in
-{ pkgs ? (import <nixpkgs> {})}:
-let
-    execs = peerswap-pkgs.execs;
-in with pkgs;
-stdenv.mkDerivation rec {
-    name = "peerswap-dev-env";
-    nativeBuildInputs = [openssl];
-    buildInputs = [peerswap-pkgs.devpkgs ];
-    
-    shellHook = ''
-    alias lightning-cli='${execs.clightning}/bin/lightning-cli'
-    alias lightningd='${execs.clightning}/bin/lightningd'
-    alias bitcoind='${execs.bitcoind}/bin/bitcoind'
-    alias bitcoin-cli='${execs.bitcoind}/bin/bitcoin-cli'
-    alias elementsd='${execs.elementsd}/bin/elementsd'
-    alias elements-cli='${execs.elementsd}/bin/elements-cli'
-    alias lnd='${execs.lnd}/bin/lnd'
-    alias lncli='${execs.lnd}/bin/lncli'
-
-    . ./contrib/startup_regtest.sh
-    setup_alias
-    '';
-}
+# Just uses the flake. For the nix-env addon users.
+(builtins.getFlake ("git+file://" + toString ./.)).devShells.${builtins.currentSystem}.default

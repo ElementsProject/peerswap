@@ -27,8 +27,7 @@ type PeerswapServer struct {
 	pollService    *poll.Service
 	policy         *policy.Policy
 
-	Gelements *gelements.Elements
-	lnd       lnrpc.LightningClient
+	lnd lnrpc.LightningClient
 
 	sigchan chan os.Signal
 
@@ -79,7 +78,7 @@ func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error)
 }
 
 func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, pollService *poll.Service, policy *policy.Policy, gelements *gelements.Elements, lnd lnrpc.LightningClient, sigchan chan os.Signal) *PeerswapServer {
-	return &PeerswapServer{liquidWallet: liquidWallet, swaps: swaps, requestedSwaps: requestedSwaps, pollService: pollService, policy: policy, Gelements: gelements, lnd: lnd, sigchan: sigchan}
+	return &PeerswapServer{liquidWallet: liquidWallet, swaps: swaps, requestedSwaps: requestedSwaps, pollService: pollService, policy: policy, lnd: lnd, sigchan: sigchan}
 }
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
@@ -115,8 +114,8 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
-		if p.Gelements == nil {
-			return nil, errors.New("peerswap was not started with liquid node config")
+		if ok, perr := p.liquidWallet.Ping(); perr != nil || !ok {
+			return nil, fmt.Errorf("liquid wallet not reachable: %v", perr)
 		}
 
 	} else if strings.Compare(request.Asset, "btc") == 0 {
@@ -224,9 +223,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
-		if p.Gelements == nil {
-			return nil, errors.New("peerswap was not started with liquid node config")
-		}
+
 		liquidBalance, err := p.liquidWallet.GetBalance()
 		if err != nil {
 			return nil, err
@@ -470,9 +467,7 @@ func (p *PeerswapServer) LiquidGetAddress(ctx context.Context, request *GetAddre
 	if !p.swaps.LiquidEnabled {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
-	if p.Gelements == nil {
-		return nil, errors.New("peerswap was not started with liquid node config")
-	}
+
 	res, err := p.liquidWallet.GetAddress()
 	if err != nil {
 		return nil, err
@@ -484,9 +479,7 @@ func (p *PeerswapServer) LiquidGetBalance(ctx context.Context, request *GetBalan
 	if !p.swaps.LiquidEnabled {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
-	if p.Gelements == nil {
-		return nil, errors.New("peerswap was not started with liquid node config")
-	}
+
 	res, err := p.liquidWallet.GetBalance()
 	if err != nil {
 		return nil, err
@@ -499,9 +492,7 @@ func (p *PeerswapServer) LiquidSendToAddress(ctx context.Context, request *SendT
 	if !p.swaps.LiquidEnabled {
 		return nil, errors.New("liquid swaps are not enabled")
 	}
-	if p.Gelements == nil {
-		return nil, errors.New("peerswap was not started with liquid node config")
-	}
+
 	if request.Address == "" {
 		return nil, errors.New("address not set")
 	}

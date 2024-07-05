@@ -13,6 +13,7 @@ import (
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/lwk"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -58,6 +59,7 @@ type Config struct {
 	PolicyPath   string
 	Bitcoin      *BitcoinConf
 	Liquid       *LiquidConf
+	LWK          *lwk.Conf
 }
 
 func (c Config) String() string {
@@ -200,9 +202,75 @@ func ReadFromFile() Processor {
 			c.Liquid.RpcWallet = fileConf.Liquid.RpcWallet
 			c.Liquid.LiquidSwaps = fileConf.Liquid.LiquidSwaps
 		}
-
+		lc, err := LWKConfigFromToml(filepath.Join(c.PeerswapDir, defaultConfigFileName))
+		if err != nil {
+			return nil, err
+		}
+		c.LWK = lc
 		return c, nil
 	}
+}
+
+func LWKConfigFromToml(filePath string) (*lwk.Conf, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	type LwkConfig struct {
+		SignerName       string
+		WalletName       string
+		LWKEndpoint      string
+		ElectrumEndpoint string
+		Network          string
+		LiquidSwaps      *bool
+	}
+	var cfg struct {
+		LWK *LwkConfig
+	}
+	err = toml.Unmarshal(data, &cfg)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LWK == nil {
+		return nil, nil
+	}
+
+	ln, err := lwk.NewlwkNetwork("liquid-testnet")
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LWK.Network != "" {
+		n, e := lwk.NewlwkNetwork(cfg.LWK.Network)
+		if e != nil {
+			return nil, e
+		}
+		ln = n
+	}
+	c, err := lwk.NewConfBuilder(ln).DefaultConf()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LWK.WalletName != "" {
+		c.SetWalletName(lwk.NewConfName(cfg.LWK.WalletName))
+	}
+	if cfg.LWK.SignerName != "" {
+		c.SetSignerName(lwk.NewConfName(cfg.LWK.SignerName))
+	}
+	if cfg.LWK.LWKEndpoint != "" {
+		lwkEndpoint, err := lwk.NewLWKURL(cfg.LWK.LWKEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		c.SetLWKEndpoint(*lwkEndpoint)
+	}
+	if cfg.LWK.ElectrumEndpoint != "" {
+		electrumEndpoint, err := lwk.NewElectrsURL(cfg.LWK.ElectrumEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		c.SetElectrumEndpoint(*electrumEndpoint)
+	}
+	return c.SetLiquidSwaps(*cfg.LWK.LiquidSwaps).Build()
 }
 
 func PeerSwapFallback() Processor {

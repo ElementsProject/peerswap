@@ -12,6 +12,7 @@ import (
 	"github.com/elementsproject/peerswap/elements"
 	"github.com/elementsproject/peerswap/isdev"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/lwk"
 	"github.com/elementsproject/peerswap/version"
 	"golang.org/x/sys/unix"
 
@@ -164,12 +165,12 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 
 	// liquid
 	var liquidOnChainService *onchain.LiquidOnChain
-	var liquidTxWatcher *txwatcher.BlockchainRpcTxWatcher
-	var liquidRpcWallet *wallet.ElementsRpcWallet
+	var liquidTxWatcher swap.TxWatcher
+	var liquidRpcWallet wallet.Wallet
 	var liquidCli *gelements.Elements
 	var liquidEnabled bool
 
-	if *config.Liquid.LiquidSwaps && liquidWanted(config) {
+	if *config.Liquid.LiquidSwaps && elementsWanted(config) {
 		liquidEnabled = true
 		log.Infof("Starting elements client with rpcuser: %s, rpcpassword:******, rpccookie: %s, rpcport: %d, rpchost: %s",
 			config.Liquid.RpcUser,
@@ -202,9 +203,24 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			return err
 		}
 
-		liquidOnChainService = onchain.NewLiquidOnChain(liquidCli, liquidRpcWallet, liquidChain)
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, liquidChain)
 		supportedAssets = append(supportedAssets, "lbtc")
 		log.Infof("Liquid swaps enabled")
+	} else if config.LWK != nil && config.LWK.Enabled() {
+		liquidEnabled = true
+		lc, err2 := lwk.NewLWKRpcWallet(ctx, config.LWK)
+		if err2 != nil {
+			return err2
+		}
+		liquidTxWatcher, err = lwk.NewElectrumTxWatcher(lc.GetElectrumClient())
+		if err != nil {
+			return err
+		}
+		liquidRpcWallet = lc
+		liquidOnChainService = onchain.NewLiquidOnChain(liquidRpcWallet, config.LWK.GetChain())
+		supportedAssets = append(supportedAssets, "lbtc")
+		log.Infof("Liquid swaps enabled with LWK. Network: %s, wallet: %s",
+			config.LWK.GetNetwork(), config.LWK.GetWalletName())
 	} else {
 		log.Infof("Liquid swaps disabled")
 	}
@@ -330,23 +346,19 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	swapService := swap.NewSwapService(swapServices)
 
 	if liquidTxWatcher != nil && liquidEnabled {
-		go func() {
-			err := liquidTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Infof("%v", err)
-				os.Exit(1)
-			}
-		}()
+		err := liquidTxWatcher.StartWatchingTxs()
+		if err != nil {
+			log.Infof("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	if bitcoinTxWatcher != nil {
-		go func() {
-			err := bitcoinTxWatcher.StartWatchingTxs()
-			if err != nil {
-				log.Infof("%v", err)
-				os.Exit(1)
-			}
-		}()
+		err := bitcoinTxWatcher.StartWatchingTxs()
+		if err != nil {
+			log.Infof("%v", err)
+			os.Exit(1)
+		}
 	}
 
 	err = swapService.Start()
@@ -363,7 +375,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	defer pollService.Stop()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, liquidCli, bitcoinCli, bitcoinOnChainService, pollService)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, bitcoinCli, bitcoinOnChainService, pollService)
 
 	// We are ready to accept and handle requests.
 	// FIXME: Once we reworked the recovery service (non-blocking) we want to
@@ -393,7 +405,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	return nil
 }
 
-func liquidWanted(cfg *clightning.Config) bool {
+func elementsWanted(cfg *clightning.Config) bool {
 	return cfg.Liquid.RpcUser != "" && cfg.Liquid.RpcPassword != ""
 }
 
@@ -413,6 +425,7 @@ func getLiquidChain(li *gelements.Elements) (*network.Network, error) {
 		return &network.Testnet, nil
 	}
 }
+
 func getBitcoinChain(li *glightning.Lightning) (*chaincfg.Params, error) {
 	gi, err := li.GetInfo()
 	if err != nil {
