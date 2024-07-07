@@ -647,9 +647,12 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 				},
 				PaidFee: paidFees,
 			}
-
+			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
+			if err != nil {
+				return nil, err
+			}
 			peerSwapPeerChannels := []*PeerSwapPeerChannel{}
-			for _, channel := range peer.Channels {
+			for _, channel := range channels {
 				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
 					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
 						ChannelId:     c.ShortChannelId,
