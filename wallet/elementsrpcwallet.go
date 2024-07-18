@@ -3,9 +3,12 @@ package wallet
 import (
 	"errors"
 	"fmt"
+
+	"math"
 	"strings"
 
 	"github.com/elementsproject/glightning/gelements"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"
@@ -25,7 +28,7 @@ type RpcClient interface {
 	CreateWallet(walletname string) (string, error)
 	SetRpcWallet(walletname string)
 	ListWallets() ([]string, error)
-	FundRawTx(txHex string) (*gelements.FundRawResult, error)
+	FundRawWithOptions(txstring string, options *gelements.FundRawOptions, iswitness *bool) (*gelements.FundRawResult, error)
 	BlindRawTransaction(txHex string) (string, error)
 	SignRawTransactionWithWallet(txHex string) (gelements.SignRawTransactionWithWalletRes, error)
 	SendRawTx(txHex string) (string, error)
@@ -89,7 +92,10 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 	if err != nil {
 		return "", "", 0, err
 	}
-	fundedTx, err := r.rpcClient.FundRawTx(txHex)
+	fundedTx, err := r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
+		FeeRate: fmt.Sprintf("%f", r.getFeeRate()),
+	}, nil)
+
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -102,6 +108,27 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 		return "", "", 0, err
 	}
 	return txid, finalized, gelements.ConvertBtc(fundedTx.Fee), nil
+}
+
+const (
+	// minFeeRateBTCPerKb defines the minimum fee rate in BTC/kB.
+	// This value is equivalent to 0.1 sat/byte.
+	minFeeRateBTCPerKb = 0.000001
+)
+
+// getFeeRate retrieves the optimal fee rate based on the current Liquid network conditions.
+// Returns the recommended fee rate in BTC/kB
+func (r *ElementsRpcWallet) getFeeRate() float64 {
+	feeRes, err := r.rpcClient.EstimateFee(LiquidTargetBlocks, "ECONOMICAL")
+	if err != nil || len(feeRes.Errors) > 0 {
+		log.Debugf("Error estimating fee: %v", err)
+		if len(feeRes.Errors) > 0 {
+			log.Debugf(" Errors encountered during fee estimation process: %v", feeRes.Errors)
+		}
+		// Return the minimum fee rate in case of an error
+		return minFeeRateBTCPerKb
+	}
+	return math.Max(feeRes.FeeRate, minFeeRateBTCPerKb)
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
