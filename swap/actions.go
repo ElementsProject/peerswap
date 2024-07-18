@@ -589,20 +589,29 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	}
 
 	ll := services.lightning
-	// policy := services.policy
+
 	_, msatAmt, _, err := ll.DecodePayreq(swap.SwapOutAgreement.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
 	}
+
 	sp, err := ll.SpendableMsat(swap.SwapOutRequest.Scid)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	if sp <= swap.SwapOutRequest.Amount*1000 {
-		return swap.HandleError(err)
+	// Calculate the total required balance
+	// This includes the swap amount (multiplied by 1000 to convert from sat to msat)
+	// plus the fee in millisatoshis
+	requiredBalance := swap.SwapOutRequest.Amount*1000 + msatAmt
+
+	// Check if the spendable balance (sp) is sufficient
+	if sp <= requiredBalance {
+		return swap.HandleError(fmt.Errorf("not enough spendable msat: %d, expected: %d", sp, requiredBalance))
 	}
-	success, failureReason, err := ll.ProbePayment(swap.SwapOutRequest.Scid, swap.SwapOutRequest.Amount*1000)
+
+	// Probe the payment to check if it's possible
+	success, failureReason, err := ll.ProbePayment(swap.SwapOutRequest.Scid, requiredBalance)
 	if err != nil {
 		return swap.HandleError(err)
 	}
