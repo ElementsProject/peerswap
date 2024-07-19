@@ -391,14 +391,6 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 	}
 
-	success, failureReason, err := s.swapServices.lightning.ProbePayment(channelId, amtSat*1000)
-	if err != nil {
-		return nil, err
-	}
-	if !success {
-		return nil, fmt.Errorf("the prepayment probe was unsuccessful: %s", failureReason)
-	}
-
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
 	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
