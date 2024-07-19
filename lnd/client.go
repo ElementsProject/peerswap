@@ -131,7 +131,7 @@ func (l *Client) SpendableMsat(scid string) (uint64, error) {
 				return 0, err
 			}
 			spendable := (uint64(ch.GetLocalBalance()) -
-				ch.GetLocalConstraints().GetChanReserveSat()*1000)
+				ch.GetLocalConstraints().GetChanReserveSat()) * 1000
 			// since the max htlc limit is not always set reliably,
 			// the check is skipped if it is not set.
 			if maxHtlcAmtMsat == 0 {
@@ -168,7 +168,7 @@ func (l *Client) ReceivableMsat(scid string) (uint64, error) {
 				return 0, err
 			}
 			receivable := (uint64(ch.GetRemoteBalance()) -
-				ch.GetRemoteConstraints().GetChanReserveSat()*1000)
+				ch.GetRemoteConstraints().GetChanReserveSat()) * 1000
 			// since the max htlc limit is not always set reliably,
 			// the check is skipped if it is not set.
 			if maxHtlcAmtMsat == 0 {
