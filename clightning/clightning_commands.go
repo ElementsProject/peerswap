@@ -362,34 +362,16 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if !l.cl.isPeerConnected(fundingChannels.Id) {
 		return nil, fmt.Errorf("peer is not connected")
 	}
-	if l.Asset == "lbtc" {
+	switch l.Asset {
+	case "lbtc":
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
-		liquidBalance, err := l.cl.liquidWallet.GetBalance()
-		if err != nil {
-			return nil, err
-		}
-		if liquidBalance < l.SatAmt {
-			return nil, errors.New("Not enough balance on liquid liquidWallet")
-		}
-	} else if l.Asset == "btc" {
+	case "btc":
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
-		funds, err := l.cl.glightning.ListFunds()
-		if err != nil {
-			return nil, err
-		}
-		sats := uint64(0)
-		for _, v := range funds.Outputs {
-			sats += v.AmountMilliSatoshi.MSat() / 1000
-		}
-
-		if sats < l.SatAmt+2000 {
-			return nil, errors.New("Not enough balance on c-lightning onchain liquidWallet")
-		}
-	} else {
+	default:
 		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 

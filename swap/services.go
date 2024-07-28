@@ -78,7 +78,7 @@ type Wallet interface {
 	GetOutputScript(params *OpeningParams) ([]byte, error)
 	NewAddress() (string, error)
 	GetRefundFee() (uint64, error)
-	GetFlatSwapOutFee() (uint64, error)
+	GetFlatOpeningTXFee() (uint64, error)
 	GetAsset() string
 	GetNetwork() string
 	GetOnchainBalance() (uint64, error)

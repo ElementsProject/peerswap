@@ -30,6 +30,10 @@ import (
 const (
 	LiquidCsv   = 60
 	LiquidConfs = 2
+	// EstimatedOpeningConfidentialTxSizeBytes is the estimated size of a opening transaction.
+	// The size is a calculate 2672 bytes for 3 inputs and 3 ouputs of which 2 are
+	// blinded. An additional safety margin is added for a total of 3000 bytes.
+	EstimatedOpeningConfidentialTxSizeBytes = 3000
 )
 
 type LiquidOnChain struct {
@@ -528,11 +532,9 @@ func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
 	return l.liquidWallet.GetFee(int64(l.getClaimTxSize()))
 }
 
-// GetFlatSwapOutFee returns an estimate of the fee for the opening transaction.
-// The size is a calculate 2672 bytes for 3 inputs and 3 ouputs of which 2 are
-// blinded. An additional safety margin is added for a total of 3000 bytes.
-func (l *LiquidOnChain) GetFlatSwapOutFee() (uint64, error) {
-	return l.liquidWallet.GetFee(3000)
+// GetFlatOpeningTXFee returns an estimate of the fee for the opening transaction.
+func (l *LiquidOnChain) GetFlatOpeningTXFee() (uint64, error) {
+	return l.liquidWallet.GetFee(EstimatedOpeningConfidentialTxSizeBytes)
 }
 
 func (l *LiquidOnChain) GetAsset() string {
