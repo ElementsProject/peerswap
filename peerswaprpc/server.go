@@ -219,31 +219,16 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, errors.New("channel is not connected")
 	}
 
-	if request.Asset == "lbtc" {
+	switch request.Asset {
+	case "lbtc":
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
-
-		liquidBalance, err := p.liquidWallet.GetBalance()
-		if err != nil {
-			return nil, err
-		}
-		if liquidBalance < request.SwapAmount+1000 {
-			return nil, errors.New("Not enough balance on liquid wallet")
-		}
-	} else if request.Asset == "btc" {
+	case "btc":
 		if !p.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
 		}
-		walletbalance, err := p.lnd.WalletBalance(ctx, &lnrpc.WalletBalanceRequest{})
-		if err != nil {
-			return nil, err
-		}
-		if uint64(walletbalance.ConfirmedBalance) < request.SwapAmount+2000 {
-			return nil, errors.New("Not enough balance on lnd onchain liquidWallet")
-		}
-
-	} else {
+	default:
 		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 

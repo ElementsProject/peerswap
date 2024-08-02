@@ -447,16 +447,20 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	if err != nil {
 		return nil, err
 	}
-
 	rs, err := s.swapServices.lightning.ReceivableMsat(channelId)
 	if err != nil {
 		return nil, err
 	}
-
 	if rs <= amtSat*1000 {
 		return nil, fmt.Errorf("exceeding receivable amount_msat: %d", rs)
 	}
-
+	maximumSwapAmountSat, err := s.estimateMaximumSwapAmountSat(chain)
+	if err != nil {
+		return nil, err
+	}
+	if amtSat > maximumSwapAmountSat {
+		return nil, fmt.Errorf("exceeding maximum swap amount: %d", maximumSwapAmountSat)
+	}
 	var bitcoinNetwork string
 	var elementsAsset string
 	if chain == l_btc_chain {
@@ -490,6 +494,40 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		s.RemoveActiveSwap(swap.SwapId.String())
 	}
 	return swap, nil
+}
+
+// estimateMaximumSwapAmountSat estimates the maximum swap amount
+// in satoshis for the specified chain.
+// This retrieves the on-chain balance and opening tx fee from the wallet,
+// and calculates the maximum amount available for swapping.
+func (s *SwapService) estimateMaximumSwapAmountSat(chain string) (uint64, error) {
+	if chain == l_btc_chain {
+		liquidBalance, err := s.swapServices.liquidWallet.GetOnchainBalance()
+		if err != nil {
+			return 0, err
+		}
+		// estimatedFee is the amount (in satoshis) of the fee for the opening transaction.
+		estimatedFee, err := s.swapServices.liquidWallet.GetFlatOpeningTXFee()
+		if err != nil {
+			return 0, err
+		}
+		// Calculate the available balance for swapping.
+		return liquidBalance - estimatedFee, nil
+
+	} else if chain == btc_chain {
+		bitcoinBalance, err := s.swapServices.bitcoinWallet.GetOnchainBalance()
+		if err != nil {
+			return 0, err
+		}
+		// estimatedFee is the amount (in satoshis) of the fee for the opening transaction.
+		estimatedFee, err := s.swapServices.bitcoinWallet.GetFlatOpeningTXFee()
+		if err != nil {
+			return 0, err
+		}
+		// Calculate the available balance for swapping.
+		return bitcoinBalance - estimatedFee, nil
+	}
+	return 0, errors.New("invalid chain")
 }
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine

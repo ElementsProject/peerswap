@@ -372,22 +372,18 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
-	openingFee, err := wallet.GetFlatSwapOutFee()
+	openingFee, err := wallet.GetFlatOpeningTXFee()
 	if err != nil {
 		swap.LastErr = err
 		return swap.HandleError(err)
 	}
 
-	// Check if onchain balance is sufficient for swap + fees + some safety net
+	// Check if onchain balance is sufficient for swap + fees
 	walletBalance, err := wallet.GetOnchainBalance()
 	if err != nil {
 		return swap.HandleError(err)
 	}
-
-	// TODO: this should be looked at in the future
-	safetynet := uint64(20000)
-
-	if walletBalance < swap.GetAmount()+openingFee+safetynet {
+	if walletBalance < swap.GetAmount()+openingFee {
 		return swap.HandleError(errors.New("insufficient walletbalance"))
 	}
 
@@ -621,7 +617,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 
 	swap.OpeningTxFee = msatAmt / 1000
 
-	expectedFee, err := wallet.GetFlatSwapOutFee()
+	expectedFee, err := wallet.GetFlatOpeningTXFee()
 	if err != nil {
 		swap.LastErr = err
 		return swap.HandleError(err)

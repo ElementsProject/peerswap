@@ -478,7 +478,7 @@ func (d *dummyChain) GetRefundFee() (uint64, error) {
 	return 100, nil
 }
 
-func (d *dummyChain) GetFlatSwapOutFee() (uint64, error) {
+func (d *dummyChain) GetFlatOpeningTXFee() (uint64, error) {
 	return 100, nil
 }
 

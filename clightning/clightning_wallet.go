@@ -225,11 +225,11 @@ func (cl *ClightningClient) GetOnchainBalance() (uint64, error) {
 	return totalBalance, nil
 }
 
-// GetFlatSwapOutFee returns an estimated size for the opening transaction. This
+// GetFlatOpeningTXFee returns an estimated size for the opening transaction. This
 // can be used to calculate the amount of the fee invoice and should cover most
 // but not all cases. For an explanation of the estimation see comments of the
 // onchain.EstimatedOpeningTxSize.
-func (cl *ClightningClient) GetFlatSwapOutFee() (uint64, error) {
+func (cl *ClightningClient) GetFlatOpeningTXFee() (uint64, error) {
 	return cl.bitcoinChain.GetFee(onchain.EstimatedOpeningTxSize)
 }
 
