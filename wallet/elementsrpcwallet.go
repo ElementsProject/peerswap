@@ -20,6 +20,11 @@ var (
 	AlreadyLoadedError = errors.New("wallet is already loaded")
 )
 
+const (
+	// https://github.com/ElementsProject/elements/releases/tag/elements-23.2.2
+	elementsdFeeDiscountedVersion = 230202
+)
+
 type RpcClient interface {
 	GetNewAddress(addrType int) (string, error)
 	SendToAddress(address string, amount string) (string, error)
@@ -35,6 +40,7 @@ type RpcClient interface {
 	EstimateFee(blocks uint32, mode string) (*gelements.FeeResponse, error)
 	SetLabel(address, label string) error
 	Ping() (bool, error)
+	GetNetworkInfo() (*gelements.NetworkInfo, error)
 }
 
 // ElementsRpcWallet uses the elementsd rpc wallet
@@ -196,13 +202,17 @@ func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 0.1 {
-		satPerByte = 0.1
+	defaultSatPerByte := 0.1
+	ni, err := r.rpcClient.GetNetworkInfo()
+	if err != nil {
+		return 0, err
 	}
-	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 0.1
+	if ni.Version >= elementsdFeeDiscountedVersion {
+		defaultSatPerByte = 0.01
+	}
+	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
+	if satPerByte < defaultSatPerByte || len(feeRes.Errors) > 0 {
+		satPerByte = defaultSatPerByte
 	}
 	// assume largest witness
 	fee := satPerByte * float64(txSize)
