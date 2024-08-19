@@ -591,7 +591,7 @@ func defaultBitcoinRpcPort(network string) uint {
 func defaultElementsRpcPort(network string) uint {
 	switch network {
 	case "liquidtestnet":
-		return 18891
+		return 7039
 	case "regtest":
 		return 18443
 	default:
