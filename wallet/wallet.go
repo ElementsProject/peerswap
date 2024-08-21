@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	NotEnoughBalanceError = errors.New("Not enough balance on utxos")
+	NotEnoughBalanceError  = errors.New("Not enough balance on utxos")
+	MinRelayFeeNotMetError = errors.New("MinRelayFee not met")
 )
 
 const (
