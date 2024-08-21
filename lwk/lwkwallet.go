@@ -259,6 +259,13 @@ func (r *LWKRpcWallet) SendRawTx(txHex string) (string, error) {
 	defer cancel()
 	res, err := r.electrumClient.BroadcastTransaction(ctx, txHex)
 	if err != nil {
+		rpcErr, pErr := parseRPCError(err)
+		if pErr != nil {
+			return "", fmt.Errorf("error parsing rpc error: %v", pErr)
+		}
+		if rpcErr.Code == -26 {
+			return "", wallet.MinRelayFeeNotMetError
+		}
 		return "", err
 	}
 	return res, nil

@@ -81,14 +81,38 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 	return txHex, blindedScriptAddr, txId, fee, vout, nil
 }
 
+// feeAmountPlaceholder is a placeholder for the fee amount
+const feeAmountPlaceholder = uint64(500)
+
 func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, true)))
+	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	txId, txHex, newAddr, err := l.createPreimageSpendingTransaction(swapParams, claimParams, fee)
+	if err == nil {
+		return txId, txHex, newAddr, nil
+	}
+	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
+		return "", "", "", err
+	}
+	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, false)))
+	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	return l.createPreimageSpendingTransaction(swapParams, claimParams, fee)
+}
+
+func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, fee uint64) (string, string, string, error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
 
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, 0, 0)
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, 0, fee)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -118,12 +142,33 @@ func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.Openi
 }
 
 func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, true)))
+	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	txId, txHex, newAddr, err := l.createCsvSpendingTransaction(swapParams, claimParams, fee)
+	if err == nil {
+		return txId, txHex, newAddr, nil
+	}
+	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
+		return "", "", "", err
+	}
+	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, false)))
+	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	return l.createCsvSpendingTransaction(swapParams, claimParams, fee)
+}
+
+func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, fee uint64) (txId, txHex, address string, error error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv, 0)
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv, fee)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -140,11 +185,28 @@ func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningPar
 }
 
 func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
-	refundAddr, err := l.NewAddress()
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, true)))
 	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	txId, txHex, newAddr, err := l.createCoopSpendingTransaction(swapParams, claimParams, takerSigner, fee)
+	if err == nil {
+		return txId, txHex, newAddr, nil
+	}
+	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
 		return "", "", "", err
 	}
-	refundFee, err := l.liquidWallet.GetFee(int64(l.getCoopClaimTxSize()))
+	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, false)))
+	if err != nil {
+		log.Infof("error getting fee %v", err)
+		fee = feeAmountPlaceholder
+	}
+	return l.createCoopSpendingTransaction(swapParams, claimParams, takerSigner, fee)
+}
+
+func (l *LiquidOnChain) createCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer, fee uint64) (txId, txHex, address string, error error) {
+	refundAddr, err := l.NewAddress()
 	if err != nil {
 		return "", "", "", err
 	}
@@ -156,7 +218,7 @@ func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", "", err
 	}
-	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, 0, l.asset, redeemScript, refundAddr, refundFee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
+	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, 0, l.asset, redeemScript, refundAddr, fee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -235,6 +297,9 @@ func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParam
 
 // CreateSpendingTransaction returns the spendningTransaction for the swap
 func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount uint64, csv uint32, asset, redeemScript []byte, redeemAddr string, preparedFee uint64, blindingKey, ephemeralPrivKey *btcec.PrivateKey, outputAbf, seed []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
+	if preparedFee == 0 {
+		return nil, [32]byte{}, errors.New("fee must be set other than 0")
+	}
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
 		log.Infof("error creating first tx %s, %v", openingTxHex, err)
@@ -263,16 +328,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 		return nil, [32]byte{}, errors.New(fmt.Sprintf("Tx value is not equal to the swap contract expected: %v, tx: %v", swapAmount, ubRes.Value))
 	}
 
-	feeAmountPlaceholder := uint64(500)
-	fee := preparedFee
-	if preparedFee == 0 {
-		fee, err = l.liquidWallet.GetFee(int64(l.getClaimTxSize()))
-		if err != nil {
-			fee = feeAmountPlaceholder
-		}
-	}
-
-	outputValue := ubRes.Value - fee
+	outputValue := ubRes.Value - preparedFee
 
 	finalVbfArgs := confidential.FinalValueBlindingFactorArgs{
 		InValues:      []uint64{ubRes.Value},
@@ -366,7 +422,7 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	spendingTx.Outputs = append(spendingTx.Outputs, receiverOutput)
 
 	// add feeoutput
-	feeValue, _ := elementsutil.ValueToBytes(fee)
+	feeValue, _ := elementsutil.ValueToBytes(preparedFee)
 	feeScript := []byte{}
 	feeOutput := transaction.NewTxOutput(asset, feeValue, feeScript)
 	spendingTx.Outputs = append(spendingTx.Outputs, feeOutput)
@@ -378,12 +434,33 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	return spendingTx, sigHash, nil
 }
 
-func (l *LiquidOnChain) getClaimTxSize() int {
-	return 1350
-}
+type transactionKind string
 
-func (l *LiquidOnChain) getCoopClaimTxSize() int {
-	return 1360
+const (
+	transactionKindPreimageSpending transactionKind = "preimage"
+	transactionKindCoop             transactionKind = "coop"
+	transactionKindOpening          transactionKind = "open"
+	transactionKindCSV              transactionKind = "csv"
+)
+
+func getEstimatedTxSize(t transactionKind, ctDiscount bool) int {
+	txsize := 0
+	switch t {
+	case transactionKindPreimageSpending:
+		txsize = 1350
+	case transactionKindCoop:
+		txsize = 1360
+	case transactionKindOpening:
+		txsize = EstimatedOpeningConfidentialTxSizeBytes
+	case transactionKindCSV:
+		txsize = 1350
+	default:
+		return 1360
+	}
+	if ctDiscount {
+		return txsize / 4
+	}
+	return txsize
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
@@ -529,12 +606,12 @@ func (l *LiquidOnChain) Blech32ToScript(blech32Addr string) ([]byte, error) {
 }
 
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
-	return l.liquidWallet.GetFee(int64(l.getClaimTxSize()))
+	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, false)))
 }
 
 // GetFlatOpeningTXFee returns an estimate of the fee for the opening transaction.
 func (l *LiquidOnChain) GetFlatOpeningTXFee() (uint64, error) {
-	return l.liquidWallet.GetFee(EstimatedOpeningConfidentialTxSizeBytes)
+	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindOpening, true)))
 }
 
 func (l *LiquidOnChain) GetAsset() string {
