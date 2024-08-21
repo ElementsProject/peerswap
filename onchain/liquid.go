@@ -443,21 +443,35 @@ const (
 	transactionKindCSV              transactionKind = "csv"
 )
 
+// getEstimatedTxSize estimates the size of a transaction based on its kind and whether it's using Confidential Transactions (CT).
 func getEstimatedTxSize(t transactionKind, ctDiscount bool) int {
 	txsize := 0
 	switch t {
 	case transactionKindPreimageSpending:
+		// Preimage spending transactions have an estimated size of 1350 bytes.
 		txsize = 1350
 	case transactionKindCoop:
+		// Cooperative close transactions have an estimated size of 1360 bytes.
 		txsize = 1360
 	case transactionKindOpening:
+		// Opening transactions have a variable size, estimated in the constant EstimatedOpeningConfidentialTxSizeBytes.
 		txsize = EstimatedOpeningConfidentialTxSizeBytes
 	case transactionKindCSV:
+		// CSV transactions have an estimated size of 1350 bytes.
 		txsize = 1350
 	default:
+		// For unknown transaction types, assume a default size of 1360 bytes.
 		return 1360
 	}
 	if ctDiscount {
+		// If CT is enabled, the transaction size is reduced by 75%.
+		// TODO:
+		//   This is a placeholder value, the actual discount should
+		//   be calculated based on discount vsize.
+		//   To do this, we would need to construct the transaction, decode it, and then get the discounted vsize.
+		//   However, this would have a significant impact on the codebase.
+		//   As a temporary measure, we're taking a conservative approach and applying a 75% discount.
+		//   For the discount calculation, refer to https://github.com/ElementsProject/ELIPs/blob/main/elip-0200.mediawiki.
 		return txsize / 4
 	}
 	return txsize
