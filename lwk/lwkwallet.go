@@ -161,6 +161,7 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
 	feerate := r.getFeeSatPerVByte(ctx).getValue() * kb
+	// todo: There will be an option in the tx builder to enable the discount.
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
 		Addressees: []*unvalidatedAddressee{
 			{
