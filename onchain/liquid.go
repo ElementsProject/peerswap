@@ -85,19 +85,7 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 const feeAmountPlaceholder = uint64(500)
 
 func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, true)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	txId, txHex, newAddr, err := l.createPreimageSpendingTransaction(swapParams, claimParams, fee)
-	if err == nil {
-		return txId, txHex, newAddr, nil
-	}
-	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
-		return "", "", "", err
-	}
-	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, false)))
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
 	if err != nil {
 		log.Infof("error getting fee %v", err)
 		fee = feeAmountPlaceholder
@@ -142,19 +130,7 @@ func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.Openi
 }
 
 func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, true)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	txId, txHex, newAddr, err := l.createCsvSpendingTransaction(swapParams, claimParams, fee)
-	if err == nil {
-		return txId, txHex, newAddr, nil
-	}
-	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
-		return "", "", "", err
-	}
-	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending, false)))
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
 	if err != nil {
 		log.Infof("error getting fee %v", err)
 		fee = feeAmountPlaceholder
@@ -185,19 +161,7 @@ func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningPar
 }
 
 func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, true)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	txId, txHex, newAddr, err := l.createCoopSpendingTransaction(swapParams, claimParams, takerSigner, fee)
-	if err == nil {
-		return txId, txHex, newAddr, nil
-	}
-	if !errors.Is(err, wallet.MinRelayFeeNotMetError) {
-		return "", "", "", err
-	}
-	fee, err = l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, false)))
+	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop)))
 	if err != nil {
 		log.Infof("error getting fee %v", err)
 		fee = feeAmountPlaceholder
@@ -444,7 +408,7 @@ const (
 )
 
 // getEstimatedTxSize estimates the size of a transaction based on its kind and whether it's using Confidential Transactions (CT).
-func getEstimatedTxSize(t transactionKind, ctDiscount bool) int {
+func getEstimatedTxSize(t transactionKind) int {
 	txsize := 0
 	switch t {
 	case transactionKindPreimageSpending:
@@ -463,18 +427,15 @@ func getEstimatedTxSize(t transactionKind, ctDiscount bool) int {
 		// For unknown transaction types, assume a default size of 1360 bytes.
 		return 1360
 	}
-	if ctDiscount {
-		// If CT is enabled, the transaction size is reduced by 75%.
-		// TODO:
-		//   This is a placeholder value, the actual discount should
-		//   be calculated based on discount vsize.
-		//   To do this, we would need to construct the transaction, decode it, and then get the discounted vsize.
-		//   However, this would have a significant impact on the codebase.
-		//   As a temporary measure, we're taking a conservative approach and applying a 75% discount.
-		//   For the discount calculation, refer to https://github.com/ElementsProject/ELIPs/blob/main/elip-0200.mediawiki.
-		return txsize / 4
-	}
-	return txsize
+	// the transaction size is reduced by 75% for ct discount.
+	// TODO:
+	//   This is a placeholder value, the actual discount should
+	//   be calculated based on discount vsize.
+	//   To do this, we would need to construct the transaction, decode it, and then get the discounted vsize.
+	//   However, this would have a significant impact on the codebase.
+	//   As a temporary measure, we're taking a conservative approach and applying a 75% discount.
+	//   For the discount calculation, refer to https://github.com/ElementsProject/ELIPs/blob/main/elip-0200.mediawiki.
+	return txsize / 4
 }
 
 func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
@@ -620,12 +581,12 @@ func (l *LiquidOnChain) Blech32ToScript(blech32Addr string) ([]byte, error) {
 }
 
 func (l *LiquidOnChain) GetRefundFee() (uint64, error) {
-	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop, false)))
+	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop)))
 }
 
 // GetFlatOpeningTXFee returns an estimate of the fee for the opening transaction.
 func (l *LiquidOnChain) GetFlatOpeningTXFee() (uint64, error) {
-	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindOpening, true)))
+	return l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindOpening)))
 }
 
 func (l *LiquidOnChain) GetAsset() string {
