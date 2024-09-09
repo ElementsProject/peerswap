@@ -188,7 +188,8 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 		}
 		err = s.csvPassedCallback(k)
 		if err != nil {
-			log.Infof("tx callback error %v", err)
+			log.Infof("csv passed callback err: %v. swap id: %s, tx id: %s, starting block height: %d",
+				err, k, v.TxId, v.StartingBlockHeight)
 			continue
 		}
 		toRemove = append(toRemove, k)
