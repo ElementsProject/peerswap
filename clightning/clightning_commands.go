@@ -553,8 +553,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	if !l.cl.isReady {
 		return nil, ErrWaitingForReady
 	}
-
-	peers, err := l.cl.glightning.ListPeers()
+	res, err := l.cl.glightning.ListPeerChannels("")
 	if err != nil {
 		return nil, err
 	}
@@ -576,78 +575,78 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 	}
 
 	peerSwappers := []*PeerSwapPeer{}
-	for _, peer := range peers {
-		if p, ok := polls[peer.Id]; ok {
-			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
-			if err != nil {
-				return nil, err
-			}
-
-			var paidFees uint64
-			var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
-			var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
-			for _, s := range swaps {
-				// We only list successful swaps. They all end in an
-				// State_ClaimedPreimage state.
-				if s.Current == swap.State_ClaimedPreimage {
-					if s.Role == swap.SWAPROLE_SENDER {
-						paidFees += s.Data.OpeningTxFee
-						if s.Type == swap.SWAPTYPE_OUT {
-							SenderSwapsOut++
-							SenderSatsOut += s.Data.GetAmount()
-						} else {
-							SenderSwapsIn++
-							SenderSatsIn += s.Data.GetAmount()
-						}
+	for _, pc := range res.Channels {
+		p, ok := polls[pc.PeerId]
+		if !ok {
+			continue
+		}
+		swaps, err := l.cl.swaps.ListSwapsByPeer(pc.PeerId)
+		if err != nil {
+			return nil, err
+		}
+		var paidFees uint64
+		var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
+		var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
+		for _, s := range swaps {
+			// We only list successful swaps. They all end in an
+			// State_ClaimedPreimage state.
+			if s.Current == swap.State_ClaimedPreimage {
+				if s.Role == swap.SWAPROLE_SENDER {
+					paidFees += s.Data.OpeningTxFee
+					if s.Type == swap.SWAPTYPE_OUT {
+						SenderSwapsOut++
+						SenderSatsOut += s.Data.GetAmount()
 					} else {
-						if s.Type == swap.SWAPTYPE_OUT {
-							ReceiverSwapsOut++
-							ReceiverSatsOut += s.Data.GetAmount()
-						} else {
-							ReceiverSwapsIn++
-							ReceiverSatsIn += s.Data.GetAmount()
-						}
+						SenderSwapsIn++
+						SenderSatsIn += s.Data.GetAmount()
+					}
+				} else {
+					if s.Type == swap.SWAPTYPE_OUT {
+						ReceiverSwapsOut++
+						ReceiverSatsOut += s.Data.GetAmount()
+					} else {
+						ReceiverSwapsIn++
+						ReceiverSatsIn += s.Data.GetAmount()
 					}
 				}
 			}
-
-			peerSwapPeer := &PeerSwapPeer{
-				NodeId:          peer.Id,
-				SwapsAllowed:    p.PeerAllowed,
-				SupportedAssets: p.Assets,
-				AsSender: &SwapStats{
-					SwapsOut: SenderSwapsOut,
-					SwapsIn:  SenderSwapsIn,
-					SatsOut:  SenderSatsOut,
-					SatsIn:   SenderSatsIn,
-				},
-				AsReceiver: &SwapStats{
-					SwapsOut: ReceiverSwapsOut,
-					SwapsIn:  ReceiverSwapsIn,
-					SatsOut:  ReceiverSatsOut,
-					SatsIn:   ReceiverSatsIn,
-				},
-				PaidFee: paidFees,
-			}
-			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
-			if err != nil {
-				return nil, err
-			}
-			peerSwapPeerChannels := []*PeerSwapPeerChannel{}
-			for _, channel := range channels {
-				if c, ok := fundingChannels[channel.ShortChannelId]; ok {
-					peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
-						ChannelId:     c.ShortChannelId,
-						LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
-						RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
-						State:         c.State,
-					})
-				}
-			}
-
-			peerSwapPeer.Channels = peerSwapPeerChannels
-			peerSwappers = append(peerSwappers, peerSwapPeer)
 		}
+
+		peerSwapPeer := &PeerSwapPeer{
+			NodeId:          pc.PeerId,
+			SwapsAllowed:    p.PeerAllowed,
+			SupportedAssets: p.Assets,
+			AsSender: &SwapStats{
+				SwapsOut: SenderSwapsOut,
+				SwapsIn:  SenderSwapsIn,
+				SatsOut:  SenderSatsOut,
+				SatsIn:   SenderSatsIn,
+			},
+			AsReceiver: &SwapStats{
+				SwapsOut: ReceiverSwapsOut,
+				SwapsIn:  ReceiverSwapsIn,
+				SatsOut:  ReceiverSatsOut,
+				SatsIn:   ReceiverSatsIn,
+			},
+			PaidFee: paidFees,
+		}
+		channels, err := l.cl.glightning.ListChannelsBySource(pc.PeerId)
+		if err != nil {
+			return nil, err
+		}
+		peerSwapPeerChannels := []*PeerSwapPeerChannel{}
+		for _, channel := range channels {
+			if c, ok := fundingChannels[channel.ShortChannelId]; ok {
+				peerSwapPeerChannels = append(peerSwapPeerChannels, &PeerSwapPeerChannel{
+					ChannelId:     c.ShortChannelId,
+					LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
+					RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
+					State:         c.State,
+				})
+			}
+		}
+		peerSwapPeer.Channels = peerSwapPeerChannels
+		peerSwappers = append(peerSwappers, peerSwapPeer)
 	}
 	return peerSwappers, nil
 }

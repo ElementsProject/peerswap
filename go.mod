@@ -158,3 +158,5 @@ require (
 
 // This fork contains some options we need to reconnect to lnd.
 replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220824133300-340e95267339
+
+replace github.com/elementsproject/glightning => github.com/Impa10r/glightning v0.0.0-20240908125131-efaaf78adc9f
