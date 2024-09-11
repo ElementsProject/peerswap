@@ -3,31 +3,15 @@ module github.com/elementsproject/peerswap
 go 1.18
 
 require (
+	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
+	github.com/aead/siphash v1.0.1 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.23.3
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
-	github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
-	github.com/jessevdk/go-flags v1.5.0
-	github.com/lightningnetwork/lnd v0.15.4-beta
-	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.9
-	github.com/vulpemventures/go-elements v0.4.0
-	github.com/ybbus/jsonrpc v2.1.2+incompatible
-	go.etcd.io/bbolt v1.3.6
-	google.golang.org/grpc v1.50.0
-	google.golang.org/protobuf v1.28.1
-	gopkg.in/macaroon.v2 v2.1.0
-)
-
-require (
-	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/aead/siphash v1.0.1 // indirect
-	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/btcsuite/btcwallet v0.16.1 // indirect
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.2 // indirect
@@ -49,6 +33,7 @@ require (
 	github.com/decred/dcrd/lru v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6 // indirect
+	github.com/elementsproject/glightning v0.0.0-20240910115322-5c07410a8494
 	github.com/fergusstrange/embedded-postgres v1.19.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
@@ -60,8 +45,10 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.13.0 // indirect
@@ -71,6 +58,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.12.0 // indirect
 	github.com/jackc/pgx/v4 v4.17.2 // indirect
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/jrick/logrotate v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -79,6 +67,7 @@ require (
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf // indirect
 	github.com/lightninglabs/neutrino v0.14.2 // indirect
 	github.com/lightningnetwork/lightning-onion v1.2.0 // indirect
+	github.com/lightningnetwork/lnd v0.15.4-beta
 	github.com/lightningnetwork/lnd/tor v1.1.0 // indirect
 	github.com/ltcsuite/ltcd v0.22.1-beta // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2 // indirect
@@ -97,12 +86,17 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
+	github.com/urfave/cli v1.22.9
 	github.com/vulpemventures/fastsha256 v0.0.0-20160815193821-637e65642941 // indirect
+	github.com/vulpemventures/go-elements v0.4.0
 	github.com/vulpemventures/go-secp256k1-zkp v1.1.5 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
+	github.com/ybbus/jsonrpc v2.1.2+incompatible
+	go.etcd.io/bbolt v1.3.6
 	go.etcd.io/etcd/api/v3 v3.5.5 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.5 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.5 // indirect
@@ -131,8 +125,11 @@ require (
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	golang.org/x/tools v0.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20221010155953-15ba04fc1c0e // indirect
+	google.golang.org/grpc v1.50.0
+	google.golang.org/protobuf v1.28.1
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/macaroon-bakery.v2 v2.3.0 // indirect
+	gopkg.in/macaroon.v2 v2.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -158,5 +155,3 @@ require (
 
 // This fork contains some options we need to reconnect to lnd.
 replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220824133300-340e95267339
-
-replace github.com/elementsproject/glightning => github.com/Impa10r/glightning v0.0.0-20240908125131-efaaf78adc9f
