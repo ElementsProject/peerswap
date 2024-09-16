@@ -3,6 +3,7 @@ package poll
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -167,62 +168,70 @@ func (s *Service) RequestAllPeerPolls() {
 // MessageHandler checks for the incoming messages
 // type and takes the incoming payload to update the
 // store.
-func (s *Service) MessageHandler(peerId string, msgType string, payload []byte) error {
-	messageType, err := messages.HexStringToMessageType(msgType)
+func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
+	messageType, err := messages.PeerswapCustomMessageType(msgType)
 	if err != nil {
+		// Check for specific errors: even message type or message out of range
+		// message type that peerswap is not interested in.
+		if errors.Is(err, &messages.ErrNotPeerswapCustomMessage{}) {
+			// These errors are expected and can be handled gracefully
+			return nil
+		}
 		return err
 	}
 
 	switch messageType {
 	case messages.MESSAGETYPE_POLL:
 		var msg PollMessage
-		err = json.Unmarshal(payload, &msg)
-		if err != nil {
-			return err
+		if jerr := json.Unmarshal(payload, &msg); jerr != nil {
+			return jerr
 		}
-		s.store.Update(peerId, PollInfo{
+		if serr := s.store.Update(peerID, PollInfo{
 			ProtocolVersion: msg.Version,
 			Assets:          msg.Assets,
 			PeerAllowed:     msg.PeerAllowed,
 			LastSeen:        time.Now(),
-		})
-		if ti, ok := s.tmpStore[peerId]; ok {
+		}); serr != nil {
+			return serr
+		}
+		if ti, ok := s.tmpStore[peerID]; ok {
 			if ti == string(payload) {
 				return nil
 			}
 		}
 		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
-			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerID, string(payload))
 		} else {
-			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+			log.Debugf("Received poll from peer %s: %s", peerID, string(payload))
 		}
-		s.tmpStore[peerId] = string(payload)
+		s.tmpStore[peerID] = string(payload)
 		return nil
 	case messages.MESSAGETYPE_REQUEST_POLL:
 		var msg RequestPollMessage
-		err = json.Unmarshal([]byte(payload), &msg)
-		if err != nil {
-			return err
+		if jerr := json.Unmarshal(payload, &msg); jerr != nil {
+			return jerr
 		}
-		s.store.Update(peerId, PollInfo{
+		if serr := s.store.Update(peerID, PollInfo{
 			ProtocolVersion: msg.Version,
 			Assets:          msg.Assets,
 			PeerAllowed:     msg.PeerAllowed,
 			LastSeen:        time.Now(),
-		})
+		}); serr != nil {
+			return serr
+		}
 		// Send a poll on request
-		s.Poll(peerId)
-		if ti, ok := s.tmpStore[peerId]; ok {
+		s.Poll(peerID)
+		if ti, ok := s.tmpStore[peerID]; ok {
 			if ti == string(payload) {
 				return nil
 			}
 		}
 		if msg.Version != swap.PEERSWAP_PROTOCOL_VERSION {
-			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerId, string(payload))
+			log.Debugf("Received poll from INCOMPATIBLE peer %s: %s", peerID, string(payload))
 		} else {
-			log.Debugf("Received poll from peer %s: %s", peerId, string(payload))
+			log.Debugf("Received poll from peer %s: %s", peerID, string(payload))
 		}
-		s.tmpStore[peerId] = string(payload)
+		s.tmpStore[peerID] = string(payload)
 		return nil
 	default:
 		return nil

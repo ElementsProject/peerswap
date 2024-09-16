@@ -178,8 +178,14 @@ func (s *SwapService) OnMessageReceived(peerId string, msgTypeString string, pay
 	if len(payload) > 100*1024 {
 		return errors.New("Payload is unexpectedly large")
 	}
-	msgType, err := messages.HexStringToMessageType(msgTypeString)
+	msgType, err := messages.PeerswapCustomMessageType(msgTypeString)
 	if err != nil {
+		// Check for specific errors: even message type or message out of range
+		// message type that peerswap is not interested in.
+		if errors.Is(err, &messages.ErrNotPeerswapCustomMessage{}) {
+			// These errors are expected and can be handled gracefully
+			return nil
+		}
 		return err
 	}
 	msgBytes := []byte(payload)

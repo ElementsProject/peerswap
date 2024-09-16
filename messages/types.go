@@ -35,41 +35,45 @@ const (
 	MESSAGETYPE_POLL
 	_
 	MESSAGETYPE_REQUEST_POLL
-	UPPER_MESSAGE_BOUND
 )
 
-// InRange checks if the message type lays in the
-// peerswap message range.
-func InRange(msgType MessageType) (bool, error) {
-	// MessageType we do not accept even message types
-	if msgType%2 == 0 {
-		return false, ErrEvenMessageType
+// PeerswapCustomMessageType converts a hexadecimal string representation of a message type
+// to its corresponding MessageType. If the message type is not recognized, it returns an error.
+func PeerswapCustomMessageType(msgType string) (MessageType, error) {
+	// Parse the hexadecimal string to an integer.
+	msgTypeInt, err := strconv.ParseInt(msgType, 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("could not parse hex string to message type: %w", err)
 	}
-	return BASE_MESSAGE_TYPE <= msgType && msgType < UPPER_MESSAGE_BOUND, nil
+
+	// Match the parsed integer to the corresponding MessageType.
+	switch MessageType(msgTypeInt) {
+	case MESSAGETYPE_SWAPINREQUEST:
+		return MESSAGETYPE_SWAPINREQUEST, nil
+	case MESSAGETYPE_SWAPOUTREQUEST:
+		return MESSAGETYPE_SWAPOUTREQUEST, nil
+	case MESSAGETYPE_SWAPINAGREEMENT:
+		return MESSAGETYPE_SWAPINAGREEMENT, nil
+	case MESSAGETYPE_SWAPOUTAGREEMENT:
+		return MESSAGETYPE_SWAPOUTAGREEMENT, nil
+	case MESSAGETYPE_OPENINGTXBROADCASTED:
+		return MESSAGETYPE_OPENINGTXBROADCASTED, nil
+	case MESSAGETYPE_CANCELED:
+		return MESSAGETYPE_CANCELED, nil
+	case MESSAGETYPE_COOPCLOSE:
+		return MESSAGETYPE_COOPCLOSE, nil
+	case MESSAGETYPE_POLL:
+		return MESSAGETYPE_POLL, nil
+	case MESSAGETYPE_REQUEST_POLL:
+		return MESSAGETYPE_REQUEST_POLL, nil
+	default:
+		// Return an error if the message type is not recognized.
+		return 0, NewErrNotPeerswapCustomMessage(msgType)
+	}
 }
 
 // MessageTypeToHexStr returns the hex encoded string
 // of the messagetype.
 func MessageTypeToHexString(messageIndex MessageType) string {
 	return strconv.FormatInt(int64(messageIndex), 16)
-}
-
-// HexStrToMsgType returns the message type from a
-// hex encoded string.
-func HexStringToMessageType(msgTypeStr string) (MessageType, error) {
-	msgTypeInt, err := strconv.ParseInt(msgTypeStr, 16, 64)
-	if err != nil {
-		return 0, fmt.Errorf("could not parse hex string to message type: %w", err)
-	}
-
-	msgType := MessageType(msgTypeInt)
-
-	inRange, err := InRange(msgType)
-	if err != nil {
-		return 0, err
-	}
-	if !inRange {
-		return 0, ErrMessageNotInRange
-	}
-	return msgType, nil
 }
