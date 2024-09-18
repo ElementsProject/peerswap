@@ -348,6 +348,9 @@ func (s *SwapService) OnTxConfirmed(swapId string, txHex string, gotErr error) e
 // OnCsvPassed sends the csvpassed event to the corresponding swap
 func (s *SwapService) OnCsvPassed(swapId string) error {
 	swap, err := s.GetActiveSwap(swapId)
+	if errors.Is(err, ErrSwapDoesNotExist) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
