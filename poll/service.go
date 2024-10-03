@@ -129,8 +129,11 @@ func (s *Service) Poll(peer string) {
 		log.Debugf("poll_service: could not marshal poll msg: %v", err)
 		return
 	}
-
-	s.sendMessage(peer, msg, int(poll.MessageType()))
+	// Send the request poll message
+	// the time when the poll message was received can be known by `last seen` of ListPeerswapPeers,
+	// which provides some indication of the freshness of the connection with the peer.
+	// Therefore, it is not necessary to handle error of each failed custom message attempt.
+	_ = s.messenger.SendMessage(peer, msg, int(poll.MessageType()))
 }
 
 func (s *Service) PollAllPeers() {
@@ -154,7 +157,11 @@ func (s *Service) RequestPoll(peer string) {
 		return
 	}
 
-	s.sendMessage(peer, msg, int(request.MessageType()))
+	// Send the request poll message
+	// the time when the poll message was received can be known by `last seen` of ListPeerswapPeers,
+	// which provides some indication of the freshness of the connection with the peer.
+	// Therefore, it is not necessary to handle error of each failed custom message attempt.
+	_ = s.messenger.SendMessage(peer, msg, int(request.MessageType()))
 }
 
 // RequestAllPeerPolls requests the poll message from
@@ -271,23 +278,4 @@ func (s *Service) GetPollFrom(peerId string) (*PollInfo, error) {
 	}
 
 	return nil, PollNotFoundErr(peerId)
-}
-
-func (s *Service) sendMessage(peer string, msg []byte, msgType int) {
-	if err := s.messenger.SendMessage(peer, msg, msgType); err != nil {
-		s.Lock()
-		defer s.Unlock()
-		// Only log message if not already logged an error on this peer. Mostly
-		// these errors will deal with disconnected peers so there is no need to
-		// continue logging if the peer is 'still' disconnected.
-		if _, seen := s.loggedDisconnect[peer]; !seen {
-			log.Debugf("poll_service: could not send msg to %s: %v", peer, err)
-			s.loggedDisconnect[peer] = struct{}{}
-		}
-	} else {
-		s.Lock()
-		defer s.Unlock()
-		// Message could be send. Release peer from `loggedDisconnect`.
-		delete(s.loggedDisconnect, peer)
-	}
 }
