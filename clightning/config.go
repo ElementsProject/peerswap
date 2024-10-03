@@ -99,6 +99,28 @@ func SetPeerswapPaths(plugin *glightning.Plugin) Processor {
 	}
 }
 
+type AllowDeprecatedAPIs struct {
+	ValueBool bool   `json:"value_bool"`
+	Source    string `json:"source"`
+}
+type Configs struct {
+	AllowDeprecatedAPIs *AllowDeprecatedAPIs `json:"allow-deprecated-apis,omitempty"`
+}
+type ClnConfig struct {
+	AllowDeprecatedApis bool     `json:"allow-deprecated-apis,omitempty"`
+	Configs             *Configs `json:"configs,omitempty"`
+}
+
+func (c *ClnConfig) AllowDeprecatedAPIs() bool {
+	if c.AllowDeprecatedApis {
+		return c.AllowDeprecatedApis
+	}
+	if c.Configs != nil && c.Configs.AllowDeprecatedAPIs != nil {
+		return c.Configs.AllowDeprecatedAPIs.ValueBool
+	}
+	return false
+}
+
 // CheckForDeprecatedApiConfig tries to detect if allow-deprecated-apis is false
 // in the CLN config. If it is set false, we print a warning and exit because
 // deprecated CLN API fields might break PeerSwap.
@@ -112,17 +134,15 @@ func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
 		if err != nil {
 			return nil, err
 		}
-		var ClnConfig struct {
-			AllowDeprecatedApis bool `json:"allow-deprecated-apis,omitempty"`
-		}
-		err = json.Unmarshal(data, &ClnConfig)
+		co := &ClnConfig{}
+		err = json.Unmarshal(data, co)
 		if err != nil {
 			return nil, err
 		}
-		if !ClnConfig.AllowDeprecatedApis {
+		if !co.AllowDeprecatedAPIs() {
 			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting. More info: https://github.com/ElementsProject/peerswap/issues/232")
 			time.Sleep(1 * time.Second)
-			os.Exit(1)
+			client.Plugin.Stop()
 		}
 		return c, nil
 	}
