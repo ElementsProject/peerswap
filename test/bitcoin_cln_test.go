@@ -76,8 +76,8 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 		csv:                BitcoinCsv,
 		swapType:           swap.SWAPTYPE_OUT,
 		premiumLimit:       int64(channelBalances[0] / 10),
-		swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-		swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+		swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+		swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 	}
 	asset := "btc"
 
@@ -172,8 +172,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -244,8 +244,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -318,8 +318,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -397,8 +397,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -470,8 +470,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -543,8 +543,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -625,8 +625,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -701,8 +701,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -777,8 +777,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -859,8 +859,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -935,8 +935,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1011,8 +1011,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1089,8 +1089,8 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1168,8 +1168,8 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1240,8 +1240,8 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1324,7 +1324,7 @@ func Test_Cln_Premium(t *testing.T) {
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       int64(channelBalances[0] / 10),
 			swapInPremiumRate:  -10000,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 
@@ -1400,7 +1400,7 @@ func Test_Cln_Premium(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_OUT,
 			premiumLimit:       int64(channelBalances[0] / 10),
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
 			swapOutPremiumRate: -10000,
 		}
 		asset := "btc"
@@ -1471,8 +1471,8 @@ func Test_Cln_Premium(t *testing.T) {
 			csv:                BitcoinCsv,
 			swapType:           swap.SWAPTYPE_IN,
 			premiumLimit:       1,
-			swapInPremiumRate:  policy.DefaultPolicy().SwapInPremiumRatePPM,
-			swapOutPremiumRate: policy.DefaultPolicy().SwapOutPremiumRatePPM,
+			swapInPremiumRate:  policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapIn),
+			swapOutPremiumRate: policy.DefaultPolicy().GetPremiumRate(lightningds[0].Id(), policy.BtcSwapOut),
 		}
 		asset := "btc"
 

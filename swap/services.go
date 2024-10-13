@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+	policy "github.com/elementsproject/peerswap/policy"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	btecdsa "github.com/btcsuite/btcd/btcec/v2/ecdsa"
@@ -36,8 +37,8 @@ type Policy interface {
 	AddToSuspiciousPeerList(pubkey string) error
 	GetReserveOnchainMsat() uint64
 	GetMinSwapAmountMsat() uint64
-	GetSwapInPremiumRatePPM() int64
-	GetSwapOutPremiumRatePPM() int64
+	GetPremiumRate(peerID string, k policy.PremiumRateKind) int64
+	ComputePremium(peerID string, k policy.PremiumRateKind, amtSat uint64) int64
 	NewSwapsAllowed() bool
 }
 

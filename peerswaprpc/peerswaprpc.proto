@@ -142,6 +142,18 @@ message PrettyPrintSwap {
     int64 premium_amount     = 15;
 }
 
+// Premium message represents the premium rates.
+message Premium {
+    // Premium rate for BTC swap-in (in PPM)
+    int64 btc_swap_in_premium_rate_ppm        = 1;
+    // Premium rate for BTC swap-out (in PPM)
+    int64 btc_swap_out_premium_rate_ppm       = 2;
+    // Premium rate for LBTC swap-in (in PPM)
+    int64 lbtc_swap_in_premium_rate_ppm        = 3;
+    // Premium rate for LBTC swap-out (in PPM)
+    int64 lbtc_swap_out_premium_rate_ppm       = 4;
+}
+
 message PeerSwapPeer {
     string node_id                        = 1;
     bool swaps_allowed                    = 2;
@@ -150,8 +162,7 @@ message PeerSwapPeer {
     SwapStats as_sender                   = 5;
     SwapStats as_receiver                 = 6;
     uint64 paid_fee                       = 7;
-    int64 swap_in_premium_rate_ppm        = 8;
-    int64 swap_out_premium_rate_ppm       = 9;
+    Premium premium                       = 8;
 }
 
 message PeerSwapPeerChannel {
@@ -168,9 +179,7 @@ message SwapStats {
     uint64 sats_in   = 4;
 }
 
-message PeerSwapNodes {
-    string node_id = 1;
-}
+
 
 message Policy {
     uint64 reserve_onchain_msat          = 1;
@@ -179,8 +188,9 @@ message Policy {
     bool allow_new_swaps                 = 4;
     repeated string allowlisted_peers    = 5;
     repeated string suspicious_peer_list = 6;
-    int64 swap_in_premium_rate_ppm       = 7;
-    int64 swap_out_premium_rate_ppm      = 8;
+    // Displays the default premium rates.
+    // The premium rates for each peer are included in PeerSwapPeer.
+    Premium default_premium              = 7;
 }
 
 message AllowSwapRequestsRequest {

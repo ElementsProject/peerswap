@@ -25,14 +25,13 @@ func Test_Create(t *testing.T) {
 	policy, err := create(strings.NewReader(""))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         defaultPeerAllowlist,
-		SuspiciousPeerList:    defaultSuspiciousPeerList,
-		AcceptAllPeers:        defaultAcceptAllPeers,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      defaultPeerAllowlist,
+		SuspiciousPeerList: defaultSuspiciousPeerList,
+		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}, policy)
 
 	peer1 := "123"
@@ -59,14 +58,13 @@ func Test_Create(t *testing.T) {
 	policy2, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         []string{peer1, peer2},
-		SuspiciousPeerList:    []string{peer1, peer2},
-		AcceptAllPeers:        accept,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: []string{peer1, peer2},
+		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}, policy2)
 }
 
@@ -84,14 +82,13 @@ func Test_Reload(t *testing.T) {
 	policy, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         []string{peer1, peer2},
-		SuspiciousPeerList:    defaultSuspiciousPeerList,
-		AcceptAllPeers:        accept,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
+		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}, policy)
 
 	newPeer := "new_peer"
@@ -100,14 +97,13 @@ func Test_Reload(t *testing.T) {
 	err = policy.reload(strings.NewReader(newConf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         []string{newPeer},
-		SuspiciousPeerList:    []string{newPeer},
-		AcceptAllPeers:        defaultAcceptAllPeers,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      []string{newPeer},
+		SuspiciousPeerList: []string{newPeer},
+		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}, policy)
 }
 
@@ -125,14 +121,13 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 	policy, err := create(strings.NewReader(conf))
 	assert.NoError(t, err)
 	assert.EqualValues(t, &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         []string{peer1, peer2},
-		SuspiciousPeerList:    defaultSuspiciousPeerList,
-		AcceptAllPeers:        accept,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      []string{peer1, peer2},
+		SuspiciousPeerList: defaultSuspiciousPeerList,
+		AcceptAllPeers:     accept,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}, policy)
 
 	// copy policy

@@ -25,10 +25,6 @@ const (
 	// to perform a swap. We need this lower boundary as it is uneconomical to
 	// swap small amounts.
 	defaultMinSwapAmountMsat uint64 = 100000000
-	// defaultSwapInPremiumRatePPM is the default of the swap in premium rate in ppm.
-	defaultSwapInPremiumRatePPM int64 = 10000
-	// defaultSwapOutPremiumRatePPM is the default of the swap out premium rate in ppm.
-	defaultSwapOutPremiumRatePPM int64 = 10000
 )
 
 // Global Mutex
@@ -87,9 +83,8 @@ type Policy struct {
 	// AllowNewSwaps can be used to disallow any new swaps. This can be useful
 	// when we want to upgrade the node and do not want to allow for any new
 	// swap request from the peer or the node operator.
-	AllowNewSwaps         bool  `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
-	SwapInPremiumRatePPM  int64 `json:"swap_in_premium_rate_ppm" long:"swap_in_premium_rate_ppm" description:"The premium rate for swaps in."`
-	SwapOutPremiumRatePPM int64 `json:"swap_out_premium_rate_ppm" long:"swap_out_premium_rate_ppm" description:"The premium rate for swaps out."`
+	AllowNewSwaps bool `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
+	premium       *premium
 }
 
 func (p *Policy) String() string {
@@ -115,14 +110,13 @@ func (p *Policy) Get() Policy {
 	defer mu.Unlock()
 
 	return Policy{
-		ReserveOnchainMsat:    p.ReserveOnchainMsat,
-		PeerAllowlist:         p.PeerAllowlist,
-		SuspiciousPeerList:    p.SuspiciousPeerList,
-		AcceptAllPeers:        p.AcceptAllPeers,
-		MinSwapAmountMsat:     p.MinSwapAmountMsat,
-		AllowNewSwaps:         p.AllowNewSwaps,
-		SwapInPremiumRatePPM:  p.SwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: p.SwapOutPremiumRatePPM,
+		ReserveOnchainMsat: p.ReserveOnchainMsat,
+		PeerAllowlist:      p.PeerAllowlist,
+		SuspiciousPeerList: p.SuspiciousPeerList,
+		AcceptAllPeers:     p.AcceptAllPeers,
+		MinSwapAmountMsat:  p.MinSwapAmountMsat,
+		AllowNewSwaps:      p.AllowNewSwaps,
+		premium:            p.premium,
 	}
 }
 
@@ -141,22 +135,6 @@ func (p *Policy) GetMinSwapAmountMsat() uint64 {
 	mu.Lock()
 	defer mu.Unlock()
 	return p.MinSwapAmountMsat
-}
-
-// GetSwapInPremiumRatePPM returns the minimum swap amount in msat that is needed
-// to perform a swap.
-func (p *Policy) GetSwapInPremiumRatePPM() int64 {
-	mu.Lock()
-	defer mu.Unlock()
-	return p.SwapInPremiumRatePPM
-}
-
-// GetSwapInPremiumRatePPM returns the minimum swap amount in msat that is needed
-// to perform a swap.
-func (p *Policy) GetSwapOutPremiumRatePPM() int64 {
-	mu.Lock()
-	defer mu.Unlock()
-	return p.SwapOutPremiumRatePPM
 }
 
 // NewSwapsAllowed returns the boolean value of AllowNewSwaps.
@@ -212,8 +190,17 @@ func (p *Policy) ReloadFile() error {
 	if err != nil {
 		return err
 	}
+	file, err = os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return ErrCreatePolicy(err.Error())
+	}
+	premium, err := newPremiumConfig(file)
+	if err != nil {
+		return fmt.Errorf("could not create premium config: %v", err)
+	}
 
 	p.path = path
+	p.premium = premium
 	return nil
 }
 
@@ -313,6 +300,18 @@ func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 		return err
 	}
 	return p.ReloadFile()
+}
+
+func (p *Policy) GetPremiumRate(peerID string, k PremiumRateKind) int64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return p.premium.GetRate(peerID, k).Value()
+}
+
+func (p *Policy) ComputePremium(peerID string, k PremiumRateKind, amtSat uint64) int64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return p.premium.GetRate(peerID, k).Compute(amtSat)
 }
 
 func addLineToFile(filePath, line string) error {
@@ -440,14 +439,13 @@ func (p *Policy) reload(r io.Reader) error {
 // the default values.
 func DefaultPolicy() *Policy {
 	return &Policy{
-		ReserveOnchainMsat:    defaultReserveOnchainMsat,
-		PeerAllowlist:         defaultPeerAllowlist,
-		SuspiciousPeerList:    defaultSuspiciousPeerList,
-		AcceptAllPeers:        defaultAcceptAllPeers,
-		MinSwapAmountMsat:     defaultMinSwapAmountMsat,
-		AllowNewSwaps:         defaultAllowNewSwaps,
-		SwapInPremiumRatePPM:  defaultSwapInPremiumRatePPM,
-		SwapOutPremiumRatePPM: defaultSwapOutPremiumRatePPM,
+		ReserveOnchainMsat: defaultReserveOnchainMsat,
+		PeerAllowlist:      defaultPeerAllowlist,
+		SuspiciousPeerList: defaultSuspiciousPeerList,
+		AcceptAllPeers:     defaultAcceptAllPeers,
+		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
+		AllowNewSwaps:      defaultAllowNewSwaps,
+		premium:            defaultPreium(),
 	}
 }
 
@@ -480,7 +478,15 @@ func CreateFromFile(path string) (*Policy, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	file, err = os.OpenFile(policyPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, ErrCreatePolicy(err.Error())
+	}
+	p, err := newPremiumConfig(file)
+	if err != nil {
+		return nil, fmt.Errorf("could not create premium config: %v", err)
+	}
+	policy.premium = p
 	policy.path = policyPath
 	return policy, nil
 }

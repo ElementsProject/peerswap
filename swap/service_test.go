@@ -403,8 +403,8 @@ func getTestSetup(name string) *SwapService {
 	policy := &dummyPolicy{
 		getMinSwapAmountMsatReturn: policy.DefaultPolicy().MinSwapAmountMsat,
 		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
-		getSwapInPremiumRatePPM:    policy.DefaultPolicy().SwapInPremiumRatePPM,
-		getSwapOutPremiumRatePPM:   policy.DefaultPolicy().SwapOutPremiumRatePPM,
+		getSwapInPremiumRatePPM:    policy.DefaultPolicy().GetPremiumRate(name, policy.BtcSwapIn),
+		getSwapOutPremiumRatePPM:   policy.DefaultPolicy().GetPremiumRate(name, policy.BtcSwapOut),
 	}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
 	chain.SetBalance(10000000)
