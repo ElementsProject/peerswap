@@ -42,7 +42,7 @@
         {
           devShells.default = mkShell {
             buildInputs = [
-              go_1_22
+              go_1_23
               gotools
               blockstream-electrs
               bitcoind
