@@ -30,7 +30,7 @@ const (
 	// Set up here because ctx is not inherited throughout the current codebase.
 	defaultContextTimeout             = time.Second * 20
 	minimumFee            SatPerVByte = 0.1
-	supportedCLIVersion               = "0.5.1"
+	supportedCLIVersion               = "0.8.0"
 )
 
 func SatPerVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerVByte {
@@ -169,8 +169,9 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 				Satoshi: swapParams.Amount,
 			},
 		},
-		WalletName: r.c.GetWalletName(),
-		FeeRate:    &feerate,
+		WalletName:       r.c.GetWalletName(),
+		FeeRate:          &feerate,
+		EnableCtDiscount: true,
 	})
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to fund transaction: %w", err)
@@ -233,6 +234,7 @@ func (r *LWKRpcWallet) SendToAddress(address string, amount Satoshi) (string, er
 				Satoshi: amount,
 			},
 		},
+		EnableCtDiscount: true,
 	})
 	if err != nil {
 		return "", err
