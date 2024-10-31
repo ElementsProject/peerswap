@@ -3,6 +3,7 @@ package lwk
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"math"
 	"strings"
@@ -171,25 +172,25 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 		FeeRate:    &feerate,
 	})
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, fmt.Errorf("failed to fund transaction: %w", err)
 	}
 	signed, err := r.lwkClient.sign(ctx, &signRequest{
 		SignerName: r.c.GetSignerName(),
 		Pset:       fundedTx.Pset,
 	})
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, fmt.Errorf("failed to sign transaction: %w", err)
 	}
 	broadcasted, err := r.lwkClient.broadcast(ctx, &broadcastRequest{
 		WalletName: r.c.GetWalletName(),
 		Pset:       signed.Pset,
 	})
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, fmt.Errorf("failed to broadcast transaction: %w", err)
 	}
 	hex, err := r.electrumClient.GetRawTransaction(ctx, broadcasted.Txid)
 	if err != nil {
-		return "", "", 0, err
+		return "", "", 0, fmt.Errorf("failed to get raw transaction: %w", err)
 	}
 	return broadcasted.Txid, hex, 0, nil
 }
