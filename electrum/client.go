@@ -3,7 +3,11 @@ package electrum
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/log"
 )
@@ -71,11 +75,46 @@ func (c *electrumClient) GetHistory(ctx context.Context, scripthash string) ([]*
 	return c.client.GetHistory(ctx, scripthash)
 }
 
+// GetRawTransaction retrieves the raw transaction data for a given transaction
+// and handles retries in case of a
+// "missing transaction" error. It uses an exponential backoff strategy for
+// retries, with a maximum of 10 retries. This is a temporary workaround for
+// an issue where a missing transaction error occurs even when the UTXO exists.
+// If the issue persists, the backoff strategy may need adjustment.
 func (c *electrumClient) GetRawTransaction(ctx context.Context, txHash string) (string, error) {
-	if err := c.reconnect(ctx); err != nil {
-		return "", err
-	}
-	return c.client.GetRawTransaction(ctx, txHash)
+	var rawTx string
+
+	err := retryWithBackoff(func() error {
+		if err := c.reconnect(ctx); err != nil {
+			return err
+		}
+		var innerErr error
+		rawTx, innerErr = c.client.GetRawTransaction(ctx, txHash)
+		return innerErr
+	})
+
+	return rawTx, err
+}
+
+func retryWithBackoff(operation func() error) error {
+	const maxRetries = 10
+	const maxElapsedTime = 2 * time.Minute
+
+	backoffStrategy := backoff.NewExponentialBackOff()
+	backoffStrategy.MaxElapsedTime = maxElapsedTime
+
+	return backoff.Retry(func() error {
+		err := operation()
+		if err != nil {
+			log.Infof("Error during operation: %v", err)
+			if strings.Contains(err.Error(), "missing transaction") {
+				log.Infof("Retrying due to missing transaction error: %v", err)
+				return err
+			}
+			return backoff.Permanent(fmt.Errorf("permanent error: %w", err))
+		}
+		return nil
+	}, backoff.WithMaxRetries(backoffStrategy, uint64(maxRetries)))
 }
 
 func (c *electrumClient) BroadcastTransaction(ctx context.Context, rawTx string) (string, error) {
