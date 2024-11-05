@@ -1,6 +1,6 @@
 module github.com/elementsproject/peerswap
 
-go 1.18
+go 1.23.1
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
