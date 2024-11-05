@@ -32,6 +32,11 @@ func getLiquiddConfig() map[string]string {
 		"initialfreecoins": "2100000000000000",
 		"validatepegin":    "0",
 		"chain":            "liquidregtest",
+		"acceptdiscountct": "1",
+		"creatediscountct": "1",
+		"minrelaytxfee":    "0.00000001",
+		"mintxfee":         "0.00000001",
+		"blockmintxfee":    "0.00000001",
 	}
 }
 

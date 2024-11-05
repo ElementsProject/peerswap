@@ -103,8 +103,9 @@ type unvalidatedAddressee struct {
 type sendRequest struct {
 	Addressees []*unvalidatedAddressee `json:"addressees"`
 	// Optional fee rate in sat/vb
-	FeeRate    *float64 `json:"fee_rate,omitempty"`
-	WalletName string   `json:"name"`
+	FeeRate          *float64 `json:"fee_rate,omitempty"`
+	WalletName       string   `json:"name"`
+	EnableCtDiscount bool     `json:"enable_ct_discount"`
 }
 
 type sendResponse struct {
