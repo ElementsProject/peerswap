@@ -7,8 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/elementsproject/glightning/jrpc2"
+	"github.com/elementsproject/peerswap/log"
 )
 
 type lwkclient struct {
@@ -111,13 +115,31 @@ func (s *sendRequest) Name() string {
 	return "wallet_send_many"
 }
 
+// send sends a request using the lwkclient and handles retries in case of a
+// "missing transaction" error. It uses an exponential backoff strategy for
+// retries, with a maximum of 5 retries. This is a temporary workaround for
+// an issue where a missing transaction error occurs even when the UTXO exists.
+// If the issue persists, the backoff strategy may need adjustment.
 func (l *lwkclient) send(ctx context.Context, s *sendRequest) (*sendResponse, error) {
 	var resp sendResponse
-	err := l.request(ctx, s, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	// Allow configuration of maxRetries and backoff strategy
+	maxRetries := 5
+	backoffStrategy := backoff.NewExponentialBackOff()
+	backoffStrategy.MaxElapsedTime = 2 * time.Minute
+
+	err := backoff.Retry(func() error {
+		innerErr := l.request(ctx, s, &resp)
+		if innerErr != nil {
+			log.Infof("Error during send request: %v", innerErr)
+			if strings.Contains(innerErr.Error(), "missing transaction") {
+				log.Infof("Retrying due to missing transaction error: %v", innerErr)
+				return innerErr
+			}
+			return backoff.Permanent(fmt.Errorf("permanent error: %w", innerErr))
+		}
+		return nil
+	}, backoff.WithMaxRetries(backoffStrategy, uint64(maxRetries)))
+	return &resp, err
 }
 
 type signRequest struct {
