@@ -43,8 +43,9 @@ type SwapInRequestMessage struct {
 	// with x as separator, e.g. 539268x845x1.
 	Scid string `json:"scid"`
 	// Amount is The amount in Sats that is asked for.
-	Amount uint64 `json:"amount"`
-	Pubkey string `json:"pubkey"`
+	Amount       uint64 `json:"amount"`
+	Pubkey       string `json:"pubkey"`
+	PremiumLimit int64  `json:"acceptable_premium"`
 }
 
 func (s SwapInRequestMessage) MessageType() messages.MessageType {
@@ -168,7 +169,7 @@ type SwapInAgreementMessage struct {
 	Pubkey string `json:"pubkey"`
 	// Premium is a compensation in Sats that the swap partner wants to be payed
 	// in order to participate in the swap.
-	Premium uint64 `json:"premium"`
+	Premium int64 `json:"premium"`
 }
 
 func (s SwapInAgreementMessage) Validate(swap *SwapData) error {
@@ -216,7 +217,8 @@ type SwapOutRequestMessage struct {
 	Amount uint64 `json:"amount"`
 	// Pubkey is a 33 byte compressed public key used for the spending paths in
 	// the opening_transaction.
-	Pubkey string `json:"pubkey"`
+	Pubkey       string `json:"pubkey"`
+	PremiumLimit int64  `json:"acceptable_premium"`
 }
 
 func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
@@ -263,6 +265,9 @@ type SwapOutAgreementMessage struct {
 	// Payreq is a BOLT#11 invoice with an amount that covers the fee expenses
 	// for the on-chain transactions.
 	Payreq string
+	// Premium is a compensation in Sats that the swap partner wants to be payed
+	// in order to participate in the swap.
+	Premium int64 `json:"premium"`
 }
 
 func (s SwapOutAgreementMessage) Validate(swap *SwapData) error {
