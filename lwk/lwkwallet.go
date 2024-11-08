@@ -28,7 +28,7 @@ const (
 	// TODO: Basically, the inherited ctx should be used
 	// and there is no need to specify a timeout here.
 	// Set up here because ctx is not inherited throughout the current codebase.
-	defaultContextTimeout             = time.Second * 5
+	defaultContextTimeout             = time.Second * 20
 	minimumFee            SatPerVByte = 0.1
 	supportedCLIVersion               = "0.5.1"
 )
