@@ -101,4 +101,8 @@ issues:
         - dupl
         - gosec
 run:
-  timeout: 5m
+  timeout: 1m
+  issues-exit-code: 1
+  tests: true
+  skip-dirs-use-default: true
+  allow-parallel-runners: true
