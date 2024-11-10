@@ -1,6 +1,8 @@
 module github.com/elementsproject/peerswap
 
-go 1.23.1
+// When updating the Go version, ensure it is supported by major Linux distributions.
+// Additionally, if updated, also update the nix package and the execution version in CI as needed.
+go 1.22.2
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
