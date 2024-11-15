@@ -1,11 +1,11 @@
 {
   inputs = {
-    # Pinning to revision fc13ad88bf7dbf2addb58f7e9d128c5547f59e93 
-    # - cln v24.08
-    # - lnd v0.18.2-beta
-    # - bitcoin v27.1
+    # Pinning to revision 6915a163f351c32bd4557518d047725665e83d37 
+    # - cln v24.08.02
+    # - lnd v0.18.3-beta
+    # - bitcoin v28.0
     # - elements v23.2.1
-    nixpkgs.url = "github:NixOS/nixpkgs/fc13ad88bf7dbf2addb58f7e9d128c5547f59e93";
+    nixpkgs.url = "github:NixOS/nixpkgs/6915a163f351c32bd4557518d047725665e83d37";
     flake-utils.url = "github:numtide/flake-utils";
     # blockstream-electrs: init at 0.4.1 #299761
     # https://github.com/NixOS/nixpkgs/pull/299761/commits/680d27ad847801af781e0a99e4b87ed73965c69a
