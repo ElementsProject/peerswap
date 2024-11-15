@@ -93,6 +93,8 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 		"-txindex",
 		"-nowallet",
 		"-addresstype=bech32",
+		// https://github.com/lightningnetwork/lnd/issues/9163
+		"-deprecatedrpc=warnings",
 	}
 
 	bitcoinConfig := getBitcoindConfig()
