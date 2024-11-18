@@ -192,6 +192,8 @@ github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a h1:xnVQ
 github.com/elementsproject/glightning v0.0.0-20240224063423-55240d61b52a/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/elementsproject/glightning v0.0.0-20240922021749-3b572176aa14 h1:Q23txNJKtdTSXDoN4wF72bopQ0F0RyEkWL3nnoxfV/w=
 github.com/elementsproject/glightning v0.0.0-20240922021749-3b572176aa14/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
+github.com/elementsproject/glightning v0.0.0-20241118233744-055205379e1d h1:FVMwlIlOdhe4/eORWS8Gu9M+BtZscx0X6Qg6aeRzMWs=
+github.com/elementsproject/glightning v0.0.0-20241118233744-055205379e1d/go.mod h1:YAdIeSyx8VEhDCtEaGOJLmWNpPaQ3x4vYSAj9Vrppdo=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
