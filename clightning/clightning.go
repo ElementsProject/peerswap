@@ -136,6 +136,7 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 		return nil, nil, err
 	}
 	cl.Plugin.SubscribeConnect(cl.OnConnect)
+	cl.Plugin.SubscribeShutdown(cl.OnShutdown)
 
 	cl.glightning = glightning.NewLightning()
 	cl.glightning.SetTimeout(40)
@@ -352,7 +353,7 @@ func (cl *ClightningClient) SetPeerswapConfig(config *Config) {
 		LiquidRpcHost:          config.Liquid.RpcHost,
 		LiquidRpcPort:          config.Liquid.RpcPort,
 		LiquidRpcWallet:        config.Liquid.RpcWallet,
-		LiquidSwaps:          *config.Liquid.LiquidSwaps,
+		LiquidSwaps:            *config.Liquid.LiquidSwaps,
 		PeerswapDir:            config.PeerswapDir,
 	}
 	if config.LWK != nil {
@@ -545,6 +546,10 @@ func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 			}
 		}
 	}()
+}
+
+func (cl *ClightningClient) OnShutdown() {
+	cl.Plugin.Stop()
 }
 
 // RegisterMethods registeres rpc methods to c-lightning
