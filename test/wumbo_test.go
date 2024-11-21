@@ -108,7 +108,8 @@ func Test_Wumbo(t *testing.T) {
 			}
 
 			// Test Swap-out
-			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true)
+			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true,
+				[]byte("accept_all_peers=1\nswap_in_premium_rate_ppm=0\nswap_out_premium_rate_ppm=0\n"))
 			defer func() {
 				if t.Failed() {
 					filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -162,6 +163,7 @@ func Test_Wumbo(t *testing.T) {
 					confirms:         BitcoinConfirms,
 					csv:              BitcoinCsv,
 					swapType:         tt.swapType,
+					premiumLimit:     int64(tt.swapAmtSat / 10),
 				}
 
 				var response map[string]interface{}
@@ -169,7 +171,8 @@ func Test_Wumbo(t *testing.T) {
 					&clightning.SwapOut{
 						SatAmt:         params.swapAmt,
 						ShortChannelId: scid,
-						Asset:          "btc"},
+						Asset:          "btc",
+						PremiumLimit:   params.premiumLimit},
 					&response,
 				)
 			} else {
@@ -189,6 +192,7 @@ func Test_Wumbo(t *testing.T) {
 					confirms:         BitcoinConfirms,
 					csv:              BitcoinCsv,
 					swapType:         tt.swapType,
+					premiumLimit:     int64(tt.swapAmtSat / 10),
 				}
 
 				var response map[string]interface{}
@@ -196,7 +200,8 @@ func Test_Wumbo(t *testing.T) {
 					&clightning.SwapIn{
 						SatAmt:         params.swapAmt,
 						ShortChannelId: scid,
-						Asset:          "btc"},
+						Asset:          "btc",
+						PremiumLimit:   params.premiumLimit},
 					&response,
 				)
 			}
