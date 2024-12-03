@@ -30,7 +30,7 @@ const (
 	// Set up here because ctx is not inherited throughout the current codebase.
 	defaultContextTimeout             = time.Second * 20
 	minimumFee            SatPerVByte = 0.1
-	supportedCLIVersion               = "0.5.1"
+	supportedCLIVersion               = "0.8.0"
 )
 
 func SatPerVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerVByte {
@@ -161,6 +161,7 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
 	feerate := r.getFeeSatPerVByte(ctx).getValue() * kb
+	// todo: There will be an option in the tx builder to enable the discount.
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
 		Addressees: []*unvalidatedAddressee{
 			{
@@ -168,8 +169,9 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 				Satoshi: swapParams.Amount,
 			},
 		},
-		WalletName: r.c.GetWalletName(),
-		FeeRate:    &feerate,
+		WalletName:       r.c.GetWalletName(),
+		FeeRate:          &feerate,
+		EnableCtDiscount: true,
 	})
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to fund transaction: %w", err)
@@ -232,6 +234,7 @@ func (r *LWKRpcWallet) SendToAddress(address string, amount Satoshi) (string, er
 				Satoshi: amount,
 			},
 		},
+		EnableCtDiscount: true,
 	})
 	if err != nil {
 		return "", err
@@ -259,6 +262,13 @@ func (r *LWKRpcWallet) SendRawTx(txHex string) (string, error) {
 	defer cancel()
 	res, err := r.electrumClient.BroadcastTransaction(ctx, txHex)
 	if err != nil {
+		rpcErr, pErr := parseRPCError(err)
+		if pErr != nil {
+			return "", fmt.Errorf("error parsing rpc error: %v", pErr)
+		}
+		if rpcErr.Code == -26 {
+			return "", wallet.MinRelayFeeNotMetError
+		}
 		return "", err
 	}
 	return res, nil

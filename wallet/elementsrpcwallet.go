@@ -3,11 +3,12 @@ package wallet
 import (
 	"errors"
 	"fmt"
-
 	"math"
+
 	"strings"
 
 	"github.com/elementsproject/glightning/gelements"
+	"github.com/elementsproject/glightning/jrpc2"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/vulpemventures/go-elements/address"
@@ -18,6 +19,11 @@ import (
 var (
 	AlreadyExistsError = errors.New("wallet already exists")
 	AlreadyLoadedError = errors.New("wallet is already loaded")
+)
+
+const (
+	// https://github.com/ElementsProject/elements/releases/tag/elements-23.2.2
+	elementsdFeeDiscountedVersion = 230202
 )
 
 type RpcClient interface {
@@ -35,6 +41,7 @@ type RpcClient interface {
 	EstimateFee(blocks uint32, mode string) (*gelements.FeeResponse, error)
 	SetLabel(address, label string) error
 	Ping() (bool, error)
+	GetNetworkInfo() (*gelements.NetworkInfo, error)
 }
 
 // ElementsRpcWallet uses the elementsd rpc wallet
@@ -92,8 +99,12 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 	if err != nil {
 		return "", "", 0, err
 	}
+	feerate, err := r.getFeeRate()
+	if err != nil {
+		return "", "", 0, err
+	}
 	fundedTx, err := r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
-		FeeRate: fmt.Sprintf("%f", r.getFeeRate()),
+		FeeRate: fmt.Sprintf("%f", feerate),
 	}, nil)
 
 	if err != nil {
@@ -108,27 +119,6 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 		return "", "", 0, err
 	}
 	return txid, finalized, gelements.ConvertBtc(fundedTx.Fee), nil
-}
-
-const (
-	// minFeeRateBTCPerKb defines the minimum fee rate in BTC/kB.
-	// This value is equivalent to 0.1 sat/byte.
-	minFeeRateBTCPerKb = 0.000001
-)
-
-// getFeeRate retrieves the optimal fee rate based on the current Liquid network conditions.
-// Returns the recommended fee rate in BTC/kB
-func (r *ElementsRpcWallet) getFeeRate() float64 {
-	feeRes, err := r.rpcClient.EstimateFee(LiquidTargetBlocks, "ECONOMICAL")
-	if err != nil || len(feeRes.Errors) > 0 {
-		log.Debugf("Error estimating fee: %v", err)
-		if len(feeRes.Errors) > 0 {
-			log.Debugf(" Errors encountered during fee estimation process: %v", feeRes.Errors)
-		}
-		// Return the minimum fee rate in case of an error
-		return minFeeRateBTCPerKb
-	}
-	return math.Max(feeRes.FeeRate, minFeeRateBTCPerKb)
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
@@ -188,25 +178,49 @@ func (r *ElementsRpcWallet) SendToAddress(address string, amount uint64) (string
 }
 
 func (r *ElementsRpcWallet) SendRawTx(txHex string) (string, error) {
-	return r.rpcClient.SendRawTx(txHex)
+	raw, err := r.rpcClient.SendRawTx(txHex)
+	if err != nil {
+		errWithCode, ok := err.(*jrpc2.RpcError)
+		if ok && errWithCode.Code == -26 {
+			return "", MinRelayFeeNotMetError
+		}
+	}
+	return raw, err
 }
 
-func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
+const (
+	// minFeeRateBTCPerKb defines the minimum fee rate in BTC/kB.
+	// This value is equivalent to 0.1 sat/byte.
+	minFeeRateBTCPerKb = 0.000001
+)
+
+// getFeeRate retrieves the optimal fee rate based on the current Liquid network conditions.
+// Returns the recommended fee rate in BTC/kB
+func (r *ElementsRpcWallet) getFeeRate() (float64, error) {
 	feeRes, err := r.rpcClient.EstimateFee(LiquidTargetBlocks, "ECONOMICAL")
 	if err != nil {
 		return 0, err
 	}
-	satPerByte := float64(feeRes.SatPerKb()) / float64(1000)
-	if satPerByte < 0.1 {
-		satPerByte = 0.1
-	}
 	if len(feeRes.Errors) > 0 {
-		//todo sane default sat per byte
-		satPerByte = 0.1
+		log.Debugf(" Errors encountered during fee estimation process: %v", feeRes.Errors)
+		return minFeeRateBTCPerKb, nil
 	}
-	// assume largest witness
-	fee := satPerByte * float64(txSize)
+	return math.Max(minFeeRateBTCPerKb, feeRes.FeeRate), nil
+}
 
+const (
+	// 1 kb = 1000 bytes
+	kb              = 1000
+	btcToSatoshiExp = 8
+)
+
+func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
+	feeRate, err := r.getFeeRate()
+	if err != nil {
+		return 0, fmt.Errorf("error getting fee rate: %v", err)
+	}
+	satPerByte := feeRate * math.Pow10(btcToSatoshiExp) / kb
+	fee := satPerByte * float64(txSize)
 	return uint64(fee), nil
 }
 

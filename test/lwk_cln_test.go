@@ -99,7 +99,7 @@ func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
 		defer func() {
 			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
+				filter := ""
 				pprintFail(
 					tailableProcess{
 						p:     bitcoind.DaemonProcess,

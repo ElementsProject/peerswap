@@ -10,10 +10,10 @@
     # blockstream-electrs: init at 0.4.1 #299761
     # https://github.com/NixOS/nixpkgs/pull/299761/commits/680d27ad847801af781e0a99e4b87ed73965c69a
     nixpkgs2.url = "github:NixOS/nixpkgs/680d27ad847801af781e0a99e4b87ed73965c69a";
-    # lwk: init at wasm_0.6.3 #14bac28
-    # https://github.com/Blockstream/lwk/releases/tag/wasm_0.6.3
+    # lwk: init at 9ddd20a806625bb40cd063ad61d80d106809a9fd
+    # https://github.com/Blockstream/lwk/commit/9ddd20a806625bb40cd063ad61d80d106809a9fd
     lwk-flake = {
-      url = "github:blockstream/lwk/14bac284fe712dd6fdbbbe82bda179a2a236b2fa";
+      url = "github:blockstream/lwk/9ddd20a806625bb40cd063ad61d80d106809a9fd";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
