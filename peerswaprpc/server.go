@@ -420,10 +420,11 @@ func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwa
 }
 func lnrpcChannelToPeerswapChannel(channel *lnrpc.Channel) *PeerSwapPeerChannel {
 	return &PeerSwapPeerChannel{
-		ChannelId:     channel.ChanId,
-		LocalBalance:  uint64(channel.LocalBalance),
-		RemoteBalance: uint64(channel.RemoteBalance),
-		Active:        channel.Active,
+		ChannelId:      channel.ChanId,
+		ShortChannelId: lnwire.NewShortChanIDFromInt(channel.ChanId).String(),
+		LocalBalance:   uint64(channel.LocalBalance),
+		RemoteBalance:  uint64(channel.RemoteBalance),
+		Active:         channel.Active,
 	}
 }
 

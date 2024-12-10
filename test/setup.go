@@ -975,16 +975,16 @@ func clnclnLWKSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode,
 
 	// Give liquid funds to nodes to have something to swap.
 	for _, lightningd := range lightningds {
-		var result clightning.GetAddressResponse
+		var result peerswaprpc.GetAddressResponse
 		require.NoError(t, lightningd.Rpc.Request(&clightning.LiquidGetAddress{}, &result))
-		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 10., "", "", false, false, 1, "UNSET")
+		_, err = liquidd.Rpc.Call("sendtoaddress", result.Address, 10., "", "", false, false, 1, "UNSET")
 		require.NoError(t, err)
 		_ = liquidd.GenerateBlocks(20)
 		require.NoError(t,
 			testframework.WaitFor(func() bool {
-				var balance clightning.GetBalanceResponse
+				var balance peerswaprpc.GetBalanceResponse
 				require.NoError(t, lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &balance))
-				return balance.LiquidBalance >= 1000000000
+				return balance.GetSatAmount() >= 1000000000
 			}, testframework.TIMEOUT))
 	}
 
@@ -1325,16 +1325,16 @@ func mixedLWKSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframe
 	}
 
 	// Give liquid funds to nodes to have something to swap.
-	var lar clightning.GetAddressResponse
+	var lar peerswaprpc.GetAddressResponse
 	cln.Rpc.Request(&clightning.LiquidGetAddress{}, &lar)
-	_, err = liquidd.Rpc.Call("sendtoaddress", lar.LiquidAddress, 10., "", "", false, false, 1, "UNSET")
+	_, err = liquidd.Rpc.Call("sendtoaddress", lar.GetAddress(), 10., "", "", false, false, 1, "UNSET")
 	require.NoError(t, err)
 	_ = liquidd.GenerateBlocks(20)
 	require.NoError(t,
 		testframework.WaitFor(func() bool {
-			var balance clightning.GetBalanceResponse
+			var balance peerswaprpc.GetBalanceResponse
 			require.NoError(t, cln.Rpc.Request(&clightning.LiquidGetBalance{}, &balance))
-			return balance.LiquidBalance >= 1000000000
+			return balance.GetSatAmount() >= 1000000000
 		}, testframework.TIMEOUT))
 
 	r, err := peerswapd.PeerswapClient.LiquidGetAddress(context.Background(), &peerswaprpc.GetAddressRequest{})
@@ -1577,16 +1577,16 @@ func clnclnLWKLiquidSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinN
 
 	// Give liquid funds to nodes to have something to swap.
 	for _, lightningd := range lightningds {
-		var result clightning.GetAddressResponse
+		var result peerswaprpc.GetAddressResponse
 		require.NoError(t, lightningd.Rpc.Request(&clightning.LiquidGetAddress{}, &result))
-		_, err = liquidd.Rpc.Call("sendtoaddress", result.LiquidAddress, 10., "", "", false, false, 1, "UNSET")
+		_, err = liquidd.Rpc.Call("sendtoaddress", result.GetAddress(), 10., "", "", false, false, 1, "UNSET")
 		require.NoError(t, err)
 		_ = liquidd.GenerateBlocks(20)
 		require.NoError(t,
 			testframework.WaitFor(func() bool {
-				var balance clightning.GetBalanceResponse
+				var balance peerswaprpc.GetBalanceResponse
 				require.NoError(t, lightningd.Rpc.Request(&clightning.LiquidGetBalance{}, &balance))
-				return balance.LiquidBalance >= 1000000000
+				return balance.GetSatAmount() >= 1000000000
 			}, testframework.TIMEOUT))
 	}
 

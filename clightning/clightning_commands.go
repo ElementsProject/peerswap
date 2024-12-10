@@ -621,11 +621,30 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 					SatsIn:   ReceiverSatsIn,
 				},
 				PaidFee: paidFees,
-				PeerPremium: &Premium{
-					BTCSwapInPremiumRatePPM:   p.BTCSwapInPremiumRatePPM,
-					BTCSwapOutPremiumRatePPM:  p.BTCSwapOutPremiumRatePPM,
-					LBTCSwapInPremiumRatePPM:  p.LBTCSwapInPremiumRatePPM,
-					LBTCSwapOutPremiumRatePPM: p.LBTCSwapOutPremiumRatePPM,
+				PeerPremium: &peerswaprpc.PeerPremium{
+					NodeId: peer.Id,
+					Rates: []*peerswaprpc.PremiumRate{
+						{
+							Asset:          peerswaprpc.AssetType_BTC,
+							Operation:      peerswaprpc.OperationType_SWAP_IN,
+							PremiumRatePpm: p.BTCSwapInPremiumRatePPM,
+						},
+						{
+							Asset:          peerswaprpc.AssetType_BTC,
+							Operation:      peerswaprpc.OperationType_SWAP_OUT,
+							PremiumRatePpm: p.BTCSwapOutPremiumRatePPM,
+						},
+						{
+							Asset:          peerswaprpc.AssetType_LBTC,
+							Operation:      peerswaprpc.OperationType_SWAP_IN,
+							PremiumRatePpm: p.LBTCSwapInPremiumRatePPM,
+						},
+						{
+							Asset:          peerswaprpc.AssetType_LBTC,
+							Operation:      peerswaprpc.OperationType_SWAP_OUT,
+							PremiumRatePpm: p.LBTCSwapOutPremiumRatePPM,
+						},
+					},
 				},
 			}
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
@@ -640,10 +659,11 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						return nil, err
 					}
 					peerSwapPeerChannels = append(peerSwapPeerChannels, &peerswaprpc.PeerSwapPeerChannel{
-						ChannelId:     scid.ToUint64(),
-						LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
-						RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
-						Active:        channelActive(c.State),
+						ChannelId:      scid.ToUint64(),
+						ShortChannelId: c.ShortChannelId,
+						LocalBalance:   c.OurAmountMilliSatoshi.MSat() / 1000,
+						RemoteBalance:  (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
+						Active:         channelActive(c.State),
 					})
 				}
 			}
