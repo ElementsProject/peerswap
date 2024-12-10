@@ -629,10 +629,11 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						return nil, err
 					}
 					peerSwapPeerChannels = append(peerSwapPeerChannels, &peerswaprpc.PeerSwapPeerChannel{
-						ChannelId:     scid.ToUint64(),
-						LocalBalance:  c.OurAmountMilliSatoshi.MSat() / 1000,
-						RemoteBalance: (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
-						Active:        channelActive(c.State),
+						ChannelId:      scid.ToUint64(),
+						ShortChannelId: c.ShortChannelId,
+						LocalBalance:   c.OurAmountMilliSatoshi.MSat() / 1000,
+						RemoteBalance:  (c.AmountMilliSatoshi.MSat() - c.OurAmountMilliSatoshi.MSat()) / 1000,
+						Active:         channelActive(c.State),
 					})
 				}
 			}
