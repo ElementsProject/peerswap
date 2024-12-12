@@ -600,13 +600,8 @@
           "type": "string",
           "format": "uint64"
         },
-        "swapInPremiumRatePpm": {
-          "type": "string",
-          "format": "int64"
-        },
-        "swapOutPremiumRatePpm": {
-          "type": "string",
-          "format": "int64"
+        "premium": {
+          "$ref": "#/definitions/peerswapPremium"
         }
       }
     },
@@ -659,15 +654,37 @@
             "type": "string"
           }
         },
-        "swapInPremiumRatePpm": {
-          "type": "string",
-          "format": "int64"
-        },
-        "swapOutPremiumRatePpm": {
-          "type": "string",
-          "format": "int64"
+        "defaultPremium": {
+          "$ref": "#/definitions/peerswapPremium",
+          "description": "Displays the default premium rates.\r\nThe premium rates for each peer are included in PeerSwapPeer."
         }
       }
+    },
+    "peerswapPremium": {
+      "type": "object",
+      "properties": {
+        "btcSwapInPremiumRatePpm": {
+          "type": "string",
+          "format": "int64",
+          "title": "Premium rate for BTC swap-in (in PPM)"
+        },
+        "btcSwapOutPremiumRatePpm": {
+          "type": "string",
+          "format": "int64",
+          "title": "Premium rate for BTC swap-out (in PPM)"
+        },
+        "lbtcSwapInPremiumRatePpm": {
+          "type": "string",
+          "format": "int64",
+          "title": "Premium rate for LBTC swap-in (in PPM)"
+        },
+        "lbtcSwapOutPremiumRatePpm": {
+          "type": "string",
+          "format": "int64",
+          "title": "Premium rate for LBTC swap-out (in PPM)"
+        }
+      },
+      "description": "Premium message represents the premium rates."
     },
     "peerswapPrettyPrintSwap": {
       "type": "object",

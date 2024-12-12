@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/policy"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/isdev"
@@ -144,11 +145,17 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	var premium int64
+	if swap.GetChain() == l_btc_chain {
+		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.LbtcSwapIn, swap.GetAmount())
+	} else {
+		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.BtcSwapIn, swap.GetAmount())
+	}
 	agreementMessage := &SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
-		Premium:         ComputePremium(swap.GetAmount(), services.policy.GetSwapInPremiumRatePPM()),
+		Premium:         premium,
 	}
 	swap.SwapInAgreement = agreementMessage
 
@@ -419,13 +426,19 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	var premium int64
+	if swap.GetChain() == l_btc_chain {
+		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.LbtcSwapOut, swap.GetAmount())
+	} else {
+		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.BtcSwapOut, swap.GetAmount())
+	}
 
 	message := &SwapOutAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		Payreq:          feeInvoice,
-		Premium:         ComputePremium(swap.GetAmount(), services.policy.GetSwapOutPremiumRatePPM()),
+		Premium:         premium,
 	}
 	swap.SwapOutAgreement = message
 

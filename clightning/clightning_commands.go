@@ -628,9 +628,11 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 					SatsOut:  ReceiverSatsOut,
 					SatsIn:   ReceiverSatsIn,
 				},
-				PaidFee:               paidFees,
-				SwapInPremiumRatePpm:  p.SwapInPremiumRatePPM,
-				SwapOutPremiumRatePpm: p.SwapOutPremiumRatePPM,
+				PaidFee:                   paidFees,
+				BTCSwapInPremiumRatePPM:   p.BTCSwapInPremiumRatePPM,
+				BTCSwapOutPremiumRatePPM:  p.BTCSwapOutPremiumRatePPM,
+				LBTCSwapInPremiumRatePPM:  p.LBTCSwapInPremiumRatePPM,
+				LBTCSwapOutPremiumRatePPM: p.LBTCSwapOutPremiumRatePPM,
 			}
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
 			if err != nil {
@@ -1115,15 +1117,17 @@ type SwapStats struct {
 }
 
 type PeerSwapPeer struct {
-	NodeId                string                 `json:"nodeid"`
-	SwapsAllowed          bool                   `json:"swaps_allowed"`
-	SupportedAssets       []string               `json:"supported_assets"`
-	Channels              []*PeerSwapPeerChannel `json:"channels"`
-	AsSender              *SwapStats             `json:"sent,omitempty"`
-	AsReceiver            *SwapStats             `json:"received,omitempty"`
-	PaidFee               uint64                 `json:"total_fee_paid,omitempty"`
-	SwapInPremiumRatePpm  int64
-	SwapOutPremiumRatePpm int64
+	NodeId                    string                 `json:"nodeid"`
+	SwapsAllowed              bool                   `json:"swaps_allowed"`
+	SupportedAssets           []string               `json:"supported_assets"`
+	Channels                  []*PeerSwapPeerChannel `json:"channels"`
+	AsSender                  *SwapStats             `json:"sent,omitempty"`
+	AsReceiver                *SwapStats             `json:"received,omitempty"`
+	PaidFee                   uint64                 `json:"total_fee_paid,omitempty"`
+	BTCSwapInPremiumRatePPM   int64                  `json:"btc_swap_in_premium_rate_ppm"`
+	BTCSwapOutPremiumRatePPM  int64                  `json:"btc_swap_out_premium_rate_ppm"`
+	LBTCSwapInPremiumRatePPM  int64                  `json:"lbtc_swap_in_premium_rate_ppm"`
+	LBTCSwapOutPremiumRatePPM int64                  `json:"lbtc_swap_out_premium_rate_ppm"`
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin
