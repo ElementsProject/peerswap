@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/policy"
 
 	"github.com/elementsproject/peerswap/messages"
 )
@@ -541,21 +542,18 @@ func (s *SwapService) estimateMaximumSwapAmountSat(chain string) (uint64, error)
 	return 0, errors.New("invalid chain")
 }
 
-const (
-	// premiumRateParts is the total number of parts used to express fee rates.
-	premiumRateParts = 1e6
-)
-
-// ComputePremium computes the premium.
-// The premium rate charged per sat will be: (amount * premiumRate/1,000,000).
-func ComputePremium(
-	amtSat uint64, premiumRate int64) int64 {
-	return int64(amtSat) * premiumRate / premiumRateParts
-}
-
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
-	premium := ComputePremium(message.Amount, s.swapServices.policy.GetSwapInPremiumRatePPM())
+	var premium int64
+	// Network is the desired on-chain network to use. This can be:
+	// Bitcoin: mainnet, testnet, signet, regtest
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	if message.Network == "" {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapIn, message.Amount)
+	} else {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapIn, message.Amount)
+	}
+
 	if premium > message.PremiumLimit {
 		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
@@ -648,7 +646,15 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapOutRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
-	premium := ComputePremium(message.Amount, s.swapServices.policy.GetSwapOutPremiumRatePPM())
+	var premium int64
+	// Network is the desired on-chain network to use. This can be:
+	// Bitcoin: mainnet, testnet, signet, regtest
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	if message.Network == "" {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapOut, message.Amount)
+	} else {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapOut, message.Amount)
+	}
 	if premium > message.PremiumLimit {
 		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())

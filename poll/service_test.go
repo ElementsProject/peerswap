@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+	policy "github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 )
@@ -50,11 +51,7 @@ func (m *PolicyMock) IsPeerAllowed(peerId string) bool {
 	return m.allowList[m.called-1]
 }
 
-func (m *PolicyMock) GetSwapInPremiumRatePPM() int64 {
-	return 1000000
-}
-
-func (m *PolicyMock) GetSwapOutPremiumRatePPM() int64 {
+func (m *PolicyMock) GetPremiumRate(peerID string, k policy.PremiumRateKind) int64 {
 	return 1000000
 }
 

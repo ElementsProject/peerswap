@@ -157,6 +157,7 @@ require (
 	github.com/lightningnetwork/lnd/ticker v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/tlv v1.0.3 // indirect
 	github.com/samber/lo v1.47.0
+	gopkg.in/ini.v1 v1.67.0
 )
 
 // This fork contains some options we need to reconnect to lnd.

@@ -7,14 +7,18 @@ import (
 
 func GetPolicyMessage(p policy.Policy) *Policy {
 	return &Policy{
-		ReserveOnchainMsat:    p.ReserveOnchainMsat,
-		MinSwapAmountMsat:     p.MinSwapAmountMsat,
-		AcceptAllPeers:        p.AcceptAllPeers,
-		AllowNewSwaps:         p.AllowNewSwaps,
-		AllowlistedPeers:      p.PeerAllowlist,
-		SuspiciousPeerList:    p.SuspiciousPeerList,
-		SwapInPremiumRatePpm:  p.SwapInPremiumRatePPM,
-		SwapOutPremiumRatePpm: p.SwapOutPremiumRatePPM,
+		ReserveOnchainMsat: p.ReserveOnchainMsat,
+		MinSwapAmountMsat:  p.MinSwapAmountMsat,
+		AcceptAllPeers:     p.AcceptAllPeers,
+		AllowNewSwaps:      p.AllowNewSwaps,
+		AllowlistedPeers:   p.PeerAllowlist,
+		SuspiciousPeerList: p.SuspiciousPeerList,
+		DefaultPremium: &Premium{
+			BtcSwapInPremiumRatePpm:   p.GetPremiumRate("", policy.BtcSwapIn),
+			BtcSwapOutPremiumRatePpm:  p.GetPremiumRate("", policy.BtcSwapOut),
+			LbtcSwapInPremiumRatePpm:  p.GetPremiumRate("", policy.LbtcSwapIn),
+			LbtcSwapOutPremiumRatePpm: p.GetPremiumRate("", policy.LbtcSwapOut),
+		},
 	}
 }
 

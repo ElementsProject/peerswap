@@ -358,12 +358,10 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 			}
 
 			peerSwapPeers = append(peerSwapPeers, &PeerSwapPeer{
-				NodeId:                v.PubKey,
-				SwapsAllowed:          poll.PeerAllowed,
-				SwapInPremiumRatePpm:  poll.SwapInPremiumRatePPM,
-				SwapOutPremiumRatePpm: poll.SwapOutPremiumRatePPM,
-				SupportedAssets:       poll.Assets,
-				Channels:              getPeerSwapChannels(v.PubKey, channelRes.Channels),
+				NodeId:          v.PubKey,
+				SwapsAllowed:    poll.PeerAllowed,
+				SupportedAssets: poll.Assets,
+				Channels:        getPeerSwapChannels(v.PubKey, channelRes.Channels),
 				AsSender: &SwapStats{
 					SwapsOut: SenderSwapsOut,
 					SwapsIn:  SenderSwapsIn,
@@ -377,6 +375,12 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 					SatsIn:   ReceiverSatsIn,
 				},
 				PaidFee: paidFees,
+				Premium: &Premium{
+					BtcSwapInPremiumRatePpm:   poll.BTCSwapInPremiumRatePPM,
+					BtcSwapOutPremiumRatePpm:  poll.BTCSwapOutPremiumRatePPM,
+					LbtcSwapInPremiumRatePpm:  poll.LBTCSwapInPremiumRatePPM,
+					LbtcSwapOutPremiumRatePpm: poll.LBTCSwapOutPremiumRatePPM,
+				},
 			})
 		}
 

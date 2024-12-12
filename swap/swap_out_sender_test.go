@@ -8,6 +8,7 @@ import (
 
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -390,12 +391,11 @@ func (d *dummyPolicy) GetMinSwapAmountMsat() uint64 {
 	return d.getMinSwapAmountMsatReturn
 }
 
-func (d *dummyPolicy) GetSwapInPremiumRatePPM() int64 {
+func (d *dummyPolicy) GetPremiumRate(peerID string, k policy.PremiumRateKind) int64 {
 	return d.getSwapInPremiumRatePPM
 }
-
-func (d *dummyPolicy) GetSwapOutPremiumRatePPM() int64 {
-	return d.getSwapOutPremiumRatePPM
+func (d *dummyPolicy) ComputePremium(peerID string, k policy.PremiumRateKind, amtSat uint64) int64 {
+	return policy.NewPPM(d.getSwapInPremiumRatePPM).Compute(amtSat)
 }
 
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
@@ -35,9 +36,9 @@ type testParams struct {
 func (p *testParams) premium() int64 {
 	switch p.swapType {
 	case swap.SWAPTYPE_IN:
-		return swap.ComputePremium(p.swapAmt, p.swapInPremiumRate)
+		return policy.NewPPM(p.swapInPremiumRate).Compute(p.swapAmt)
 	case swap.SWAPTYPE_OUT:
-		return swap.ComputePremium(p.swapAmt, p.swapOutPremiumRate)
+		return policy.NewPPM(p.swapOutPremiumRate).Compute(p.swapAmt)
 	default:
 		return 0
 	}
