@@ -87,12 +87,12 @@ A swap-in is when the initiator wants to spend onchain bitcoin in order to recei
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in sats]
 ```
 
 For LND:
 ```bash
-pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit [premium limit in sats]
 ```
 
 
@@ -125,7 +125,9 @@ Example output:
          "total_sats_swapped_out": 2400000,
          "total_sats_swapped_in": 0
       },
-      "total_fee_paid": 6082
+      "total_fee_paid": 6082,
+      "swap_in_premium_rate": "100",
+      "swap_out_premium_rate": "100"
    }
 ]
 ```

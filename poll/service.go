@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	policy "github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/elementsproject/peerswap/messages"
@@ -39,6 +40,7 @@ type PeerGetter interface {
 
 type Policy interface {
 	IsPeerAllowed(peerId string) bool
+	GetPremiumRate(peerID string, k policy.PremiumRateKind) int64
 }
 
 type Store interface {
@@ -48,10 +50,14 @@ type Store interface {
 }
 
 type PollInfo struct {
-	ProtocolVersion uint64   `json:"version"`
-	Assets          []string `json:"assets"`
-	PeerAllowed     bool
-	LastSeen        time.Time
+	ProtocolVersion           uint64   `json:"version"`
+	Assets                    []string `json:"assets"`
+	BTCSwapInPremiumRatePPM   int64    `json:"btc_swap_in_premium_rate_ppm"`
+	BTCSwapOutPremiumRatePPM  int64    `json:"btc_swap_out_premium_rate_ppm"`
+	LBTCSwapInPremiumRatePPM  int64    `json:"lbtc_swap_in_premium_rate_ppm"`
+	LBTCSwapOutPremiumRatePPM int64    `json:"lbtc_swap_out_premium_rate_ppm"`
+	PeerAllowed               bool
+	LastSeen                  time.Time
 }
 type Service struct {
 	sync.RWMutex
@@ -119,9 +125,13 @@ func (s *Service) Stop() {
 // Poll sends the POLL message to a single peer.
 func (s *Service) Poll(peer string) {
 	poll := PollMessage{
-		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
-		Assets:      s.assets,
-		PeerAllowed: s.policy.IsPeerAllowed(peer),
+		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
+		Assets:                    s.assets,
+		PeerAllowed:               s.policy.IsPeerAllowed(peer),
+		BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peer, policy.BtcSwapIn),
+		BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.BtcSwapOut),
+		LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.LbtcSwapIn),
+		LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peer, policy.LbtcSwapOut),
 	}
 
 	msg, err := json.Marshal(poll)
@@ -146,9 +156,13 @@ func (s *Service) PollAllPeers() {
 // single peer.
 func (s *Service) RequestPoll(peer string) {
 	request := RequestPollMessage{
-		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
-		Assets:      s.assets,
-		PeerAllowed: s.policy.IsPeerAllowed(peer),
+		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
+		Assets:                    s.assets,
+		PeerAllowed:               s.policy.IsPeerAllowed(peer),
+		BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peer, policy.BtcSwapIn),
+		BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.BtcSwapOut),
+		LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.LbtcSwapIn),
+		LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peer, policy.LbtcSwapOut),
 	}
 
 	msg, err := json.Marshal(request)
@@ -194,10 +208,14 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			return jerr
 		}
 		if serr := s.store.Update(peerID, PollInfo{
-			ProtocolVersion: msg.Version,
-			Assets:          msg.Assets,
-			PeerAllowed:     msg.PeerAllowed,
-			LastSeen:        time.Now(),
+			ProtocolVersion:           msg.Version,
+			Assets:                    msg.Assets,
+			PeerAllowed:               msg.PeerAllowed,
+			BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peerID, policy.BtcSwapIn),
+			BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.BtcSwapOut),
+			LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.LbtcSwapIn),
+			LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peerID, policy.LbtcSwapOut),
+			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr
 		}
@@ -219,10 +237,14 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			return jerr
 		}
 		if serr := s.store.Update(peerID, PollInfo{
-			ProtocolVersion: msg.Version,
-			Assets:          msg.Assets,
-			PeerAllowed:     msg.PeerAllowed,
-			LastSeen:        time.Now(),
+			ProtocolVersion:           msg.Version,
+			Assets:                    msg.Assets,
+			PeerAllowed:               msg.PeerAllowed,
+			BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peerID, policy.BtcSwapIn),
+			BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.BtcSwapOut),
+			LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.LbtcSwapIn),
+			LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peerID, policy.LbtcSwapOut),
+			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr
 		}

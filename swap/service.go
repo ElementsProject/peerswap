@@ -9,12 +9,13 @@ import (
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/policy"
 
 	"github.com/elementsproject/peerswap/messages"
 )
 
 const (
-	PEERSWAP_PROTOCOL_VERSION = 4
+	PEERSWAP_PROTOCOL_VERSION = 5
 )
 
 var (
@@ -374,7 +375,7 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, PremiumLimit int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -424,6 +425,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Scid:            channelId,
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
+		PremiumLimit:    PremiumLimit,
 	}
 
 	done, err := swap.SendEvent(Event_OnSwapOutStarted, request)
@@ -439,7 +441,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, PremiumLimit int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -493,6 +495,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Scid:            channelId,
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
+		PremiumLimit:    PremiumLimit,
 	}
 
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, request)
@@ -541,6 +544,28 @@ func (s *SwapService) estimateMaximumSwapAmountSat(chain string) (uint64, error)
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
+	var premium int64
+	// Network is the desired on-chain network to use. This can be:
+	// Bitcoin: mainnet, testnet, signet, regtest
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	if message.Network == "" {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapIn, message.Amount)
+	} else {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapIn, message.Amount)
+	}
+
+	if premium > message.PremiumLimit {
+		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
+		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+		// We want to tell our peer why we can not do this swap.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: msg,
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
+
 	err := s.swapServices.lightning.CanSpend(message.Amount * 1000)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
@@ -621,6 +646,26 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
+	var premium int64
+	// Network is the desired on-chain network to use. This can be:
+	// Bitcoin: mainnet, testnet, signet, regtest
+	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	if message.Network == "" {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapOut, message.Amount)
+	} else {
+		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapOut, message.Amount)
+	}
+	if premium > message.PremiumLimit {
+		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
+		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+		// We want to tell our peer why we can not do this swap.
+		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+			SwapId:  swapId,
+			Message: msg,
+		})
+		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+		return err
+	}
 	rs, err := s.swapServices.lightning.ReceivableMsat(message.Scid)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
