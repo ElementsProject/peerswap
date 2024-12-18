@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
@@ -1247,4 +1248,41 @@ func Test_Cln_shutdown(t *testing.T) {
 	lightningds[0].Shutdown()
 	require.NoError(lightningds[0].WaitForLog(
 		"plugin-peerswap: Killing plugin: exited during normal operation", 30))
+}
+
+func Test_ClnCln_Poll(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+	require := require.New(t)
+	bitcoind, lightningds, _ := clnclnSetup(t, uint64(math.Pow10(9)))
+	defer func() {
+		if t.Failed() {
+			filter := os.Getenv("PEERSWAP_TEST_FILTER")
+			pprintFail(
+				tailableProcess{
+					p:     bitcoind.DaemonProcess,
+					lines: defaultLines,
+				},
+				tailableProcess{
+					p:      lightningds[0].DaemonProcess,
+					filter: filter,
+					lines:  defaultLines,
+				},
+				tailableProcess{
+					p:     lightningds[1].DaemonProcess,
+					lines: defaultLines,
+				},
+			)
+		}
+	}()
+	// Ensure that the poll executed at the start of peerswap succeeds
+	require.Error(lightningds[0].WaitForLog("failed to send custom message", 20*time.Second))
+	for _, lightningd := range lightningds {
+		var result interface{}
+		err := lightningd.Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 }

@@ -134,7 +134,10 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
 		t.Fatalf("ListPeers %v", err)
 	}
 
-	_ = syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
+	err = syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
+	if err != nil {
+		t.Fatalf("syncPoll() got err %v", err)
+	}
 
 	return bitcoind, lightningds, scid
 }

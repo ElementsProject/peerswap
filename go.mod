@@ -11,7 +11,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1
-	github.com/elementsproject/glightning v0.0.0-20241120003711-1fdc5d319d74
+	github.com/elementsproject/glightning v0.0.0-20241218050901-3885803d9ee1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/jessevdk/go-flags v1.5.0
@@ -53,7 +53,7 @@ require (
 	github.com/dvyukov/go-fuzz v0.0.0-20220726122315-1d375ef9f9f6 // indirect
 	github.com/fergusstrange/embedded-postgres v1.19.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
-	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/go-errors/errors v1.4.2
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
@@ -123,15 +123,15 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.23.0
-	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2 // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/net v0.1.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.1.0
-	golang.org/x/term v0.1.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sync v0.10.0
+	golang.org/x/sys v0.20.0
+	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
-	golang.org/x/tools v0.2.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	google.golang.org/genproto v0.0.0-20221010155953-15ba04fc1c0e // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/macaroon-bakery.v2 v2.3.0 // indirect
@@ -156,6 +156,7 @@ require (
 	github.com/lightningnetwork/lnd/queue v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/ticker v1.1.0 // indirect
 	github.com/lightningnetwork/lnd/tlv v1.0.3 // indirect
+	github.com/samber/lo v1.47.0
 )
 
 // This fork contains some options we need to reconnect to lnd.

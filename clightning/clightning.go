@@ -23,6 +23,8 @@ import (
 	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
+	goerrors "github.com/go-errors/errors"
+	"github.com/samber/lo"
 )
 
 var methods = []peerswaprpcMethod{
@@ -378,9 +380,14 @@ func (cl *ClightningClient) Start() error {
 // SendMessage sends a hexmessage to a peer
 func (cl *ClightningClient) SendMessage(peerId string, message []byte, messageType int) error {
 	msg := messages.MessageTypeToHexString(messages.MessageType(messageType)) + hex.EncodeToString(message)
+	if peerId == "" {
+		ierr := goerrors.New("failed to send custom message: peerId is empty")
+		log.Debugf("SendMessage: %v", ierr)
+		return ierr
+	}
 	res, err := cl.glightning.SendCustomMessage(peerId, msg)
 	if err != nil {
-		return err
+		return goerrors.Errorf("failed to send custom message: %v", err)
 	}
 	if res.Code != 0 {
 		return errors.New(res.Message)
@@ -541,7 +548,9 @@ func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 		for {
 			time.Sleep(10 * time.Second)
 			if cl.pollService != nil {
-				cl.pollService.RequestPoll(connectEvent.PeerId)
+				cl.pollService.RequestPoll(
+					lo.Ternary(connectEvent.PeerId != "",
+						connectEvent.PeerId, connectEvent.Conn.PeerId))
 				return
 			}
 		}
