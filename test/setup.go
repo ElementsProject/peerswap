@@ -13,6 +13,7 @@ import (
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -102,9 +103,22 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
 		if err != nil {
 			t.Fatalf("lightningd.Run() got err %v", err)
 		}
-		err = lightningd.WaitForLog("peerswap initialized", testframework.TIMEOUT)
-		if err != nil {
-			t.Fatalf("lightningd.WaitForLog() got err %v", err)
+		var g errgroup.Group
+
+		g.Go(func() error {
+			return lightningd.WaitForLog("peerswap initialized", testframework.TIMEOUT)
+		})
+
+		g.Go(func() error {
+			err := lightningd.WaitForLog("Exited with error", 30)
+			if err == nil {
+				return fmt.Errorf("lightningd exited with error")
+			}
+			return nil
+		})
+
+		if err := g.Wait(); err != nil {
+			t.Fatalf("WaitForLog() got err %v", err)
 		}
 	}
 

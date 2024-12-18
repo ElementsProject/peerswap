@@ -334,83 +334,134 @@ func SetBitcoinNetwork(client *ClightningClient) Processor {
 	}
 }
 
+// Structs for parsed CLN configs
+// ParsedClnConfig represents the configuration for cln (Core Lightning).
+// It includes fields for versions before and after v24.11.
+// For versions before v24.11, ImportantPlugins holds plugin configurations.
+// For versions v24.11 and later, Configs contains detailed config settings.
+type ParsedClnConfig struct {
+	ImportantPlugins []*PluginConfig        `json:"important-plugins"`
+	Configs          map[string]ConfigEntry `json:"configs"`
+}
+
+type PluginConfig struct {
+	Path    string                 `json:"path"`
+	Name    string                 `json:"name"`
+	Options map[string]interface{} `json:"options"`
+}
+
+type ConfigEntry struct {
+	ValueStr string `json:"value_str"`
+	ValueInt int    `json:"value_int"`
+}
+
 // BitcoinFallbackFromClnConfig
-// if no bitcoin config is set at all, try to fall back to cln bitcoin config.
+// If no bitcoin config is set at all, try to fall back to CLN bitcoin config.
 func BitcoinFallbackFromClnConfig(client *ClightningClient) Processor {
 	return func(c *Config) (*Config, error) {
-		if c.Bitcoin.RpcUser == "" && c.Bitcoin.RpcPassword == "" &&
-			c.Bitcoin.RpcPasswordFile == "" && c.Bitcoin.RpcHost == "" &&
-			c.Bitcoin.RpcPort == 0 {
-			// No bitcoin config is set, we try to fetch it from CLN.
+		if isBitcoinConfigEmpty(c.Bitcoin) {
 			conf, err := client.glightning.ListConfigs()
 			if err != nil {
 				return nil, err
 			}
-
-			// Parse interface data into struct.
-			data, err := json.Marshal(conf)
+			parsedConfig, err := parseClnConfig(conf)
 			if err != nil {
 				return nil, err
 			}
-
-			var listConfigResponse struct {
-				ImportantPlugins []*struct {
-					Path    string
-					Name    string
-					Options map[string]interface{}
-				} `json:"important-plugins"`
-			}
-			err = json.Unmarshal(data, &listConfigResponse)
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract settings from the `bcli` plugin.
-			for _, plugin := range listConfigResponse.ImportantPlugins {
-				if plugin.Name == "bcli" {
-					// Extract the bitcoind config
-					if v, ok := plugin.Options["bitcoin-datadir"]; ok {
-						if v != nil {
-							c.Bitcoin.DataDir = v.(string)
-						}
-					}
-					if v, ok := plugin.Options["bitcoin-rpcuser"]; ok {
-						if v != nil {
-							c.Bitcoin.RpcUser = v.(string)
-						}
-					}
-					if v, ok := plugin.Options["bitcoin-rpcpassword"]; ok {
-						if v != nil {
-							c.Bitcoin.RpcPassword = v.(string)
-						}
-					}
-					if v, ok := plugin.Options["bitcoin-rpcconnect"]; ok {
-						if v != nil {
-							c.Bitcoin.RpcHost = v.(string)
-						}
-					}
-					if v, ok := plugin.Options["bitcoin-rpcport"]; ok {
-						if v != nil {
-							// detect if type is string (CLN < v23.08)
-							switch p := v.(type) {
-							case string:
-								port, err := strconv.Atoi(p)
-								if err != nil {
-									return nil, err
-								}
-								c.Bitcoin.RpcPort = uint(port)
-							case float64:
-								c.Bitcoin.RpcPort = uint(p)
-							default:
-								return nil, fmt.Errorf("Bitcoind rpcport type %T not handled", v)
-							}
-						}
-					}
-				}
-			}
+			updateBitcoinConfig(c, parsedConfig)
 		}
 		return c, nil
 	}
+}
+
+func isBitcoinConfigEmpty(bitcoin *BitcoinConf) bool {
+	return bitcoin.RpcUser == "" && bitcoin.RpcPassword == "" &&
+		bitcoin.RpcPasswordFile == "" && bitcoin.RpcHost == "" && bitcoin.RpcPort == 0
+}
+
+func parseClnConfig(conf interface{}) (*ParsedClnConfig, error) {
+	data, err := json.Marshal(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsedConfig ParsedClnConfig
+	if err := json.Unmarshal(data, &parsedConfig); err != nil {
+		return nil, err
+	}
+
+	return &parsedConfig, nil
+}
+
+func updateBitcoinConfig(c *Config, parsedConfig *ParsedClnConfig) {
+	if parsedConfig.Configs != nil {
+		applyConfigMap(c, parsedConfig.Configs)
+	}
+	applyPluginConfig(c, parsedConfig.ImportantPlugins)
+}
+
+func applyConfigMap(c *Config, configs map[string]ConfigEntry) {
+	if v, ok := configs["bitcoin-datadir"]; ok {
+		c.Bitcoin.DataDir = v.ValueStr
+	}
+	if v, ok := configs["bitcoin-rpcuser"]; ok {
+		c.Bitcoin.RpcUser = v.ValueStr
+	}
+	if v, ok := configs["bitcoin-rpcpassword"]; ok {
+		c.Bitcoin.RpcPassword = v.ValueStr
+	}
+	if v, ok := configs["bitcoin-rpcconnect"]; ok {
+		c.Bitcoin.RpcHost = v.ValueStr
+	}
+	if v, ok := configs["bitcoin-rpcport"]; ok {
+		c.Bitcoin.RpcPort = uint(v.ValueInt)
+	}
+}
+
+func applyPluginConfig(c *Config, plugins []*PluginConfig) {
+	for _, plugin := range plugins {
+		if plugin.Name == "bcli" {
+			applyBcliOptions(c, plugin.Options)
+		}
+	}
+}
+
+func applyBcliOptions(c *Config, options map[string]interface{}) {
+	if v, ok := options["bitcoin-datadir"]; ok {
+		c.Bitcoin.DataDir = toString(v)
+	}
+	if v, ok := options["bitcoin-rpcuser"]; ok {
+		c.Bitcoin.RpcUser = toString(v)
+	}
+	if v, ok := options["bitcoin-rpcpassword"]; ok {
+		c.Bitcoin.RpcPassword = toString(v)
+	}
+	if v, ok := options["bitcoin-rpcconnect"]; ok {
+		c.Bitcoin.RpcHost = toString(v)
+	}
+	if v, ok := options["bitcoin-rpcport"]; ok {
+		c.Bitcoin.RpcPort = toUint(v)
+	}
+}
+
+func toString(v interface{}) string {
+	if str, ok := v.(string); ok {
+		return str
+	}
+	return ""
+}
+
+func toUint(v interface{}) uint {
+	switch val := v.(type) {
+	case string:
+		port, err := strconv.Atoi(val)
+		if err == nil {
+			return uint(port)
+		}
+	case float64:
+		return uint(val)
+	}
+	return 0
 }
 
 // BitcoinFallback sets default values for empty config options.
