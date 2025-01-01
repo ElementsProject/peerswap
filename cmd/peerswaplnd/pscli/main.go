@@ -31,7 +31,8 @@ func main() {
 		listPeersCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
-		addSusPeerCommand, removeSusPeerCommand,
+		addSusPeerCommand, removeSusPeerCommand, getDefaultPremiumRateCommand, updateDefaultPremiumRateCommand,
+		getPeerPremiumRateCommand, updatePremiumRateCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
@@ -54,7 +55,7 @@ var (
 	}
 	assetFlag = cli.StringFlag{
 		Name:     "asset",
-		Usage:    "asset to swap with: 'btc' | 'lbtc'",
+		Usage:    "asset to swap with: 'BTC' | 'LBTC'",
 		Required: true,
 	}
 	swapIdFlag = cli.StringFlag{
@@ -77,6 +78,21 @@ var (
 		Name:     "premium_limit",
 		Usage:    "premium limit for a swap",
 		Required: false,
+	}
+	operationFlag = cli.StringFlag{
+		Name:     "operation",
+		Usage:    "operation type: 'SWAP_IN' | 'SWAP_OUT'",
+		Required: true,
+	}
+	rateFlag = cli.Int64Flag{
+		Name:     "rate",
+		Usage:    "premium rate in ppm",
+		Required: true,
+	}
+	nodeIdFlag = cli.StringFlag{
+		Name:     "node_id",
+		Usage:    "node ID of the peer",
+		Required: true,
 	}
 
 	swapOutCommand = cli.Command{
@@ -208,6 +224,46 @@ var (
 		Usage:  "stops the peerswap daemon",
 		Flags:  []cli.Flag{},
 		Action: stopPeerswap,
+	}
+	getDefaultPremiumRateCommand = cli.Command{
+		Name:  "getdefaultpremiumrate",
+		Usage: "Get the default premium rate for a specific asset and operation",
+		Flags: []cli.Flag{
+			assetFlag,
+			operationFlag,
+		},
+		Action: getDefaultPremiumRate,
+	}
+	updateDefaultPremiumRateCommand = cli.Command{
+		Name:  "updatedefaultpremiumrate",
+		Usage: "Update the default premium rate for a specific asset and operation",
+		Flags: []cli.Flag{
+			assetFlag,
+			operationFlag,
+			rateFlag,
+		},
+		Action: updateDefaultPremiumRate,
+	}
+	getPeerPremiumRateCommand = cli.Command{
+		Name:  "getpeerpremiumrate",
+		Usage: "Get the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+		},
+		Action: getPeerPremiumRate,
+	}
+	updatePremiumRateCommand = cli.Command{
+		Name:  "updatepremiumrate",
+		Usage: "Update the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+			rateFlag,
+		},
+		Action: updatePremiumRate,
 	}
 )
 
@@ -483,6 +539,86 @@ func stopPeerswap(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.Stop(context.Background(), &peerswaprpc.Empty{})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func getDefaultPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.GetDefaultPremiumRate(context.Background(), &peerswaprpc.GetDefaultPremiumRateRequest{
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func updateDefaultPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.UpdateDefaultPremiumRate(context.Background(), &peerswaprpc.UpdateDefaultPremiumRateRequest{
+		Rate: &peerswaprpc.PremiumRate{
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+			PremiumRatePpm: ctx.Int64(rateFlag.Name),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func getPeerPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.GetPremiumRate(context.Background(), &peerswaprpc.GetPremiumRateRequest{
+		NodeId:    ctx.String(nodeIdFlag.Name),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func updatePremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.UpdatePremiumRate(context.Background(), &peerswaprpc.UpdatePremiumRateRequest{
+		NodeId: ctx.String(nodeIdFlag.Name),
+		Rate: &peerswaprpc.PremiumRate{
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+			PremiumRatePpm: ctx.Int64(rateFlag.Name),
+		},
+	})
 	if err != nil {
 		return err
 	}

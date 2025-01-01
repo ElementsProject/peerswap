@@ -16,7 +16,7 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
@@ -54,7 +54,7 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
@@ -93,7 +93,7 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
@@ -127,7 +127,7 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
@@ -157,7 +157,7 @@ func Test_SwapOutReceiverInsufficientBalance(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapServices.bitcoinWallet.(*dummyChain).SetBalance(0)
 
 	swapServices.lightning.(*dummyLightningClient).preimage = FeePreimage
@@ -193,7 +193,7 @@ func Test_SwapOutReceiver_PeerIsSuspicious(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 
 	// Setup the peer to be suspicious.
 	swapServices.policy = &dummyPolicy{

@@ -95,6 +95,65 @@ For LND:
 pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit [premium limit in sats]
 ```
 
+## Premium
+
+The premium rate is the rate applied during a swap. There are default premium rates and peer-specific premium rates.
+
+### Get Default Premium Rate
+
+To get the default premium rate, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-getdefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out]
+```
+
+For LND:
+```bash
+pscli getdefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out]
+```
+
+### Set Default Premium Rate
+
+To set the default premium rate, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-setdefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out] --rate [premium_rate_ppm]
+```
+
+For LND:
+```bash
+pscli updatedefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out] --rate [premium_rate_ppm]
+```
+
+### Get Peer-Specific Premium Rate
+
+To get the premium rate for a specific peer, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-getpremiumrate --node_id [peer_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
+```
+
+For LND:
+```bash
+pscli getpeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
+```
+
+### Set Peer-Specific Premium Rate
+
+To set the premium rate for a specific peer, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-setpremiumrate --node_id [peer_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT] --rate [premium_rate_ppm]
+```
+
+For LND:
+```bash
+pscli updatepremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT] --rate [premium_rate_ppm]
+```
 
 ## Misc
 

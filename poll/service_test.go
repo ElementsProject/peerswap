@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
-	policy "github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 )
@@ -51,10 +52,6 @@ func (m *PolicyMock) IsPeerAllowed(peerId string) bool {
 	return m.allowList[m.called-1]
 }
 
-func (m *PolicyMock) GetPremiumRate(peerID string, k policy.PremiumRateKind) int64 {
-	return 1000000
-}
-
 func TestSendMessage(t *testing.T) {
 	dir := t.TempDir()
 	db, err := bbolt.Open(path.Join(dir, "poll-db"), os.ModePerm, nil)
@@ -72,7 +69,8 @@ func TestSendMessage(t *testing.T) {
 		peers: []string{"peer1", "peer2"},
 	}
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
+	premium := lo.Must(premium.NewSetting(db))
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets, premium)
 	for _, peer := range peerGetter.peers {
 		ps.Poll(peer)
 	}
@@ -110,7 +108,8 @@ func TestRecievePollAndPollRequest(t *testing.T) {
 		peers: []string{"peer1", "peer2"},
 	}
 	assets := []string{"asset1", "asset2", "asset3"}
-	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets)
+	premium := lo.Must(premium.NewSetting(db))
+	ps := NewService(500*time.Millisecond, 1*time.Second, store, messenger, policy, peerGetter, assets, premium)
 
 	pmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_POLL)
 	rpmt := messages.MessageTypeToHexString(messages.MESSAGETYPE_REQUEST_POLL)

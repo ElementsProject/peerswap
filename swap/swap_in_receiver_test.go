@@ -16,7 +16,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
 		Amount:          swapAmount,
@@ -63,7 +63,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
@@ -96,7 +96,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
@@ -143,7 +143,7 @@ func Test_SwapInReceiver_PeerIsSuspicious(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	// Setup the peer to be suspicious.
 	swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,

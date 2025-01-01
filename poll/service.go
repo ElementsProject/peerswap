@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
-	policy "github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
+
 	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/elementsproject/peerswap/messages"
@@ -40,7 +41,6 @@ type PeerGetter interface {
 
 type Policy interface {
 	IsPeerAllowed(peerId string) bool
-	GetPremiumRate(peerID string, k policy.PremiumRateKind) int64
 }
 
 type Store interface {
@@ -68,6 +68,7 @@ type Service struct {
 	assets           []string
 	messenger        Messenger
 	policy           Policy
+	ps               *premium.Setting
 	peers            PeerGetter
 	store            Store
 	tmpStore         map[string]string
@@ -75,7 +76,7 @@ type Service struct {
 	loggedDisconnect map[string]struct{}
 }
 
-func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
+func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string, ps *premium.Setting) *Service {
 	clock := time.NewTicker(tickDuration)
 	ctx, done := context.WithCancel(context.Background())
 	s := &Service{
@@ -90,10 +91,22 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		tmpStore:         make(map[string]string),
 		removeDuration:   removeDuration,
 		loggedDisconnect: make(map[string]struct{}),
+		ps:               ps,
 	}
 
 	s.messenger.AddMessageHandler(s.MessageHandler)
+	// Register as an observer of premium rate changes
+	// This ensures PollAllPeers is called whenever premium rates are updated
+	ps.AddObserver(s)
 	return s
+}
+
+// OnPremiumUpdate implements premium.Observer interface
+// Called automatically when premium rates are changed
+// via Setting.SetRate or Setting.SetDefaultRate
+func (s *Service) OnPremiumUpdate() {
+	// Broadcast updated premium rates to all peers
+	s.PollAllPeers()
 }
 
 // Start the poll message loop and send the poll
@@ -122,16 +135,24 @@ func (s *Service) Stop() {
 	s.done()
 }
 
+func (s *Service) premiumRatePPM(peerID string, asset premium.AssetType, operation premium.OperationType) int64 {
+	rate, err := s.ps.GetRate(peerID, asset, operation)
+	if err != nil {
+		return 0
+	}
+	return rate.PremiumRatePPM().Value()
+}
+
 // Poll sends the POLL message to a single peer.
 func (s *Service) Poll(peer string) {
 	poll := PollMessage{
 		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:                    s.assets,
 		PeerAllowed:               s.policy.IsPeerAllowed(peer),
-		BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peer, policy.BtcSwapIn),
-		BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.BtcSwapOut),
-		LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.LbtcSwapIn),
-		LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peer, policy.LbtcSwapOut),
+		BTCSwapInPremiumRatePPM:   s.premiumRatePPM(peer, premium.BTC, premium.SwapIn),
+		BTCSwapOutPremiumRatePPM:  s.premiumRatePPM(peer, premium.BTC, premium.SwapOut),
+		LBTCSwapInPremiumRatePPM:  s.premiumRatePPM(peer, premium.LBTC, premium.SwapIn),
+		LBTCSwapOutPremiumRatePPM: s.premiumRatePPM(peer, premium.LBTC, premium.SwapOut),
 	}
 
 	msg, err := json.Marshal(poll)
@@ -159,10 +180,10 @@ func (s *Service) RequestPoll(peer string) {
 		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
 		Assets:                    s.assets,
 		PeerAllowed:               s.policy.IsPeerAllowed(peer),
-		BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peer, policy.BtcSwapIn),
-		BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.BtcSwapOut),
-		LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peer, policy.LbtcSwapIn),
-		LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peer, policy.LbtcSwapOut),
+		BTCSwapInPremiumRatePPM:   s.premiumRatePPM(peer, premium.BTC, premium.SwapIn),
+		BTCSwapOutPremiumRatePPM:  s.premiumRatePPM(peer, premium.BTC, premium.SwapOut),
+		LBTCSwapInPremiumRatePPM:  s.premiumRatePPM(peer, premium.LBTC, premium.SwapIn),
+		LBTCSwapOutPremiumRatePPM: s.premiumRatePPM(peer, premium.LBTC, premium.SwapOut),
 	}
 
 	msg, err := json.Marshal(request)
@@ -211,10 +232,10 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			ProtocolVersion:           msg.Version,
 			Assets:                    msg.Assets,
 			PeerAllowed:               msg.PeerAllowed,
-			BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peerID, policy.BtcSwapIn),
-			BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.BtcSwapOut),
-			LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.LbtcSwapIn),
-			LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peerID, policy.LbtcSwapOut),
+			BTCSwapInPremiumRatePPM:   msg.BTCSwapInPremiumRatePPM,
+			BTCSwapOutPremiumRatePPM:  msg.BTCSwapOutPremiumRatePPM,
+			LBTCSwapInPremiumRatePPM:  msg.LBTCSwapInPremiumRatePPM,
+			LBTCSwapOutPremiumRatePPM: msg.LBTCSwapOutPremiumRatePPM,
 			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr
@@ -240,10 +261,10 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			ProtocolVersion:           msg.Version,
 			Assets:                    msg.Assets,
 			PeerAllowed:               msg.PeerAllowed,
-			BTCSwapInPremiumRatePPM:   s.policy.GetPremiumRate(peerID, policy.BtcSwapIn),
-			BTCSwapOutPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.BtcSwapOut),
-			LBTCSwapInPremiumRatePPM:  s.policy.GetPremiumRate(peerID, policy.LbtcSwapIn),
-			LBTCSwapOutPremiumRatePPM: s.policy.GetPremiumRate(peerID, policy.LbtcSwapOut),
+			BTCSwapInPremiumRatePPM:   msg.BTCSwapInPremiumRatePPM,
+			BTCSwapOutPremiumRatePPM:  msg.BTCSwapOutPremiumRatePPM,
+			LBTCSwapInPremiumRatePPM:  msg.LBTCSwapInPremiumRatePPM,
+			LBTCSwapOutPremiumRatePPM: msg.LBTCSwapOutPremiumRatePPM,
 			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr

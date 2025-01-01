@@ -31,7 +31,6 @@ func Test_Create(t *testing.T) {
 		AcceptAllPeers:     defaultAcceptAllPeers,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 		AllowNewSwaps:      defaultAllowNewSwaps,
-		premium:            defaultPreium(),
 	}, policy)
 
 	peer1 := "123"
@@ -64,7 +63,6 @@ func Test_Create(t *testing.T) {
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 		AllowNewSwaps:      defaultAllowNewSwaps,
-		premium:            defaultPreium(),
 	}, policy2)
 }
 
@@ -88,7 +86,6 @@ func Test_Reload(t *testing.T) {
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 		AllowNewSwaps:      defaultAllowNewSwaps,
-		premium:            defaultPreium(),
 	}, policy)
 
 	newPeer := "new_peer"
@@ -103,7 +100,6 @@ func Test_Reload(t *testing.T) {
 		AcceptAllPeers:     defaultAcceptAllPeers,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 		AllowNewSwaps:      defaultAllowNewSwaps,
-		premium:            defaultPreium(),
 	}, policy)
 }
 
@@ -127,7 +123,6 @@ func Test_Reload_NoOverrideOnError(t *testing.T) {
 		AcceptAllPeers:     accept,
 		MinSwapAmountMsat:  defaultMinSwapAmountMsat,
 		AllowNewSwaps:      defaultAllowNewSwaps,
-		premium:            defaultPreium(),
 	}, policy)
 
 	// copy policy

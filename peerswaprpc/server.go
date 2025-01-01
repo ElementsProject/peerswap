@@ -14,6 +14,8 @@ import (
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/premium"
+
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -26,6 +28,7 @@ type PeerswapServer struct {
 	requestedSwaps *swap.RequestedSwapsPrinter
 	pollService    *poll.Service
 	policy         *policy.Policy
+	ps             *premium.Setting
 
 	lnd lnrpc.LightningClient
 
@@ -77,8 +80,8 @@ func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error)
 	return &Empty{}, nil
 }
 
-func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, pollService *poll.Service, policy *policy.Policy, gelements *gelements.Elements, lnd lnrpc.LightningClient, sigchan chan os.Signal) *PeerswapServer {
-	return &PeerswapServer{liquidWallet: liquidWallet, swaps: swaps, requestedSwaps: requestedSwaps, pollService: pollService, policy: policy, lnd: lnd, sigchan: sigchan}
+func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, pollService *poll.Service, policy *policy.Policy, gelements *gelements.Elements, lnd lnrpc.LightningClient, ps *premium.Setting, sigchan chan os.Signal) *PeerswapServer {
+	return &PeerswapServer{liquidWallet: liquidWallet, swaps: swaps, requestedSwaps: requestedSwaps, pollService: pollService, policy: policy, lnd: lnd, ps: ps, sigchan: sigchan}
 }
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
@@ -375,11 +378,30 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 					SatsIn:   ReceiverSatsIn,
 				},
 				PaidFee: paidFees,
-				Premium: &Premium{
-					BtcSwapInPremiumRatePpm:   poll.BTCSwapInPremiumRatePPM,
-					BtcSwapOutPremiumRatePpm:  poll.BTCSwapOutPremiumRatePPM,
-					LbtcSwapInPremiumRatePpm:  poll.LBTCSwapInPremiumRatePPM,
-					LbtcSwapOutPremiumRatePpm: poll.LBTCSwapOutPremiumRatePPM,
+				PeerPremium: &PeerPremium{
+					NodeId: v.PubKey,
+					Rates: []*PremiumRate{
+						{
+							Asset:          AssetType_BTC,
+							Operation:      OperationType_SWAP_IN,
+							PremiumRatePpm: poll.BTCSwapInPremiumRatePPM,
+						},
+						{
+							Asset:          AssetType_BTC,
+							Operation:      OperationType_SWAP_OUT,
+							PremiumRatePpm: poll.BTCSwapOutPremiumRatePPM,
+						},
+						{
+							Asset:          AssetType_LBTC,
+							Operation:      OperationType_SWAP_IN,
+							PremiumRatePpm: poll.LBTCSwapInPremiumRatePPM,
+						},
+						{
+							Asset:          AssetType_LBTC,
+							Operation:      OperationType_SWAP_OUT,
+							PremiumRatePpm: poll.LBTCSwapOutPremiumRatePPM,
+						},
+					},
 				},
 			})
 		}
@@ -525,6 +547,121 @@ func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSw
 
 	pol := p.policy.Get()
 	return GetPolicyMessage(pol), nil
+}
+
+func toPremiumAssetType(assetType AssetType) premium.AssetType {
+	switch assetType {
+	case AssetType_BTC:
+		return premium.BTC
+	case AssetType_LBTC:
+		return premium.LBTC
+	default:
+		return premium.AsserUnspecified
+	}
+}
+
+func toPremiumOperationType(operationType OperationType) premium.OperationType {
+	switch operationType {
+	case OperationType_SWAP_IN:
+		return premium.SwapIn
+	case OperationType_SWAP_OUT:
+		return premium.SwapOut
+	default:
+		return premium.OperationUnspecified
+	}
+}
+
+func toAssetType(assetType premium.AssetType) AssetType {
+	switch assetType {
+	case premium.BTC:
+		return AssetType_BTC
+	case premium.LBTC:
+		return AssetType_LBTC
+	default:
+		return AssetType_ASSET_UNSPECIFIED
+	}
+}
+
+func toOperationType(operationType premium.OperationType) OperationType {
+	switch operationType {
+	case premium.SwapIn:
+		return OperationType_SWAP_IN
+	case premium.SwapOut:
+		return OperationType_SWAP_OUT
+	default:
+		return OperationType_OPERATION_UNSPECIFIED
+	}
+}
+
+func (p *PeerswapServer) GetDefaultPremiumRate(ctx context.Context,
+	request *GetDefaultPremiumRateRequest) (*PremiumRate, error) {
+	if request.GetAsset() != AssetType_BTC && request.GetAsset() != AssetType_LBTC {
+		return nil, fmt.Errorf("invalid asset type: %s", request.Asset)
+	}
+	if request.GetOperation() != OperationType_SWAP_IN &&
+		request.GetOperation() != OperationType_SWAP_OUT {
+		return nil, fmt.Errorf("invalid operation type: %s", request.Operation)
+	}
+	r, err := p.ps.GetDefaultRate(toPremiumAssetType(request.GetAsset()),
+		toPremiumOperationType(request.GetOperation()))
+	if err != nil {
+		return nil, err
+	}
+	return &PremiumRate{
+		Asset:          toAssetType(r.Asset()),
+		Operation:      toOperationType(r.Operation()),
+		PremiumRatePpm: r.PremiumRatePPM().Value(),
+	}, nil
+}
+
+func (p *PeerswapServer) UpdateDefaultPremiumRate(ctx context.Context,
+	request *UpdateDefaultPremiumRateRequest) (*PremiumRate, error) {
+	rate, err := premium.NewPremiumRate(
+		toPremiumAssetType(request.GetRate().GetAsset()),
+		toPremiumOperationType(request.GetRate().GetOperation()),
+		premium.NewPPM(request.GetRate().GetPremiumRatePpm()),
+	)
+	err = p.ps.SetDefaultRate(rate)
+	if err != nil {
+		return nil, fmt.Errorf("could not set default rate: %v", err)
+	}
+	return request.GetRate(), nil
+}
+
+func (p *PeerswapServer) GetPremiumRate(ctx context.Context,
+	request *GetPremiumRateRequest) (*PremiumRate, error) {
+	if request.GetAsset() != AssetType_BTC && request.GetAsset() != AssetType_LBTC {
+		return nil, fmt.Errorf("invalid asset type: %s", request.Asset)
+	}
+	if request.GetOperation() != OperationType_SWAP_IN &&
+		request.GetOperation() != OperationType_SWAP_OUT {
+		return nil, fmt.Errorf("invalid operation type: %s", request.Operation)
+	}
+	r, err := p.ps.GetRate(request.GetNodeId(),
+		toPremiumAssetType(request.GetAsset()),
+		toPremiumOperationType(request.GetOperation()))
+	if err != nil {
+		return nil, err
+	}
+	return &PremiumRate{
+		Asset:          toAssetType(r.Asset()),
+		Operation:      toOperationType(r.Operation()),
+		PremiumRatePpm: r.PremiumRatePPM().Value(),
+	}, nil
+}
+
+func (p *PeerswapServer) UpdatePremiumRate(ctx context.Context,
+	request *UpdatePremiumRateRequest) (*PremiumRate, error) {
+	rate, err := premium.NewPremiumRate(
+		toPremiumAssetType(request.GetRate().GetAsset()),
+		toPremiumOperationType(request.GetRate().GetOperation()),
+		premium.NewPPM(request.GetRate().GetPremiumRatePpm()),
+	)
+	err = p.ps.SetRate(request.GetNodeId(), rate)
+	if err != nil {
+		return nil, fmt.Errorf("could not set rate: %v", err)
+	}
+	return request.GetRate(), nil
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {

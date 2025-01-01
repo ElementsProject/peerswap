@@ -8,7 +8,6 @@ import (
 
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/messages"
-	"github.com/elementsproject/peerswap/policy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +41,7 @@ func Test_ValidSwap(t *testing.T) {
 
 	timeOutD := &timeOutDummy{}
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapServices.toService = timeOutD
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
@@ -98,7 +97,7 @@ func Test_Cancel2(t *testing.T) {
 	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
@@ -127,7 +126,7 @@ func Test_Cancel1(t *testing.T) {
 	FeeInvoice := "err"
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
@@ -158,7 +157,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	FeeInvoice := "fee"
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
@@ -371,10 +370,8 @@ type dummyPolicy struct {
 	getMinSwapAmountMsatCalled int
 	getMinSwapAmountMsatReturn uint64
 
-	newSwapsAllowedCalled    int
-	newSwapsAllowedReturn    bool
-	getSwapInPremiumRatePPM  int64
-	getSwapOutPremiumRatePPM int64
+	newSwapsAllowedCalled int
+	newSwapsAllowedReturn bool
 }
 
 func (d *dummyPolicy) NewSwapsAllowed() bool {
@@ -389,13 +386,6 @@ func (d *dummyPolicy) GetReserveOnchainMsat() uint64 {
 func (d *dummyPolicy) GetMinSwapAmountMsat() uint64 {
 	d.getMinSwapAmountMsatCalled++
 	return d.getMinSwapAmountMsatReturn
-}
-
-func (d *dummyPolicy) GetPremiumRate(peerID string, k policy.PremiumRateKind) int64 {
-	return d.getSwapInPremiumRatePPM
-}
-func (d *dummyPolicy) ComputePremium(peerID string, k policy.PremiumRateKind, amtSat uint64) int64 {
-	return policy.NewPPM(d.getSwapInPremiumRatePPM).Compute(amtSat)
 }
 
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {

@@ -36,6 +36,14 @@ type PeerSwapClient interface {
 	LiquidGetAddress(ctx context.Context, in *GetAddressRequest, opts ...grpc.CallOption) (*GetAddressResponse, error)
 	LiquidGetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
 	LiquidSendToAddress(ctx context.Context, in *SendToAddressRequest, opts ...grpc.CallOption) (*SendToAddressResponse, error)
+	// Get a premium rate for a asset, and operation.
+	GetDefaultPremiumRate(ctx context.Context, in *GetDefaultPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
+	// Update a premium rate for a asset, and operation.
+	UpdateDefaultPremiumRate(ctx context.Context, in *UpdateDefaultPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
+	// Get a premium rate for a specific peer, asset, and operation.
+	GetPremiumRate(ctx context.Context, in *GetPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
+	// Update a premium rate for a specific peer, asset, and operation.
+	UpdatePremiumRate(ctx context.Context, in *UpdatePremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
 	Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
@@ -191,6 +199,42 @@ func (c *peerSwapClient) LiquidSendToAddress(ctx context.Context, in *SendToAddr
 	return out, nil
 }
 
+func (c *peerSwapClient) GetDefaultPremiumRate(ctx context.Context, in *GetDefaultPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error) {
+	out := new(PremiumRate)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/GetDefaultPremiumRate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *peerSwapClient) UpdateDefaultPremiumRate(ctx context.Context, in *UpdateDefaultPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error) {
+	out := new(PremiumRate)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/UpdateDefaultPremiumRate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *peerSwapClient) GetPremiumRate(ctx context.Context, in *GetPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error) {
+	out := new(PremiumRate)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/GetPremiumRate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *peerSwapClient) UpdatePremiumRate(ctx context.Context, in *UpdatePremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error) {
+	out := new(PremiumRate)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/UpdatePremiumRate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *peerSwapClient) Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/Stop", in, out, opts...)
@@ -222,6 +266,14 @@ type PeerSwapServer interface {
 	LiquidGetAddress(context.Context, *GetAddressRequest) (*GetAddressResponse, error)
 	LiquidGetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
 	LiquidSendToAddress(context.Context, *SendToAddressRequest) (*SendToAddressResponse, error)
+	// Get a premium rate for a asset, and operation.
+	GetDefaultPremiumRate(context.Context, *GetDefaultPremiumRateRequest) (*PremiumRate, error)
+	// Update a premium rate for a asset, and operation.
+	UpdateDefaultPremiumRate(context.Context, *UpdateDefaultPremiumRateRequest) (*PremiumRate, error)
+	// Get a premium rate for a specific peer, asset, and operation.
+	GetPremiumRate(context.Context, *GetPremiumRateRequest) (*PremiumRate, error)
+	// Update a premium rate for a specific peer, asset, and operation.
+	UpdatePremiumRate(context.Context, *UpdatePremiumRateRequest) (*PremiumRate, error)
 	Stop(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedPeerSwapServer()
 }
@@ -277,6 +329,18 @@ func (UnimplementedPeerSwapServer) LiquidGetBalance(context.Context, *GetBalance
 }
 func (UnimplementedPeerSwapServer) LiquidSendToAddress(context.Context, *SendToAddressRequest) (*SendToAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LiquidSendToAddress not implemented")
+}
+func (UnimplementedPeerSwapServer) GetDefaultPremiumRate(context.Context, *GetDefaultPremiumRateRequest) (*PremiumRate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPremiumRate not implemented")
+}
+func (UnimplementedPeerSwapServer) UpdateDefaultPremiumRate(context.Context, *UpdateDefaultPremiumRateRequest) (*PremiumRate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateDefaultPremiumRate not implemented")
+}
+func (UnimplementedPeerSwapServer) GetPremiumRate(context.Context, *GetPremiumRateRequest) (*PremiumRate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPremiumRate not implemented")
+}
+func (UnimplementedPeerSwapServer) UpdatePremiumRate(context.Context, *UpdatePremiumRateRequest) (*PremiumRate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePremiumRate not implemented")
 }
 func (UnimplementedPeerSwapServer) Stop(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
@@ -582,6 +646,78 @@ func _PeerSwap_LiquidSendToAddress_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PeerSwap_GetDefaultPremiumRate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultPremiumRateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).GetDefaultPremiumRate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/GetDefaultPremiumRate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).GetDefaultPremiumRate(ctx, req.(*GetDefaultPremiumRateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PeerSwap_UpdateDefaultPremiumRate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateDefaultPremiumRateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).UpdateDefaultPremiumRate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/UpdateDefaultPremiumRate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).UpdateDefaultPremiumRate(ctx, req.(*UpdateDefaultPremiumRateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PeerSwap_GetPremiumRate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPremiumRateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).GetPremiumRate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/GetPremiumRate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).GetPremiumRate(ctx, req.(*GetPremiumRateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PeerSwap_UpdatePremiumRate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePremiumRateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).UpdatePremiumRate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/UpdatePremiumRate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).UpdatePremiumRate(ctx, req.(*UpdatePremiumRateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PeerSwap_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -670,6 +806,22 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LiquidSendToAddress",
 			Handler:    _PeerSwap_LiquidSendToAddress_Handler,
+		},
+		{
+			MethodName: "GetDefaultPremiumRate",
+			Handler:    _PeerSwap_GetDefaultPremiumRate_Handler,
+		},
+		{
+			MethodName: "UpdateDefaultPremiumRate",
+			Handler:    _PeerSwap_UpdateDefaultPremiumRate_Handler,
+		},
+		{
+			MethodName: "GetPremiumRate",
+			Handler:    _PeerSwap_GetPremiumRate_Handler,
+		},
+		{
+			MethodName: "UpdatePremiumRate",
+			Handler:    _PeerSwap_UpdatePremiumRate_Handler,
 		},
 		{
 			MethodName: "Stop",

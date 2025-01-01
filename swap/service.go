@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/elementsproject/peerswap/messages"
 )
@@ -544,18 +544,27 @@ func (s *SwapService) estimateMaximumSwapAmountSat(chain string) (uint64, error)
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
-	var premium int64
+	var (
+		premiumValue int64
+		err          error
+	)
 	// Network is the desired on-chain network to use. This can be:
 	// Bitcoin: mainnet, testnet, signet, regtest
 	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
 	if message.Network == "" {
-		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapIn, message.Amount)
+		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.LBTC, premium.SwapIn, message.Amount)
+		if err != nil {
+			return err
+		}
 	} else {
-		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapIn, message.Amount)
+		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.BTC, premium.SwapIn, message.Amount)
+		if err != nil {
+			return err
+		}
 	}
 
-	if premium > message.PremiumLimit {
-		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
+	if premiumValue > message.PremiumLimit {
+		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premiumValue, message.PremiumLimit)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
 		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
@@ -566,7 +575,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	err := s.swapServices.lightning.CanSpend(message.Amount * 1000)
+	err = s.swapServices.lightning.CanSpend(message.Amount * 1000)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -646,17 +655,26 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapOutRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
-	var premium int64
+	var (
+		premiumValue int64
+		err          error
+	)
 	// Network is the desired on-chain network to use. This can be:
 	// Bitcoin: mainnet, testnet, signet, regtest
 	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
 	if message.Network == "" {
-		premium = s.swapServices.policy.ComputePremium(peerId, policy.LbtcSwapOut, message.Amount)
+		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.LBTC, premium.SwapOut, message.Amount)
+		if err != nil {
+			return err
+		}
 	} else {
-		premium = s.swapServices.policy.ComputePremium(peerId, policy.BtcSwapOut, message.Amount)
+		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.BTC, premium.SwapOut, message.Amount)
+		if err != nil {
+			return err
+		}
 	}
-	if premium > message.PremiumLimit {
-		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premium, message.PremiumLimit)
+	if premiumValue > message.PremiumLimit {
+		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premiumValue, message.PremiumLimit)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
 		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{

@@ -516,6 +516,16 @@
         }
       }
     },
+    "peerswapAssetType": {
+      "type": "string",
+      "enum": [
+        "ASSET_UNSPECIFIED",
+        "BTC",
+        "LBTC"
+      ],
+      "default": "ASSET_UNSPECIFIED",
+      "description": "Enum for supported asset types."
+    },
     "peerswapEmpty": {
       "type": "object"
     },
@@ -569,6 +579,31 @@
         }
       }
     },
+    "peerswapOperationType": {
+      "type": "string",
+      "enum": [
+        "OPERATION_UNSPECIFIED",
+        "SWAP_IN",
+        "SWAP_OUT"
+      ],
+      "default": "OPERATION_UNSPECIFIED",
+      "description": "Enum for supported operation types."
+    },
+    "peerswapPeerPremium": {
+      "type": "object",
+      "properties": {
+        "nodeId": {
+          "type": "string"
+        },
+        "rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/peerswapPremiumRate"
+          }
+        }
+      },
+      "description": "Premium configuration per peer.\r\nIf no configuration exists, the default configuration is used.\r\nUnique by AssetType and OperationType. No explicit constraints on\r\nthis data structure; consistency depends on peerswap implementation."
+    },
     "peerswapPeerSwapPeer": {
       "type": "object",
       "properties": {
@@ -600,8 +635,8 @@
           "type": "string",
           "format": "uint64"
         },
-        "premium": {
-          "$ref": "#/definitions/peerswapPremium"
+        "peerPremium": {
+          "$ref": "#/definitions/peerswapPeerPremium"
         }
       }
     },
@@ -653,38 +688,24 @@
           "items": {
             "type": "string"
           }
-        },
-        "defaultPremium": {
-          "$ref": "#/definitions/peerswapPremium",
-          "description": "Displays the default premium rates.\r\nThe premium rates for each peer are included in PeerSwapPeer."
         }
       }
     },
-    "peerswapPremium": {
+    "peerswapPremiumRate": {
       "type": "object",
       "properties": {
-        "btcSwapInPremiumRatePpm": {
-          "type": "string",
-          "format": "int64",
-          "title": "Premium rate for BTC swap-in (in PPM)"
+        "asset": {
+          "$ref": "#/definitions/peerswapAssetType"
         },
-        "btcSwapOutPremiumRatePpm": {
-          "type": "string",
-          "format": "int64",
-          "title": "Premium rate for BTC swap-out (in PPM)"
+        "operation": {
+          "$ref": "#/definitions/peerswapOperationType"
         },
-        "lbtcSwapInPremiumRatePpm": {
+        "premiumRatePpm": {
           "type": "string",
-          "format": "int64",
-          "title": "Premium rate for LBTC swap-in (in PPM)"
-        },
-        "lbtcSwapOutPremiumRatePpm": {
-          "type": "string",
-          "format": "int64",
-          "title": "Premium rate for LBTC swap-out (in PPM)"
+          "format": "int64"
         }
       },
-      "description": "Premium message represents the premium rates."
+      "description": "PremiumRate defines the premium rate for a specific asset and operation."
     },
     "peerswapPrettyPrintSwap": {
       "type": "object",

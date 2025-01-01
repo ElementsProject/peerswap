@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/isdev"
@@ -145,17 +145,26 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	var premium int64
+	var (
+		premiumValue int64
+		err          error
+	)
 	if swap.GetChain() == l_btc_chain {
-		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.LbtcSwapIn, swap.GetAmount())
+		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.LBTC, premium.SwapIn, swap.GetAmount())
+		if err != nil {
+			return swap.HandleError(err)
+		}
 	} else {
-		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.BtcSwapIn, swap.GetAmount())
+		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.BTC, premium.SwapIn, swap.GetAmount())
+		if err != nil {
+			return swap.HandleError(err)
+		}
 	}
 	agreementMessage := &SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
-		Premium:         premium,
+		Premium:         premiumValue,
 	}
 	swap.SwapInAgreement = agreementMessage
 
@@ -426,11 +435,17 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	var premium int64
+	var premiumValue int64
 	if swap.GetChain() == l_btc_chain {
-		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.LbtcSwapOut, swap.GetAmount())
+		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.LBTC, premium.SwapOut, swap.GetAmount())
+		if err != nil {
+			return swap.HandleError(err)
+		}
 	} else {
-		premium = services.policy.ComputePremium(swap.PeerNodeId, policy.BtcSwapOut, swap.GetAmount())
+		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.BTC, premium.SwapOut, swap.GetAmount())
+		if err != nil {
+			return swap.HandleError(err)
+		}
 	}
 
 	message := &SwapOutAgreementMessage{
@@ -438,7 +453,7 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		Payreq:          feeInvoice,
-		Premium:         premium,
+		Premium:         premiumValue,
 	}
 	swap.SwapOutAgreement = message
 
