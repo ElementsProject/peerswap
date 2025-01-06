@@ -44,7 +44,19 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64,
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+
+	// Use os.MkdirTemp() instead of t.TempDir() for the DataDir.
+	// The shorter temp paths avoid problems with long unix socket paths composed
+	// using the DataDir.
+	// See https://github.com/golang/go/issues/62614.
+	makeDataDir := func() string {
+		tempDir, err := os.MkdirTemp("", "cln-test-")
+		require.NoError(t, err, "os.MkdirTemp failed")
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		return tempDir
+	}
+
+	testDir := makeDataDir()
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
