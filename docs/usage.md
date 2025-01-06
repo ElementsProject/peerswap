@@ -73,12 +73,12 @@ A swap-out is when the initiator wants to pay a lightning payment in order to re
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in sats]
 ```
 
 For LND:
 ```bash
-pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit [premium limit in sats]
 ```
 
 ### Swap-In
