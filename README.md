@@ -110,3 +110,13 @@ For a LND Bitcoin signet / Liquid testnet setup guide see this [guide](./docs/si
 ### Development
 
 PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment. In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (except golang).
+
+#### Using Devcontainer
+
+To use devcontainer for development, follow these steps:
+
+1. Install [Visual Studio Code](https://code.visualstudio.com/) and the [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension.
+2. Open the PeerSwap repository in Visual Studio Code.
+3. When prompted to reopen the repository in a container, click "Reopen in Container".
+4. The development environment will be set up automatically inside the container.
+5. Hit `direnv allow`.
