@@ -15,7 +15,9 @@ If you would rather just download the binary instead, skip to the next section.
 
 ## Download binaries
 
-Download the latest `elementsd` binary release [here](https://github.com/ElementsProject/elements/releases). 
+Download the `elementsd` binary release [here](https://github.com/ElementsProject/elements/releases). 
+> [!IMPORTANT]
+> The minimum required version for peerswap is now updated to Elements 23.2.5. Please ensure you are using this version or later to maintain compatibility and functionality. You can find the release details here: [Elements 23.2.5](https://github.com/ElementsProject/elements/releases/tag/elements-23.2.5).
 
 Extract the archive
 
