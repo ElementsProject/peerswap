@@ -124,7 +124,7 @@ func (c *ClnConfig) AllowDeprecatedAPIs() bool {
 // CheckForDeprecatedApiConfig tries to detect if allow-deprecated-apis is false
 // in the CLN config. If it is set false, we print a warning and exit because
 // deprecated CLN API fields might break PeerSwap.
-func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
+func CheckForDeprecatedApiConfig(client *ClightningClient, isDev bool) Processor {
 	return func(c *Config) (*Config, error) {
 		conf, err := client.glightning.ListConfigs()
 		if err != nil {
@@ -139,7 +139,7 @@ func CheckForDeprecatedApiConfig(client *ClightningClient) Processor {
 		if err != nil {
 			return nil, err
 		}
-		if !co.AllowDeprecatedAPIs() {
+		if !co.AllowDeprecatedAPIs() && !isDev {
 			log.Infof("WARNING: allow-deprecated-apis=false detected in CLN config. Exiting. More info: https://github.com/ElementsProject/peerswap/issues/232")
 			time.Sleep(1 * time.Second)
 			client.Plugin.Stop()
@@ -551,7 +551,7 @@ func ElementsCookieConnect() Processor {
 	}
 }
 
-func GetConfig(client *ClightningClient) (*Config, error) {
+func GetConfig(client *ClightningClient, isDev bool) (*Config, error) {
 	pl := &Pipeline{processors: []Processor{}}
 	pl = pl.
 		Add(SetWorkingDir()).
@@ -566,7 +566,7 @@ func GetConfig(client *ClightningClient) (*Config, error) {
 		Add(CheckBitcoinRpcIsUrl()).
 		Add(BitcoinCookieConnect()).
 		Add(ElementsCookieConnect()).
-		Add(CheckForDeprecatedApiConfig(client))
+		Add(CheckForDeprecatedApiConfig(client, isDev))
 
 	return pl.Run()
 }

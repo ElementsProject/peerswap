@@ -128,7 +128,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	}
 	log.Infof("Using data dir: %s", dataDir)
 
-	config, err := clightning.GetConfig(lightningPlugin)
+	config, err := clightning.GetConfig(lightningPlugin, isdev.IsDev())
 	if err != nil {
 		log.Infof("Could not read config: %s", err.Error())
 		return err
