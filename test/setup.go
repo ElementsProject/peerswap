@@ -361,7 +361,19 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+
+	// Use os.MkdirTemp() instead of t.TempDir() for the DataDir.
+	// The shorter temp paths avoid problems with long unix socket paths composed
+	// using the DataDir.
+	// See https://github.com/golang/go/issues/62614.
+	makeDataDir := func() string {
+		tempDir, err := os.MkdirTemp("", "cln-test-")
+		require.NoError(t, err, "os.MkdirTemp failed")
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		return tempDir
+	}
+
+	testDir := makeDataDir()
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -1605,4 +1617,105 @@ func clnclnLWKLiquidSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinN
 	syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]})
 
 	return bitcoind, liquidd, []*CLightningNodeWithLiquid{{lightningds[0]}, {lightningds[1]}}, scid, electrsd, lwk
+}
+
+func clnSingleElementsSetup(t *testing.T, elementsConfig map[string]string) (*testframework.BitcoinNode, *testframework.LiquidNode, *testframework.CLightningNode) {
+	_, filename, _, _ := runtime.Caller(0)
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
+
+	makeDataDir := func() string {
+		tempDir, err := os.MkdirTemp("", "cln-test-")
+		require.NoError(t, err, "os.MkdirTemp failed")
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		return tempDir
+	}
+	testDir := makeDataDir()
+
+	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
+	if err != nil {
+		t.Fatalf("could not create bitcoind: %v", err)
+	}
+	t.Cleanup(bitcoind.Kill)
+
+	err = bitcoind.Run(true)
+	if err != nil {
+		t.Fatalf("bitcoind.Run() got err: %v", err)
+	}
+
+	liquidd, err := testframework.NewLiquidNodeFromConfig(testDir, bitcoind, elementsConfig, 1)
+	if err != nil {
+		t.Fatalf("error creating liquidd node: %v", err)
+	}
+	t.Cleanup(liquidd.Kill)
+
+	err = liquidd.Run(true)
+	if err != nil {
+		t.Fatalf("liquidd.Run() got err: %v", err)
+	}
+
+	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
+	if err != nil {
+		t.Fatalf("could not create c-lightning node: %v", err)
+	}
+	t.Cleanup(lightningd.Kill)
+
+	defer printFailedFiltered(t, lightningd.DaemonProcess)
+
+	err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm)
+	if err != nil {
+		t.Fatalf("could not create dir: %v", err)
+	}
+	err = os.WriteFile(
+		filepath.Join(lightningd.GetDataDir(), "peerswap", "policy.conf"),
+		[]byte("accept_all_peers=1\n"),
+		os.ModePerm,
+	)
+	if err != nil {
+		t.Fatalf("could not create policy file: %v", err)
+	}
+
+	walletName := "swap1"
+	fileConf := struct {
+		Liquid struct {
+			RpcUser     string
+			RpcPassword string
+			RpcHost     string
+			RpcPort     uint
+			RpcWallet   string
+			Enabled     bool
+		}
+	}{
+		Liquid: struct {
+			RpcUser     string
+			RpcPassword string
+			RpcHost     string
+			RpcPort     uint
+			RpcWallet   string
+			Enabled     bool
+		}{
+			RpcUser:     liquidd.RpcUser,
+			RpcPassword: liquidd.RpcPassword,
+			RpcHost:     "http://127.0.0.1",
+			RpcPort:     uint(liquidd.RpcPort),
+			RpcWallet:   walletName,
+			Enabled:     true,
+		},
+	}
+	data, err := toml.Marshal(fileConf)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap", "peerswap.conf")
+	err = os.WriteFile(configPath, data, os.ModePerm)
+	require.NoError(t, err)
+
+	lightningd.WithCmd("lightningd")
+
+	lightningd.AppendCmdLine([]string{
+		"--dev-bitcoind-poll=1",
+		"--dev-fast-gossip",
+		"--large-channels",
+		fmt.Sprintf("--plugin=%s", pathToPlugin),
+	})
+
+	return bitcoind, liquidd, lightningd
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
 )
 
@@ -894,5 +895,85 @@ func Test_ClnLnd_Liquid_SwapOut(t *testing.T) {
 			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
 		}()
 		csvClaimTest(t, params)
+	})
+}
+
+func Test_CLNLiquidSetup(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
+	t.Run("accept-discount-ct is not enabled", func(t *testing.T) {
+		t.Parallel()
+		_, _, ln := clnSingleElementsSetup(t, map[string]string{
+			"listen":           "1",
+			"debug":            "1",
+			"rpcuser":          "rpcuser",
+			"rpcpassword":      "rpcpass",
+			"fallbackfee":      "0.00001",
+			"initialfreecoins": "2100000000000000",
+			"validatepegin":    "0",
+			"chain":            "liquidregtest",
+			"minrelaytxfee":    "0.00000001",
+			"mintxfee":         "0.00000001",
+			"blockmintxfee":    "0.00000001",
+		})
+		defer func() {
+			if t.Failed() {
+				pprintFail(
+					tailableProcess{
+						p:     ln.DaemonProcess,
+						lines: defaultLines,
+					},
+				)
+			}
+		}()
+
+		err := ln.Run(true, true)
+		if err != nil {
+			t.Fatalf("lightningd.Run() got err: %v", err)
+		}
+
+		err = ln.WaitForLog("accept-discount-ct is not enabled", testframework.TIMEOUT)
+		if err != nil {
+			t.Fatalf("lightningd.WaitForLog() got err: %v", err)
+		}
+	})
+	t.Run("accept-discount-ct is enabled", func(t *testing.T) {
+		t.Parallel()
+		_, _, ln := clnSingleElementsSetup(t, map[string]string{
+			"listen":           "1",
+			"debug":            "1",
+			"rpcuser":          "rpcuser",
+			"rpcpassword":      "rpcpass",
+			"fallbackfee":      "0.00001",
+			"initialfreecoins": "2100000000000000",
+			"validatepegin":    "0",
+			"chain":            "liquidregtest",
+			// if `creatediscountct` is enabled, `acceptdiscountct` is also enabled
+			"creatediscountct": "1",
+			"minrelaytxfee":    "0.00000001",
+			"mintxfee":         "0.00000001",
+			"blockmintxfee":    "0.00000001",
+		})
+		defer func() {
+			if t.Failed() {
+				pprintFail(
+					tailableProcess{
+						p:     ln.DaemonProcess,
+						lines: defaultLines,
+					},
+				)
+			}
+		}()
+
+		err := ln.Run(true, true)
+		if err != nil {
+			t.Fatalf("lightningd.Run() got err: %v", err)
+		}
+
+		err = ln.WaitForLog("peerswap initialized", testframework.TIMEOUT)
+		if err != nil {
+			t.Fatalf("lightningd.WaitForLog() got err: %v", err)
+		}
 	})
 }
