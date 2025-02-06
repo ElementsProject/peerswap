@@ -25,4 +25,4 @@ RUN cd /tmp \
 
 WORKDIR /build
 
-CMD ["/bin/sh", "/build/peerswaprpc/gen_protos.sh"]
+CMD ["buf", "generate"]

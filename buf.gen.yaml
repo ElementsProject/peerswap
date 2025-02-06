@@ -1,0 +1,24 @@
+version: v2
+plugins:
+- local: protoc-gen-go
+  out: peerswaprpc
+  opt:
+  - paths=source_relative
+
+- local: protoc-gen-go-grpc
+  out: peerswaprpc
+  opt:
+  - paths=source_relative
+
+- local: protoc-gen-grpc-gateway
+  out: peerswaprpc
+  opt:
+  - logtostderr=true
+  - paths=source_relative
+  - grpc_api_configuration=peerswaprpc/peerswap.yaml
+
+- local: protoc-gen-openapiv2
+  out: peerswaprpc
+  opt:
+  - logtostderr=true
+  - grpc_api_configuration=peerswaprpc/peerswap.yaml
