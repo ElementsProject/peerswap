@@ -13,4 +13,4 @@ protoc \
 	--openapiv2_out=. \
 	--openapiv2_opt logtostderr=true \
 	--openapiv2_opt grpc_api_configuration=peerswaprpc/peerswap.yaml \
-	peerswaprpc/peerswaprpc.protos
+	peerswaprpc/peerswaprpc.proto
