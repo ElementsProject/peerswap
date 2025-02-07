@@ -391,10 +391,11 @@ func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwa
 }
 func lnrpcChannelToPeerswapChannel(channel *lnrpc.Channel) *PeerSwapPeerChannel {
 	return &PeerSwapPeerChannel{
-		ChannelId:     channel.ChanId,
-		LocalBalance:  uint64(channel.LocalBalance),
-		RemoteBalance: uint64(channel.RemoteBalance),
-		Active:        channel.Active,
+		ChannelId:      channel.ChanId,
+		ShortChannelId: lnwire.NewShortChanIDFromInt(channel.ChanId).String(),
+		LocalBalance:   uint64(channel.LocalBalance),
+		RemoteBalance:  uint64(channel.RemoteBalance),
+		Active:         channel.Active,
 	}
 }
 
@@ -522,7 +523,7 @@ func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSw
 }
 
 func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
-	scid, err := newScidFromString(swap.Data.GetScid())
+	scid, err := NewScidFromString(swap.Data.GetScid())
 	if err != nil {
 		log.Debugf("Could not parse scid from %s: %v", scid, err)
 	}
@@ -550,7 +551,7 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	}
 }
 
-func newScidFromString(scid string) (*lnwire.ShortChannelID, error) {
+func NewScidFromString(scid string) (*lnwire.ShortChannelID, error) {
 	scid = strings.ReplaceAll(scid, "x", ":")
 	parts := strings.Split(scid, ":")
 	if len(parts) != 3 {
