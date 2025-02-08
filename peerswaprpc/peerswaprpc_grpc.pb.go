@@ -677,5 +677,5 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "peerswaprpc/peerswaprpc.proto",
+	Metadata: "peerswaprpc.proto",
 }

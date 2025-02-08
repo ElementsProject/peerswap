@@ -7,12 +7,13 @@
         "ghcr.io/devcontainers/features/nix:1": {},
         "ghcr.io/devcontainers-contrib/features/direnv:1": {}
     },
-    "postCreateCommand": "echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf > /dev/null && nix-env -iA nixpkgs.nixpkgs-fmt && nix-env -iA cachix -f https://cachix.org/api/v1/install", // Configure tool-specific properties.
+    "postCreateCommand": "echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf > /dev/null && nix-env -iA nixpkgs.nixpkgs-fmt && nix-env -iA cachix -f https://cachix.org/api/v1/install && sudo chmod a+w /usr/local/bin/ && GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0", // Configure tool-specific properties.
     "customizations": {
         "vscode": {
             "extensions": [
                 "jnoortheen.nix-ide",
-                "mkhl.direnv"
+                "mkhl.direnv",
+                "bufbuild.vscode-buf"
             ]
         }
     },
