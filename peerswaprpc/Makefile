@@ -14,4 +14,5 @@ clean-rpc:
 
 .PHONY: all-rpc-docker
 all-rpc-docker:
-	${DIR}/gen_protos_docker.sh
+	./gen_protos_docker.sh
+

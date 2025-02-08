@@ -542,7 +542,6 @@
         "peers": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/peerswapPeerSwapPeer"
           }
         }
@@ -565,7 +564,6 @@
         "swaps": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/peerswapPrettyPrintSwap"
           }
         }
@@ -589,7 +587,6 @@
         "channels": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/peerswapPeerSwapPeerChannel"
           }
         },
@@ -720,7 +717,6 @@
         "requestedSwaps": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/peerswapRequestedSwap"
           }
         }
@@ -853,7 +849,6 @@
         "details": {
           "type": "array",
           "items": {
-            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

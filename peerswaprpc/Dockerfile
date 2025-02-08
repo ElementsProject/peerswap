@@ -21,8 +21,11 @@ RUN cd /tmp \
   && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION} \
   && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@${GRPC_GATEWAY_VERSION} \
   && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@${GRPC_GATEWAY_VERSION} \
+  && GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0 \
   && chmod -R 777 /tmp/build/
 
 WORKDIR /build
 
-CMD ["buf", "generate"]
+ENV BUF_CACHE_DIR=/tmp/.cache
+
+CMD ["sh", "-c", "buf generate"]
