@@ -619,7 +619,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 	return err
 }
 
-// OnSwapInRequestReceived creates a new swap-out process and sends the event to the swap statemachine
+// OnSwapOutRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
 	rs, err := s.swapServices.lightning.ReceivableMsat(message.Scid)
 	if err != nil {

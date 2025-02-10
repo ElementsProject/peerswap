@@ -529,7 +529,7 @@ func (l *LiquidOnChain) FindVout(outputs []*transaction.TxOutput, redeemScript [
 	return 0, errors.New("vout not found")
 }
 
-// creatOpeningAddress returns the address for the opening tx
+// CreateOpeningAddress returns the address for the opening tx
 func (l *LiquidOnChain) CreateOpeningAddress(redeemScript []byte) (string, error) {
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)
