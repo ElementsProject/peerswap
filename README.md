@@ -33,6 +33,9 @@ PeerSwap enables Lightning Network nodes to balance their channels by facilitati
       - [Core Lightning](#core-lightning)
       - [LND](#lnd)
     - [Development](#development)
+      - [Development: Buf CLI Description](#development-buf-cli-description)
+        - [Usage](#usage-1)
+      - [Using Devcontainer](#using-devcontainer)
 
 ## Project Status
 
@@ -67,8 +70,8 @@ To run Elements for L-BTC swaps, see the [Elements setup guide](./docs/setup_ele
 
 To run LWK for L-BTC swaps, see the [LWK setup guide](./docs/setup_lwk.md).
 
-> **Note**  
-> Most of the benefits of PeerSwap come from using L-BTC. Swaps using L-BTC are more private, faster, and avoid the mainchain blockchain during high fee environments that can make swaps uneconomical. 
+> **Note**
+> Most of the benefits of PeerSwap come from using L-BTC. Swaps using L-BTC are more private, faster, and avoid the mainchain blockchain during high fee environments that can make swaps uneconomical.
 
 ### Usage
 
@@ -88,7 +91,7 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
   * Lower Cost - PeerSwap is the lowest cost because there is no 3rd party coordinator or intermediary nodes to collect rent.
   * More Private - Swaps are entirely between two consenting nodes. Nobody else is able to record details like who swapped.
 * What is the difference between [splicing](https://github.com/lightning/bolts/pull/863) and PeerSwap?
-  * Both PeerSwap and splicing (through Phoenix Wallet) are now usable on mainnet. Splicing is in general better, though PeerSwap can be attractive more for L-BTC swaps that don't touch the mainnet blockchain at all. Splicing and PeerSwap L-BTC swaps are both good for mainnet efficiency. 
+  * Both PeerSwap and splicing (through Phoenix Wallet) are now usable on mainnet. Splicing is in general better, though PeerSwap can be attractive more for L-BTC swaps that don't touch the mainnet blockchain at all. Splicing and PeerSwap L-BTC swaps are both good for mainnet efficiency.
 * What is the difference between [liquidity-ads](https://github.com/lightning/bolts/pull/878) and PeerSwap?
   * Liquidity Ads is a great way to lease new channels to be opened toward you for the purpose of gaining incoming capacity. New channels add new capacity in a desired direction but only once.
   * PeerSwap lets you repeatedly refill your existing channels at a cost lower than opening, closing, and maintaining additional channels.
@@ -110,6 +113,14 @@ For a LND Bitcoin signet / Liquid testnet setup guide see this [guide](./docs/si
 ### Development
 
 PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment. In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (except golang).
+
+#### Development: Buf CLI Description
+
+In this project, we utilize Buf CLI to streamline the development environment for Protocol Buffers (protobuf).Buf is a powerful tool for managing the build, linting, formatting, and validation processes for protobuf files in a consistent and efficient manner.
+
+##### Usage
+
+See the [Usage guide](./docs/usage_buf.md) for instructions on how to use Buf.
 
 #### Using Devcontainer
 

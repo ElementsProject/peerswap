@@ -11,11 +11,22 @@ env:
   SLOW_MACHINE: 1
 
 jobs:
+  buf:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Run `git checkout`
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # Run the `buf` CLI
+      - name: Buf Action
+        uses: bufbuild/buf-action@v1
+
   unit-tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code 
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Go
