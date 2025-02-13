@@ -8,11 +8,19 @@ STUBS= \
 
 all-rpc:
 		buf generate
+.PHONY: all-rpc
+
+buf-lint:
+		buf lint
+.PHONY: all-rpc
+
+buf-format:
+		buf format -w
+.PHONY: all-rpc
 
 clean-rpc:
 		rm -f ${STUBS}
 
-.PHONY: all-rpc-docker
 all-rpc-docker:
 	./gen_protos_docker.sh
-
+.PHONY: all-rpc-docker
