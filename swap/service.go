@@ -396,7 +396,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	if err != nil {
 		return nil, err
 	}
-	if sp <= amtSat*1000 {
+	if sp < amtSat*1000 {
 		return nil, fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 	}
 
@@ -460,7 +460,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	if err != nil {
 		return nil, err
 	}
-	if rs <= amtSat*1000 {
+	if rs < amtSat*1000 {
 		return nil, fmt.Errorf("exceeding receivable amount_msat: %d", rs)
 	}
 	maximumSwapAmountSat, err := s.estimateMaximumSwapAmountSat(chain)
@@ -565,7 +565,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	if sp <= message.Amount*1000 {
+	if sp < message.Amount*1000 {
 		err = fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -633,7 +633,7 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return err
 	}
 
-	if rs <= message.Amount*1000 {
+	if rs < message.Amount*1000 {
 		err = fmt.Errorf("exceeding receivable amount_msat: %d", rs)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
