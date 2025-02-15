@@ -5,219 +5,217 @@ package peerswap;
 option go_package = "github.com/elementsproject/peerswap/peerswaprpc";
 
 service PeerSwap {
-    rpc SwapOut(SwapOutRequest) returns (SwapResponse);
-    rpc SwapIn(SwapInRequest) returns (SwapResponse);
-    rpc GetSwap(GetSwapRequest) returns (SwapResponse);
-    rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
-    rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
-    rpc ListRequestedSwaps(ListRequestedSwapsRequest)
-        returns (ListRequestedSwapsResponse);
-    rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
+  rpc SwapOut(SwapOutRequest) returns (SwapResponse);
+  rpc SwapIn(SwapInRequest) returns (SwapResponse);
+  rpc GetSwap(GetSwapRequest) returns (SwapResponse);
+  rpc ListSwaps(ListSwapsRequest) returns (ListSwapsResponse);
+  rpc ListPeers(ListPeersRequest) returns (ListPeersResponse);
+  rpc ListRequestedSwaps(ListRequestedSwapsRequest) returns (ListRequestedSwapsResponse);
+  rpc ListActiveSwaps(ListSwapsRequest) returns (ListSwapsResponse);
 
-    // policy
-    rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (Policy);
-    rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (Policy);
-    rpc AddPeer(AddPeerRequest) returns (Policy);
-    rpc RemovePeer(RemovePeerRequest) returns (Policy);
-    rpc AddSusPeer(AddPeerRequest) returns (Policy);
-    rpc RemoveSusPeer(RemovePeerRequest) returns (Policy);
+  // policy
+  rpc AllowSwapRequests(AllowSwapRequestsRequest) returns (Policy);
+  rpc ReloadPolicyFile(ReloadPolicyFileRequest) returns (Policy);
+  rpc AddPeer(AddPeerRequest) returns (Policy);
+  rpc RemovePeer(RemovePeerRequest) returns (Policy);
+  rpc AddSusPeer(AddPeerRequest) returns (Policy);
+  rpc RemoveSusPeer(RemovePeerRequest) returns (Policy);
 
-    // Liquid Stuff
-    rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
-    rpc LiquidGetBalance(GetBalanceRequest) returns (GetBalanceResponse);
-    rpc LiquidSendToAddress(SendToAddressRequest)
-        returns (SendToAddressResponse);
+  // Liquid Stuff
+  rpc LiquidGetAddress(GetAddressRequest) returns (GetAddressResponse);
+  rpc LiquidGetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+  rpc LiquidSendToAddress(SendToAddressRequest) returns (SendToAddressResponse);
 
-    // Premium Stuff
-    // Premium rates can be configured globally (default) or specifically for peers.
-    // If no specific configuration exists for a peer, the default configuration is used.
+  // Premium Stuff
+  // Premium rates can be configured globally (default) or specifically for peers.
+  // If no specific configuration exists for a peer, the default configuration is used.
 
-    // Get a premium rate for a asset, and operation.
-    rpc GetDefaultPremiumRate(GetDefaultPremiumRateRequest) returns (PremiumRate);
-    // Update a premium rate for a asset, and operation.
-    rpc UpdateDefaultPremiumRate(UpdateDefaultPremiumRateRequest) returns (PremiumRate);
-    // Get a premium rate for a specific peer, asset, and operation.
-    rpc GetPremiumRate(GetPremiumRateRequest) returns (PremiumRate);
-    // Update a premium rate for a specific peer, asset, and operation.
-    rpc UpdatePremiumRate(UpdatePremiumRateRequest) returns (PremiumRate);
+  // Get a premium rate for a asset, and operation.
+  rpc GetDefaultPremiumRate(GetDefaultPremiumRateRequest) returns (PremiumRate);
+  // Update a premium rate for a asset, and operation.
+  rpc UpdateDefaultPremiumRate(UpdateDefaultPremiumRateRequest) returns (PremiumRate);
+  // Get a premium rate for a specific peer, asset, and operation.
+  rpc GetPremiumRate(GetPremiumRateRequest) returns (PremiumRate);
+  // Update a premium rate for a specific peer, asset, and operation.
+  rpc UpdatePremiumRate(UpdatePremiumRateRequest) returns (PremiumRate);
 
-    rpc Stop(Empty) returns (Empty);
+  rpc Stop(Empty) returns (Empty);
 }
 
 message GetAddressRequest {}
 
 message GetAddressResponse {
-    string address = 1;
+  string address = 1;
 }
 
 message GetBalanceRequest {}
 
 message GetBalanceResponse {
-    uint64 sat_amount = 1;
+  uint64 sat_amount = 1;
 }
 
 message SendToAddressRequest {
-    string address    = 1;
-    uint64 sat_amount = 2;
+  string address = 1;
+  uint64 sat_amount = 2;
 }
 
 message SendToAddressResponse {
-    string tx_id = 1;
+  string tx_id = 1;
 }
 
 message SwapOutRequest {
-    uint64 channel_id   = 1;
-    uint64 swap_amount  = 2;
-    string asset        = 3;
-    bool force          = 4;
-    int64 premium_limit = 5;
+  uint64 channel_id = 1;
+  uint64 swap_amount = 2;
+  string asset = 3;
+  bool force = 4;
+  int64 premium_limit = 5;
 }
 
 message SwapOutResponse {
-    PrettyPrintSwap swap = 1;
+  PrettyPrintSwap swap = 1;
 }
 
 message SwapInRequest {
-    uint64 channel_id   = 1;
-    uint64 swap_amount  = 2;
-    string asset        = 3;
-    bool force          = 4;
-    int64 premium_limit = 5;
+  uint64 channel_id = 1;
+  uint64 swap_amount = 2;
+  string asset = 3;
+  bool force = 4;
+  int64 premium_limit = 5;
 }
 
 message SwapResponse {
-    PrettyPrintSwap swap = 1;
+  PrettyPrintSwap swap = 1;
 }
 
 message GetSwapRequest {
-    string swap_id = 1;
+  string swap_id = 1;
 }
 
 message ListSwapsRequest {}
 
 message ListSwapsResponse {
-    repeated PrettyPrintSwap swaps = 1;
+  repeated PrettyPrintSwap swaps = 1;
 }
 
 message ListPeersRequest {}
 
 message ListPeersResponse {
-    repeated PeerSwapPeer peers = 1;
+  repeated PeerSwapPeer peers = 1;
 }
 
 message ReloadPolicyFileRequest {}
 
 message AddPeerRequest {
-    string peer_pubkey = 1;
+  string peer_pubkey = 1;
 }
 
 message RemovePeerRequest {
-    string peer_pubkey = 1;
+  string peer_pubkey = 1;
 }
 
 message ListRequestedSwapsRequest {}
 
 message ListRequestedSwapsResponse {
-    map<string, RequestSwapList> requested_swaps = 1;
+  map<string, RequestSwapList> requested_swaps = 1;
 }
 
 message RequestSwapList {
-    repeated RequestedSwap requested_swaps = 1;
+  repeated RequestedSwap requested_swaps = 1;
 }
 
 message RequestedSwap {
-    string asset            = 1;
-    uint64 amount_sat       = 2;
-    SwapType swap_type      = 3;
-    string rejection_reason = 4;
+  string asset = 1;
+  uint64 amount_sat = 2;
+  SwapType swap_type = 3;
+  string rejection_reason = 4;
 
-    enum SwapType {
-        SWAP_IN  = 0;
-        SWAP_OUT = 1;
-    }
+  enum SwapType {
+    SWAP_IN = 0;
+    SWAP_OUT = 1;
+  }
 }
 
 message PrettyPrintSwap {
-    string id                = 1;
-    int64 created_at         = 2;
-    string asset             = 3;
-    string type              = 4;
-    string role              = 5;
-    string state             = 6;
-    string initiator_node_id = 7;
-    string peer_node_id      = 8;
-    uint64 amount            = 9;
-    string channel_id        = 10;
-    string opening_tx_id     = 11;
-    string claim_tx_id       = 12;
-    string cancel_message    = 13;
-    uint64 lnd_chan_id       = 14;
-    int64 premium_amount     = 15;
+  string id = 1;
+  int64 created_at = 2;
+  string asset = 3;
+  string type = 4;
+  string role = 5;
+  string state = 6;
+  string initiator_node_id = 7;
+  string peer_node_id = 8;
+  uint64 amount = 9;
+  string channel_id = 10;
+  string opening_tx_id = 11;
+  string claim_tx_id = 12;
+  string cancel_message = 13;
+  uint64 lnd_chan_id = 14;
+  int64 premium_amount = 15;
 }
 
 message PeerSwapPeer {
-    string node_id                        = 1;
-    bool swaps_allowed                    = 2;
-    repeated string supported_assets      = 3;
-    repeated PeerSwapPeerChannel channels = 4;
-    SwapStats as_sender                   = 5;
-    SwapStats as_receiver                 = 6;
-    uint64 paid_fee                       = 7;
-    PeerPremium peer_premium              = 8;
+  string node_id = 1;
+  bool swaps_allowed = 2;
+  repeated string supported_assets = 3;
+  repeated PeerSwapPeerChannel channels = 4;
+  SwapStats as_sender = 5;
+  SwapStats as_receiver = 6;
+  uint64 paid_fee = 7;
+  PeerPremium peer_premium = 8;
 }
 
 message PeerSwapPeerChannel {
-    uint64 channel_id     = 1;
-    uint64 local_balance  = 2;
-    uint64 remote_balance = 3;
-    bool active           = 5;
+  uint64 channel_id = 1;
+  uint64 local_balance = 2;
+  uint64 remote_balance = 3;
+  bool active = 5;
 }
 
 message SwapStats {
-    uint64 swaps_out = 1;
-    uint64 swaps_in  = 2;
-    uint64 sats_out  = 3;
-    uint64 sats_in   = 4;
+  uint64 swaps_out = 1;
+  uint64 swaps_in = 2;
+  uint64 sats_out = 3;
+  uint64 sats_in = 4;
 }
 
 message Policy {
-    uint64 reserve_onchain_msat          = 1;
-    uint64 min_swap_amount_msat          = 2;
-    bool accept_all_peers                = 3;
-    bool allow_new_swaps                 = 4;
-    repeated string allowlisted_peers    = 5;
-    repeated string suspicious_peer_list = 6;
+  uint64 reserve_onchain_msat = 1;
+  uint64 min_swap_amount_msat = 2;
+  bool accept_all_peers = 3;
+  bool allow_new_swaps = 4;
+  repeated string allowlisted_peers = 5;
+  repeated string suspicious_peer_list = 6;
 }
 
 message AllowSwapRequestsRequest {
-    bool allow = 1;
+  bool allow = 1;
 }
 
 message AllowSwapRequestsResponse {
-    bool allow = 1;
+  bool allow = 1;
 }
 
 message Empty {}
 
 // Enum for supported asset types.
 enum AssetType {
-    ASSET_UNSPECIFIED = 0; // Unspecified asset type.
-    BTC = 1; // Bitcoin asset type.
-    LBTC = 2; // Liquid Bitcoin asset type.
+  ASSET_UNSPECIFIED = 0; // Unspecified asset type.
+  BTC = 1; // Bitcoin asset type.
+  LBTC = 2; // Liquid Bitcoin asset type.
 }
 
 // Enum for supported operation types.
 enum OperationType {
-    OPERATION_UNSPECIFIED = 0; // Unspecified operation type.
-    SWAP_IN = 1; // Swap in operation type.
-    SWAP_OUT = 2; // Swap out operation type.
+  OPERATION_UNSPECIFIED = 0; // Unspecified operation type.
+  SWAP_IN = 1; // Swap in operation type.
+  SWAP_OUT = 2; // Swap out operation type.
 }
 
 // PremiumRate defines the premium rate for a specific asset and operation.
 message PremiumRate {
-    AssetType asset = 1; // Asset type (e.g., BTC, LBTC).
-    OperationType operation = 2; // Operation type (e.g., SWAP_IN, SWAP_OUT).
-    int64 premium_rate_ppm = 3; // Premium rate in parts per million (PPM).
+  AssetType asset = 1; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 2; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+  int64 premium_rate_ppm = 3; // Premium rate in parts per million (PPM).
 }
 
 // Premium configuration per peer.
@@ -225,8 +223,8 @@ message PremiumRate {
 // Unique by AssetType and OperationType. No explicit constraints on
 // this data structure; consistency depends on peerswap implementation.
 message PeerPremium {
-    string node_id = 1; // Node ID of the peer.
-    repeated PremiumRate rates = 2; // List of premium rates for this peer.
+  string node_id = 1; // Node ID of the peer.
+  repeated PremiumRate rates = 2; // List of premium rates for this peer.
 }
 
 // Request for GetPremiumRate.
@@ -234,30 +232,34 @@ message PeerPremium {
 //  NOT_FOUND: No premium rate is configured for the specified peer, asset, and operation.
 //  INVALID_ARGUMENT: Invalid peer ID, asset, or operation specified.
 message GetPremiumRateRequest {
-    string node_id = 1; // Node ID of the peer.
-    AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
-    OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+  string node_id = 1; // Node ID of the peer.
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
 }
 
 // Request for UpdatePremiumRate.
 // Errors:
 //  INVALID_ARGUMENT: Invalid peer ID, asset, operation, or rate specified.
 message UpdatePremiumRateRequest {
-    string node_id = 1; // Node ID of the peer.
-    PremiumRate rate = 2; // The new premium rate to be updated.
+  string node_id = 1; // Node ID of the peer.
+  PremiumRate rate = 2; // The new premium rate to be updated.
 }
 
 // Request for GetDefaultPremiumRate.
 // Errors:
 //  INVALID_ARGUMENT: Invalid asset or operation specified.
 message GetDefaultPremiumRateRequest {
-    AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
-    OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
 }
 
 // Request for UpdateDefaultPremiumRate.
 // Errors:
 //  INVALID_ARGUMENT: Invalid asset, operation, or rate specified.
 message UpdateDefaultPremiumRateRequest {
-    PremiumRate rate = 2; // The new premium rate to be updated.
+  PremiumRate rate = 2; // The new premium rate to be updated.
+}
+
+message PeerSwapNodes {
+  string node_id = 1;
 }
