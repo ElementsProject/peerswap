@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log2 "log"
 	"os"
+	"strings"
 
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/urfave/cli"
@@ -554,8 +555,8 @@ func getDefaultPremiumRate(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.GetDefaultPremiumRate(context.Background(), &peerswaprpc.GetDefaultPremiumRateRequest{
-		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
-		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(assetFlag.Name)]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(operationFlag.Name)]),
 	})
 	if err != nil {
 		return err
@@ -573,8 +574,8 @@ func updateDefaultPremiumRate(ctx *cli.Context) error {
 
 	res, err := client.UpdateDefaultPremiumRate(context.Background(), &peerswaprpc.UpdateDefaultPremiumRateRequest{
 		Rate: &peerswaprpc.PremiumRate{
-			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
-			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(assetFlag.Name)]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(operationFlag.Name)]),
 			PremiumRatePpm: ctx.Int64(rateFlag.Name),
 		},
 	})
@@ -594,8 +595,8 @@ func getPeerPremiumRate(ctx *cli.Context) error {
 
 	res, err := client.GetPremiumRate(context.Background(), &peerswaprpc.GetPremiumRateRequest{
 		NodeId:    ctx.String(nodeIdFlag.Name),
-		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
-		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(assetFlag.Name)]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(operationFlag.Name)]),
 	})
 	if err != nil {
 		return err
@@ -614,8 +615,8 @@ func updatePremiumRate(ctx *cli.Context) error {
 	res, err := client.UpdatePremiumRate(context.Background(), &peerswaprpc.UpdatePremiumRateRequest{
 		NodeId: ctx.String(nodeIdFlag.Name),
 		Rate: &peerswaprpc.PremiumRate{
-			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[ctx.String(assetFlag.Name)]),
-			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[ctx.String(operationFlag.Name)]),
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(assetFlag.Name)]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(operationFlag.Name)]),
 			PremiumRatePpm: ctx.Int64(rateFlag.Name),
 		},
 	})
