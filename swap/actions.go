@@ -602,7 +602,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	requiredBalance := swap.SwapOutRequest.Amount*1000 + msatAmt
 
 	// Check if the spendable balance (sp) is sufficient
-	if sp <= requiredBalance {
+	if sp < requiredBalance {
 		return swap.HandleError(fmt.Errorf("not enough spendable msat: %d, expected: %d", sp, requiredBalance))
 	}
 
