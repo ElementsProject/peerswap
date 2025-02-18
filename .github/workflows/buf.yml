@@ -1,0 +1,15 @@
+name: Buf
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [master]
+
+jobs:
+  buf-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
