@@ -73,6 +73,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 		confirms:         BitcoinConfirms,
 		csv:              BitcoinCsv,
 		swapType:         swap.SWAPTYPE_OUT,
+		premiumLimit:     int64(channelBalances[0] / 10),
 	}
 	asset := "btc"
 
@@ -80,7 +81,11 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:         params.swapAmt,
+			ShortChannelId: params.scid,
+			Asset:          asset,
+			PremiumLimit:   params.premiumLimit}, &response)
 	}()
 
 	var premium uint64
@@ -200,6 +205,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 		confirms:         BitcoinConfirms,
 		csv:              BitcoinCsv,
 		swapType:         swap.SWAPTYPE_OUT,
+		premiumLimit:     int64(channelBalances[0] / 10),
 	}
 	asset := "btc"
 
@@ -207,7 +213,11 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:         params.swapAmt,
+			ShortChannelId: params.scid,
+			Asset:          asset,
+			PremiumLimit:   params.premiumLimit}, &response)
 	}()
 
 	var premium uint64
@@ -305,6 +315,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 		confirms:         LiquidConfirms,
 		csv:              LiquidCsv,
 		swapType:         swap.SWAPTYPE_OUT,
+		premiumLimit:     int64(channelBalances[0] / 10),
 	}
 	asset := "lbtc"
 
@@ -312,7 +323,11 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:         params.swapAmt,
+			ShortChannelId: params.scid,
+			Asset:          asset,
+			PremiumLimit:   params.premiumLimit}, &response)
 	}()
 
 	var premium uint64

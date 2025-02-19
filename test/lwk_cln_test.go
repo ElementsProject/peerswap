@@ -80,13 +80,14 @@ func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -159,13 +160,14 @@ func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -239,13 +241,14 @@ func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -323,13 +326,14 @@ func Test_ClnCln_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -402,13 +406,14 @@ func Test_ClnCln_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -482,13 +487,14 @@ func Test_ClnCln_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -570,6 +576,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -577,7 +584,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			err := lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 		}()
 		preimageClaimTest(t, params)
@@ -652,6 +659,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -659,7 +667,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		}()
 		coopClaimTest(t, params)
 	})
@@ -733,6 +741,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -740,7 +749,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		}()
 		csvClaimTest(t, params)
 	})
@@ -820,6 +829,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -827,7 +837,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		}()
 		preimageClaimTest(t, params)
 	})
@@ -901,6 +911,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -908,7 +919,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		}()
 		coopClaimTest(t, params)
 	})
@@ -982,6 +993,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -989,7 +1001,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 		go func() {
 			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		}()
 		csvClaimTest(t, params)
 	})
@@ -1065,13 +1077,14 @@ func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1144,13 +1157,14 @@ func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1224,13 +1238,14 @@ func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1308,13 +1323,14 @@ func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1387,13 +1403,14 @@ func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1467,13 +1484,14 @@ func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
 		// Do swap.
 		go func() {
 			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 			require.NoError(err)
 
 		}()
@@ -1551,6 +1569,7 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -1558,7 +1577,7 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 
 		// Do swap.
 		var response map[string]interface{}
-		err := lightningds[1].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		err := lightningds[1].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimit: params.premiumLimit}, &response)
 		require.Error(err)
 	})
 	t.Run("electrsdown", func(t *testing.T) {

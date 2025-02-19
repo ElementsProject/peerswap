@@ -49,7 +49,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
       - [The `claim_by_csv` path](#the-claim_by_csv-path)
 
 ## General
-The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `4`.
+The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `5`.
 
 PeerSwap utilizes custom messages as described in [BOLT#1](https://github.com/Lightning/bolts/blob/master/01-messaging.md). The types are in range `42069`-`42085`. The `payload` is JSON encoded.
 
@@ -179,7 +179,7 @@ The receiving node (swap [taker](#taker)/[responder](#responder)):
   protocol_version: uint64,
   swap_id: string,
   pubkey: string,
-  premium: uint64
+  premium: int64
 }
 ```
 
@@ -305,6 +305,7 @@ The receiving node (swap responder):
   swap_id: string,
   pubkey: string,
   payreq: string,
+  premium: uint64
 }
 ```
 
@@ -316,6 +317,8 @@ The receiving node (swap responder):
 
 `payreq` is a [BOLT#11](#https://github.com/Lightning/bolts/blob/master/11-payment-encoding.md) invoice with an amount that covers the fee expenses for the on-chain transactions.
 
+`premium` is a compensation in Sats that the swap partner wants to be payed in order to participate in the swap.
+
 ##### Requirements
 
 The sending node (swap [maker](#maker)/[responder](#responder)):
@@ -324,11 +327,14 @@ The sending node (swap [maker](#maker)/[responder](#responder)):
 * SHOULD use a fresh random private key to generate the `pubkey`.
 * MUST set a 33 byte sized `pubkey` for the taker node to build the swap bitcoin script for verification of the [`opening transaction`](#opening-transaction).
 * MUST set `payreq` to a valid [BOLT#11](#https://github.com/Lightning/bolts/blob/master/11-payment-encoding.md) invoice
-* SHOULD set the `amount` of the invoice to the fee of the to be created [`opening_transaction`](#opening-transaction) and MAY add a premium for a possible refund transaction.
+* SHOULD set the `amount` of the invoice to the fee of the to be created [`opening_transaction`](#opening-transaction).
 * SHOULD resend the message periodically until one of the following is true:
   * fee invoice with `payreq` has been paid.
   * fee invoice with `payreq` expired, in this case MUST [fail the swap](#failing-a-swap).
   * received a [`cancel`](#the-cancel-message) or [`coop_close`](#the-coop_close-message) message.
+* SHOULD set `premium` to the desired compensation in Sats.
+* if the `premium` is set:
+  * MUST add `premium` on payreq of `opening_tx_broadcasted` message.
 
 The receiving node (swap initiator):
 * MUST [fail the swap](#failing-a-swap) on an incompatible `protocol_version`.
@@ -337,6 +343,8 @@ The receiving node (swap initiator):
 * SHOULD [fail the swap](#failing-a-swap) if the `amount` asked for in the `payreq` is exceeding own expectations.
 * MUST [fail the swap](#failing-a-swap) if the `amount` asked for in the `payreq` added to the `amount` asked for in the [`swap_out_request`](#the-swap_out_request-message) exceeds the peers channel balance.
 * MUST try to pay the fee invoice and [fail the swap](#failing-a-swap) if this fails.
+* if the `premium` exceeds its expectations:
+  * MUST [fail_the_swap](#failing-a-swap)
 
 When the fee invoice was paid, the next steps are the same for both kind of swaps and are laid out under Doing the Swap. 
 

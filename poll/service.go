@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/premium"
+
 	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/elementsproject/peerswap/messages"
@@ -48,10 +50,14 @@ type Store interface {
 }
 
 type PollInfo struct {
-	ProtocolVersion uint64   `json:"version"`
-	Assets          []string `json:"assets"`
-	PeerAllowed     bool
-	LastSeen        time.Time
+	ProtocolVersion           uint64   `json:"version"`
+	Assets                    []string `json:"assets"`
+	BTCSwapInPremiumRatePPM   int64    `json:"btc_swap_in_premium_rate_ppm"`
+	BTCSwapOutPremiumRatePPM  int64    `json:"btc_swap_out_premium_rate_ppm"`
+	LBTCSwapInPremiumRatePPM  int64    `json:"lbtc_swap_in_premium_rate_ppm"`
+	LBTCSwapOutPremiumRatePPM int64    `json:"lbtc_swap_out_premium_rate_ppm"`
+	PeerAllowed               bool
+	LastSeen                  time.Time
 }
 type Service struct {
 	sync.RWMutex
@@ -62,6 +68,7 @@ type Service struct {
 	assets           []string
 	messenger        Messenger
 	policy           Policy
+	ps               *premium.Setting
 	peers            PeerGetter
 	store            Store
 	tmpStore         map[string]string
@@ -69,7 +76,7 @@ type Service struct {
 	loggedDisconnect map[string]struct{}
 }
 
-func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string) *Service {
+func NewService(tickDuration time.Duration, removeDuration time.Duration, store Store, messenger Messenger, policy Policy, peers PeerGetter, allowedAssets []string, ps *premium.Setting) *Service {
 	clock := time.NewTicker(tickDuration)
 	ctx, done := context.WithCancel(context.Background())
 	s := &Service{
@@ -84,10 +91,22 @@ func NewService(tickDuration time.Duration, removeDuration time.Duration, store 
 		tmpStore:         make(map[string]string),
 		removeDuration:   removeDuration,
 		loggedDisconnect: make(map[string]struct{}),
+		ps:               ps,
 	}
 
 	s.messenger.AddMessageHandler(s.MessageHandler)
+	// Register as an observer of premium rate changes
+	// This ensures PollAllPeers is called whenever premium rates are updated
+	ps.AddObserver(s)
 	return s
+}
+
+// OnPremiumUpdate implements premium.Observer interface
+// Called automatically when premium rates are changed
+// via Setting.SetRate or Setting.SetDefaultRate
+func (s *Service) OnPremiumUpdate() {
+	// Broadcast updated premium rates to all peers
+	s.PollAllPeers()
 }
 
 // Start the poll message loop and send the poll
@@ -116,12 +135,24 @@ func (s *Service) Stop() {
 	s.done()
 }
 
+func (s *Service) premiumRatePPM(peerID string, asset premium.AssetType, operation premium.OperationType) int64 {
+	rate, err := s.ps.GetRate(peerID, asset, operation)
+	if err != nil {
+		return 0
+	}
+	return rate.PremiumRatePPM().Value()
+}
+
 // Poll sends the POLL message to a single peer.
 func (s *Service) Poll(peer string) {
 	poll := PollMessage{
-		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
-		Assets:      s.assets,
-		PeerAllowed: s.policy.IsPeerAllowed(peer),
+		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
+		Assets:                    s.assets,
+		PeerAllowed:               s.policy.IsPeerAllowed(peer),
+		BTCSwapInPremiumRatePPM:   s.premiumRatePPM(peer, premium.BTC, premium.SwapIn),
+		BTCSwapOutPremiumRatePPM:  s.premiumRatePPM(peer, premium.BTC, premium.SwapOut),
+		LBTCSwapInPremiumRatePPM:  s.premiumRatePPM(peer, premium.LBTC, premium.SwapIn),
+		LBTCSwapOutPremiumRatePPM: s.premiumRatePPM(peer, premium.LBTC, premium.SwapOut),
 	}
 
 	msg, err := json.Marshal(poll)
@@ -146,9 +177,13 @@ func (s *Service) PollAllPeers() {
 // single peer.
 func (s *Service) RequestPoll(peer string) {
 	request := RequestPollMessage{
-		Version:     swap.PEERSWAP_PROTOCOL_VERSION,
-		Assets:      s.assets,
-		PeerAllowed: s.policy.IsPeerAllowed(peer),
+		Version:                   swap.PEERSWAP_PROTOCOL_VERSION,
+		Assets:                    s.assets,
+		PeerAllowed:               s.policy.IsPeerAllowed(peer),
+		BTCSwapInPremiumRatePPM:   s.premiumRatePPM(peer, premium.BTC, premium.SwapIn),
+		BTCSwapOutPremiumRatePPM:  s.premiumRatePPM(peer, premium.BTC, premium.SwapOut),
+		LBTCSwapInPremiumRatePPM:  s.premiumRatePPM(peer, premium.LBTC, premium.SwapIn),
+		LBTCSwapOutPremiumRatePPM: s.premiumRatePPM(peer, premium.LBTC, premium.SwapOut),
 	}
 
 	msg, err := json.Marshal(request)
@@ -194,10 +229,14 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			return jerr
 		}
 		if serr := s.store.Update(peerID, PollInfo{
-			ProtocolVersion: msg.Version,
-			Assets:          msg.Assets,
-			PeerAllowed:     msg.PeerAllowed,
-			LastSeen:        time.Now(),
+			ProtocolVersion:           msg.Version,
+			Assets:                    msg.Assets,
+			PeerAllowed:               msg.PeerAllowed,
+			BTCSwapInPremiumRatePPM:   msg.BTCSwapInPremiumRatePPM,
+			BTCSwapOutPremiumRatePPM:  msg.BTCSwapOutPremiumRatePPM,
+			LBTCSwapInPremiumRatePPM:  msg.LBTCSwapInPremiumRatePPM,
+			LBTCSwapOutPremiumRatePPM: msg.LBTCSwapOutPremiumRatePPM,
+			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr
 		}
@@ -219,10 +258,14 @@ func (s *Service) MessageHandler(peerID, msgType string, payload []byte) error {
 			return jerr
 		}
 		if serr := s.store.Update(peerID, PollInfo{
-			ProtocolVersion: msg.Version,
-			Assets:          msg.Assets,
-			PeerAllowed:     msg.PeerAllowed,
-			LastSeen:        time.Now(),
+			ProtocolVersion:           msg.Version,
+			Assets:                    msg.Assets,
+			PeerAllowed:               msg.PeerAllowed,
+			BTCSwapInPremiumRatePPM:   msg.BTCSwapInPremiumRatePPM,
+			BTCSwapOutPremiumRatePPM:  msg.BTCSwapOutPremiumRatePPM,
+			LBTCSwapInPremiumRatePPM:  msg.LBTCSwapInPremiumRatePPM,
+			LBTCSwapOutPremiumRatePPM: msg.LBTCSwapOutPremiumRatePPM,
+			LastSeen:                  time.Now(),
 		}); serr != nil {
 			return serr
 		}

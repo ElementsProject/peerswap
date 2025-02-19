@@ -84,6 +84,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -92,9 +93,10 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -168,6 +170,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -176,9 +179,10 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -252,6 +256,7 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -260,9 +265,10 @@ func Test_LndLnd_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -342,6 +348,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 
 		asset := "lbtc"
@@ -351,9 +358,10 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -427,6 +435,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 
 		asset := "lbtc"
@@ -436,9 +445,10 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -512,6 +522,7 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 
 		asset := "lbtc"
@@ -521,9 +532,10 @@ func Test_LndLnd_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -601,6 +613,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -609,9 +622,10 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -683,6 +697,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -691,9 +706,10 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -765,6 +781,7 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_IN,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -773,9 +790,10 @@ func Test_LndCln_Liquid_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -853,6 +871,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -861,9 +880,10 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -935,6 +955,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -943,9 +964,10 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -1017,6 +1039,7 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 			confirms:         LiquidConfirms,
 			csv:              LiquidCsv,
 			swapType:         swap.SWAPTYPE_OUT,
+			premiumLimit:     int64(channelBalances[0] / 10),
 		}
 		asset := "lbtc"
 
@@ -1025,9 +1048,10 @@ func Test_LndCln_Liquid_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:  lcid,
-				SwapAmount: params.swapAmt,
-				Asset:      asset,
+				ChannelId:    lcid,
+				SwapAmount:   params.swapAmt,
+				Asset:        asset,
+				PremiumLimit: params.premiumLimit,
 			})
 		}()
 		csvClaimTest(t, params)
