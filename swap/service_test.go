@@ -262,7 +262,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount, 1000)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount, 100000)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}

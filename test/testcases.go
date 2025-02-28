@@ -13,24 +13,24 @@ import (
 )
 
 type testParams struct {
-	swapAmt            uint64
-	scid               string
-	origTakerWallet    uint64
-	origMakerWallet    uint64
-	origTakerBalance   uint64
-	origMakerBalance   uint64
-	takerNode          testframework.LightningNode
-	makerNode          testframework.LightningNode
-	takerPeerswap      *testframework.DaemonProcess
-	makerPeerswap      *testframework.DaemonProcess
-	chainRpc           *testframework.RpcProxy
-	chaind             ChainNode
-	confirms           int
-	csv                int
-	swapType           swap.SwapType
-	premiumLimit       int64
-	swapInPremiumRate  int64
-	swapOutPremiumRate int64
+	swapAmt             uint64
+	scid                string
+	origTakerWallet     uint64
+	origMakerWallet     uint64
+	origTakerBalance    uint64
+	origMakerBalance    uint64
+	takerNode           testframework.LightningNode
+	makerNode           testframework.LightningNode
+	takerPeerswap       *testframework.DaemonProcess
+	makerPeerswap       *testframework.DaemonProcess
+	chainRpc            *testframework.RpcProxy
+	chaind              ChainNode
+	confirms            int
+	csv                 int
+	swapType            swap.SwapType
+	premiumLimitRatePPM int64
+	swapInPremiumRate   int64
+	swapOutPremiumRate  int64
 }
 
 func (p *testParams) premium() int64 {

@@ -146,7 +146,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimit())
+	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimit())
+	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
 	if err != nil {
 		return nil, err
 	}

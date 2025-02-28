@@ -75,9 +75,9 @@ var (
 		Name:     "peer_pubkey",
 		Required: true,
 	}
-	premiumLimitFlag = cli.Uint64Flag{
-		Name:     "premium_limit",
-		Usage:    "premium limit for a swap",
+	PremiumLimitRatePPMFlag = cli.Uint64Flag{
+		Name:     "premium_limit_rate_ppm",
+		Usage:    "premium limit for a swap in parts per million",
 		Required: false,
 	}
 	operationFlag = cli.StringFlag{
@@ -103,7 +103,7 @@ var (
 			satAmountFlag,
 			channelIdFlag,
 			assetFlag,
-			premiumLimitFlag,
+			PremiumLimitRatePPMFlag,
 		},
 		Action: swapOut,
 	}
@@ -115,7 +115,7 @@ var (
 			satAmountFlag,
 			channelIdFlag,
 			assetFlag,
-			premiumLimitFlag,
+			PremiumLimitRatePPMFlag,
 		},
 		Action: swapIn,
 	}
@@ -277,10 +277,10 @@ func swapIn(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.SwapIn(context.Background(), &peerswaprpc.SwapInRequest{
-		ChannelId:    ctx.Uint64(channelIdFlag.Name),
-		SwapAmount:   ctx.Uint64(satAmountFlag.Name),
-		Asset:        ctx.String(assetFlag.Name),
-		PremiumLimit: ctx.Int64(premiumLimitFlag.Name),
+		ChannelId:           ctx.Uint64(channelIdFlag.Name),
+		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		Asset:               ctx.String(assetFlag.Name),
+		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {
 		return err
@@ -298,10 +298,10 @@ func swapOut(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.SwapOut(context.Background(), &peerswaprpc.SwapOutRequest{
-		ChannelId:    ctx.Uint64(channelIdFlag.Name),
-		SwapAmount:   ctx.Uint64(satAmountFlag.Name),
-		Asset:        ctx.String(assetFlag.Name),
-		PremiumLimit: ctx.Int64(premiumLimitFlag.Name),
+		ChannelId:           ctx.Uint64(channelIdFlag.Name),
+		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		Asset:               ctx.String(assetFlag.Name),
+		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {
 		return err

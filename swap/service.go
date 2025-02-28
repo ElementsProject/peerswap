@@ -375,7 +375,7 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, PremiumLimit int64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePpm int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -416,7 +416,6 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	} else {
 		return nil, errors.New("invalid chain")
 	}
-
 	request := &SwapOutRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
@@ -425,7 +424,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Scid:            channelId,
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
-		PremiumLimit:    PremiumLimit,
+		PremiumLimit:    premium.NewPPM(premiumLimitRatePpm).Compute(amtSat),
 	}
 
 	done, err := swap.SendEvent(Event_OnSwapOutStarted, request)
@@ -441,7 +440,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, PremiumLimit int64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePPM int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -495,7 +494,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Scid:            channelId,
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
-		PremiumLimit:    PremiumLimit,
+		PremiumLimit:    premium.NewPPM(premiumLimitRatePPM).Compute(amtSat),
 	}
 
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, request)

@@ -68,7 +68,7 @@ message SwapOutRequest {
   uint64 swap_amount = 2;
   string asset = 3;
   bool force = 4;
-  int64 premium_limit = 5;
+  int64 premium_limit_rate_ppm = 5;
 }
 
 message SwapOutResponse {
@@ -80,7 +80,7 @@ message SwapInRequest {
   uint64 swap_amount = 2;
   string asset = 3;
   bool force = 4;
-  int64 premium_limit = 5;
+  int64 premium_limit_rate_ppm = 5;
 }
 
 message SwapResponse {

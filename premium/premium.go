@@ -39,7 +39,7 @@ const (
 )
 
 func (o OperationType) String() string {
-	return [...]string{"Unspecified", "SwapIn", "SwapOut"}[o]
+	return [...]string{"Unspecified", "SWAP_IN", "SWAP_OUT"}[o]
 }
 
 // PremiumRate defines the premium rate for a specific asset and operation.

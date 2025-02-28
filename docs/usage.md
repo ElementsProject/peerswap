@@ -73,12 +73,12 @@ A swap-out is when the initiator wants to pay a lightning payment in order to re
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in sats]
+lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
 ```
 
 For LND:
 ```bash
-pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit [premium limit in sats]
+pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
 ```
 
 ### Swap-In
@@ -87,12 +87,12 @@ A swap-in is when the initiator wants to spend onchain bitcoin in order to recei
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in sats]
+lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
 ```
 
 For LND:
 ```bash
-pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit [premium limit in sats]
+pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
 ```
 
 ## Premium

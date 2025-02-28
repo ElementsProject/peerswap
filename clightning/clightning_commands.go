@@ -184,12 +184,12 @@ func (s *LiquidSendToAddress) LongDescription() string {
 
 // SwapOut starts a new swapout (paying an Invoice for onchain liquidity)
 type SwapOut struct {
-	ShortChannelId string            `json:"short_channel_id"`
-	SatAmt         uint64            `json:"amt_sat"`
-	Asset          string            `json:"asset"`
-	PremiumLimit   int64             `json:"premium_limit"`
-	Force          bool              `json:"force"`
-	cl             *ClightningClient `json:"-"`
+	ShortChannelId      string            `json:"short_channel_id"`
+	SatAmt              uint64            `json:"amt_sat"`
+	Asset               string            `json:"asset"`
+	PremiumLimitRatePPM int64             `json:"premium_rate_limit_ppm"`
+	Force               bool              `json:"force"`
+	cl                  *ClightningClient `json:"-"`
 }
 
 func (l *SwapOut) New() interface{} {
@@ -262,7 +262,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimit)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}
@@ -304,12 +304,12 @@ func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
 
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
-	ShortChannelId string            `json:"short_channel_id"`
-	SatAmt         uint64            `json:"amt_sat"`
-	Asset          string            `json:"asset"`
-	PremiumLimit   int64             `json:"premium_limit"`
-	Force          bool              `json:"force"`
-	cl             *ClightningClient `json:"-"`
+	ShortChannelId      string            `json:"short_channel_id"`
+	SatAmt              uint64            `json:"amt_sat"`
+	Asset               string            `json:"asset"`
+	PremiumLimitRatePPM int64             `json:"premium_limit_ppm"`
+	Force               bool              `json:"force"`
+	cl                  *ClightningClient `json:"-"`
 }
 
 func (l *SwapIn) New() interface{} {
@@ -378,7 +378,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimit)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}

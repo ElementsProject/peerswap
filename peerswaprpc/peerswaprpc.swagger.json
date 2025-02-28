@@ -602,7 +602,7 @@
           }
         }
       },
-      "description": "Premium configuration per peer.\r\nIf no configuration exists, the default configuration is used.\r\nUnique by AssetType and OperationType. No explicit constraints on\r\nthis data structure; consistency depends on peerswap implementation."
+      "description": "Premium configuration per peer.\nIf no configuration exists, the default configuration is used.\nUnique by AssetType and OperationType. No explicit constraints on\nthis data structure; consistency depends on peerswap implementation."
     },
     "peerswapPeerSwapPeer": {
       "type": "object",
@@ -835,7 +835,7 @@
         "force": {
           "type": "boolean"
         },
-        "premiumLimit": {
+        "premiumLimitRatePpm": {
           "type": "string",
           "format": "int64"
         }
@@ -858,7 +858,7 @@
         "force": {
           "type": "boolean"
         },
-        "premiumLimit": {
+        "premiumLimitRatePpm": {
           "type": "string",
           "format": "int64"
         }

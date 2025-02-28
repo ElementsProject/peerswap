@@ -77,22 +77,22 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -101,10 +101,10 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -171,22 +171,22 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -195,10 +195,10 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -265,22 +265,22 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -289,10 +289,10 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -365,22 +365,22 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_OUT,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -389,10 +389,10 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -459,22 +459,22 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_OUT,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -483,10 +483,10 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -553,22 +553,22 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapds[0].DaemonProcess,
-			makerPeerswap:    peerswapds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapds[0].DaemonProcess,
+			makerPeerswap:       peerswapds[1].DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -577,10 +577,10 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapds[1].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -651,22 +651,22 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:    peerswapd.DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
+			makerPeerswap:       peerswapd.DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -675,10 +675,10 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -743,22 +743,22 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:    peerswapd.DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
+			makerPeerswap:       peerswapd.DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -767,10 +767,10 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -835,22 +835,22 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:    peerswapd.DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_IN,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
+			makerPeerswap:       peerswapd.DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_IN,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -859,10 +859,10 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		csvClaimTest(t, params)
@@ -933,22 +933,22 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapd.DaemonProcess,
-			makerPeerswap:    lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapd.DaemonProcess,
+			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_OUT,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -957,10 +957,10 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		preimageClaimTest(t, params)
@@ -1025,22 +1025,22 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapd.DaemonProcess,
-			makerPeerswap:    lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapd.DaemonProcess,
+			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_OUT,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -1049,10 +1049,10 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		coopClaimTest(t, params)
@@ -1117,22 +1117,22 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		}
 
 		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    peerswapd.DaemonProcess,
-			makerPeerswap:    lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-			premiumLimit:     int64(channelBalances[0] / 10),
+			swapAmt:             channelBalances[0] / 2,
+			scid:                scid,
+			origTakerWallet:     walletBalances[0],
+			origMakerWallet:     walletBalances[1],
+			origTakerBalance:    channelBalances[0],
+			origMakerBalance:    channelBalances[1],
+			takerNode:           lightningds[0],
+			makerNode:           lightningds[1],
+			takerPeerswap:       peerswapd.DaemonProcess,
+			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
+			chainRpc:            liquidd.RpcProxy,
+			chaind:              liquidd,
+			confirms:            LiquidConfirms,
+			csv:                 LiquidCsv,
+			swapType:            swap.SWAPTYPE_OUT,
+			premiumLimitRatePPM: 100000,
 		}
 		asset := "lbtc"
 
@@ -1141,10 +1141,10 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 		defer cancel()
 		go func() {
 			peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
-				ChannelId:    lcid,
-				SwapAmount:   params.swapAmt,
-				Asset:        asset,
-				PremiumLimit: params.premiumLimit,
+				ChannelId:           lcid,
+				SwapAmount:          params.swapAmt,
+				Asset:               asset,
+				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
 		csvClaimTest(t, params)
