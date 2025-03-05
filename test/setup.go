@@ -1719,3 +1719,175 @@ func clnSingleElementsSetup(t *testing.T, elementsConfig map[string]string) (*te
 
 	return bitcoind, liquidd, lightningd
 }
+
+func clnclnElementsSetupPegin(t *testing.T, fundAmt, peginAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
+	makeDataDir := func() string {
+		tempDir, err := os.MkdirTemp("", "cln-test-")
+		require.NoError(t, err, "os.MkdirTemp failed")
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		return tempDir
+	}
+
+	testDir := makeDataDir()
+
+	// 1) Create bitcoind
+	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
+	require.NoError(t, err, "failed to create bitcoind")
+	t.Cleanup(bitcoind.Kill)
+	require.NoError(t, bitcoind.Run(true), "failed to run bitcoind")
+
+	// 2) Create liquidd with peg-in validation
+	liquidd, err := testframework.NewLiquidNode(
+		testDir, bitcoind,
+		1,
+	)
+	require.NoError(t, err, "failed to create liquidd")
+	t.Cleanup(liquidd.Kill)
+	require.NoError(t, liquidd.Run(true), "failed to run liquidd")
+	// Maturity blocks on Bitcoin
+	require.NoError(t, bitcoind.GenerateBlocks(101), "failed to generate blocks for maturity")
+
+	for i := 1; i <= 2; i++ {
+		walletName := fmt.Sprintf("swap%d", i)
+		_, err := liquidd.Rpc.Call("createwallet", walletName)
+		require.NoError(t, err, "failed to create wallet in liquidd")
+		_, err = liquidd.Rpc.Call("loadwallet", walletName)
+		require.NoError(t, err, "failed to load wallet in liquidd")
+		liquidd.RpcProxy.UpdateServiceUrl(fmt.Sprintf("http://127.0.0.1:%d/wallet/%s", liquidd.RpcPort, walletName))
+
+		peginResp, err := liquidd.Rpc.Call("getpeginaddress")
+		require.NoError(t, err)
+		pm, ok := peginResp.Result.(map[string]interface{})
+		require.True(t, ok, "failed to parse getpeginaddress")
+
+		mainChainAddr, ok := pm["mainchain_address"].(string)
+		require.True(t, ok, "no mainchain_address in getpeginaddress")
+		claimScript, ok := pm["claim_script"].(string)
+		require.True(t, ok, "no claim_script in getpeginaddress")
+
+		sendResp, err := bitcoind.Rpc.Call("sendtoaddress", mainChainAddr, peginAmt, "", "", false, false, 1, "UNSET")
+		require.NoError(t, err, "failed to send to pegin address from bitcoind")
+		txid, ok := sendResp.Result.(string)
+		require.True(t, ok, "failed to parse sendtoaddress result txid")
+
+		// Maturity blocks on Bitcoin
+		require.NoError(t, bitcoind.GenerateBlocks(101), "failed to generate blocks for maturity")
+
+		rawResp, err := bitcoind.Rpc.Call("getrawtransaction", txid, 0)
+		require.NoError(t, err, "failed getrawtransaction")
+		proofResp, err := bitcoind.Rpc.Call("gettxoutproof", []interface{}{[]string{txid}})
+		require.NoError(t, err, "failed gettxoutproof")
+
+		res, err := liquidd.Rpc.Call("claimpegin", rawResp.Result, proofResp.Result, claimScript)
+		require.NoError(t, err, "failed to claimpegin in liquidd")
+		raw, err := liquidd.Rpc.Call("gettransaction", res.Result)
+		require.NoError(t, err, "failed to gettransaction in liquidd")
+		ptx, ok := raw.Result.(map[string]interface{})
+		require.True(t, ok, "failed to parse")
+		t.Logf("pegin tx: %s", ptx["hex"])
+
+		// Confirm peg-in on Liquid
+		require.NoError(t, liquidd.GenerateBlocks(2), "failed to generate Liquid blocks after pegin")
+		// balance check
+		res, err = liquidd.Rpc.Call("getbalance")
+		require.NoError(t, err, "failed to getbalance in liquidd")
+		_ = res
+	}
+
+	// 3) Create 2 c-lightning nodes with liquid config
+	var lightningds []*testframework.CLightningNode
+	// Get PeerSwap plugin path and test dir
+	_, filename, _, _ := runtime.Caller(0)
+	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
+
+	for i := 1; i <= 2; i++ {
+		ln, err := testframework.NewCLightningNode(testDir, bitcoind, i)
+		require.NoError(t, err, "failed to create lightning node")
+		t.Cleanup(ln.Kill)
+		defer printFailedFiltered(t, ln.DaemonProcess)
+
+		require.NoError(t, os.MkdirAll(filepath.Join(ln.GetDataDir(), "peerswap"), os.ModePerm))
+		err = os.WriteFile(
+			filepath.Join(ln.GetDataDir(), "peerswap", "policy.conf"),
+			[]byte("accept_all_peers=1\n"),
+			os.ModePerm,
+		)
+		require.NoError(t, err, "failed to create policy file")
+
+		walletName := fmt.Sprintf("swap%d", i)
+		fileConf := struct {
+			Liquid struct {
+				RpcUser     string
+				RpcPassword string
+				RpcHost     string
+				RpcPort     uint
+				RpcWallet   string
+				Enabled     bool
+			}
+		}{
+			Liquid: struct {
+				RpcUser     string
+				RpcPassword string
+				RpcHost     string
+				RpcPort     uint
+				RpcWallet   string
+				Enabled     bool
+			}{
+				RpcUser:     liquidd.RpcUser,
+				RpcPassword: liquidd.RpcPassword,
+				RpcHost:     "http://127.0.0.1",
+				RpcPort:     uint(liquidd.RpcPort),
+				RpcWallet:   walletName,
+				Enabled:     true,
+			},
+		}
+		confBytes, err := toml.Marshal(fileConf)
+		require.NoError(t, err)
+		require.NoError(t,
+			os.WriteFile(filepath.Join(ln.GetDataDir(), "peerswap", "peerswap.conf"), confBytes, os.ModePerm),
+		)
+
+		ln.WithCmd("lightningd")
+		ln.AppendCmdLine([]string{
+			"--dev-bitcoind-poll=1",
+			"--dev-fast-gossip",
+			"--large-channels",
+			fmt.Sprintf("--plugin=%s", pathToPlugin),
+		})
+		lightningds = append(lightningds, ln)
+	}
+
+	// Run c-lightning
+	for _, ln := range lightningds {
+		require.NoError(t, ln.Run(true, true), "failed to run lightning node")
+		require.NoError(t,
+			ln.WaitForLog("peerswap initialized", testframework.TIMEOUT),
+			"missing 'peerswap initialized' log",
+		)
+	}
+
+	// 4) Open channel
+	scid, err := lightningds[0].OpenChannel(lightningds[1], fundAmt, 0, true, true, true)
+	require.NoError(t, err, "failed to open channel")
+
+	t.Logf("openinx tx scid: %s", scid)
+	// Fund second node to do swaps
+	_, err = lightningds[1].FundWallet(10*fundAmt, true)
+	require.NoError(t, err, "failed to fund wallet for LN[1]")
+
+	require.NoError(t, syncPoll(&clnPollableNode{lightningds[0]}, &clnPollableNode{lightningds[1]}),
+		"failed in syncPoll c-lightning")
+
+	// 5) Peg-in from Bitcoin to Liquid
+	// Use distinct wallet for each LN
+	nodes := []*CLightningNodeWithLiquid{{lightningds[0]}, {lightningds[1]}}
+
+	// 6) Check final Liquid wallet balances are > 0 for each LN
+	for idx, nd := range nodes {
+		bal, err := nd.GetBtcBalanceSat()
+		require.NoError(t, err)
+		require.True(t, bal > 0, "LN[%d] pegged-in balance should be >0, got %d", idx, bal)
+	}
+
+	return bitcoind, liquidd, nodes, scid
+}
