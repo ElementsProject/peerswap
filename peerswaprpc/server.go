@@ -186,7 +186,7 @@ func (p *PeerswapServer) isPeerConnected(ctx context.Context, peerId string) boo
 	return false
 }
 
-// peerRunsPeerSwap returns true if the the peer has sent its poll info to the
+// peerRunsPeerSwap returns true if the peer has sent its poll info to the
 // pollService showing that it is supporting peerswap.
 func (p *PeerswapServer) peerRunsPeerSwap(peerId string) bool {
 	pollInfo, err := p.pollService.GetPollFrom(peerId)

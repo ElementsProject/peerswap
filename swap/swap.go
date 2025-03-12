@@ -51,7 +51,7 @@ func (s SwapRole) String() string {
 type ClaimType int
 
 // SwapType in means the initiator wants to pay lbtc to rebalance the channel to his side
-// swap out means the initiator wants to pay an invoice to rebalance the the channel to his peer
+// swap out means the initiator wants to pay an invoice to rebalance the channel to his peer
 const (
 	SWAPTYPE_IN SwapType = iota + 1
 	SWAPTYPE_OUT

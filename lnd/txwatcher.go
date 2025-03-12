@@ -212,7 +212,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 				// first confirmation.
 				confs := currentHeight - conf.blockHeight + 1
 				if confs >= onchain.BitcoinCsvSafetyLimit {
-					// We are already above half of the the csv limit here, it is
+					// We are already above half of the csv limit here, it is
 					// unsafe to pay for the invoice now.
 					// TODO: Check if this is handled correctly by the swap state
 					// machine.
