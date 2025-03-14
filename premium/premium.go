@@ -164,6 +164,15 @@ func (p *Setting) SetRate(peerID string, rate *PremiumRate) error {
 	return err
 }
 
+func (p *Setting) DeleteRate(peerID string, asset AssetType, operation OperationType) error {
+	err := p.store.DeleteRate(peerID, asset, operation)
+	if err == nil {
+		// Notify observers only if the update was successful
+		p.notifyObservers()
+	}
+	return err
+}
+
 // GetDefaultRate retrieves the default premium rate for a given asset and operation.
 func (p *Setting) GetDefaultRate(asset AssetType, operation OperationType) (*PremiumRate, error) {
 	rate, err := p.store.GetDefaultRate(asset, operation)

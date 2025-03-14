@@ -15,6 +15,7 @@ import (
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/premium"
+	"github.com/samber/lo"
 
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
@@ -571,7 +572,7 @@ func toPremiumOperationType(operationType OperationType) premium.OperationType {
 	}
 }
 
-func toAssetType(assetType premium.AssetType) AssetType {
+func ToAssetType(assetType premium.AssetType) AssetType {
 	switch assetType {
 	case premium.BTC:
 		return AssetType_BTC
@@ -582,7 +583,7 @@ func toAssetType(assetType premium.AssetType) AssetType {
 	}
 }
 
-func toOperationType(operationType premium.OperationType) OperationType {
+func ToOperationType(operationType premium.OperationType) OperationType {
 	switch operationType {
 	case premium.SwapIn:
 		return OperationType_SWAP_IN
@@ -608,8 +609,8 @@ func (p *PeerswapServer) GetDefaultPremiumRate(ctx context.Context,
 		return nil, err
 	}
 	return &PremiumRate{
-		Asset:          toAssetType(r.Asset()),
-		Operation:      toOperationType(r.Operation()),
+		Asset:          ToAssetType(r.Asset()),
+		Operation:      ToOperationType(r.Operation()),
 		PremiumRatePpm: r.PremiumRatePPM().Value(),
 	}, nil
 }
@@ -647,8 +648,8 @@ func (p *PeerswapServer) GetPremiumRate(ctx context.Context,
 		return nil, err
 	}
 	return &PremiumRate{
-		Asset:          toAssetType(r.Asset()),
-		Operation:      toOperationType(r.Operation()),
+		Asset:          ToAssetType(r.Asset()),
+		Operation:      ToOperationType(r.Operation()),
 		PremiumRatePpm: r.PremiumRatePPM().Value(),
 	}, nil
 }
@@ -670,8 +671,22 @@ func (p *PeerswapServer) UpdatePremiumRate(ctx context.Context,
 	return request.GetRate(), nil
 }
 
-func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
-	scid, err := newScidFromString(swap.Data.GetScid())
+func (p *PeerswapServer) DeletePremiumRate(ctx context.Context,
+	request *DeletePremiumRateRequest) (*PremiumRate, error) {
+	err := p.ps.DeleteRate(request.GetNodeId(),
+		toPremiumAssetType(request.GetAsset()),
+		toPremiumOperationType(request.GetOperation()))
+	if err != nil {
+		return nil, fmt.Errorf("could not delete rate: %v", err)
+	}
+	return &PremiumRate{
+		Asset:     request.GetAsset(),
+		Operation: request.GetOperation(),
+	}, nil
+}
+
+func PrettyprintFromServiceSwap(swp *swap.SwapStateMachine) *PrettyPrintSwap {
+	scid, err := newScidFromString(swp.Data.GetScid())
 	if err != nil {
 		log.Debugf("Could not parse scid from %s: %v", scid, err)
 	}
@@ -682,21 +697,25 @@ func PrettyprintFromServiceSwap(swap *swap.SwapStateMachine) *PrettyPrintSwap {
 	}
 
 	return &PrettyPrintSwap{
-		Id:              swap.SwapId.String(),
-		CreatedAt:       swap.Data.CreatedAt,
-		Asset:           swap.Data.GetChain(),
-		Type:            swap.Type.String(),
-		Role:            swap.Role.String(),
-		State:           string(swap.Current),
-		InitiatorNodeId: swap.Data.InitiatorNodeId,
-		PeerNodeId:      swap.Data.PeerNodeId,
-		Amount:          swap.Data.GetAmount(),
-		ChannelId:       swap.Data.GetScid(),
-		OpeningTxId:     swap.Data.GetOpeningTxId(),
-		ClaimTxId:       swap.Data.ClaimTxId,
-		CancelMessage:   swap.Data.GetCancelMessage(),
+		Id:              swp.SwapId.String(),
+		CreatedAt:       swp.Data.CreatedAt,
+		Asset:           swp.Data.GetChain(),
+		Type:            swp.Type.String(),
+		Role:            swp.Role.String(),
+		State:           string(swp.Current),
+		InitiatorNodeId: swp.Data.InitiatorNodeId,
+		PeerNodeId:      swp.Data.PeerNodeId,
+		Amount:          swp.Data.GetAmount(),
+		ChannelId:       swp.Data.GetScid(),
+		OpeningTxId:     swp.Data.GetOpeningTxId(),
+		ClaimTxId:       swp.Data.ClaimTxId,
+		CancelMessage:   swp.Data.GetCancelMessage(),
 		LndChanId:       lnd_chan_id,
-		PremiumAmount:   swap.Data.GetPremium(),
+		// Reversing sign if role=sender because sender pays premium to peer
+		PremiumAmount: lo.Ternary(swp.Role == swap.SWAPROLE_SENDER,
+			-swp.Data.GetPremium(),
+			swp.Data.GetPremium(),
+		),
 	}
 }
 

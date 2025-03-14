@@ -51,6 +51,7 @@ var methods = []peerswaprpcMethod{
 	&SetPremiumRate{},
 	&GetDefaultPremiumRate{},
 	&SetDefaultPremiumRate{},
+	&DeletePremiumRate{},
 }
 
 var devmethods = []peerswaprpcMethod{}

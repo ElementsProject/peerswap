@@ -49,6 +49,18 @@ func (p *BBoltPremiumStore) SetRate(peer string, rate *PremiumRate) error {
 	})
 }
 
+// DeleteRate removes the premium rate for a given peer, asset, and operation.
+func (p *BBoltPremiumStore) DeleteRate(peer string, asset AssetType, operation OperationType) error {
+	return p.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(bucketName))
+		if bucket == nil {
+			return fmt.Errorf("Bucket not found")
+		}
+		key := fmt.Sprintf("%s.%d.%d", peer, asset, operation)
+		return bucket.Delete([]byte(key))
+	})
+}
+
 // GetRate retrieves the premium rate for a given peer, asset, and operation.
 // If the rate is not found, it tries to retrieve the default rate.
 func (p *BBoltPremiumStore) GetRate(peer string, asset AssetType, operation OperationType) (*PremiumRate, error) {

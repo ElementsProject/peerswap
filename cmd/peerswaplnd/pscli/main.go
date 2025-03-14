@@ -33,7 +33,7 @@ func main() {
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
 		addSusPeerCommand, removeSusPeerCommand, getDefaultPremiumRateCommand, updateDefaultPremiumRateCommand,
-		getPeerPremiumRateCommand, updatePremiumRateCommand,
+		getPeerPremiumRateCommand, updatePremiumRateCommand, deletePeerPremiumRateCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
@@ -244,6 +244,16 @@ var (
 			rateFlag,
 		},
 		Action: updateDefaultPremiumRate,
+	}
+	deletePeerPremiumRateCommand = cli.Command{
+		Name:  "deletepeerpremiumrate",
+		Usage: "Delete the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+		},
+		Action: deletePeerPremiumRate,
 	}
 	getPeerPremiumRateCommand = cli.Command{
 		Name:  "getpeerpremiumrate",
@@ -619,6 +629,25 @@ func updatePremiumRate(ctx *cli.Context) error {
 			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
 			PremiumRatePpm: ctx.Int64(rateFlag.Name),
 		},
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func deletePeerPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.DeletePremiumRate(context.Background(), &peerswaprpc.DeletePremiumRateRequest{
+		NodeId:    ctx.String(nodeIdFlag.Name),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
 	})
 	if err != nil {
 		return err

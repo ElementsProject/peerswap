@@ -23,6 +23,9 @@ const (
 func setupPremium(t *testing.T) *premium.Setting {
 	dir := t.TempDir()
 	db, err := bbolt.Open(path.Join(dir, "premium-db"), os.ModePerm, nil)
+	if err != nil {
+		t.Fatalf("failed to open db: %v", err)
+	}
 	p, err := premium.NewSetting(db)
 	if err != nil {
 		t.Fatalf("failed to create premium setting: %v", err)
@@ -60,6 +63,47 @@ func Test_Setting_GetRate(t *testing.T) {
 				t.Fatalf("failed to get rate: %v", err)
 			}
 			assert.Equal(t, rate, got)
+		})
+	}
+}
+
+func Test_Setting_DeleteRate(t *testing.T) {
+	t.Parallel()
+	tests := map[string]struct {
+		peerID    string
+		asset     premium.AssetType
+		operation premium.OperationType
+		ppm       int64
+	}{
+		"BTC SwapIn":   {testPeer, premium.BTC, premium.SwapIn, testPPM1},
+		"BTC SwapOut":  {testPeer, premium.BTC, premium.SwapOut, testPPM2},
+		"LBTC SwapIn":  {testPeer, premium.LBTC, premium.SwapIn, testPPM3},
+		"LBTC SwapOut": {testPeer, premium.LBTC, premium.SwapOut, testPPM4},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			setting := setupPremium(t)
+			rate := lo.Must(premium.NewPremiumRate(tt.asset, tt.operation, premium.NewPPM(tt.ppm)))
+			// Add test data to the store
+			err := setting.SetRate(tt.peerID, rate)
+			if err != nil {
+				t.Fatalf("failed to set rate: %v", err)
+			}
+			// Delete the rate
+			err = setting.DeleteRate(tt.peerID, rate.Asset(), rate.Operation())
+			if err != nil {
+				t.Fatalf("failed to delete rate: %v", err)
+			}
+			// Retrieve the rate
+			got, err := setting.GetRate(tt.peerID, rate.Asset(), rate.Operation())
+			if err != nil {
+				t.Fatalf("failed to get rate: %v", err)
+			}
+			assert.Equal(t, rate.Asset(), got.Asset())
+			assert.Equal(t, rate.Operation(), got.Operation())
+			assert.Equal(t, int64(0), got.PremiumRatePPM().Value())
 		})
 	}
 }

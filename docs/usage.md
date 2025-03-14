@@ -155,6 +155,20 @@ For LND:
 pscli updatepremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT] --rate [premium_rate_ppm]
 ```
 
+### Delete Peer-Specific Premium Rate
+
+To delete the premium rate for a specific peer, use the following command:
+
+For CLN:
+```
+lightning-cli peerswap-deletepremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT]
+```
+
+For LND:
+```bash
+pscli deletepeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
+```
+
 ## Misc
 
 `listpeers` - A command that returns peers that support the PeerSwap protocol. It also gives statistics about received and sent swaps to a peer.

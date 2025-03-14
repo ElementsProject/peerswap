@@ -1153,7 +1153,11 @@ func (c *GetPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting premium rate: %v", err)
 	}
-	return e.PremiumRatePPM().Value(), nil
+	return &peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(e.Asset()),
+		Operation:      peerswaprpc.ToOperationType(e.Operation()),
+		PremiumRatePpm: e.PremiumRatePPM().Value(),
+	}, nil
 }
 
 func (c *GetPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1201,7 +1205,11 @@ func (c *SetPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting premium rate: %v", err)
 	}
-	return rate, nil
+	return &peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	}, nil
 }
 
 func (c *SetPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1215,6 +1223,54 @@ func (c SetPremiumRate) Description() string {
 }
 
 func (c SetPremiumRate) LongDescription() string {
+	return c.Description()
+}
+
+type DeletePremiumRate struct {
+	PeerID    string            `json:"peer_id"`
+	Asset     string            `json:"asset"`
+	Operation string            `json:"operation"`
+	cl        *ClightningClient `json:"-"`
+}
+
+func (c *DeletePremiumRate) Name() string {
+	return "peerswap-deletepremiumrate"
+}
+
+func (c *DeletePremiumRate) New() interface{} {
+	return &DeletePremiumRate{
+		cl: c.cl,
+	}
+}
+
+func (c *DeletePremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	err := c.cl.ps.DeleteRate(c.PeerID, toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation))
+	if err != nil {
+		return nil, fmt.Errorf("error deleting premium rate: %v", err)
+	}
+
+	return &peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(toPremiumAssetType(c.Asset)),
+		Operation:      peerswaprpc.ToOperationType(toPremiumOperationType(c.Operation)),
+		PremiumRatePpm: 0,
+	}, nil
+}
+
+func (c *DeletePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &DeletePremiumRate{
+		cl: client,
+	}
+}
+
+func (c DeletePremiumRate) Description() string {
+	return "Delete the premium rate for a peer"
+}
+
+func (c DeletePremiumRate) LongDescription() string {
 	return c.Description()
 }
 
@@ -1248,7 +1304,11 @@ func (c *SetDefaultPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting default premium rate: %v", err)
 	}
-	return rate, nil
+	return &peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	}, nil
 }
 
 func (c *SetDefaultPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1290,7 +1350,11 @@ func (c *GetDefaultPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting default premium rate: %v", err)
 	}
-	return rate.PremiumRatePPM().Value(), nil
+	return &peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	}, nil
 }
 
 func (c *GetDefaultPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {

@@ -29,6 +29,7 @@ service PeerSwap {
   // Premium Stuff
   // Premium rates can be configured globally (default) or specifically for peers.
   // If no specific configuration exists for a peer, the default configuration is used.
+  // The initial value of the default rate is 0.
 
   // Get a premium rate for a asset, and operation.
   rpc GetDefaultPremiumRate(GetDefaultPremiumRateRequest) returns (PremiumRate);
@@ -38,6 +39,8 @@ service PeerSwap {
   rpc GetPremiumRate(GetPremiumRateRequest) returns (PremiumRate);
   // Update a premium rate for a specific peer, asset, and operation.
   rpc UpdatePremiumRate(UpdatePremiumRateRequest) returns (PremiumRate);
+  // Delete a premium rate for a specific peer, asset, and operation.
+  rpc DeletePremiumRate(DeletePremiumRateRequest) returns (PremiumRate);
 
   rpc Stop(Empty) returns (Empty);
 }
@@ -232,6 +235,16 @@ message PeerPremium {
 //  NOT_FOUND: No premium rate is configured for the specified peer, asset, and operation.
 //  INVALID_ARGUMENT: Invalid peer ID, asset, or operation specified.
 message GetPremiumRateRequest {
+  string node_id = 1; // Node ID of the peer.
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+}
+
+// Request for DeletePremiumRate.
+// Errors:
+//  NOT_FOUND: No premium rate is configured for the specified peer, asset, and operation.
+//  INVALID_ARGUMENT: Invalid peer ID, asset, or operation specified.
+message DeletePremiumRateRequest {
   string node_id = 1; // Node ID of the peer.
   AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
   OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).

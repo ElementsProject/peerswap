@@ -44,6 +44,8 @@ type PeerSwapClient interface {
 	GetPremiumRate(ctx context.Context, in *GetPremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
 	// Update a premium rate for a specific peer, asset, and operation.
 	UpdatePremiumRate(ctx context.Context, in *UpdatePremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
+	// Delete a premium rate for a specific peer, asset, and operation.
+	DeletePremiumRate(ctx context.Context, in *DeletePremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error)
 	Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
@@ -235,6 +237,15 @@ func (c *peerSwapClient) UpdatePremiumRate(ctx context.Context, in *UpdatePremiu
 	return out, nil
 }
 
+func (c *peerSwapClient) DeletePremiumRate(ctx context.Context, in *DeletePremiumRateRequest, opts ...grpc.CallOption) (*PremiumRate, error) {
+	out := new(PremiumRate)
+	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/DeletePremiumRate", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *peerSwapClient) Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/peerswap.PeerSwap/Stop", in, out, opts...)
@@ -274,6 +285,8 @@ type PeerSwapServer interface {
 	GetPremiumRate(context.Context, *GetPremiumRateRequest) (*PremiumRate, error)
 	// Update a premium rate for a specific peer, asset, and operation.
 	UpdatePremiumRate(context.Context, *UpdatePremiumRateRequest) (*PremiumRate, error)
+	// Delete a premium rate for a specific peer, asset, and operation.
+	DeletePremiumRate(context.Context, *DeletePremiumRateRequest) (*PremiumRate, error)
 	Stop(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedPeerSwapServer()
 }
@@ -341,6 +354,9 @@ func (UnimplementedPeerSwapServer) GetPremiumRate(context.Context, *GetPremiumRa
 }
 func (UnimplementedPeerSwapServer) UpdatePremiumRate(context.Context, *UpdatePremiumRateRequest) (*PremiumRate, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdatePremiumRate not implemented")
+}
+func (UnimplementedPeerSwapServer) DeletePremiumRate(context.Context, *DeletePremiumRateRequest) (*PremiumRate, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeletePremiumRate not implemented")
 }
 func (UnimplementedPeerSwapServer) Stop(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
@@ -718,6 +734,24 @@ func _PeerSwap_UpdatePremiumRate_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PeerSwap_DeletePremiumRate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeletePremiumRateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerSwapServer).DeletePremiumRate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/peerswap.PeerSwap/DeletePremiumRate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerSwapServer).DeletePremiumRate(ctx, req.(*DeletePremiumRateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PeerSwap_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -822,6 +856,10 @@ var PeerSwap_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdatePremiumRate",
 			Handler:    _PeerSwap_UpdatePremiumRate_Handler,
+		},
+		{
+			MethodName: "DeletePremiumRate",
+			Handler:    _PeerSwap_DeletePremiumRate_Handler,
 		},
 		{
 			MethodName: "Stop",
