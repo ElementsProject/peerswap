@@ -188,6 +188,10 @@ func (p *Policy) ReloadFile() error {
 	if err != nil {
 		return err
 	}
+	file, err = os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return ErrCreatePolicy(err.Error())
+	}
 
 	p.path = path
 	return nil
@@ -454,7 +458,10 @@ func CreateFromFile(path string) (*Policy, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	file, err = os.OpenFile(policyPath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, ErrCreatePolicy(err.Error())
+	}
 	policy.path = policyPath
 	return policy, nil
 }

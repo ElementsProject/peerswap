@@ -58,21 +58,22 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	}
 
 	params := &testParams{
-		swapAmt:          channelBalances[0] / 2,
-		scid:             scid,
-		origTakerWallet:  walletBalances[0],
-		origMakerWallet:  walletBalances[1],
-		origTakerBalance: channelBalances[0],
-		origMakerBalance: channelBalances[1],
-		takerNode:        lightningds[0],
-		makerNode:        lightningds[1],
-		takerPeerswap:    lightningds[0].DaemonProcess,
-		makerPeerswap:    lightningds[1].DaemonProcess,
-		chainRpc:         bitcoind.RpcProxy,
-		chaind:           bitcoind,
-		confirms:         BitcoinConfirms,
-		csv:              BitcoinCsv,
-		swapType:         swap.SWAPTYPE_OUT,
+		swapAmt:             channelBalances[0] / 2,
+		scid:                scid,
+		origTakerWallet:     walletBalances[0],
+		origMakerWallet:     walletBalances[1],
+		origTakerBalance:    channelBalances[0],
+		origMakerBalance:    channelBalances[1],
+		takerNode:           lightningds[0],
+		makerNode:           lightningds[1],
+		takerPeerswap:       lightningds[0].DaemonProcess,
+		makerPeerswap:       lightningds[1].DaemonProcess,
+		chainRpc:            bitcoind.RpcProxy,
+		chaind:              bitcoind,
+		confirms:            BitcoinConfirms,
+		csv:                 BitcoinCsv,
+		swapType:            swap.SWAPTYPE_OUT,
+		premiumLimitRatePPM: 100000,
 	}
 	asset := "btc"
 
@@ -80,7 +81,11 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:              params.swapAmt,
+			ShortChannelId:      params.scid,
+			Asset:               asset,
+			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
 	}()
 
 	var premium uint64
@@ -185,21 +190,22 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	}
 
 	params := &testParams{
-		swapAmt:          channelBalances[0] / 2,
-		scid:             scid,
-		origTakerWallet:  walletBalances[0],
-		origMakerWallet:  walletBalances[1],
-		origTakerBalance: channelBalances[0],
-		origMakerBalance: channelBalances[1],
-		takerNode:        lightningds[0],
-		makerNode:        lightningds[1],
-		takerPeerswap:    lightningds[0].DaemonProcess,
-		makerPeerswap:    lightningds[1].DaemonProcess,
-		chainRpc:         bitcoind.RpcProxy,
-		chaind:           bitcoind,
-		confirms:         BitcoinConfirms,
-		csv:              BitcoinCsv,
-		swapType:         swap.SWAPTYPE_OUT,
+		swapAmt:             channelBalances[0] / 2,
+		scid:                scid,
+		origTakerWallet:     walletBalances[0],
+		origMakerWallet:     walletBalances[1],
+		origTakerBalance:    channelBalances[0],
+		origMakerBalance:    channelBalances[1],
+		takerNode:           lightningds[0],
+		makerNode:           lightningds[1],
+		takerPeerswap:       lightningds[0].DaemonProcess,
+		makerPeerswap:       lightningds[1].DaemonProcess,
+		chainRpc:            bitcoind.RpcProxy,
+		chaind:              bitcoind,
+		confirms:            BitcoinConfirms,
+		csv:                 BitcoinCsv,
+		swapType:            swap.SWAPTYPE_OUT,
+		premiumLimitRatePPM: 100000,
 	}
 	asset := "btc"
 
@@ -207,7 +213,11 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:              params.swapAmt,
+			ShortChannelId:      params.scid,
+			Asset:               asset,
+			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
 	}()
 
 	var premium uint64
@@ -290,21 +300,22 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	}
 
 	params := &testParams{
-		swapAmt:          channelBalances[0] / 2,
-		scid:             scid,
-		origTakerWallet:  walletBalances[0],
-		origMakerWallet:  walletBalances[1],
-		origTakerBalance: channelBalances[0],
-		origMakerBalance: channelBalances[1],
-		takerNode:        lightningds[0],
-		makerNode:        lightningds[1],
-		takerPeerswap:    lightningds[0].DaemonProcess,
-		makerPeerswap:    lightningds[1].DaemonProcess,
-		chainRpc:         liquidd.RpcProxy,
-		chaind:           liquidd,
-		confirms:         LiquidConfirms,
-		csv:              LiquidCsv,
-		swapType:         swap.SWAPTYPE_OUT,
+		swapAmt:             channelBalances[0] / 2,
+		scid:                scid,
+		origTakerWallet:     walletBalances[0],
+		origMakerWallet:     walletBalances[1],
+		origTakerBalance:    channelBalances[0],
+		origMakerBalance:    channelBalances[1],
+		takerNode:           lightningds[0],
+		makerNode:           lightningds[1],
+		takerPeerswap:       lightningds[0].DaemonProcess,
+		makerPeerswap:       lightningds[1].DaemonProcess,
+		chainRpc:            liquidd.RpcProxy,
+		chaind:              liquidd,
+		confirms:            LiquidConfirms,
+		csv:                 LiquidCsv,
+		swapType:            swap.SWAPTYPE_OUT,
+		premiumLimitRatePPM: 100000,
 	}
 	asset := "lbtc"
 
@@ -312,7 +323,11 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
+		lightningds[0].Rpc.Request(&clightning.SwapOut{
+			SatAmt:              params.swapAmt,
+			ShortChannelId:      params.scid,
+			Asset:               asset,
+			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
 	}()
 
 	var premium uint64

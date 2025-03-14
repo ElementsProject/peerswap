@@ -516,6 +516,16 @@
         }
       }
     },
+    "peerswapAssetType": {
+      "type": "string",
+      "enum": [
+        "ASSET_UNSPECIFIED",
+        "BTC",
+        "LBTC"
+      ],
+      "default": "ASSET_UNSPECIFIED",
+      "description": "Enum for supported asset types."
+    },
     "peerswapEmpty": {
       "type": "object"
     },
@@ -569,6 +579,31 @@
         }
       }
     },
+    "peerswapOperationType": {
+      "type": "string",
+      "enum": [
+        "OPERATION_UNSPECIFIED",
+        "SWAP_IN",
+        "SWAP_OUT"
+      ],
+      "default": "OPERATION_UNSPECIFIED",
+      "description": "Enum for supported operation types."
+    },
+    "peerswapPeerPremium": {
+      "type": "object",
+      "properties": {
+        "nodeId": {
+          "type": "string"
+        },
+        "rates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/peerswapPremiumRate"
+          }
+        }
+      },
+      "description": "Premium configuration per peer.\nIf no configuration exists, the default configuration is used.\nUnique by AssetType and OperationType. No explicit constraints on\nthis data structure; consistency depends on peerswap implementation."
+    },
     "peerswapPeerSwapPeer": {
       "type": "object",
       "properties": {
@@ -599,6 +634,9 @@
         "paidFee": {
           "type": "string",
           "format": "uint64"
+        },
+        "peerPremium": {
+          "$ref": "#/definitions/peerswapPeerPremium"
         }
       }
     },
@@ -653,6 +691,22 @@
         }
       }
     },
+    "peerswapPremiumRate": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/peerswapAssetType"
+        },
+        "operation": {
+          "$ref": "#/definitions/peerswapOperationType"
+        },
+        "premiumRatePpm": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "description": "PremiumRate defines the premium rate for a specific asset and operation."
+    },
     "peerswapPrettyPrintSwap": {
       "type": "object",
       "properties": {
@@ -700,6 +754,10 @@
         "lndChanId": {
           "type": "string",
           "format": "uint64"
+        },
+        "premiumAmount": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -776,6 +834,10 @@
         },
         "force": {
           "type": "boolean"
+        },
+        "premiumLimitRatePpm": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -795,6 +857,10 @@
         },
         "force": {
           "type": "boolean"
+        },
+        "premiumLimitRatePpm": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

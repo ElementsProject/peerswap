@@ -21,6 +21,7 @@ import (
 	"github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/lwk"
+	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -316,6 +317,11 @@ func run() error {
 	// Manager for send message retry.
 	mesmgr := messages.NewManager()
 
+	ps, err := premium.NewSetting(swapDb)
+	if err != nil {
+		return err
+	}
+
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
 		lnd,
@@ -330,6 +336,7 @@ func run() error {
 		liquidOnChainService,
 		liquidOnChainService,
 		liquidTxWatcher,
+		ps,
 	)
 	swapService := swap.NewSwapService(swapServices)
 
@@ -365,7 +372,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lnd, pol, lnd, supportedAssets)
+	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lnd, pol, lnd, supportedAssets, ps)
 	pollService.Start()
 	defer pollService.Stop()
 
@@ -388,6 +395,7 @@ func run() error {
 		pol,
 		liquidCli,
 		lnrpc.NewLightningClient(cc),
+		ps,
 		sigChan,
 	)
 

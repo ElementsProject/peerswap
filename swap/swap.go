@@ -205,6 +205,26 @@ func (s *SwapData) GetAmount() uint64 {
 	return 0
 }
 
+func (s *SwapData) GetClaimAmount() uint64 {
+	if s.SwapInRequest != nil {
+		return s.SwapInRequest.Amount
+	}
+	if s.SwapOutRequest != nil {
+		return uint64(int64(s.SwapOutRequest.Amount) + s.SwapOutAgreement.Premium)
+	}
+	return 0
+}
+
+func (s *SwapData) GetOpeningTXAmount() uint64 {
+	if s.SwapInRequest != nil {
+		return uint64(int64(s.SwapInRequest.Amount) + s.SwapInAgreement.Premium)
+	}
+	if s.SwapOutRequest != nil {
+		return s.SwapOutRequest.Amount
+	}
+	return 0
+}
+
 func (s *SwapData) GetAsset() string {
 	if s.SwapInRequest != nil {
 		return s.SwapInRequest.Asset
@@ -213,6 +233,15 @@ func (s *SwapData) GetAsset() string {
 		return s.SwapOutRequest.Asset
 	}
 	return ""
+}
+func (s *SwapData) GetPremium() int64 {
+	if s.SwapInAgreement != nil {
+		return s.SwapInAgreement.Premium
+	}
+	if s.SwapOutAgreement != nil {
+		return s.SwapOutAgreement.Premium
+	}
+	return 0
 }
 
 func (s *SwapData) GetInvoiceExpiry() uint64 {
@@ -326,7 +355,7 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 		TakerPubkey:      s.GetTakerPubkey(),
 		MakerPubkey:      s.GetMakerPubkey(),
 		ClaimPaymentHash: s.GetPaymentHash(),
-		Amount:           s.GetAmount(),
+		Amount:           s.GetOpeningTXAmount(),
 		BlindingKey:      blindingKey,
 	}
 }
