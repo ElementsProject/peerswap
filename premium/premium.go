@@ -10,11 +10,28 @@ import (
 const (
 	// premiumRateParts is the total number of parts used to express fee rates.
 	premiumRateParts = 1e6
-	// defaultPremiumRatePPM is the default premium rate in ppm.
-	defaultPremiumRatePPM int64 = 0
+	// DefaultBTCSwapInPremiumRatePPM is the default premium rate in ppm.
+	DefaultBTCSwapInPremiumRatePPM int64 = 0
+	// DefaultBTCSwapOutPremiumRatePPM is the default premium rate in ppm.
+	DefaultBTCSwapOutPremiumRatePPM int64 = 2000
+	// DefaultLBTCSwapInPremiumRatePPM is the default premium rate in ppm.
+	DefaultLBTCSwapInPremiumRatePPM int64 = 0
+	// DefaultLBTCSwapOutPremiumRatePPM is the default premium rate in ppm.
+	DefaultLBTCSwapOutPremiumRatePPM int64 = 1000
 
 	premiumRatePPMKey = "premium_rate_ppm"
 )
+
+var DefaultPremiumRate = map[AssetType]map[OperationType]int64{
+	BTC: {
+		SwapIn:  DefaultBTCSwapInPremiumRatePPM,
+		SwapOut: DefaultBTCSwapOutPremiumRatePPM,
+	},
+	LBTC: {
+		SwapIn:  DefaultLBTCSwapInPremiumRatePPM,
+		SwapOut: DefaultLBTCSwapOutPremiumRatePPM,
+	},
+}
 
 // Enum for supported asset types.
 type AssetType int32
@@ -178,7 +195,7 @@ func (p *Setting) GetDefaultRate(asset AssetType, operation OperationType) (*Pre
 	rate, err := p.store.GetDefaultRate(asset, operation)
 	if err != nil {
 		if errors.Is(err, ErrRateNotFound) {
-			return NewPremiumRate(asset, operation, NewPPM(defaultPremiumRatePPM))
+			return NewPremiumRate(asset, operation, NewPPM(DefaultPremiumRate[asset][operation]))
 		}
 		return nil, err
 	}

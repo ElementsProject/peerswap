@@ -74,11 +74,12 @@ func Test_Setting_DeleteRate(t *testing.T) {
 		asset     premium.AssetType
 		operation premium.OperationType
 		ppm       int64
+		want      int64
 	}{
-		"BTC SwapIn":   {testPeer, premium.BTC, premium.SwapIn, testPPM1},
-		"BTC SwapOut":  {testPeer, premium.BTC, premium.SwapOut, testPPM2},
-		"LBTC SwapIn":  {testPeer, premium.LBTC, premium.SwapIn, testPPM3},
-		"LBTC SwapOut": {testPeer, premium.LBTC, premium.SwapOut, testPPM4},
+		"BTC SwapIn":   {testPeer, premium.BTC, premium.SwapIn, testPPM1, 0},
+		"BTC SwapOut":  {testPeer, premium.BTC, premium.SwapOut, testPPM2, 2000},
+		"LBTC SwapIn":  {testPeer, premium.LBTC, premium.SwapIn, testPPM3, 0},
+		"LBTC SwapOut": {testPeer, premium.LBTC, premium.SwapOut, testPPM4, 1000},
 	}
 
 	for name, tt := range tests {
@@ -103,7 +104,7 @@ func Test_Setting_DeleteRate(t *testing.T) {
 			}
 			assert.Equal(t, rate.Asset(), got.Asset())
 			assert.Equal(t, rate.Operation(), got.Operation())
-			assert.Equal(t, int64(0), got.PremiumRatePPM().Value())
+			assert.Equal(t, tt.want, got.PremiumRatePPM().Value())
 		})
 	}
 }

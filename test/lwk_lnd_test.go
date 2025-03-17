@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/stretchr/testify/require"
 )
@@ -93,6 +94,8 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -187,6 +190,8 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -281,6 +286,8 @@ func Test_LndLnd_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -381,6 +388,8 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -475,6 +484,8 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -569,6 +580,8 @@ func Test_LndLnd_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -667,6 +680,8 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -759,6 +774,8 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -851,6 +868,8 @@ func Test_LndCln_LWK_SwapIn(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -949,6 +968,8 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -1041,6 +1062,8 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 
@@ -1133,6 +1156,8 @@ func Test_LndCln_LWK_SwapOut(t *testing.T) {
 			csv:                 LiquidCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
 		}
 		asset := "lbtc"
 

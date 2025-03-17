@@ -77,6 +77,8 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 		csv:                 BitcoinCsv,
 		swapType:            swap.SWAPTYPE_OUT,
 		premiumLimitRatePPM: 100000,
+		swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+		swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 	}
 	asset := "btc"
 
@@ -171,6 +173,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -241,6 +245,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -313,6 +319,8 @@ func Test_ClnCln_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -390,6 +398,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -461,6 +471,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -532,6 +544,8 @@ func Test_ClnCln_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -612,6 +626,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -686,6 +702,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -760,6 +778,8 @@ func Test_ClnLnd_Bitcoin_SwapIn(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -840,6 +860,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -914,6 +936,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -988,6 +1012,8 @@ func Test_ClnLnd_Bitcoin_SwapOut(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -1064,6 +1090,8 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -1141,6 +1169,8 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -1211,6 +1241,8 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -1304,6 +1336,7 @@ func Test_Cln_Premium(t *testing.T) {
 			swapType:            swap.SWAPTYPE_IN,
 			premiumLimitRatePPM: 100000,
 			swapInPremiumRate:   premiumRatePPM,
+			swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 		}
 		asset := "btc"
 
@@ -1390,6 +1423,7 @@ func Test_Cln_Premium(t *testing.T) {
 			csv:                 BitcoinCsv,
 			swapType:            swap.SWAPTYPE_OUT,
 			premiumLimitRatePPM: 100000,
+			swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
 			swapOutPremiumRate:  premiumRatePPM,
 		}
 		asset := "btc"

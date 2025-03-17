@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
@@ -74,6 +75,8 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 		csv:                 BitcoinCsv,
 		swapType:            swap.SWAPTYPE_OUT,
 		premiumLimitRatePPM: 100000,
+		swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+		swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 	}
 	asset := "btc"
 
@@ -206,6 +209,8 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 		csv:                 BitcoinCsv,
 		swapType:            swap.SWAPTYPE_OUT,
 		premiumLimitRatePPM: 100000,
+		swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+		swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 	}
 	asset := "btc"
 
@@ -316,6 +321,8 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 		csv:                 LiquidCsv,
 		swapType:            swap.SWAPTYPE_OUT,
 		premiumLimitRatePPM: 100000,
+		swapInPremiumRate:   premium.DefaultBTCSwapInPremiumRatePPM,
+		swapOutPremiumRate:  premium.DefaultBTCSwapOutPremiumRatePPM,
 	}
 	asset := "lbtc"
 
