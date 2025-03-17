@@ -594,8 +594,8 @@ func ToOperationType(operationType premium.OperationType) OperationType {
 	}
 }
 
-func (p *PeerswapServer) GetDefaultPremiumRate(ctx context.Context,
-	request *GetDefaultPremiumRateRequest) (*PremiumRate, error) {
+func (p *PeerswapServer) GetGlobalPremiumRate(ctx context.Context,
+	request *GetGlobalPremiumRateRequest) (*PremiumRate, error) {
 	if request.GetAsset() != AssetType_BTC && request.GetAsset() != AssetType_LBTC {
 		return nil, fmt.Errorf("invalid asset type: %s", request.Asset)
 	}
@@ -615,8 +615,8 @@ func (p *PeerswapServer) GetDefaultPremiumRate(ctx context.Context,
 	}, nil
 }
 
-func (p *PeerswapServer) UpdateDefaultPremiumRate(ctx context.Context,
-	request *UpdateDefaultPremiumRateRequest) (*PremiumRate, error) {
+func (p *PeerswapServer) UpdateGlobalPremiumRate(ctx context.Context,
+	request *UpdateGlobalPremiumRateRequest) (*PremiumRate, error) {
 	rate, err := premium.NewPremiumRate(
 		toPremiumAssetType(request.GetRate().GetAsset()),
 		toPremiumOperationType(request.GetRate().GetOperation()),

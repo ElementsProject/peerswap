@@ -1278,7 +1278,7 @@ func Test_Cln_Premium(t *testing.T) {
 		var premiumRatePPM int64 = -10000
 
 		var premiumRes interface{}
-		err := lightningds[0].Rpc.Request(&clightning.SetPremiumRate{
+		err := lightningds[0].Rpc.Request(&clightning.UpdatePremiumRate{
 			PeerID:         lightningds[1].Id(),
 			Asset:          premium.BTC.String(),
 			Operation:      premium.SwapIn.String(),
@@ -1365,7 +1365,7 @@ func Test_Cln_Premium(t *testing.T) {
 		var premiumRatePPM int64 = -10000
 
 		var premiumRes interface{}
-		err := lightningds[1].Rpc.Request(&clightning.SetPremiumRate{
+		err := lightningds[1].Rpc.Request(&clightning.UpdatePremiumRate{
 			PeerID:         lightningds[0].Id(),
 			Asset:          premium.BTC.String(),
 			Operation:      premium.SwapOut.String(),

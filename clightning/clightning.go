@@ -48,9 +48,9 @@ var methods = []peerswaprpcMethod{
 	&GetRequestedSwaps{},
 	&ListConfig{},
 	&GetPremiumRate{},
-	&SetPremiumRate{},
-	&GetDefaultPremiumRate{},
-	&SetDefaultPremiumRate{},
+	&UpdatePremiumRate{},
+	&GetGlobalPremiumRate{},
+	&UpdateGlobalPremiumRate{},
 	&DeletePremiumRate{},
 }
 

@@ -105,26 +105,26 @@ To get the default premium rate, use the following command:
 
 For CLN:
 ```bash
-lightning-cli peerswap-getdefaultpremiumrate [btc|lbtc] [swap_in|swap_out]
+lightning-cli peerswap-getglobalpremiumrate [btc|lbtc] [swap_in|swap_out]
 ```
 
 For LND:
 ```bash
-pscli getdefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out]
+pscli getglobalpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out]
 ```
 
-### Set Default Premium Rate
+### Update Default Premium Rate
 
 To set the default premium rate, use the following command:
 
 For CLN:
 ```bash
-lightning-cli peerswap-setdefaultpremiumrate [btc|lbtc] [swap_in|swap_out] [premium_rate_ppm]
+lightning-cli peerswap-updateglobalpremiumrate [btc|lbtc] [swap_in|swap_out] [premium_rate_ppm]
 ```
 
 For LND:
 ```bash
-pscli updatedefaultpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out] --rate [premium_rate_ppm]
+pscli updateglobalpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out] --rate [premium_rate_ppm]
 ```
 
 ### Get Peer-Specific Premium Rate
@@ -141,13 +141,13 @@ For LND:
 pscli getpeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
 ```
 
-### Set Peer-Specific Premium Rate
+### Update Peer-Specific Premium Rate
 
 To set the premium rate for a specific peer, use the following command:
 
 For CLN:
 ```bash
-lightning-cli peerswap-setpremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT] [premium_rate_ppm]
+lightning-cli peerswap-updatepremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT] [premium_rate_ppm]
 ```
 
 For LND:

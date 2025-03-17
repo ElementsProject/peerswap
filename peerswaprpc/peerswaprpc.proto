@@ -32,9 +32,9 @@ service PeerSwap {
   // The initial value of the default rate is 0.
 
   // Get a premium rate for a asset, and operation.
-  rpc GetDefaultPremiumRate(GetDefaultPremiumRateRequest) returns (PremiumRate);
+  rpc GetGlobalPremiumRate(GetGlobalPremiumRateRequest) returns (PremiumRate);
   // Update a premium rate for a asset, and operation.
-  rpc UpdateDefaultPremiumRate(UpdateDefaultPremiumRateRequest) returns (PremiumRate);
+  rpc UpdateGlobalPremiumRate(UpdateGlobalPremiumRateRequest) returns (PremiumRate);
   // Get a premium rate for a specific peer, asset, and operation.
   rpc GetPremiumRate(GetPremiumRateRequest) returns (PremiumRate);
   // Update a premium rate for a specific peer, asset, and operation.
@@ -258,18 +258,18 @@ message UpdatePremiumRateRequest {
   PremiumRate rate = 2; // The new premium rate to be updated.
 }
 
-// Request for GetDefaultPremiumRate.
+// Request for GetGlobalPremiumRate.
 // Errors:
 //  INVALID_ARGUMENT: Invalid asset or operation specified.
-message GetDefaultPremiumRateRequest {
+message GetGlobalPremiumRateRequest {
   AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
   OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
 }
 
-// Request for UpdateDefaultPremiumRate.
+// Request for UpdateGlobalPremiumRate.
 // Errors:
 //  INVALID_ARGUMENT: Invalid asset, operation, or rate specified.
-message UpdateDefaultPremiumRateRequest {
+message UpdateGlobalPremiumRateRequest {
   PremiumRate rate = 2; // The new premium rate to be updated.
 }
 

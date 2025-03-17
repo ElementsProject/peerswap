@@ -1174,7 +1174,7 @@ func (c GetPremiumRate) LongDescription() string {
 	return c.Description()
 }
 
-type SetPremiumRate struct {
+type UpdatePremiumRate struct {
 	PeerID         string            `json:"peer_id"`
 	Asset          string            `json:"asset"`
 	Operation      string            `json:"operation"`
@@ -1182,17 +1182,17 @@ type SetPremiumRate struct {
 	cl             *ClightningClient `json:"-"`
 }
 
-func (c *SetPremiumRate) Name() string {
-	return "peerswap-setpremiumrate"
+func (c *UpdatePremiumRate) Name() string {
+	return "peerswap-updatepremiumrate"
 }
 
-func (c *SetPremiumRate) New() interface{} {
-	return &SetPremiumRate{
+func (c *UpdatePremiumRate) New() interface{} {
+	return &UpdatePremiumRate{
 		cl: c.cl,
 	}
 }
 
-func (c *SetPremiumRate) Call() (jrpc2.Result, error) {
+func (c *UpdatePremiumRate) Call() (jrpc2.Result, error) {
 	if !c.cl.isReady {
 		return nil, ErrWaitingForReady
 	}
@@ -1212,17 +1212,17 @@ func (c *SetPremiumRate) Call() (jrpc2.Result, error) {
 	}, nil
 }
 
-func (c *SetPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &SetPremiumRate{
+func (c *UpdatePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &UpdatePremiumRate{
 		cl: client,
 	}
 }
 
-func (c SetPremiumRate) Description() string {
+func (c UpdatePremiumRate) Description() string {
 	return "Set the premium rate for a peer"
 }
 
-func (c SetPremiumRate) LongDescription() string {
+func (c UpdatePremiumRate) LongDescription() string {
 	return c.Description()
 }
 
@@ -1274,24 +1274,24 @@ func (c DeletePremiumRate) LongDescription() string {
 	return c.Description()
 }
 
-type SetDefaultPremiumRate struct {
+type UpdateGlobalPremiumRate struct {
 	Asset          string            `json:"asset"`
 	Operation      string            `json:"operation"`
 	PremiumRatePPM int64             `json:"premium_rate_ppm"`
 	cl             *ClightningClient `json:"-"`
 }
 
-func (c *SetDefaultPremiumRate) Name() string {
-	return "peerswap-setdefaultpremiumrate"
+func (c *UpdateGlobalPremiumRate) Name() string {
+	return "peerswap-updateglobalpremiumrate"
 }
 
-func (c *SetDefaultPremiumRate) New() interface{} {
-	return &SetDefaultPremiumRate{
+func (c *UpdateGlobalPremiumRate) New() interface{} {
+	return &UpdateGlobalPremiumRate{
 		cl: c.cl,
 	}
 }
 
-func (c *SetDefaultPremiumRate) Call() (jrpc2.Result, error) {
+func (c *UpdateGlobalPremiumRate) Call() (jrpc2.Result, error) {
 	if !c.cl.isReady {
 		return nil, ErrWaitingForReady
 	}
@@ -1311,37 +1311,37 @@ func (c *SetDefaultPremiumRate) Call() (jrpc2.Result, error) {
 	}, nil
 }
 
-func (c *SetDefaultPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &SetDefaultPremiumRate{
+func (c *UpdateGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &UpdateGlobalPremiumRate{
 		cl: client,
 	}
 }
 
-func (c SetDefaultPremiumRate) Description() string {
+func (c UpdateGlobalPremiumRate) Description() string {
 	return "Set the default premium rate"
 }
 
-func (c SetDefaultPremiumRate) LongDescription() string {
+func (c UpdateGlobalPremiumRate) LongDescription() string {
 	return c.Description()
 }
 
-type GetDefaultPremiumRate struct {
+type GetGlobalPremiumRate struct {
 	Asset     string            `json:"asset"`
 	Operation string            `json:"operation"`
 	cl        *ClightningClient `json:"-"`
 }
 
-func (c *GetDefaultPremiumRate) Name() string {
-	return "peerswap-getdefaultpremiumrate"
+func (c *GetGlobalPremiumRate) Name() string {
+	return "peerswap-getglobalpremiumrate"
 }
 
-func (c *GetDefaultPremiumRate) New() interface{} {
-	return &GetDefaultPremiumRate{
+func (c *GetGlobalPremiumRate) New() interface{} {
+	return &GetGlobalPremiumRate{
 		cl: c.cl,
 	}
 }
 
-func (c *GetDefaultPremiumRate) Call() (jrpc2.Result, error) {
+func (c *GetGlobalPremiumRate) Call() (jrpc2.Result, error) {
 	if !c.cl.isReady {
 		return nil, ErrWaitingForReady
 	}
@@ -1357,17 +1357,17 @@ func (c *GetDefaultPremiumRate) Call() (jrpc2.Result, error) {
 	}, nil
 }
 
-func (c *GetDefaultPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
-	return &GetDefaultPremiumRate{
+func (c *GetGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetGlobalPremiumRate{
 		cl: client,
 	}
 }
 
-func (c GetDefaultPremiumRate) Description() string {
+func (c GetGlobalPremiumRate) Description() string {
 	return "Get the default premium rate"
 }
 
-func (c GetDefaultPremiumRate) LongDescription() string {
+func (c GetGlobalPremiumRate) LongDescription() string {
 	return c.Description()
 }
 

@@ -32,7 +32,7 @@ func main() {
 		listPeersCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
-		addSusPeerCommand, removeSusPeerCommand, getDefaultPremiumRateCommand, updateDefaultPremiumRateCommand,
+		addSusPeerCommand, removeSusPeerCommand, getGlobalPremiumRateCommand, updateGlobalPremiumRateCommand,
 		getPeerPremiumRateCommand, updatePremiumRateCommand, deletePeerPremiumRateCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
@@ -226,24 +226,24 @@ var (
 		Flags:  []cli.Flag{},
 		Action: stopPeerswap,
 	}
-	getDefaultPremiumRateCommand = cli.Command{
-		Name:  "getdefaultpremiumrate",
+	getGlobalPremiumRateCommand = cli.Command{
+		Name:  "getglobalpremiumrate",
 		Usage: "Get the default premium rate for a specific asset and operation",
 		Flags: []cli.Flag{
 			assetFlag,
 			operationFlag,
 		},
-		Action: getDefaultPremiumRate,
+		Action: getGlobalPremiumRate,
 	}
-	updateDefaultPremiumRateCommand = cli.Command{
-		Name:  "updatedefaultpremiumrate",
+	updateGlobalPremiumRateCommand = cli.Command{
+		Name:  "updateglobalpremiumrate",
 		Usage: "Update the default premium rate for a specific asset and operation",
 		Flags: []cli.Flag{
 			assetFlag,
 			operationFlag,
 			rateFlag,
 		},
-		Action: updateDefaultPremiumRate,
+		Action: updateGlobalPremiumRate,
 	}
 	deletePeerPremiumRateCommand = cli.Command{
 		Name:  "deletepeerpremiumrate",
@@ -557,14 +557,14 @@ func stopPeerswap(ctx *cli.Context) error {
 	return nil
 }
 
-func getDefaultPremiumRate(ctx *cli.Context) error {
+func getGlobalPremiumRate(ctx *cli.Context) error {
 	client, cleanup, err := getClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	res, err := client.GetDefaultPremiumRate(context.Background(), &peerswaprpc.GetDefaultPremiumRateRequest{
+	res, err := client.GetGlobalPremiumRate(context.Background(), &peerswaprpc.GetGlobalPremiumRateRequest{
 		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
 		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
 	})
@@ -575,14 +575,14 @@ func getDefaultPremiumRate(ctx *cli.Context) error {
 	return nil
 }
 
-func updateDefaultPremiumRate(ctx *cli.Context) error {
+func updateGlobalPremiumRate(ctx *cli.Context) error {
 	client, cleanup, err := getClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	res, err := client.UpdateDefaultPremiumRate(context.Background(), &peerswaprpc.UpdateDefaultPremiumRateRequest{
+	res, err := client.UpdateGlobalPremiumRate(context.Background(), &peerswaprpc.UpdateGlobalPremiumRateRequest{
 		Rate: &peerswaprpc.PremiumRate{
 			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
 			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
