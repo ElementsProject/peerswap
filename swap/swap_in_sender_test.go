@@ -1,11 +1,16 @@
 package swap
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 func Test_SwapInSenderValidSwap(t *testing.T) {
@@ -16,7 +21,7 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 
 	timeOutD := &timeOutDummy{}
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swapServices.toService = timeOutD
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
@@ -59,7 +64,7 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
@@ -89,7 +94,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	initiator, peer, takerPubkeyHash, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
@@ -126,7 +131,7 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	assert.Equal(t, State_ClaimedCoop, swap.Current)
 
 }
-func getSwapServices(msgChan chan PeerMessage) *SwapServices {
+func getSwapServices(t *testing.T, msgChan chan PeerMessage) *SwapServices {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
 	messenger := &dummyMessenger{msgChan: msgChan}
@@ -139,7 +144,12 @@ func getSwapServices(msgChan chan PeerMessage) *SwapServices {
 	chain.SetBalance(1000000)
 
 	mmgr := &MessengerManagerStub{}
-	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
+	dir := t.TempDir()
+	db, err := bbolt.Open(path.Join(dir, "premium-db"), os.ModePerm, nil)
+	require.NoError(t, err)
+	premium, err := premium.NewSetting(db)
+	require.NoError(t, err)
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain, premium)
 	swapServices.toService = &timeOutDummy{}
 	return swapServices
 }

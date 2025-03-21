@@ -28,6 +28,7 @@ import (
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/txwatcher"
 	"github.com/elementsproject/peerswap/wallet"
@@ -327,6 +328,10 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 
 	// Manager for send message retry.
 	mesmgr := messages.NewManager()
+	ps, err := premium.NewSetting(swapDb)
+	if err != nil {
+		return err
+	}
 
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
@@ -342,6 +347,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		liquidOnChainService,
 		liquidOnChainService,
 		liquidTxWatcher,
+		ps,
 	)
 	swapService := swap.NewSwapService(swapServices)
 
@@ -370,12 +376,12 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lightningPlugin, pol, lightningPlugin, supportedAssets)
+	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lightningPlugin, pol, lightningPlugin, supportedAssets, ps)
 	pollService.Start()
 	defer pollService.Stop()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, bitcoinCli, bitcoinOnChainService, pollService)
+	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, bitcoinCli, bitcoinOnChainService, pollService, ps)
 
 	// We are ready to accept and handle requests.
 	// FIXME: Once we reworked the recovery service (non-blocking) we want to

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/gbitcoin"
@@ -46,6 +47,11 @@ var methods = []peerswaprpcMethod{
 	&ReloadPolicyFile{},
 	&GetRequestedSwaps{},
 	&ListConfig{},
+	&GetPremiumRate{},
+	&UpdatePremiumRate{},
+	&GetGlobalPremiumRate{},
+	&UpdateGlobalPremiumRate{},
+	&DeletePremiumRate{},
 }
 
 var devmethods = []peerswaprpcMethod{}
@@ -70,6 +76,7 @@ type ClightningClient struct {
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
 	pollService    *poll.Service
+	ps             *premium.Setting
 
 	gbitcoin       *gbitcoin.Bitcoin
 	bitcoinChain   *onchain.BitcoinOnChain
@@ -326,7 +333,8 @@ func (cl *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter,
-	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service) {
+	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service,
+	ps *premium.Setting) {
 	cl.liquidWallet = liquidWallet
 	cl.requestedSwaps = requestedSwaps
 	cl.swaps = swaps
@@ -334,6 +342,7 @@ func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	cl.gbitcoin = bitcoin
 	cl.pollService = pollService
 	cl.bitcoinChain = bitcoinChain
+	cl.ps = ps
 	if cl.bitcoinChain != nil {
 		cl.bitcoinNetwork = bitcoinChain.GetChain()
 	}

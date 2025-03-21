@@ -4,25 +4,29 @@ import (
 	"context"
 	"encoding/hex"
 	"log"
+	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/samber/lo"
+	"go.etcd.io/bbolt"
 
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/policy"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_GoodCase(t *testing.T) {
-
 	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup(initiator)
-	bobSwapService := getTestSetup(peer)
+	aliceSwapService := getTestSetup(t, initiator)
+	bobSwapService := getTestSetup(t, peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -40,7 +44,7 @@ func Test_GoodCase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, btc_chain, channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, btc_chain, channelId, initiator, amount, 100000)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -70,12 +74,13 @@ func Test_GoodCase(t *testing.T) {
 	bobSwapService.swapServices.lightning.(*dummyLightningClient).TriggerPayment(bobSwap.SwapId.String(), INVOICE_CLAIM)
 	assert.Equal(t, State_ClaimedPreimage, bobSwap.Current)
 }
+
 func Test_FeePaymentFailed(t *testing.T) {
 	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup(initiator)
-	bobSwapService := getTestSetup(peer)
+	aliceSwapService := getTestSetup(t, initiator)
+	bobSwapService := getTestSetup(t, peer)
 
 	// set lightning to fail
 	aliceSwapService.swapServices.lightning.(*dummyLightningClient).failpayment = true
@@ -97,7 +102,7 @@ func Test_FeePaymentFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount, 100000)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -119,8 +124,8 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup(initiator)
-	bobSwapService := getTestSetup(peer)
+	aliceSwapService := getTestSetup(t, initiator)
+	bobSwapService := getTestSetup(t, peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -138,7 +143,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount, 100000)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -177,7 +182,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 }
 
 func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
-	service := getTestSetup("alice")
+	service := getTestSetup(t, "alice")
 	swapId := NewSwapId()
 	service.lockSwap(swapId.String(), "channelID", &SwapStateMachine{
 		SwapId: swapId,
@@ -223,12 +228,12 @@ func Test_OnlyOneActiveSwapPerChannel(t *testing.T) {
 		failures: 0,
 	})
 
-	_, err := service.SwapOut("peer", "lbtc", "channelID", "alice", uint64(100000))
+	_, err := service.SwapOut("peer", "lbtc", "channelID", "alice", uint64(100000), 0)
 	assert.Error(t, err, "expected error")
 	assert.ErrorIs(t, err, ActiveSwapError{channelId: "channelID", swapId: swapId.String()})
 	t.Logf("Got Error: %s", err.Error())
 
-	_, err = service.SwapIn("peer", "lbtc", "channelID", "alice", uint64(100000))
+	_, err = service.SwapIn("peer", "lbtc", "channelID", "alice", uint64(100000), 0)
 	assert.Error(t, err, "expected error")
 	assert.ErrorIs(t, err, ActiveSwapError{channelId: "channelID", swapId: swapId.String()})
 	t.Logf("Got Error: %s", err.Error())
@@ -238,8 +243,8 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	amount := uint64(100000)
 	initiator, peer, _, _, channelId := getTestParams()
 
-	aliceSwapService := getTestSetup(initiator)
-	bobSwapService := getTestSetup(peer)
+	aliceSwapService := getTestSetup(t, initiator)
+	bobSwapService := getTestSetup(t, peer)
 	aliceSwapService.swapServices.messenger.(*ConnectedMessenger).other = bobSwapService.swapServices.messenger.(*ConnectedMessenger)
 	bobSwapService.swapServices.messenger.(*ConnectedMessenger).other = aliceSwapService.swapServices.messenger.(*ConnectedMessenger)
 
@@ -257,7 +262,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount)
+	aliceSwap, err := aliceSwapService.SwapOut(peer, "btc", channelId, initiator, amount, 100000)
 	if err != nil {
 		t.Fatalf(" error swapping oput %v: ", err)
 	}
@@ -326,7 +331,7 @@ func TestMessageFromUnexpectedPeer(t *testing.T) {
 
 func TestTimeout(t *testing.T) {
 	t.Parallel()
-	sws := getTestSetup("alice")
+	sws := getTestSetup(t, "alice")
 	sws.swapServices.messenger = &noopMessenger{}
 	sws.Start()
 
@@ -361,14 +366,14 @@ func Test_SwapIn_PeerIsSuspicious(t *testing.T) {
 	const node = "alice"
 	const peer = "bob"
 
-	swapService := getTestSetup(node)
+	swapService := getTestSetup(t, node)
 	// Setup peer to be suspicious
 	swapService.swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn: true,
 		newSwapsAllowedReturn:  policy.DefaultPolicy().AllowNewSwaps,
 	}
 
-	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
+	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000, 0)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, PeerIsSuspiciousError(peer))
 }
@@ -379,7 +384,7 @@ func Test_SwapOut_PeerIsSuspicious(t *testing.T) {
 	const node = "alice"
 	const peer = "bob"
 
-	swapService := getTestSetup(node)
+	swapService := getTestSetup(t, node)
 	// Setup peer to be suspicious
 	swapService.swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,
@@ -387,12 +392,12 @@ func Test_SwapOut_PeerIsSuspicious(t *testing.T) {
 		newSwapsAllowedReturn:      policy.DefaultPolicy().AllowNewSwaps,
 	}
 
-	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000)
+	_, err := swapService.SwapOut(peer, "regtest", "", node, 100000, 0)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, PeerIsSuspiciousError(peer))
 }
 
-func getTestSetup(name string) *SwapService {
+func getTestSetup(t *testing.T, name string) *SwapService {
 	store := &dummyStore{dataMap: map[string]*SwapStateMachine{}}
 	reqSwapsStore := &requestedSwapsStoreMock{data: map[string][]RequestedSwap{}}
 	messenger := &ConnectedMessenger{
@@ -406,7 +411,25 @@ func getTestSetup(name string) *SwapService {
 	}
 	chain := &dummyChain{returnGetCSVHeight: 1008}
 	chain.SetBalance(10000000)
-	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain)
+	dir := t.TempDir()
+	db, err := bbolt.Open(path.Join(dir, "premium-db"), os.ModePerm, nil)
+	require.NoError(t, err)
+	premiumSetting, err := premium.NewSetting(db)
+	require.NoError(t, err)
+	require.NoError(t,
+		premiumSetting.SetDefaultRate(
+			lo.Must(premium.NewPremiumRate(premium.BTC, premium.SwapIn, premium.NewPPM(10000)))))
+	require.NoError(t,
+		premiumSetting.SetDefaultRate(
+			lo.Must(premium.NewPremiumRate(premium.BTC, premium.SwapOut, premium.NewPPM(10000)))))
+	require.NoError(t,
+		premiumSetting.SetDefaultRate(
+			lo.Must(premium.NewPremiumRate(premium.LBTC, premium.SwapIn, premium.NewPPM(10000)))))
+	require.NoError(t,
+		premiumSetting.SetDefaultRate(
+			lo.Must(premium.NewPremiumRate(premium.LBTC, premium.SwapOut, premium.NewPPM(10000)))))
+
+	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain, premiumSetting)
 	swapService := NewSwapService(swapServices)
 	return swapService
 }

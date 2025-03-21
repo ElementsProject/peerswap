@@ -73,12 +73,12 @@ A swap-out is when the initiator wants to pay a lightning payment in order to re
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
 ```
 
 For LND:
 ```bash
-pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
 ```
 
 ### Swap-In
@@ -87,14 +87,87 @@ A swap-in is when the initiator wants to spend onchain bitcoin in order to recei
 
 For CLN:
 ```bash
-lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc]
+lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
 ```
 
 For LND:
 ```bash
-pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc]
+pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
 ```
 
+## Premium
+
+The premium rate is the rate applied during a swap. There are default premium rates and peer-specific premium rates.
+
+### Get Default Premium Rate
+
+To get the default premium rate, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-getglobalpremiumrate [btc|lbtc] [swap_in|swap_out]
+```
+
+For LND:
+```bash
+pscli getglobalpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out]
+```
+
+### Update Default Premium Rate
+
+To set the default premium rate, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-updateglobalpremiumrate [btc|lbtc] [swap_in|swap_out] [premium_rate_ppm]
+```
+
+For LND:
+```bash
+pscli updateglobalpremiumrate --asset [btc|lbtc] --operation [swap_in|swap_out] --rate [premium_rate_ppm]
+```
+
+### Get Peer-Specific Premium Rate
+
+To get the premium rate for a specific peer, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-getpremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT]
+```
+
+For LND:
+```bash
+pscli getpeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
+```
+
+### Update Peer-Specific Premium Rate
+
+To set the premium rate for a specific peer, use the following command:
+
+For CLN:
+```bash
+lightning-cli peerswap-updatepremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT] [premium_rate_ppm]
+```
+
+For LND:
+```bash
+pscli updatepremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT] --rate [premium_rate_ppm]
+```
+
+### Delete Peer-Specific Premium Rate
+
+To delete the premium rate for a specific peer, use the following command:
+
+For CLN:
+```
+lightning-cli peerswap-deletepremiumrate [peer_id] [BTC|LBTC] [SWAP_IN|SWAP_OUT]
+```
+
+For LND:
+```bash
+pscli deletepeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
+```
 
 ## Misc
 
@@ -125,7 +198,9 @@ Example output:
          "total_sats_swapped_out": 2400000,
          "total_sats_swapped_in": 0
       },
-      "total_fee_paid": 6082
+      "total_fee_paid": 6082,
+      "swap_in_premium_rate": "100",
+      "swap_out_premium_rate": "100"
    }
 ]
 ```

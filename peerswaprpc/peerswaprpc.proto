@@ -26,6 +26,22 @@ service PeerSwap {
   rpc LiquidGetBalance(GetBalanceRequest) returns (GetBalanceResponse);
   rpc LiquidSendToAddress(SendToAddressRequest) returns (SendToAddressResponse);
 
+  // Premium Stuff
+  // Premium rates can be configured globally (default) or specifically for peers.
+  // If no specific configuration exists for a peer, the default configuration is used.
+  // The initial value of the default rate is 0.
+
+  // Get a premium rate for a asset, and operation.
+  rpc GetGlobalPremiumRate(GetGlobalPremiumRateRequest) returns (PremiumRate);
+  // Update a premium rate for a asset, and operation.
+  rpc UpdateGlobalPremiumRate(UpdateGlobalPremiumRateRequest) returns (PremiumRate);
+  // Get a premium rate for a specific peer, asset, and operation.
+  rpc GetPremiumRate(GetPremiumRateRequest) returns (PremiumRate);
+  // Update a premium rate for a specific peer, asset, and operation.
+  rpc UpdatePremiumRate(UpdatePremiumRateRequest) returns (PremiumRate);
+  // Delete a premium rate for a specific peer, asset, and operation.
+  rpc DeletePremiumRate(DeletePremiumRateRequest) returns (PremiumRate);
+
   rpc Stop(Empty) returns (Empty);
 }
 
@@ -55,6 +71,7 @@ message SwapOutRequest {
   uint64 swap_amount = 2;
   string asset = 3;
   bool force = 4;
+  int64 premium_limit_rate_ppm = 5;
 }
 
 message SwapOutResponse {
@@ -66,6 +83,7 @@ message SwapInRequest {
   uint64 swap_amount = 2;
   string asset = 3;
   bool force = 4;
+  int64 premium_limit_rate_ppm = 5;
 }
 
 message SwapResponse {
@@ -135,6 +153,7 @@ message PrettyPrintSwap {
   string claim_tx_id = 12;
   string cancel_message = 13;
   uint64 lnd_chan_id = 14;
+  int64 premium_amount = 15;
 }
 
 message PeerSwapPeer {
@@ -145,6 +164,7 @@ message PeerSwapPeer {
   SwapStats as_sender = 5;
   SwapStats as_receiver = 6;
   uint64 paid_fee = 7;
+  PeerPremium peer_premium = 8;
 }
 
 message PeerSwapPeerChannel {
@@ -159,10 +179,6 @@ message SwapStats {
   uint64 swaps_in = 2;
   uint64 sats_out = 3;
   uint64 sats_in = 4;
-}
-
-message PeerSwapNodes {
-  string node_id = 1;
 }
 
 message Policy {
@@ -183,3 +199,80 @@ message AllowSwapRequestsResponse {
 }
 
 message Empty {}
+
+// Enum for supported asset types.
+enum AssetType {
+  ASSET_UNSPECIFIED = 0; // Unspecified asset type.
+  BTC = 1; // Bitcoin asset type.
+  LBTC = 2; // Liquid Bitcoin asset type.
+}
+
+// Enum for supported operation types.
+enum OperationType {
+  OPERATION_UNSPECIFIED = 0; // Unspecified operation type.
+  SWAP_IN = 1; // Swap in operation type.
+  SWAP_OUT = 2; // Swap out operation type.
+}
+
+// PremiumRate defines the premium rate for a specific asset and operation.
+message PremiumRate {
+  AssetType asset = 1; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 2; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+  int64 premium_rate_ppm = 3; // Premium rate in parts per million (PPM).
+}
+
+// Premium configuration per peer.
+// If no configuration exists, the default configuration is used.
+// Unique by AssetType and OperationType. No explicit constraints on
+// this data structure; consistency depends on peerswap implementation.
+message PeerPremium {
+  string node_id = 1; // Node ID of the peer.
+  repeated PremiumRate rates = 2; // List of premium rates for this peer.
+}
+
+// Request for GetPremiumRate.
+// Errors:
+//  NOT_FOUND: No premium rate is configured for the specified peer, asset, and operation.
+//  INVALID_ARGUMENT: Invalid peer ID, asset, or operation specified.
+message GetPremiumRateRequest {
+  string node_id = 1; // Node ID of the peer.
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+}
+
+// Request for DeletePremiumRate.
+// Errors:
+//  NOT_FOUND: No premium rate is configured for the specified peer, asset, and operation.
+//  INVALID_ARGUMENT: Invalid peer ID, asset, or operation specified.
+message DeletePremiumRateRequest {
+  string node_id = 1; // Node ID of the peer.
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+}
+
+// Request for UpdatePremiumRate.
+// Errors:
+//  INVALID_ARGUMENT: Invalid peer ID, asset, operation, or rate specified.
+message UpdatePremiumRateRequest {
+  string node_id = 1; // Node ID of the peer.
+  PremiumRate rate = 2; // The new premium rate to be updated.
+}
+
+// Request for GetGlobalPremiumRate.
+// Errors:
+//  INVALID_ARGUMENT: Invalid asset or operation specified.
+message GetGlobalPremiumRateRequest {
+  AssetType asset = 2; // Asset type (e.g., BTC, LBTC).
+  OperationType operation = 3; // Operation type (e.g., SWAP_IN, SWAP_OUT).
+}
+
+// Request for UpdateGlobalPremiumRate.
+// Errors:
+//  INVALID_ARGUMENT: Invalid asset, operation, or rate specified.
+message UpdateGlobalPremiumRateRequest {
+  PremiumRate rate = 2; // The new premium rate to be updated.
+}
+
+message PeerSwapNodes {
+  string node_id = 1;
+}

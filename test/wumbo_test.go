@@ -108,7 +108,8 @@ func Test_Wumbo(t *testing.T) {
 			}
 
 			// Test Swap-out
-			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true)
+			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true,
+				[]byte("accept_all_peers=1\nswap_in_premium_rate_ppm=0\nswap_out_premium_rate_ppm=0\n"))
 			defer func() {
 				if t.Failed() {
 					filter := os.Getenv("PEERSWAP_TEST_FILTER")
@@ -147,56 +148,60 @@ func Test_Wumbo(t *testing.T) {
 			var err error
 			if tt.swapType == swap.SWAPTYPE_OUT {
 				params = &testParams{
-					swapAmt:          tt.swapAmtSat,
-					scid:             scid,
-					origTakerWallet:  walletBalances[0],
-					origMakerWallet:  walletBalances[1],
-					origTakerBalance: channelBalances[0],
-					origMakerBalance: channelBalances[1],
-					takerNode:        lightningds[0],
-					makerNode:        lightningds[1],
-					takerPeerswap:    lightningds[0].DaemonProcess,
-					makerPeerswap:    lightningds[1].DaemonProcess,
-					chainRpc:         bitcoind.RpcProxy,
-					chaind:           bitcoind,
-					confirms:         BitcoinConfirms,
-					csv:              BitcoinCsv,
-					swapType:         tt.swapType,
+					swapAmt:             tt.swapAmtSat,
+					scid:                scid,
+					origTakerWallet:     walletBalances[0],
+					origMakerWallet:     walletBalances[1],
+					origTakerBalance:    channelBalances[0],
+					origMakerBalance:    channelBalances[1],
+					takerNode:           lightningds[0],
+					makerNode:           lightningds[1],
+					takerPeerswap:       lightningds[0].DaemonProcess,
+					makerPeerswap:       lightningds[1].DaemonProcess,
+					chainRpc:            bitcoind.RpcProxy,
+					chaind:              bitcoind,
+					confirms:            BitcoinConfirms,
+					csv:                 BitcoinCsv,
+					swapType:            tt.swapType,
+					premiumLimitRatePPM: int64(tt.swapAmtSat / 10),
 				}
 
 				var response map[string]interface{}
 				err = lightningds[0].Rpc.Request(
 					&clightning.SwapOut{
-						SatAmt:         params.swapAmt,
-						ShortChannelId: scid,
-						Asset:          "btc"},
+						SatAmt:              params.swapAmt,
+						ShortChannelId:      scid,
+						Asset:               "btc",
+						PremiumLimitRatePPM: params.premiumLimitRatePPM},
 					&response,
 				)
 			} else {
 				params = &testParams{
-					swapAmt:          tt.swapAmtSat,
-					scid:             scid,
-					origTakerWallet:  walletBalances[0],
-					origMakerWallet:  walletBalances[1],
-					origTakerBalance: channelBalances[0],
-					origMakerBalance: channelBalances[1],
-					takerNode:        lightningds[0],
-					makerNode:        lightningds[1],
-					takerPeerswap:    lightningds[0].DaemonProcess,
-					makerPeerswap:    lightningds[1].DaemonProcess,
-					chainRpc:         bitcoind.RpcProxy,
-					chaind:           bitcoind,
-					confirms:         BitcoinConfirms,
-					csv:              BitcoinCsv,
-					swapType:         tt.swapType,
+					swapAmt:             tt.swapAmtSat,
+					scid:                scid,
+					origTakerWallet:     walletBalances[0],
+					origMakerWallet:     walletBalances[1],
+					origTakerBalance:    channelBalances[0],
+					origMakerBalance:    channelBalances[1],
+					takerNode:           lightningds[0],
+					makerNode:           lightningds[1],
+					takerPeerswap:       lightningds[0].DaemonProcess,
+					makerPeerswap:       lightningds[1].DaemonProcess,
+					chainRpc:            bitcoind.RpcProxy,
+					chaind:              bitcoind,
+					confirms:            BitcoinConfirms,
+					csv:                 BitcoinCsv,
+					swapType:            tt.swapType,
+					premiumLimitRatePPM: int64(tt.swapAmtSat / 10),
 				}
 
 				var response map[string]interface{}
 				err = lightningds[1].Rpc.Request(
 					&clightning.SwapIn{
-						SatAmt:         params.swapAmt,
-						ShortChannelId: scid,
-						Asset:          "btc"},
+						SatAmt:              params.swapAmt,
+						ShortChannelId:      scid,
+						Asset:               "btc",
+						PremiumLimitRatePPM: params.premiumLimitRatePPM},
 					&response,
 				)
 			}

@@ -6,27 +6,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/stretchr/testify/require"
 )
 
 type testParams struct {
-	swapAmt          uint64
-	scid             string
-	origTakerWallet  uint64
-	origMakerWallet  uint64
-	origTakerBalance uint64
-	origMakerBalance uint64
-	takerNode        testframework.LightningNode
-	makerNode        testframework.LightningNode
-	takerPeerswap    *testframework.DaemonProcess
-	makerPeerswap    *testframework.DaemonProcess
-	chainRpc         *testframework.RpcProxy
-	chaind           ChainNode
-	confirms         int
-	csv              int
-	swapType         swap.SwapType
+	swapAmt             uint64
+	scid                string
+	origTakerWallet     uint64
+	origMakerWallet     uint64
+	origTakerBalance    uint64
+	origMakerBalance    uint64
+	takerNode           testframework.LightningNode
+	makerNode           testframework.LightningNode
+	takerPeerswap       *testframework.DaemonProcess
+	makerPeerswap       *testframework.DaemonProcess
+	chainRpc            *testframework.RpcProxy
+	chaind              ChainNode
+	confirms            int
+	csv                 int
+	swapType            swap.SwapType
+	premiumLimitRatePPM int64
+	swapInPremiumRate   int64
+	swapOutPremiumRate  int64
+}
+
+func (p *testParams) premium() int64 {
+	switch p.swapType {
+	case swap.SWAPTYPE_IN:
+		return premium.NewPPM(p.swapInPremiumRate).Compute(p.swapAmt)
+	case swap.SWAPTYPE_OUT:
+		return premium.NewPPM(p.swapOutPremiumRate).Compute(p.swapAmt)
+	default:
+		return 0
+	}
 }
 
 func coopClaimTest(t *testing.T, params *testParams) {
@@ -49,6 +64,9 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	require.NoError(err)
 
 	moveAmt := (params.origTakerBalance - feeInvoiceAmt - params.swapAmt) + 1
+	if params.swapType == swap.SWAPTYPE_OUT {
+		moveAmt = uint64(int64(moveAmt) - params.premium())
+	}
 	inv, err := params.makerNode.AddInvoice(moveAmt, "shift balance", "")
 	require.NoError(err)
 
@@ -60,7 +78,11 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	err = testframework.WaitFor(func() bool {
 		setTakerFunds, err = params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		return setTakerFunds == params.swapAmt-1
+		expectTakerFunds := params.swapAmt - 1
+		if params.swapType == swap.SWAPTYPE_OUT {
+			expectTakerFunds = uint64(int64(expectTakerFunds) + params.premium())
+		}
+		return setTakerFunds == expectTakerFunds
 	}, testframework.TIMEOUT)
 	require.NoError(err)
 
@@ -120,16 +142,16 @@ func coopClaimTest(t *testing.T, params *testParams) {
 func preimageClaimTest(t *testing.T, params *testParams) {
 	require := require.New(t)
 
-	var premium uint64
+	var feeInvoiceAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was payed.
 		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
 		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
 
-		// Get premium from difference.
+		// Get fee from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		premium = params.origTakerBalance - newBalance
+		feeInvoiceAmt = params.origTakerBalance - newBalance
 	}
 
 	// Wait for opening tx being broadcasted.
@@ -153,12 +175,19 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	}
 
 	// Check channel balances match.
-	// premium is only !=0 when swap type is swap_out.
-	expected := float64(params.origTakerBalance - params.swapAmt - premium)
-	require.True(testframework.AssertWaitForChannelBalance(t, params.takerNode, params.scid, expected, 1., testframework.TIMEOUT))
-
-	expected = float64(params.origMakerBalance + params.swapAmt + premium)
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, expected, 1., testframework.TIMEOUT))
+	// fee invoice amount is only !=0 when swap type is swap_out.
+	expectedTakerChannelBalance := float64(int64(params.origTakerBalance - params.swapAmt - feeInvoiceAmt))
+	if params.swapType == swap.SWAPTYPE_OUT {
+		// taker pay premium by invoice being paid.
+		expectedTakerChannelBalance -= float64(params.premium())
+	}
+	require.True(testframework.AssertWaitForChannelBalance(t, params.takerNode, params.scid, expectedTakerChannelBalance, 1., testframework.TIMEOUT))
+	expectedMakerChannelBalance := float64(params.origMakerBalance + params.swapAmt + feeInvoiceAmt)
+	if params.swapType == swap.SWAPTYPE_OUT {
+		// maker receive premium by invoice being paid.
+		expectedMakerChannelBalance += float64(params.premium())
+	}
+	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, expectedMakerChannelBalance, 1., testframework.TIMEOUT))
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
@@ -179,14 +208,22 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 		t.Fatal("unknown role")
 	}
 
-	// Check Wallet balance.
-	// Expect: (WITHOUT PREMIUM)
+	// Check Wallet takerBalance.
+	// Expect:
 	// - taker -> before - claim_fee + swapamt
 	// - maker -> before - commitment_fee - swapamt
+	expectTakerBalance := int64(params.origTakerWallet - claimFee + params.swapAmt)
+	if swap.SWAPTYPE_IN == params.swapType {
+		expectTakerBalance += params.premium()
+	}
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.takerNode, params.origTakerWallet-claimFee+params.swapAmt, 1, time.Second*10)
+		params.takerNode, uint64(expectTakerBalance), 1, time.Second*10)
+	expectMakerBalance := int64(params.origMakerWallet - commitFee - params.swapAmt)
+	if swap.SWAPTYPE_IN == params.swapType {
+		expectMakerBalance -= params.premium()
+	}
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.makerNode, params.origMakerWallet-commitFee-params.swapAmt, 1, time.Second*10)
+		params.makerNode, uint64(expectMakerBalance), 1, time.Second*10)
 
 	// Check latest invoice memo should be of the form "swap-in btc claim <swap_id>"
 	bolt11, err := params.makerNode.GetLatestInvoice()

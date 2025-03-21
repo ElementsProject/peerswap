@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log2 "log"
 	"os"
+	"strings"
 
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/urfave/cli"
@@ -31,7 +32,8 @@ func main() {
 		listPeersCommand, reloadPolicyFileCommand, listRequestedSwapsCommand,
 		liquidGetBalanceCommand, liquidGetAddressCommand, liquidSendToAddressCommand,
 		stopCommand, listActiveSwapsCommand, allowSwapRequestsCommand, addPeerCommand, removePeerCommand,
-		addSusPeerCommand, removeSusPeerCommand,
+		addSusPeerCommand, removeSusPeerCommand, getGlobalPremiumRateCommand, updateGlobalPremiumRateCommand,
+		getPeerPremiumRateCommand, updatePremiumRateCommand, deletePeerPremiumRateCommand,
 	}
 	app.Version = fmt.Sprintf("commit: %s", GitCommit)
 	err := app.Run(os.Args)
@@ -54,7 +56,7 @@ var (
 	}
 	assetFlag = cli.StringFlag{
 		Name:     "asset",
-		Usage:    "asset to swap with: 'btc' | 'lbtc'",
+		Usage:    "asset to swap with: 'BTC' | 'LBTC'",
 		Required: true,
 	}
 	swapIdFlag = cli.StringFlag{
@@ -73,6 +75,26 @@ var (
 		Name:     "peer_pubkey",
 		Required: true,
 	}
+	PremiumLimitRatePPMFlag = cli.Uint64Flag{
+		Name:     "premium_limit_rate_ppm",
+		Usage:    "premium limit for a swap in parts per million",
+		Required: false,
+	}
+	operationFlag = cli.StringFlag{
+		Name:     "operation",
+		Usage:    "operation type: 'SWAP_IN' | 'SWAP_OUT'",
+		Required: true,
+	}
+	rateFlag = cli.Int64Flag{
+		Name:     "rate",
+		Usage:    "premium rate in ppm",
+		Required: true,
+	}
+	nodeIdFlag = cli.StringFlag{
+		Name:     "node_id",
+		Usage:    "node ID of the peer",
+		Required: true,
+	}
 
 	swapOutCommand = cli.Command{
 		Name:  "swapout",
@@ -81,6 +103,7 @@ var (
 			satAmountFlag,
 			channelIdFlag,
 			assetFlag,
+			PremiumLimitRatePPMFlag,
 		},
 		Action: swapOut,
 	}
@@ -92,6 +115,7 @@ var (
 			satAmountFlag,
 			channelIdFlag,
 			assetFlag,
+			PremiumLimitRatePPMFlag,
 		},
 		Action: swapIn,
 	}
@@ -202,6 +226,56 @@ var (
 		Flags:  []cli.Flag{},
 		Action: stopPeerswap,
 	}
+	getGlobalPremiumRateCommand = cli.Command{
+		Name:  "getglobalpremiumrate",
+		Usage: "Get the default premium rate for a specific asset and operation",
+		Flags: []cli.Flag{
+			assetFlag,
+			operationFlag,
+		},
+		Action: getGlobalPremiumRate,
+	}
+	updateGlobalPremiumRateCommand = cli.Command{
+		Name:  "updateglobalpremiumrate",
+		Usage: "Update the default premium rate for a specific asset and operation",
+		Flags: []cli.Flag{
+			assetFlag,
+			operationFlag,
+			rateFlag,
+		},
+		Action: updateGlobalPremiumRate,
+	}
+	deletePeerPremiumRateCommand = cli.Command{
+		Name:  "deletepeerpremiumrate",
+		Usage: "Delete the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+		},
+		Action: deletePeerPremiumRate,
+	}
+	getPeerPremiumRateCommand = cli.Command{
+		Name:  "getpeerpremiumrate",
+		Usage: "Get the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+		},
+		Action: getPeerPremiumRate,
+	}
+	updatePremiumRateCommand = cli.Command{
+		Name:  "updatepremiumrate",
+		Usage: "Update the premium rate for a specific peer, asset, and operation",
+		Flags: []cli.Flag{
+			nodeIdFlag,
+			assetFlag,
+			operationFlag,
+			rateFlag,
+		},
+		Action: updatePremiumRate,
+	}
 )
 
 func swapIn(ctx *cli.Context) error {
@@ -213,9 +287,10 @@ func swapIn(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.SwapIn(context.Background(), &peerswaprpc.SwapInRequest{
-		ChannelId:  ctx.Uint64(channelIdFlag.Name),
-		SwapAmount: ctx.Uint64(satAmountFlag.Name),
-		Asset:      ctx.String(assetFlag.Name),
+		ChannelId:           ctx.Uint64(channelIdFlag.Name),
+		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		Asset:               ctx.String(assetFlag.Name),
+		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {
 		return err
@@ -233,9 +308,10 @@ func swapOut(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.SwapOut(context.Background(), &peerswaprpc.SwapOutRequest{
-		ChannelId:  ctx.Uint64(channelIdFlag.Name),
-		SwapAmount: ctx.Uint64(satAmountFlag.Name),
-		Asset:      ctx.String(assetFlag.Name),
+		ChannelId:           ctx.Uint64(channelIdFlag.Name),
+		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		Asset:               ctx.String(assetFlag.Name),
+		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {
 		return err
@@ -474,6 +550,105 @@ func stopPeerswap(ctx *cli.Context) error {
 	defer cleanup()
 
 	res, err := client.Stop(context.Background(), &peerswaprpc.Empty{})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func getGlobalPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.GetGlobalPremiumRate(context.Background(), &peerswaprpc.GetGlobalPremiumRateRequest{
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func updateGlobalPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.UpdateGlobalPremiumRate(context.Background(), &peerswaprpc.UpdateGlobalPremiumRateRequest{
+		Rate: &peerswaprpc.PremiumRate{
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
+			PremiumRatePpm: ctx.Int64(rateFlag.Name),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func getPeerPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.GetPremiumRate(context.Background(), &peerswaprpc.GetPremiumRateRequest{
+		NodeId:    ctx.String(nodeIdFlag.Name),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func updatePremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.UpdatePremiumRate(context.Background(), &peerswaprpc.UpdatePremiumRateRequest{
+		NodeId: ctx.String(nodeIdFlag.Name),
+		Rate: &peerswaprpc.PremiumRate{
+			Asset:          peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+			Operation:      peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
+			PremiumRatePpm: ctx.Int64(rateFlag.Name),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	printRespJSON(res)
+	return nil
+}
+
+func deletePeerPremiumRate(ctx *cli.Context) error {
+	client, cleanup, err := getClient(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	res, err := client.DeletePremiumRate(context.Background(), &peerswaprpc.DeletePremiumRateRequest{
+		NodeId:    ctx.String(nodeIdFlag.Name),
+		Asset:     peerswaprpc.AssetType(peerswaprpc.AssetType_value[strings.ToUpper(ctx.String(assetFlag.Name))]),
+		Operation: peerswaprpc.OperationType(peerswaprpc.OperationType_value[strings.ToUpper(ctx.String(operationFlag.Name))]),
+	})
 	if err != nil {
 		return err
 	}

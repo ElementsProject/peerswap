@@ -3,6 +3,7 @@ package clightning
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/premium"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
@@ -183,11 +187,12 @@ func (s *LiquidSendToAddress) LongDescription() string {
 
 // SwapOut starts a new swapout (paying an Invoice for onchain liquidity)
 type SwapOut struct {
-	ShortChannelId string            `json:"short_channel_id"`
-	SatAmt         uint64            `json:"amt_sat"`
-	Asset          string            `json:"asset"`
-	Force          bool              `json:"force"`
-	cl             *ClightningClient `json:"-"`
+	ShortChannelId      string            `json:"short_channel_id"`
+	SatAmt              uint64            `json:"amt_sat"`
+	Asset               string            `json:"asset"`
+	PremiumLimitRatePPM int64             `json:"premium_rate_limit_ppm"`
+	Force               bool              `json:"force"`
+	cl                  *ClightningClient `json:"-"`
 }
 
 func (l *SwapOut) New() interface{} {
@@ -260,7 +265,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}
@@ -302,12 +307,12 @@ func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
 
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
-	ShortChannelId string `json:"short_channel_id"`
-	SatAmt         uint64 `json:"amt_sat"`
-	Asset          string `json:"asset"`
-	Force          bool   `json:"force"`
-
-	cl *ClightningClient `json:"-"`
+	ShortChannelId      string            `json:"short_channel_id"`
+	SatAmt              uint64            `json:"amt_sat"`
+	Asset               string            `json:"asset"`
+	PremiumLimitRatePPM int64             `json:"premium_limit_ppm"`
+	Force               bool              `json:"force"`
+	cl                  *ClightningClient `json:"-"`
 }
 
 func (l *SwapIn) New() interface{} {
@@ -376,7 +381,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}
@@ -628,6 +633,12 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 					SatsIn:   ReceiverSatsIn,
 				},
 				PaidFee: paidFees,
+				PeerPremium: &Premium{
+					BTCSwapInPremiumRatePPM:   p.BTCSwapInPremiumRatePPM,
+					BTCSwapOutPremiumRatePPM:  p.BTCSwapOutPremiumRatePPM,
+					LBTCSwapInPremiumRatePPM:  p.LBTCSwapInPremiumRatePPM,
+					LBTCSwapOutPremiumRatePPM: p.LBTCSwapOutPremiumRatePPM,
+				},
 			}
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
 			if err != nil {
@@ -1097,6 +1108,289 @@ func (c ListConfig) LongDescription() string {
 	return c.Description()
 }
 
+func toPremiumAssetType(asset string) premium.AssetType {
+	switch strings.ToUpper(asset) {
+	case "BTC":
+		return premium.BTC
+	case "LBTC":
+		return premium.LBTC
+	default:
+		return premium.AsserUnspecified
+	}
+}
+
+func toPremiumOperationType(operation string) premium.OperationType {
+	switch strings.ToUpper(operation) {
+	case "SWAP_IN":
+		return premium.SwapIn
+	case "SWAP_OUT":
+		return premium.SwapOut
+	default:
+		return premium.OperationUnspecified
+	}
+}
+
+type GetPremiumRate struct {
+	PeerID    string            `json:"peer_id"`
+	Asset     string            `json:"asset"`
+	Operation string            `json:"operation"`
+	cl        *ClightningClient `json:"-"`
+}
+
+func (c *GetPremiumRate) Name() string {
+	return "peerswap-getpremiumrate"
+}
+
+func (c *GetPremiumRate) New() interface{} {
+	return &GetPremiumRate{
+		cl: c.cl,
+	}
+}
+
+type response struct {
+	json.RawMessage
+}
+
+// formatProtoMessage formats a proto message to a human readable
+func formatProtoMessage(m proto.Message) (response, error) {
+	mb, err := protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		AllowPartial:    false,
+		UseProtoNames:   true,
+		UseEnumNumbers:  false,
+		EmitUnpopulated: true,
+		Resolver:        nil,
+	}.Marshal(m)
+	return response{json.RawMessage(mb)}, err
+}
+
+func (c *GetPremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	e, err := c.cl.ps.GetRate(c.PeerID, toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation))
+	if err != nil {
+		return nil, fmt.Errorf("error getting premium rate: %v", err)
+	}
+	return formatProtoMessage(&peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(e.Asset()),
+		Operation:      peerswaprpc.ToOperationType(e.Operation()),
+		PremiumRatePpm: e.PremiumRatePPM().Value(),
+	})
+}
+
+func (c *GetPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetPremiumRate{
+		cl: client,
+	}
+}
+
+func (c GetPremiumRate) Description() string {
+	return "Get the premium rate for a peer"
+}
+
+func (c GetPremiumRate) LongDescription() string {
+	return c.Description()
+}
+
+type UpdatePremiumRate struct {
+	PeerID         string            `json:"peer_id"`
+	Asset          string            `json:"asset"`
+	Operation      string            `json:"operation"`
+	PremiumRatePPM int64             `json:"premium_rate_ppm"`
+	cl             *ClightningClient `json:"-"`
+}
+
+func (c *UpdatePremiumRate) Name() string {
+	return "peerswap-updatepremiumrate"
+}
+
+func (c *UpdatePremiumRate) New() interface{} {
+	return &UpdatePremiumRate{
+		cl: c.cl,
+	}
+}
+
+func (c *UpdatePremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	rate, err := premium.NewPremiumRate(toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation), premium.NewPPM(c.PremiumRatePPM))
+	if err != nil {
+		return nil, fmt.Errorf("error creating premium rate: %v", err)
+	}
+	err = c.cl.ps.SetRate(c.PeerID, rate)
+	if err != nil {
+		return nil, fmt.Errorf("error setting premium rate: %v", err)
+	}
+	return formatProtoMessage(&peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	})
+}
+
+func (c *UpdatePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &UpdatePremiumRate{
+		cl: client,
+	}
+}
+
+func (c UpdatePremiumRate) Description() string {
+	return "Set the premium rate for a peer"
+}
+
+func (c UpdatePremiumRate) LongDescription() string {
+	return c.Description()
+}
+
+type DeletePremiumRate struct {
+	PeerID    string            `json:"peer_id"`
+	Asset     string            `json:"asset"`
+	Operation string            `json:"operation"`
+	cl        *ClightningClient `json:"-"`
+}
+
+func (c *DeletePremiumRate) Name() string {
+	return "peerswap-deletepremiumrate"
+}
+
+func (c *DeletePremiumRate) New() interface{} {
+	return &DeletePremiumRate{
+		cl: c.cl,
+	}
+}
+
+func (c *DeletePremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	err := c.cl.ps.DeleteRate(c.PeerID, toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation))
+	if err != nil {
+		return nil, fmt.Errorf("error deleting premium rate: %v", err)
+	}
+	return formatProtoMessage(&peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(toPremiumAssetType(c.Asset)),
+		Operation:      peerswaprpc.ToOperationType(toPremiumOperationType(c.Operation)),
+		PremiumRatePpm: 0,
+	})
+}
+
+func (c *DeletePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &DeletePremiumRate{
+		cl: client,
+	}
+}
+
+func (c DeletePremiumRate) Description() string {
+	return "Delete the premium rate for a peer"
+}
+
+func (c DeletePremiumRate) LongDescription() string {
+	return c.Description()
+}
+
+type UpdateGlobalPremiumRate struct {
+	Asset          string            `json:"asset"`
+	Operation      string            `json:"operation"`
+	PremiumRatePPM int64             `json:"premium_rate_ppm"`
+	cl             *ClightningClient `json:"-"`
+}
+
+func (c *UpdateGlobalPremiumRate) Name() string {
+	return "peerswap-updateglobalpremiumrate"
+}
+
+func (c *UpdateGlobalPremiumRate) New() interface{} {
+	return &UpdateGlobalPremiumRate{
+		cl: c.cl,
+	}
+}
+
+func (c *UpdateGlobalPremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	rate, err := premium.NewPremiumRate(toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation), premium.NewPPM(c.PremiumRatePPM))
+	if err != nil {
+		return nil, fmt.Errorf("error creating premium rate: %v", err)
+	}
+	err = c.cl.ps.SetDefaultRate(rate)
+	if err != nil {
+		return nil, fmt.Errorf("error setting default premium rate: %v", err)
+	}
+	return formatProtoMessage(&peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	})
+}
+
+func (c *UpdateGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &UpdateGlobalPremiumRate{
+		cl: client,
+	}
+}
+
+func (c UpdateGlobalPremiumRate) Description() string {
+	return "Set the default premium rate"
+}
+
+func (c UpdateGlobalPremiumRate) LongDescription() string {
+	return c.Description()
+}
+
+type GetGlobalPremiumRate struct {
+	Asset     string            `json:"asset"`
+	Operation string            `json:"operation"`
+	cl        *ClightningClient `json:"-"`
+}
+
+func (c *GetGlobalPremiumRate) Name() string {
+	return "peerswap-getglobalpremiumrate"
+}
+
+func (c *GetGlobalPremiumRate) New() interface{} {
+	return &GetGlobalPremiumRate{
+		cl: c.cl,
+	}
+}
+
+func (c *GetGlobalPremiumRate) Call() (jrpc2.Result, error) {
+	if !c.cl.isReady {
+		return nil, ErrWaitingForReady
+	}
+	rate, err := c.cl.ps.GetDefaultRate(toPremiumAssetType(c.Asset),
+		toPremiumOperationType(c.Operation))
+	if err != nil {
+		return nil, fmt.Errorf("error getting default premium rate: %v", err)
+	}
+	return formatProtoMessage(&peerswaprpc.PremiumRate{
+		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
+		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
+		PremiumRatePpm: rate.PremiumRatePPM().Value(),
+	})
+}
+
+func (c *GetGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
+	return &GetGlobalPremiumRate{
+		cl: client,
+	}
+}
+
+func (c GetGlobalPremiumRate) Description() string {
+	return "Get the default premium rate"
+}
+
+func (c GetGlobalPremiumRate) LongDescription() string {
+	return c.Description()
+}
+
 type PeerSwapPeerChannel struct {
 	ChannelId     string `json:"short_channel_id"`
 	LocalBalance  uint64 `json:"local_balance"`
@@ -1111,6 +1405,13 @@ type SwapStats struct {
 	SatsIn   uint64 `json:"total_sats_swapped_in"`
 }
 
+type Premium struct {
+	BTCSwapInPremiumRatePPM   int64 `json:"btc_swap_in_premium_rate_ppm"`
+	BTCSwapOutPremiumRatePPM  int64 `json:"btc_swap_out_premium_rate_ppm"`
+	LBTCSwapInPremiumRatePPM  int64 `json:"lbtc_swap_in_premium_rate_ppm"`
+	LBTCSwapOutPremiumRatePPM int64 `json:"lbtc_swap_out_premium_rate_ppm"`
+}
+
 type PeerSwapPeer struct {
 	NodeId          string                 `json:"nodeid"`
 	SwapsAllowed    bool                   `json:"swaps_allowed"`
@@ -1119,6 +1420,7 @@ type PeerSwapPeer struct {
 	AsSender        *SwapStats             `json:"sent,omitempty"`
 	AsReceiver      *SwapStats             `json:"received,omitempty"`
 	PaidFee         uint64                 `json:"total_fee_paid,omitempty"`
+	PeerPremium     *Premium               `json:"premium,omitempty"`
 }
 
 // checkFeatures checks if a node runs the peerswap Plugin

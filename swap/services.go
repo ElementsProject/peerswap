@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	btecdsa "github.com/btcsuite/btcd/btcec/v2/ecdsa"
@@ -140,6 +141,7 @@ type SwapServices struct {
 	liquidWallet        Wallet
 	liquidEnabled       bool
 	toService           TimeOutService
+	ps                  *premium.Setting
 }
 
 func NewSwapServices(
@@ -156,7 +158,9 @@ func NewSwapServices(
 	liquidEnabled bool,
 	liquidWallet Wallet,
 	liquidValidator Validator,
-	liquidTxWatcher TxWatcher) *SwapServices {
+	liquidTxWatcher TxWatcher,
+	ps *premium.Setting,
+) *SwapServices {
 	return &SwapServices{
 		swapStore:           swapStore,
 		requestedSwapsStore: requestedSwapsStore,
@@ -172,6 +176,7 @@ func NewSwapServices(
 		liquidWallet:        liquidWallet,
 		liquidValidator:     liquidValidator,
 		liquidTxWatcher:     liquidTxWatcher,
+		ps:                  ps,
 	}
 }
 

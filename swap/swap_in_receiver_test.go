@@ -16,7 +16,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
 		Amount:          swapAmount,
@@ -25,6 +25,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 		SwapId:          swapId,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +36,7 @@ func Test_SwapInReceiverValid(t *testing.T) {
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
-		Payreq:      "invoice",
+		Payreq:      "swapin",
 		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
@@ -62,7 +63,7 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
@@ -95,7 +96,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	initiator, peer, _, _, chanId := getTestParams()
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
@@ -105,6 +106,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 		SwapId:          swapId,
 		Network:         "mainnet",
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +117,7 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 
 	_, err = swap.SendEvent(Event_OnTxOpenedMessage, &OpeningTxBroadcastedMessage{
 		SwapId:      swap.SwapId,
-		Payreq:      "invoice",
+		Payreq:      "swapin",
 		TxId:        getRandom32ByteHexString(),
 		ScriptOut:   0,
 		BlindingKey: "",
@@ -141,7 +143,7 @@ func Test_SwapInReceiver_PeerIsSuspicious(t *testing.T) {
 
 	msgChan := make(chan PeerMessage)
 
-	swapServices := getSwapServices(msgChan)
+	swapServices := getSwapServices(t, msgChan)
 	// Setup the peer to be suspicious.
 	swapServices.policy = &dummyPolicy{
 		isPeerSuspiciousReturn:     true,
