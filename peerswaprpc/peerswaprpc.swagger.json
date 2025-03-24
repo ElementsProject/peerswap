@@ -657,6 +657,9 @@
         },
         "active": {
           "type": "boolean"
+        },
+        "shortChannelId": {
+          "type": "string"
         }
       }
     },
