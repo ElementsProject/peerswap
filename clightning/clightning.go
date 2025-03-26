@@ -237,13 +237,6 @@ func (cl *ClightningClient) getMaxHtlcAmtMsat(scid, nodeId string) (uint64, erro
 	return htlcMaximumMilliSatoshis, nil
 }
 
-func min(x, y uint64) uint64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid. Falls back to the owned amount in the channel.
 func (cl *ClightningClient) SpendableMsat(scid string) (uint64, error) {
