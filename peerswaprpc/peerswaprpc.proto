@@ -172,6 +172,7 @@ message PeerSwapPeerChannel {
   uint64 local_balance = 2;
   uint64 remote_balance = 3;
   bool active = 5;
+  string short_channel_id = 6;
 }
 
 message SwapStats {
