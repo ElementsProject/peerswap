@@ -8,7 +8,7 @@ toolchain go1.23.4
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
-	github.com/btcsuite/btcd v0.24.3-0.20240921052913-67b8efd3ba53
+	github.com/btcsuite/btcd v0.24.3-0.20250318170759-4f4ea81776d6
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8
