@@ -3,7 +3,6 @@ package clightning
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -14,8 +13,6 @@ import (
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/premium"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
@@ -1163,24 +1160,6 @@ func (c *GetPremiumRate) New() interface{} {
 	}
 }
 
-type response struct {
-	json.RawMessage
-}
-
-// formatProtoMessage formats a proto message to a human readable
-func formatProtoMessage(m proto.Message) (response, error) {
-	mb, err := protojson.MarshalOptions{
-		Multiline:       true,
-		Indent:          "  ",
-		AllowPartial:    false,
-		UseProtoNames:   true,
-		UseEnumNumbers:  false,
-		EmitUnpopulated: true,
-		Resolver:        nil,
-	}.Marshal(m)
-	return response{json.RawMessage(mb)}, err
-}
-
 func (c *GetPremiumRate) Call() (jrpc2.Result, error) {
 	if !c.cl.isReady {
 		return nil, ErrWaitingForReady
@@ -1190,11 +1169,11 @@ func (c *GetPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting premium rate: %v", err)
 	}
-	return formatProtoMessage(&peerswaprpc.PremiumRate{
+	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(e.Asset()),
 		Operation:      peerswaprpc.ToOperationType(e.Operation()),
 		PremiumRatePpm: e.PremiumRatePPM().Value(),
-	})
+	}, nil
 }
 
 func (c *GetPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1242,11 +1221,11 @@ func (c *UpdatePremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting premium rate: %v", err)
 	}
-	return formatProtoMessage(&peerswaprpc.PremiumRate{
+	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
 		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
 		PremiumRatePpm: rate.PremiumRatePPM().Value(),
-	})
+	}, nil
 }
 
 func (c *UpdatePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1289,11 +1268,11 @@ func (c *DeletePremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error deleting premium rate: %v", err)
 	}
-	return formatProtoMessage(&peerswaprpc.PremiumRate{
+	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(toPremiumAssetType(c.Asset)),
 		Operation:      peerswaprpc.ToOperationType(toPremiumOperationType(c.Operation)),
 		PremiumRatePpm: 0,
-	})
+	}, nil
 }
 
 func (c *DeletePremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1340,11 +1319,11 @@ func (c *UpdateGlobalPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting default premium rate: %v", err)
 	}
-	return formatProtoMessage(&peerswaprpc.PremiumRate{
+	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
 		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
 		PremiumRatePpm: rate.PremiumRatePPM().Value(),
-	})
+	}, nil
 }
 
 func (c *UpdateGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
@@ -1386,11 +1365,11 @@ func (c *GetGlobalPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting default premium rate: %v", err)
 	}
-	return formatProtoMessage(&peerswaprpc.PremiumRate{
+	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
 		Operation:      peerswaprpc.ToOperationType(rate.Operation()),
 		PremiumRatePpm: rate.PremiumRatePPM().Value(),
-	})
+	}, nil
 }
 
 func (c *GetGlobalPremiumRate) Get(client *ClightningClient) jrpc2.ServerMethod {
