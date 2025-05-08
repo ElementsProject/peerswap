@@ -20,7 +20,7 @@ require (
 	github.com/lightningnetwork/lnd v0.18.4-beta.rc1
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli v1.22.9
-	github.com/vulpemventures/go-elements v0.4.0
+	github.com/vulpemventures/go-elements v0.5.1
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
 	go.etcd.io/bbolt v1.3.11
 	google.golang.org/grpc v1.59.0
@@ -102,7 +102,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
 	github.com/vulpemventures/fastsha256 v0.0.0-20160815193821-637e65642941 // indirect
-	github.com/vulpemventures/go-secp256k1-zkp v1.1.5 // indirect
+	github.com/vulpemventures/go-secp256k1-zkp v1.1.6 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.7 // indirect
