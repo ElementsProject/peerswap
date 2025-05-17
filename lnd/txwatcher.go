@@ -252,7 +252,7 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 	}()
 }
 
-// AddWaitForConfirmationTx subscribes to the lnd onchain tx watcher and calls
+// AddWaitForCsvTx subscribes to the lnd onchain tx watcher and calls
 // the callback as soon as the tx is above the csv limit.
 func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, heightHint uint32, script []byte) {
 	t.Lock()

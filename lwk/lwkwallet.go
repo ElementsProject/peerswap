@@ -155,7 +155,7 @@ func (r *LWKRpcWallet) createWallet(ctx context.Context, walletName, signerName 
 	return nil
 }
 
-// CreateFundedTransaction takes a tx with outputs and adds inputs in order to spend the tx
+// CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
 	asset []byte) (txid, rawTx string, fee Satoshi, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)

@@ -72,7 +72,7 @@ func PeerswapCustomMessageType(msgType string) (MessageType, error) {
 	}
 }
 
-// MessageTypeToHexStr returns the hex encoded string
+// MessageTypeToHexString returns the hex encoded string
 // of the messagetype.
 func MessageTypeToHexString(messageIndex MessageType) string {
 	return strconv.FormatInt(int64(messageIndex), 16)
