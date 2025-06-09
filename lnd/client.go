@@ -100,13 +100,6 @@ func (l *Client) getMaxHtlcAmtMsat(chanId uint64, pubkey string) (uint64, error)
 	return maxHtlcAmtMsat, nil
 }
 
-func min(x, y uint64) uint64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // SpendableMsat returns an estimate of the total we could send through the
 // channel with given scid.
 func (l *Client) SpendableMsat(scid string) (uint64, error) {
