@@ -651,6 +651,8 @@ func defaultBitcoinRpcPort(network string) uint {
 		return 38332
 	case "testnet", "testnet3":
 		return 18332
+	case "testnet4":
+		return 48332
 	case "regtest":
 		return 18443
 	default:
@@ -678,6 +680,8 @@ func bitcoinNetDir(network string) (string, error) {
 		return "signet", nil
 	case "testnet3", "testnet":
 		return "testnet3", nil
+	case "testnet4":
+		return "testnet4", nil
 	case "regtest":
 		return "regtest", nil
 	default:
@@ -689,7 +693,7 @@ func liquidNetDir(network string) (string, error) {
 	switch network {
 	case "mainnet", "bitcoin":
 		return "liquidv1", nil
-	case "testnet3", "simnet", "signet", "testnet":
+	case "testnet4", "testnet3", "simnet", "signet", "testnet":
 		return "liquidtestnet", nil
 	case "regtest":
 		return "liquidregtest", nil
