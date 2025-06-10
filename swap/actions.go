@@ -498,7 +498,7 @@ func (c *ClaimSwapTransactionWithCsv) Execute(services *SwapServices, swap *Swap
 	return Event_ActionSucceeded
 }
 
-// ClaimSwapTransactionWithCsv spends the opening transaction with maker and taker Signatures
+// ClaimSwapTransactionCoop spends the opening transaction with maker and taker Signatures
 type ClaimSwapTransactionCoop struct{}
 
 func (c *ClaimSwapTransactionCoop) Execute(services *SwapServices, swap *SwapData) EventType {
@@ -572,7 +572,7 @@ func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData)
 	return Event_ActionSucceeded
 }
 
-// SwapInSenderCreateSwapAction creates the swap data
+// CreateSwapRequestAction creates the swap data
 type CreateSwapRequestAction struct{}
 
 // todo validate data
