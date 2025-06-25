@@ -55,7 +55,7 @@ func TestBitcoinOnChain_GetFee_UseFloorFeeRate(t *testing.T) {
 	)
 
 	// Set estimator returned fee rate above floor and check that the
-	// estimated fee is used. 400 sat/kw corrresponds to 1.6 sat/vb.
+	// estimated fee is used. 400 sat/kw corresponds to 1.6 sat/vb.
 	estimator.EstimateFeePerKWReturn = btcutil.Amount(400)
 	fee, err := btcOnChain.GetFee(10)
 	require.NoError(t, err)

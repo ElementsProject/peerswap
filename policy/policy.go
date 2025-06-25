@@ -168,7 +168,7 @@ func (p *Policy) IsPeerSuspicious(peer string) bool {
 	return false
 }
 
-// ReloadFile reloads and and sets the policy
+// ReloadFile reloads and sets the policy
 // to the policy file. This might be because the
 // policy file changed and the runtime should use the
 // new policy.

@@ -91,7 +91,7 @@ func (p *PeerSwapConfig) Validate() error {
 type OnchainConfig struct {
 	RpcUser           string `long:"rpcuser" description:"rpc user"`
 	RpcPassword       string `long:"rpcpass" description:"password for rpc user"`
-	RpcPasswordFile   string `long:"rpcpasswordfile" description:"file that cointains password for rpc user"`
+	RpcPasswordFile   string `long:"rpcpasswordfile" description:"file that contains password for rpc user"`
 	RpcCookieFilePath string `long:"rpccookiefilepath" description:"path to rpc cookie file"`
 	RpcHost           string `long:"rpchost" description:"host to connect to"`
 	RpcPort           uint   `long:"rpcport" description:"port to connect to"`

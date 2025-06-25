@@ -2,7 +2,7 @@ package lightning
 
 import "strings"
 
-// Invoice defines the neccessary parts for decodepayreq
+// Invoice defines the necessary parts for decodepayreq
 type Invoice struct {
 	PHash       string
 	Amount      uint64
