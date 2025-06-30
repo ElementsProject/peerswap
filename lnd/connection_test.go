@@ -192,7 +192,7 @@ func TestResubscribeToStream(t *testing.T) {
 
 				WaitForReady(cc, 20*time.Second)
 
-				// Subscibe to new stream.
+				// Subscribe to new stream.
 				stream, err = client.StreamingOutputCall(
 					context.Background(),
 					&testpb.StreamingOutputCallRequest{},

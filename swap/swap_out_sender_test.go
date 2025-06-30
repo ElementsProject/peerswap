@@ -203,7 +203,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	msg := <-msgChan
 	// wants to await the csv claim before it goes to a
 	// finish state, such that the channel is still
-	// locked for furhter peerswap requests.
+	// locked for further peerswap requests.
 	assert.Equal(t, State_ClaimedCoop, swapFSM.Data.GetCurrentState())
 	assert.Equal(t, messages.MESSAGETYPE_COOPCLOSE, msg.MessageType())
 }

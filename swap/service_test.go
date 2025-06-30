@@ -171,7 +171,7 @@ func Test_ClaimPaymentFailedCoopClose(t *testing.T) {
 	}
 	// wants to await the csv claim before it goes to a
 	// finish state, such that the channel is still
-	// locked for furhter peerswap requests.
+	// locked for further peerswap requests.
 	assert.Equal(t, State_ClaimedCoop, aliceSwap.Current)
 
 	// trigger bob payment received
