@@ -30,7 +30,7 @@ const (
 	LiquidCsv   = 60
 	LiquidConfs = 2
 	// EstimatedOpeningConfidentialTxSizeBytes is the estimated size of a opening transaction.
-	// The size is a calculate 2672 bytes for 3 inputs and 3 ouputs of which 2 are
+	// The size is a calculate 2672 bytes for 3 inputs and 3 outputs of which 2 are
 	// blinded. An additional safety margin is added for a total of 3000 bytes.
 	EstimatedOpeningConfidentialTxSizeBytes = 3000
 )

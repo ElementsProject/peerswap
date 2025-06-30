@@ -74,7 +74,7 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 					continue
 				}
 			case <-r.resubscribeTicker.C:
-				// The old subsription topic will remain in the memory
+				// The old subscription topic will remain in the memory
 				// and needs to be cleared by rebooting.
 				err := r.electrumClient.Reboot(ctx)
 				if err != nil {
@@ -83,7 +83,7 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 				}
 				headerSubscription, err = r.electrumClient.SubscribeHeaders(ctx)
 				if err != nil {
-					log.Infof("Error subsribe headers: %v", err)
+					log.Infof("Error subscribe headers: %v", err)
 					continue
 				}
 			}

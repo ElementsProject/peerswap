@@ -87,7 +87,7 @@ See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade yo
 * What is the difference between BTC and L-BTC Swaps?
   * ![btc vs l-btc](./docs/img/btc_lbtc.png)
 * Why should use PeerSwap instead of centralized markets for submarine swaps?
-  * More Reliable - PeerSwap is significantly more reliable because you are not reliant on unknown channel balances, random network degredation, and slow routing attempts as often occur with multi-hop routes.
+  * More Reliable - PeerSwap is significantly more reliable because you are not reliant on unknown channel balances, random network degradation, and slow routing attempts as often occur with multi-hop routes.
   * Lower Cost - PeerSwap is the lowest cost because there is no 3rd party coordinator or intermediary nodes to collect rent.
   * More Private - Swaps are entirely between two consenting nodes. Nobody else is able to record details like who swapped.
 * What is the difference between [splicing](https://github.com/lightning/bolts/pull/863) and PeerSwap?
