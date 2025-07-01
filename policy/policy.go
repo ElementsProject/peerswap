@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sync"
 
 	"github.com/jessevdk/go-flags"
@@ -148,24 +149,14 @@ func (p *Policy) IsPeerAllowed(peer string) bool {
 	if p.AcceptAllPeers {
 		return true
 	}
-	for _, allowedPeer := range p.PeerAllowlist {
-		if peer == allowedPeer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.PeerAllowlist, peer)
 }
 
 // IsPeerSuspicious returns true if the peer is on the list of suspicious peers.
 func (p *Policy) IsPeerSuspicious(peer string) bool {
 	mu.Lock()
 	defer mu.Unlock()
-	for _, suspiciousPeer := range p.SuspiciousPeerList {
-		if peer == suspiciousPeer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.SuspiciousPeerList, peer)
 }
 
 // ReloadFile reloads and sets the policy
@@ -247,10 +238,8 @@ func (p *Policy) AddToAllowlist(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, v := range p.PeerAllowlist {
-		if v == pubkey {
-			return errors.New("peer is already whitelisted")
-		}
+	if slices.Contains(p.PeerAllowlist, pubkey) {
+		return errors.New("peer is already whitelisted")
 	}
 	if p.path == "" {
 		return ErrNoPolicyFile
@@ -274,10 +263,8 @@ func (p *Policy) AddToSuspiciousPeerList(pubkey string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	for _, v := range p.SuspiciousPeerList {
-		if v == pubkey {
-			return errors.New("peer is already marked as suspicious")
-		}
+	if slices.Contains(p.SuspiciousPeerList, pubkey) {
+		return errors.New("peer is already marked as suspicious")
 	}
 	if p.path == "" {
 		return ErrNoPolicyFile
