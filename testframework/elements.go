@@ -131,7 +131,7 @@ func NewBitcoinNode(testDir string, id int) (*BitcoinNode, error) {
 func (n *BitcoinNode) Run(generateInitialBlocks bool) error {
 	n.DaemonProcess.Run()
 
-	// Wait for deamon process to be ready
+	// Wait for daemon process to be ready
 	err := n.WaitForLog("Done loading", TIMEOUT)
 	if err != nil {
 		return err
@@ -349,7 +349,7 @@ func NewLiquidNodeFromConfig(testDir string, bitcoin *BitcoinNode, config map[st
 func (n *LiquidNode) Run(generateInitialBlocks bool) error {
 	n.DaemonProcess.Run()
 
-	// Wait for deamon process to be ready
+	// Wait for daemon process to be ready
 	err := n.WaitForLog("Done loading", TIMEOUT)
 	if err != nil {
 		return err

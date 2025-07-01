@@ -547,7 +547,7 @@ func (l *LiquidOnChain) CreateOpeningAddress(redeemScript []byte) (string, error
 	return addr, nil
 }
 
-// creatOpeningAddress returns the address for the opening tx
+// CreateBlindedOpeningAddress returns the address for the opening tx
 func (l *LiquidOnChain) CreateBlindedOpeningAddress(redeemScript []byte, blindingPubkey *btcec.PublicKey) (string, error) {
 	scriptPubKey := []byte{0x00, 0x20}
 	witnessProgram := sha256.Sum256(redeemScript)

@@ -30,7 +30,7 @@ const (
 
 // Estimator is used to estimate on-chain fees for transactions.
 type Estimator interface {
-	// EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
+	// EstimateFeePerKW returns the estimated fee in sat/kw for a transaction
 	// that should be confirmed in targetBlocks.
 	EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, error)
 
@@ -187,7 +187,7 @@ func NewLndEstimator(
 	}, nil
 }
 
-// EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
+// EstimateFeePerKW returns the estimated fee in sat/kw for a transaction
 // that should be confirmed in targetBlocks. It uses lnds internal fee
 // estimation.
 func (l *LndEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, error) {
@@ -228,7 +228,7 @@ func NewRegtestFeeEstimator() (*RegtestFeeEstimator, error) {
 	return &RegtestFeeEstimator{}, nil
 }
 
-// EstimateFeePerKw returns the estimated fee in sat/kw for a transaction
+// EstimateFeePerKW returns the estimated fee in sat/kw for a transaction
 // that should be confirmed in targetBlocks. RegtestFeeEstimator uses the
 // DefaultBitcoindStaticFeePerKw.
 func (r *RegtestFeeEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amount, error) {
