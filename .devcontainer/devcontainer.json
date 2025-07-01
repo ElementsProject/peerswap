@@ -4,8 +4,7 @@
     "name": "peerswap",
     "image": "mcr.microsoft.com/devcontainers/go:dev-1.22",
     "features": {
-        "ghcr.io/devcontainers/features/nix:1": {},
-        "ghcr.io/devcontainers-contrib/features/direnv:1": {}
+        "ghcr.io/devcontainers/features/nix:1": {}
     },
     "postCreateCommand": "echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf > /dev/null && nix-env -iA nixpkgs.nixpkgs-fmt && nix-env -iA cachix -f https://cachix.org/api/v1/install && sudo chmod a+w /usr/local/bin/ && GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0", // Configure tool-specific properties.
     "customizations": {
