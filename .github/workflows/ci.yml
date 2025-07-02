@@ -40,22 +40,55 @@ jobs:
     strategy:
       matrix:
         test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration, lwk-cln, lwk-lnd]
+      max-parallel: 12
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: nixbuild/nix-quick-install-action@v28
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
+
+      - name: Cache compiled binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./peerswapd
+            ./pscli
+            ./test/integration/*.test
+          key: binaries-${{ runner.os }}-${{ hashFiles('**/*.go', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            binaries-${{ runner.os }}-
+
+      - name: Cache test blockchain data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bitcoin
+            ~/.elements
+            ~/.lightning
+          key: blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-${{ hashFiles('test/integration/setup.go') }}
+          restore-keys: |
+            blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-
+
       - name: Restore and cache Nix store
         uses: nix-community/cache-nix-action@v5
         with:
           # restore and save a cache using this key
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix') }}
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
           # if there's no cache hit, restore a cache by this prefix
           restore-prefixes-first-match: nix-${{ runner.os }}-
           # collect garbage until Nix store size (in bytes) is at most this number
           # before trying to save a new cache
-          gc-max-store-size-linux: 1073741824
+          gc-max-store-size-linux: 5368709120
           # do purge caches
           purge: true
           # purge all versions of the cache
