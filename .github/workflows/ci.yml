@@ -47,23 +47,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: nixbuild/nix-quick-install-action@v28
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            go-${{ runner.os }}-
-
       - name: Cache compiled binaries
         uses: actions/cache@v4
         with:
           path: |
-            ./peerswapd
-            ./pscli
-            ./test/integration/*.test
+            out/
           key: binaries-${{ runner.os }}-${{ hashFiles('**/*.go', 'go.mod', 'go.sum') }}
           restore-keys: |
             binaries-${{ runner.os }}-
@@ -72,15 +60,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bitcoin
-            ~/.elements
-            ~/.lightning
+            /tmp/**/regtest
+            /tmp/**/bitcoin
+            /tmp/**/elements
+            /tmp/**/lightning
           key: blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-${{ hashFiles('test/integration/setup.go') }}
           restore-keys: |
             blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-
+            blockchain-data-${{ runner.os }}-
+        continue-on-error: true
 
       - name: Restore and cache Nix store
-        uses: nix-community/cache-nix-action@v5
+        uses: nix-community/cache-nix-action@v6
         with:
           # restore and save a cache using this key
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
@@ -88,13 +79,13 @@ jobs:
           restore-prefixes-first-match: nix-${{ runner.os }}-
           # collect garbage until Nix store size (in bytes) is at most this number
           # before trying to save a new cache
-          gc-max-store-size-linux: 5368709120
-          # do purge caches
-          purge: true
-          # purge all versions of the cache
-          purge-prefixes: cache-${{ runner.os }}-
-          # created more than this number of seconds ago relative to the start of the `Post Restore` phase
-          purge-created: 0
-          # except the version with the `primary-key`, if it exists
-          purge-primary-key: never
+          gc-max-store-size-linux: 5G
+          # use smaller chunk size for better reliability
+          upload-chunk-size: 67108864
+          # reduce purging for stability
+          purge: false
+        continue-on-error: true
+          
+      - name: Build test binaries
+        run: nix-shell --run "make test-bins"
       - run: nix-shell --run "make test-${{matrix.test-vector}}"
