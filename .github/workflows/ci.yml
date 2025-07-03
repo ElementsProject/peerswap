@@ -50,7 +50,6 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
 
@@ -58,9 +57,12 @@ jobs:
         with:
           name: peerswap
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          extraPullNames: nix-community
           useDaemon: true
-          skipPush: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          
+      - name: Build development shell
+        run: nix develop --profile ./dev-profile
+        
       - name: Build test binaries
-        run: nix-shell --run "make test-bins"
-      - run: nix-shell --run "make test-${{matrix.test-vector}}"
+        run: nix develop -c make test-bins
+        
+      - run: nix develop -c make test-${{matrix.test-vector}}
