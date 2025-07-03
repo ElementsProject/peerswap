@@ -46,46 +46,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: nixbuild/nix-quick-install-action@v28
-      - name: Cache compiled binaries
-        uses: actions/cache@v4
+      
+      - uses: cachix/install-nix-action@v31
         with:
-          path: |
-            out/
-          key: binaries-${{ runner.os }}-${{ hashFiles('**/*.go', 'go.mod', 'go.sum') }}
-          restore-keys: |
-            binaries-${{ runner.os }}-
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
-      - name: Cache test blockchain data
-        uses: actions/cache@v4
+      - uses: cachix/cachix-action@v16
         with:
-          path: |
-            /tmp/**/regtest
-            /tmp/**/bitcoin
-            /tmp/**/elements
-            /tmp/**/lightning
-          key: blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-${{ hashFiles('test/integration/setup.go') }}
-          restore-keys: |
-            blockchain-data-${{ runner.os }}-${{ matrix.test-vector }}-
-            blockchain-data-${{ runner.os }}-
-        continue-on-error: true
-
-      - name: Restore and cache Nix store
-        uses: nix-community/cache-nix-action@v6
-        with:
-          # restore and save a cache using this key
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
-          # if there's no cache hit, restore a cache by this prefix
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          # collect garbage until Nix store size (in bytes) is at most this number
-          # before trying to save a new cache
-          gc-max-store-size-linux: 5G
-          # use smaller chunk size for better reliability
-          upload-chunk-size: 67108864
-          # reduce purging for stability
-          purge: false
-        continue-on-error: true
-          
+          name: peerswap
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          extraPullNames: nix-community
+          useDaemon: true
+          skipPush: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
       - name: Build test binaries
         run: nix-shell --run "make test-bins"
       - run: nix-shell --run "make test-${{matrix.test-vector}}"
