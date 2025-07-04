@@ -40,7 +40,6 @@ jobs:
     strategy:
       matrix:
         test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration, lwk-cln, lwk-lnd]
-      max-parallel: 12
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,11 +57,11 @@ jobs:
           name: peerswap
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           useDaemon: true
-          
-      - name: Build development shell
-        run: nix develop --profile ./dev-profile
-        
-      - name: Build test binaries
-        run: nix develop -c make test-bins
-        
-      - run: nix-shell --run "make test-${{matrix.test-vector}}"
+      # Switch to nix-shell for integration tests instead of nix develop.
+      # The 'nix develop' command can be unstable in some CI environments,
+      # causing issues like "clightning-1: Lost connection to the RPC socket."
+      # While the root cause is unclear, switching to nix-shell provides a more stable alternative for CI.
+      # For more context, see the issue in this failed job: https://github.com/ElementsProject/peerswap/actions/runs/16064376179/job/45336040866?pr=385
+      - name: Run integration tests
+        run: |
+          nix-shell --run "make integration-test"
