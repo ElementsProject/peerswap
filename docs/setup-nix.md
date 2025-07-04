@@ -110,35 +110,17 @@ cachix use peerswap
    - Compare build times before/after Cachix
    - Expected improvement: 50-80% faster builds
 
-## How It Works
+### 4. Local Cache Push
 
-### CI/CD Pipeline
+To push from local development to the cache:
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) includes:
-
-```yaml
-- uses: cachix/install-nix-action@v31
-  with:
-    github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    nix_path: nixpkgs=channel:nixos-unstable
-    extra_nix_config: |
-      experimental-features = nix-command flakes
-
-- uses: cachix/cachix-action@v16
-  with:
-    name: peerswap
-    authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-    extraPullNames: nix-community
-    useDaemon: true
-    skipPush: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+```bash
+# Create a profile and push to cache
+nix develop --profile dev-profile
+cachix push peerswap dev-profile
 ```
 
-### Security Model
-
-- **Public cache**: Anyone can pull (read) from the cache
-- **Authenticated push**: Only CI with valid token can push
-- **Fork safety**: External forks can read but cannot push
-- **Background uploads**: Non-blocking cache population
+## How It Works
 
 ### Local Development
 
@@ -153,78 +135,6 @@ if command -v cachix >/dev/null 2>&1; then
 fi
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-1. **"Secret not found" in CI**:
-   - Verify `CACHIX_AUTH_TOKEN` is correctly named in repository secrets
-   - Check token has not expired
-
-2. **"Permission denied" when pushing**:
-   - Ensure token has "Push" permission
-   - Verify cache name matches exactly: `peerswap`
-
-3. **Fork PRs cannot push**:
-   - This is expected security behavior
-   - Forks can read from cache but cannot write
-   - No action needed
-
-4. **Slow builds despite cache**:
-   - Check if cache is being used: `nix build --show-trace`
-   - Verify substituters in `~/.config/nix/nix.conf`
-
-### Advanced Configuration
-
-1. **Custom substituters**:
-   ```bash
-   # Add to ~/.config/nix/nix.conf
-   substituters = https://cache.nixos.org/ https://peerswap.cachix.org
-   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= peerswap.cachix.org-1:...
-   ```
-
-2. **Local cache management**:
-   ```bash
-   # Clear local cache
-   nix-collect-garbage -d
-   
-   # Check cache usage
-   du -sh /nix/store
-   ```
-
-## Maintenance
-
-### Regular Tasks
-
-1. **Monitor cache usage**:
-   - Check Cachix dashboard for storage usage
-   - Clean up old artifacts if needed
-
-2. **Token rotation**:
-   - Rotate auth tokens periodically (recommended: every 6 months)
-   - Update GitHub secrets accordingly
-
-3. **Performance monitoring**:
-   - Track CI build times
-   - Monitor cache hit rates
-
-### Updates
-
-When updating Nix-related dependencies:
-
-1. Update `flake.lock`:
-   ```bash
-   nix flake update
-   ```
-
-2. Test locally:
-   ```bash
-   nix develop
-   make test
-   ```
-
-3. Verify CI builds successfully with new dependencies
-
 ## Support
 
 For issues related to:
@@ -238,9 +148,23 @@ For issues related to:
 - [Cachix Documentation](https://docs.cachix.org/)
 - [GitHub Actions + Nix](https://nix.dev/guides/recipes/continuous-integration-github-actions)
 
+## Troubleshooting
 
-to push
-nix develop --profile dev-profile && cachix push mycache dev-profile
+### Common Issues
 
-/tmp/xxx というエラーが出た場合は、手動でdirを作成してください
-https://github.com/arrterian/nix-env-selector/issues/95
+**Issue**: `/tmp/xxx` directory error  
+**Solution**: Manually create the required directory  
+**Reference**: https://github.com/arrterian/nix-env-selector/issues/95
+
+**Issue**: Cachix authentication failed  
+**Solution**: Ensure you're logged in to Cachix:
+```bash
+cachix authtoken <your-token>
+```
+
+**Issue**: Nix flakes not enabled  
+**Solution**: Enable experimental features:
+```bash
+mkdir -p ~/.config/nix
+echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+```
