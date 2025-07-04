@@ -64,4 +64,4 @@ jobs:
       # For more context, see the issue in this failed job: https://github.com/ElementsProject/peerswap/actions/runs/16064376179/job/45336040866?pr=385
       - name: Run integration tests
         run: |
-          nix-shell --run "make integration-test"
+          nix-shell --run "make test-${{matrix.test-vector}}"
