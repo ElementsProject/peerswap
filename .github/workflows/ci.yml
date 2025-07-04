@@ -46,12 +46,7 @@ jobs:
         with:
           fetch-depth: 0
       
-      - uses: cachix/install-nix-action@v31
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
+      - uses: nixbuild/nix-quick-install-action@v32
       - uses: cachix/cachix-action@v16
         with:
           name: peerswap
