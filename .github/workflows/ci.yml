@@ -65,4 +65,4 @@ jobs:
       - name: Build test binaries
         run: nix develop -c make test-bins
         
-      - run: nix develop -c make test-${{matrix.test-vector}}
+      - run: nix-shell --run "make test-${{matrix.test-vector}}"
