@@ -237,3 +237,10 @@ For issues related to:
 - [Nix Flakes](https://nixos.wiki/wiki/Flakes)
 - [Cachix Documentation](https://docs.cachix.org/)
 - [GitHub Actions + Nix](https://nix.dev/guides/recipes/continuous-integration-github-actions)
+
+
+to push
+nix develop --profile dev-profile && cachix push mycache dev-profile
+
+/tmp/xxx というエラーが出た場合は、手動でdirを作成してください
+https://github.com/arrterian/nix-env-selector/issues/95

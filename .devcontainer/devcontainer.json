@@ -1,23 +1,23 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/go
+// README at: https://github.com/xtruder/nix-devcontainer
 {
     "name": "peerswap",
-    "image": "mcr.microsoft.com/devcontainers/go:dev-1.22",
-    "features": {
-        "ghcr.io/devcontainers/features/nix:1": {},
-        "ghcr.io/devcontainers-contrib/features/direnv:1": {}
-    },
-    "postCreateCommand": "echo 'experimental-features = nix-command flakes' | sudo tee -a /etc/nix/nix.conf > /dev/null && nix-env -iA nixpkgs.nixpkgs-fmt && nix-env -iA cachix -f https://cachix.org/api/v1/install && sudo chmod a+w /usr/local/bin/ && GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0", // Configure tool-specific properties.
+    "image": "ghcr.io/xtruder/nix-devcontainer:v1",
+    "onCreateCommand": "nix-env -iA cachix -f https://cachix.org/api/v1/install && cachix use peerswap && nix develop --command echo 'Nix environment ready'",
+    "postCreateCommand": "sudo chmod a+w /usr/local/bin/ && nix develop --command bash -c 'GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0'",
     "customizations": {
         "vscode": {
             "extensions": [
+                "arrterian.nix-env-selector",
                 "jnoortheen.nix-ide",
                 "mkhl.direnv",
+                "golang.go",
                 "bufbuild.vscode-buf"
             ]
         }
     },
     "containerEnv": {
+        "USER": "root",
         "RUN_INTEGRATION_TESTS": "1",
         "hardeningDisable": "all",
         "GOROOT": "",
