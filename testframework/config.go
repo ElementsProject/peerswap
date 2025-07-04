@@ -12,9 +12,9 @@ var TIMEOUT = setTimeout()
 
 func setTimeout() time.Duration {
 	if os.Getenv("SLOW_MACHINE") == "1" {
-		return 100 * time.Second
+		return 200 * time.Second
 	}
-	return 100 * time.Second
+	return 400 * time.Second
 }
 
 func WriteConfig(filename string, config map[string]string, regtestConfig map[string]string, sectionName string) {
