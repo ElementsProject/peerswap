@@ -25,7 +25,7 @@ func Test_ClnConfig(t *testing.T) {
 
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -78,7 +78,7 @@ func Test_ClnPluginConfigFile(t *testing.T) {
 
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -132,7 +132,7 @@ func Test_ClnPluginConfigFile_DoesNotExist(t *testing.T) {
 
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -177,7 +177,7 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -281,7 +281,7 @@ func Test_ClnPluginConfig_DisableLiquid(t *testing.T) {
 
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
