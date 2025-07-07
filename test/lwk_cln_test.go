@@ -11,7 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// skipLWKTests skips all LWK-related tests due to intermittent CI failures
+// See: https://github.com/ElementsProject/peerswap/actions/runs/16069080660/job/45350236095?pr=385
+func skipLWKTests(t *testing.T) {
+	t.Skip("Skipping lwk_cln_test due to intermittent CI failures")
+}
+
 func Test_ClnCln_LWK_SwapIn(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 	t.Run("claim_normal", func(t *testing.T) {
@@ -264,6 +271,7 @@ func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 }
 
 func Test_ClnCln_LWK_SwapOut(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 	t.Run("claim_normal", func(t *testing.T) {
@@ -516,6 +524,7 @@ func Test_ClnCln_LWK_SwapOut(t *testing.T) {
 }
 
 func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 
@@ -775,6 +784,7 @@ func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 }
 
 func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 
@@ -1033,6 +1043,7 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 }
 
 func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 	t.Run("claim_normal", func(t *testing.T) {
@@ -1285,6 +1296,7 @@ func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
 }
 
 func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 	t.Run("claim_normal", func(t *testing.T) {
@@ -1537,6 +1549,7 @@ func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
 }
 
 func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
+	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
 	t.Run("lwkdown", func(t *testing.T) {

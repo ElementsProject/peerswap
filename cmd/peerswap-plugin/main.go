@@ -519,21 +519,46 @@ func setPanicLogger() (func() error, error) {
 }
 
 // waitForClnSynced waits until cln is synced to the blockchain and the network.
-// This call is blocking.
+// This call is blocking and includes detailed observability logging.
 func waitForClnSynced(cln *glightning.Lightning, tick time.Duration) error {
 	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
+	cln.SetTimeout(10)
 
-	for {
-		select {
-		case <-ticker.C:
-			info, err := cln.GetInfo()
-			if err != nil {
-				return err
-			}
-			if info.IsBitcoindSync() && info.IsLightningdSync() {
-				return nil
-			}
+	log.Infof("Waiting for Core Lightning to sync (checking every %v)", tick)
+	startTime := time.Now()
+
+	for range ticker.C {
+		info, err := cln.GetInfo()
+		if err != nil {
+			log.Infof("Failed to get node info while waiting for sync: %v", err)
+			return fmt.Errorf("failed to check sync status: %w", err)
+		}
+
+		bitcoindSynced := info.IsBitcoindSync()
+		lightningdSynced := info.IsLightningdSync()
+		elapsed := time.Since(startTime)
+
+		log.Infof("Node info - ID: %s, Alias: %s, Version: %s",
+			info.Id, info.Alias, info.Version)
+		log.Infof("Block info - Height: %d, Peers: %d",
+			info.Blockheight, info.PeerCount)
+		log.Infof("Network: %s, Fees collected: %s",
+			info.Network, info.FeesCollected)
+		log.Infof("Sync status: bitcoind=%t, lightningd=%t (elapsed: %v)",
+			bitcoindSynced, lightningdSynced, elapsed)
+
+		if bitcoindSynced && lightningdSynced {
+			log.Infof("Core Lightning is now fully synced (took %v)", elapsed)
+			return nil
+		}
+
+		if !bitcoindSynced {
+			log.Infof("Still waiting for bitcoind to sync...")
+		}
+		if !lightningdSynced {
+			log.Infof("Still waiting for lightningd to sync...")
 		}
 	}
+	return fmt.Errorf("timed out waiting for Core Lightning to sync after %v", time.Since(startTime))
 }

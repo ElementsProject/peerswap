@@ -24,6 +24,16 @@ const (
 	LiquidConfirms = 2
 )
 
+// makeTestDataDir creates a temporary directory for test data with proper cleanup.
+// It uses os.MkdirTemp() instead of t.TempDir() to avoid problems with long unix 
+// socket paths. See https://github.com/golang/go/issues/62614.
+func makeTestDataDir(t *testing.T) string {
+    tempDir, err := os.MkdirTemp("", "cln-test-")
+    require.NoError(t, err, "os.MkdirTemp failed")
+    t.Cleanup(func() { os.RemoveAll(tempDir) })
+    return tempDir
+}
+
 type fundingNode string
 
 const (
@@ -48,14 +58,9 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []stri
 	// The shorter temp paths avoid problems with long unix socket paths composed
 	// using the DataDir.
 	// See https://github.com/golang/go/issues/62614.
-	makeDataDir := func() string {
-		tempDir, err := os.MkdirTemp("", "cln-test-")
-		require.NoError(t, err, "os.MkdirTemp failed")
-		t.Cleanup(func() { os.RemoveAll(tempDir) })
-		return tempDir
-	}
+	makeDataDir := makeTestDataDir
 
-	testDir := makeDataDir()
+	testDir := makeDataDir(t)
 
 	// Setup nodes (1 bitcoind, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -156,7 +161,7 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 2 lightningd, 2 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -234,7 +239,7 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
 	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 cln, 1 lnd, 1 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -364,14 +369,9 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	// The shorter temp paths avoid problems with long unix socket paths composed
 	// using the DataDir.
 	// See https://github.com/golang/go/issues/62614.
-	makeDataDir := func() string {
-		tempDir, err := os.MkdirTemp("", "cln-test-")
-		require.NoError(t, err, "os.MkdirTemp failed")
-		t.Cleanup(func() { os.RemoveAll(tempDir) })
-		return tempDir
-	}
+	makeDataDir := makeTestDataDir
 
-	testDir := makeDataDir()
+	testDir := makeDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -520,7 +520,7 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd, 2 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -636,7 +636,7 @@ func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*test
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
 	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquid, 1 cln, 1 lnd, 1 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -846,7 +846,7 @@ func clnclnLWKSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode,
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -1021,7 +1021,7 @@ func lndlndLWKSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode,
 	// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd, 2 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -1165,7 +1165,7 @@ func mixedLWKSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframe
 	_, filename, _, _ := runtime.Caller(0)
 	peerswapdPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswapd")
 	peerswapPluginPath := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquid, 1 cln, 1 lnd, 1 peerswapd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -1382,7 +1382,7 @@ func clnclnLWKLiquidSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinN
 	/// Get PeerSwap plugin path and test dir
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
-	testDir := t.TempDir()
+	testDir := makeTestDataDir(t)
 
 	// Setup nodes (1 bitcoind, 1 liquidd, 2 lightningd)
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
@@ -1621,13 +1621,8 @@ func clnSingleElementsSetup(t *testing.T, elementsConfig map[string]string) (*te
 	_, filename, _, _ := runtime.Caller(0)
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 
-	makeDataDir := func() string {
-		tempDir, err := os.MkdirTemp("", "cln-test-")
-		require.NoError(t, err, "os.MkdirTemp failed")
-		t.Cleanup(func() { os.RemoveAll(tempDir) })
-		return tempDir
-	}
-	testDir := makeDataDir()
+	makeDataDir := makeTestDataDir
+	testDir := makeDataDir(t)
 
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
 	if err != nil {

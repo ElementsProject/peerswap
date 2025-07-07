@@ -24,7 +24,7 @@ func Test_GrpcRetryRequest(t *testing.T) {
 	t.Parallel()
 
 	// Setup bitcoind and lnd.
-	tmpDir := t.TempDir()
+	tmpDir := makeTestDataDir(t)
 	bitcoind, err := testframework.NewBitcoinNode(tmpDir, 1)
 	if err != nil {
 		t.Fatalf("Can not create bitcoin node: %v", err)
@@ -93,7 +93,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	t.Parallel()
 
 	// Setup bitcoind and lnd.
-	tmpDir := t.TempDir()
+	tmpDir := makeTestDataDir(t)
 	bitcoind, err := testframework.NewBitcoinNode(tmpDir, 1)
 	if err != nil {
 		t.Fatalf("Can not create bitcoin node: %v", err)
