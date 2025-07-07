@@ -36,7 +36,7 @@ func MakePreimage(newPreimage []byte) (Preimage, error) {
 	return preimage, nil
 }
 
-// RandomPreimage returns a random Preimage
+// GetPreimage returns a random Preimage
 func GetPreimage() (Preimage, error) {
 	var preimage Preimage
 

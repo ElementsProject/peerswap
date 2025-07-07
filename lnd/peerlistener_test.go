@@ -123,8 +123,8 @@ func TestPeerListener_Reconnect(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestPeerListener tests that the PeerListener reconnects to the lnd node if
-// the lnd node was gracefully shutdown and then restarted again.
+// TestPeerListener_Reconnect_OnGracefulStop tests that the PeerListener reconnects 
+// to the lnd node if the lnd node was gracefully shutdown and then restarted again.
 func TestPeerListener_Reconnect_OnGracefulStop(t *testing.T) {
 	test.IsIntegrationTest(t)
 	t.Parallel()
