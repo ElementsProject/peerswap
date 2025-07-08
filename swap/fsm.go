@@ -268,10 +268,7 @@ func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bo
 // exponentialBackoffAndJitter is function to wait for
 // exponential backoff and jitter.
 func (s *SwapStateMachine) exponentialBackoffAndJitter() {
-	temp := exponentialBackoffBase * int(math.Pow(2, float64(s.retries)))
-	if temp > exponentialBackoffCap {
-		temp = exponentialBackoffCap
-	}
+	temp := min(exponentialBackoffBase*int(math.Pow(2, float64(s.retries))), exponentialBackoffCap)
 	sleep := rand.Intn(temp)
 	time.Sleep(time.Duration(sleep) * time.Millisecond)
 }
