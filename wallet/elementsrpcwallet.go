@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 
 	"strings"
 
@@ -129,11 +130,8 @@ func (r *ElementsRpcWallet) setupWallet() error {
 		return err
 	}
 	var walletLoaded bool
-	for _, v := range loadedWallets {
-		if v == r.walletName {
-			walletLoaded = true
-			break
-		}
+	if slices.Contains(loadedWallets, r.walletName) {
+		walletLoaded = true
 	}
 	if !walletLoaded {
 		_, err = r.rpcClient.LoadWallet(r.walletName, true)
