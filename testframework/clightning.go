@@ -33,12 +33,8 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		return nil, fmt.Errorf("GetFreePort() %w", err)
 	}
 
-	rngDirExtension, err := GenerateRandomString(5)
-	if err != nil {
-		return nil, fmt.Errorf("GenerateRandomString(5) %w", err)
-	}
-
-	dataDir := filepath.Join(testDir, fmt.Sprintf("clightning-%s", rngDirExtension))
+	// Use node ID for directory name instead of random string (shorter and more predictable)
+	dataDir := filepath.Join(testDir, fmt.Sprintf("c%d", id))
 	networkDir := filepath.Join(dataDir, "regtest")
 
 	err = os.MkdirAll(networkDir, os.ModeDir|os.ModePerm)
@@ -87,20 +83,25 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 		fmt.Sprintf("--allow-deprecated-apis=true"),
 	}
 
-	// socketPath := filepath.Join(networkDir, "lightning-rpc")
+	// Check socket path length before proceeding
+	socketPath := filepath.Join(networkDir, "lightning-rpc")
+	if len(socketPath) > 104 { // Unix domain socket path limit
+		return nil, fmt.Errorf("socket path too long (%d chars): %s. Unix domain sockets are limited to 104-108 characters. Try setting TMPDIR to a shorter path.", len(socketPath), socketPath)
+	}
+
 	proxy, err := NewCLightningProxy("lightning-rpc", networkDir)
 	if err != nil {
 		return nil, fmt.Errorf("NewCLightningProxy() %w", err)
 	}
 
-	// Create seed file
-	regex, _ := regexp.Compile("[^/]+")
-	found := regex.FindAll([]byte(dataDir), -1)
-	all := []byte{}
-	for _, v := range found {
-		all = append(all, v...)
+	// Create seed file with a deterministic but unique seed
+	// Use dataDir path and node ID to generate a 32-byte seed
+	seedSource := fmt.Sprintf("%s-node-%d-seed-padding", dataDir, id)
+	// Ensure we have at least 32 bytes
+	for len(seedSource) < 32 {
+		seedSource += "0"
 	}
-	seed := regex.Find(all)[len(all)-32:]
+	seed := []byte(seedSource)[:32]
 	seedFile := filepath.Join(networkDir, "hsm_secret")
 	err = os.WriteFile(seedFile, seed, os.ModePerm)
 	if err != nil {
@@ -108,7 +109,7 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 	}
 
 	return &CLightningNode{
-		DaemonProcess:   NewDaemonProcess(cmdLine, fmt.Sprintf("clightning-%d", id)),
+		DaemonProcess:   NewDaemonProcess(cmdLine, fmt.Sprintf("cln-%d", id)),
 		CLightningProxy: proxy,
 		DataDir:         dataDir,
 		Port:            port,
@@ -118,18 +119,13 @@ func NewCLightningNode(testDir string, bitcoin *BitcoinNode, id int) (*CLightnin
 
 func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 	n.DaemonProcess.Run()
-	if waitForReady {
-		err := n.WaitForLog("Server started with public key", TIMEOUT)
-		if err != nil {
-			return fmt.Errorf("CLightningNode.Run() %w", err)
-		}
-	}
 
+	// Establish RPC connection first
 	var counter int
 	var err error
 	for {
-		if counter > 10 {
-			return fmt.Errorf("to many retries: %w", err)
+		if counter > 20 {
+			return fmt.Errorf("too many retries establishing RPC connection: %w", err)
 		}
 
 		err = n.StartProxy()
@@ -140,6 +136,27 @@ func (n *CLightningNode) Run(waitForReady, waitForBitcoinSynced bool) error {
 		}
 
 		break
+	}
+
+	if waitForReady {
+		// Wait for CLN to be ready via RPC
+		err = WaitFor(func() bool {
+			info, err := n.Rpc.GetInfo()
+			if err != nil {
+				// RPC might not be fully ready yet
+				return false
+			}
+			// CLN is ready when it has a valid node ID
+			if info.Id != "" {
+				log.Printf("CLN node ready with ID: %s", info.Id)
+				return true
+			}
+			return false
+		}, TIMEOUT)
+
+		if err != nil {
+			return fmt.Errorf("CLightningNode.Run() startup detection failed: %w", err)
+		}
 	}
 
 	// Cache info
