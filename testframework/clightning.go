@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/elementsproject/glightning/glightning"
@@ -363,12 +364,7 @@ func (n *CLightningNode) OpenChannel(remote LightningNode, capacity, pushAmt uin
 			return false
 		}
 
-		for _, txId := range rawMempool {
-			if txId == fr.FundingTxId {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(rawMempool, fr.FundingTxId)
 	}, TIMEOUT)
 	if err != nil {
 		return "", fmt.Errorf("error waiting for tx in mempool: %w", err)
