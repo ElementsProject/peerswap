@@ -91,7 +91,23 @@ func (d *DaemonProcess) WaitForLog(regex string, timeout time.Duration) error {
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("timeout reached while waiting for `%s` in logs", regex)
+			lastLogs := d.StdOut.Tail(20, ".*")
+
+			stderrContent := d.StdErr.String()
+			errMsg := fmt.Sprintf("timeout reached while waiting for `%s` in logs", regex)
+
+			if lastLogs != "" {
+				errMsg += fmt.Sprintf("\n\n=== Last 20 lines of stdout ===\n%s", lastLogs)
+			}
+
+			if stderrContent != "" {
+				stderrTail := d.StdErr.Tail(10, ".*")
+				if stderrTail != "" {
+					errMsg += fmt.Sprintf("\n\n=== Last 10 lines of stderr ===\n%s", stderrTail)
+				}
+			}
+
+			return fmt.Errorf(errMsg)
 		default:
 			ok, err := d.HasLog(regex)
 			if err != nil {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
@@ -25,13 +26,34 @@ const (
 )
 
 // makeTestDataDir creates a temporary directory for test data with proper cleanup.
-// It uses os.MkdirTemp() instead of t.TempDir() to avoid problems with long unix 
+// It uses os.MkdirTemp() instead of t.TempDir() to avoid problems with long unix
 // socket paths. See https://github.com/golang/go/issues/62614.
 func makeTestDataDir(t *testing.T) string {
-    tempDir, err := os.MkdirTemp("", "cln-test-")
-    require.NoError(t, err, "os.MkdirTemp failed")
-    t.Cleanup(func() { os.RemoveAll(tempDir) })
-    return tempDir
+	// 1. Check for custom test directory from environment
+	if baseDir := os.Getenv("PEERSWAP_TEST_DIR"); baseDir != "" {
+		testDir := filepath.Join(baseDir, fmt.Sprintf("t%d", time.Now().UnixNano()))
+		err := os.MkdirAll(testDir, 0755)
+		require.NoError(t, err, "failed to create test dir in PEERSWAP_TEST_DIR")
+		t.Cleanup(func() { os.RemoveAll(testDir) })
+		return testDir
+	}
+
+	// 2. Try to use /tmp/ps/ for shorter paths
+	shortBase := "/tmp/ps"
+	if err := os.MkdirAll(shortBase, 0755); err == nil {
+		// Use process ID and timestamp for uniqueness
+		testDir := filepath.Join(shortBase, fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()%1000000))
+		if err := os.MkdirAll(testDir, 0755); err == nil {
+			t.Cleanup(func() { os.RemoveAll(testDir) })
+			return testDir
+		}
+	}
+
+	// 3. Fallback to standard temp directory with short prefix
+	tempDir, err := os.MkdirTemp("", "ps-")
+	require.NoError(t, err, "os.MkdirTemp failed")
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	return tempDir
 }
 
 type fundingNode string
