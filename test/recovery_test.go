@@ -252,6 +252,8 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 
 	// Restart taker node and wait for recover
 	require.NoError(params.takerNode.Run(true, true))
+	// Ensure taker node is synced with the latest block height before recovery
+	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
 	require.NoError(params.takerPeerswap.WaitForLog("Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation", testframework.TIMEOUT))
 
@@ -364,6 +366,8 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 
 	// Restart taker node and wait for recover
 	require.NoError(params.takerNode.Run(true, true))
+	// Ensure taker node is synced with the latest block height before recovery
+	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
 	require.NoError(params.takerPeerswap.WaitForLog("Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation", testframework.TIMEOUT))
 
