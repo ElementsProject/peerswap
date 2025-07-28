@@ -13,7 +13,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
-	github.com/elementsproject/glightning v0.0.0-20250204171900-f3064a110c6b
+	github.com/elementsproject/glightning v0.0.0-20250728212555-da2a093f26a9
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/jessevdk/go-flags v1.5.0
