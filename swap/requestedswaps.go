@@ -27,12 +27,12 @@ func NewRequestedSwapsPrinter(store RequestedSwapsStore) *RequestedSwapsPrinter 
 func (p *RequestedSwapsPrinter) Write(w io.Writer) {
 	reqswaps, err := p.Get()
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("error reading requested swaps: %v", err)))
+		w.Write(fmt.Appendf(nil, "error reading requested swaps: %v", err))
 	}
 
 	b, err := json.MarshalIndent(reqswaps, "", "\t")
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("error marshalling requested swaps: %v", err)))
+		w.Write(fmt.Appendf(nil, "error marshalling requested swaps: %v", err))
 		return
 	}
 
