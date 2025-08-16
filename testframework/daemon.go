@@ -25,8 +25,8 @@ type DaemonProcess struct {
 func NewDaemonProcess(cmdline []string, prefix string) *DaemonProcess {
 	return &DaemonProcess{
 		CmdLine: cmdline,
-		StdOut:  &lockedWriter{w: new(strings.Builder), prefix: []byte(fmt.Sprintf("%s: ", prefix))},
-		StdErr:  &lockedWriter{w: new(strings.Builder), prefix: []byte(fmt.Sprintf("%s: ", prefix))},
+		StdOut:  &lockedWriter{w: new(strings.Builder), prefix: fmt.Appendf(nil, "%s: ", prefix)},
+		StdErr:  &lockedWriter{w: new(strings.Builder), prefix: fmt.Appendf(nil, "%s: ", prefix)},
 		prefix:  prefix,
 	}
 }

@@ -44,7 +44,7 @@ func (p *BBoltPremiumStore) SetRate(peer string, rate *PremiumRate) error {
 			return fmt.Errorf("Bucket not found")
 		}
 		key := fmt.Sprintf("%s.%d.%d", peer, rate.Asset(), rate.Operation())
-		value := []byte(fmt.Sprintf("%d", rate.PremiumRatePPM().Value()))
+		value := fmt.Appendf(nil, "%d", rate.PremiumRatePPM().Value())
 		return bucket.Put([]byte(key), value)
 	})
 }

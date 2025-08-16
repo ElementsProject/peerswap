@@ -20,12 +20,12 @@ func setTimeout() time.Duration {
 func WriteConfig(filename string, config map[string]string, regtestConfig map[string]string, sectionName string) {
 	b := []byte{}
 	for k, v := range config {
-		b = append(b, []byte(fmt.Sprintf("%s=%s\n", k, v))...)
+		b = append(b, fmt.Appendf(nil, "%s=%s\n", k, v)...)
 	}
 	if regtestConfig != nil {
-		b = append(b, []byte(fmt.Sprintf("[%s]\n", sectionName))...)
+		b = append(b, fmt.Appendf(nil, "[%s]\n", sectionName)...)
 		for k, v := range regtestConfig {
-			b = append(b, []byte(fmt.Sprintf("%s=%s\n", k, v))...)
+			b = append(b, fmt.Appendf(nil, "%s=%s\n", k, v)...)
 		}
 	}
 	os.WriteFile(filename, b, os.ModePerm)
