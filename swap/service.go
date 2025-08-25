@@ -816,7 +816,7 @@ func (s *SwapService) OnTxOpenedMessage(message *OpeningTxBroadcastedMessage) er
 	return nil
 }
 
-// OnTxOpenedMessage sends the TxConfirmed event to the corresponding swap state machine
+// SenderOnTxConfirmed sends the TxConfirmed event to the corresponding swap state machine
 func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 	swap, err := s.GetActiveSwap(swapId)
 	if err != nil {
