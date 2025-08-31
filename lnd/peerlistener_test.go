@@ -69,8 +69,8 @@ func TestPeerListener(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestPeerListener tests that the PeerListener reconnects to the lnd node if
-// the lnd node was killed and is online again.
+// TestPeerListener_Reconnect tests that the PeerListener reconnects to the
+// lnd node if the lnd node was killed and is online again.
 func TestPeerListener_Reconnect(t *testing.T) {
 	test.IsIntegrationTest(t)
 	t.Parallel()
