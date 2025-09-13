@@ -92,7 +92,6 @@ func Test_Wumbo(t *testing.T) {
 
 	for _, tt := range tests {
 		// Rebind for parallel tests.
-		tt := tt
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
 			require := require.New(t)

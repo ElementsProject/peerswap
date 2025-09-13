@@ -21,7 +21,6 @@ func TestPeerswapCustomMessageType(t *testing.T) {
 		"invalid":             {msgType: "invalid", wantErr: true},
 	}
 	for name, tt := range tests {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got, err := PeerswapCustomMessageType(tt.msgType)
