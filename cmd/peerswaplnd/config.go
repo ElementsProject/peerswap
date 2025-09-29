@@ -3,7 +3,6 @@ package peerswaplnd
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,7 +122,7 @@ func (o *OnchainConfig) Validate() error {
 			return errors.New("rpcpass or rpcpasswordfile must be set")
 		}
 		if o.RpcPasswordFile != "" {
-			passBytes, err := ioutil.ReadFile(o.RpcPasswordFile)
+			passBytes, err := os.ReadFile(o.RpcPasswordFile)
 			if err != nil {
 				return err
 			}

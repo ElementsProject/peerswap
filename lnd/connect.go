@@ -2,7 +2,7 @@ package lnd
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
@@ -86,7 +86,7 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 	if err != nil {
 		return nil, err
 	}
-	macBytes, err := ioutil.ReadFile(cfg.MacaroonPath)
+	macBytes, err := os.ReadFile(cfg.MacaroonPath)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig
 	if err != nil {
 		return nil, err
 	}
-	macBytes, err := ioutil.ReadFile(cfg.MacaroonPath)
+	macBytes, err := os.ReadFile(cfg.MacaroonPath)
 	if err != nil {
 		return nil, err
 	}

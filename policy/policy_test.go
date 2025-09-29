@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -160,7 +159,7 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 	err = policy.AddToSuspiciousPeerList(pubkeys[1])
 	assert.NoError(t, err)
 
-	policyFile, err := ioutil.ReadFile(policyFilePath)
+	policyFile, err := os.ReadFile(policyFilePath)
 	assert.NoError(t, err)
 	assert.Equal(
 		t,
@@ -178,7 +177,7 @@ func Test_AddRemovePeer_Runtime(t *testing.T) {
 	err = policy.RemoveFromSuspiciousPeerList(pubkeys[1])
 	assert.NoError(t, err)
 
-	policyFile, err = ioutil.ReadFile(policyFilePath)
+	policyFile, err = os.ReadFile(policyFilePath)
 	assert.NoError(t, err)
 	assert.Equal(
 		t,
@@ -351,7 +350,7 @@ func Test_AllowSwapRequests(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, policy.NewSwapsAllowed())
 
-	policyFile, _ := ioutil.ReadFile(policyFilePath)
+	policyFile, _ := os.ReadFile(policyFilePath)
 	assert.Equal(
 		t,
 		"allow_new_swaps=false\n",
@@ -362,7 +361,7 @@ func Test_AllowSwapRequests(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, policy.NewSwapsAllowed())
 
-	policyFile, _ = ioutil.ReadFile(policyFilePath)
+	policyFile, _ = os.ReadFile(policyFilePath)
 	assert.Equal(
 		t,
 		"allow_new_swaps=true\n",
