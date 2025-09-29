@@ -58,7 +58,7 @@ type BitcoinOnChain struct {
 	// should already be running.
 	estimator Estimator
 
-	// fallbackFeeRateSatPerVb is the fee rate that is used to calculate the
+	// fallbackFeeRateSatPerKw is the fee rate that is used to calculate the
 	// fee of a transaction if the Estimator returned an error.
 	fallbackFeeRateSatPerKw btcutil.Amount
 }
