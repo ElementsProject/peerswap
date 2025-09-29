@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -201,7 +200,7 @@ func NewLndRpcClient(host, certPath, macaroonPath string, options ...grpc.DialOp
 		return nil, fmt.Errorf("NewClientTLSFromFile() %w", err)
 	}
 
-	macBytes, err := ioutil.ReadFile(macaroonPath)
+	macBytes, err := os.ReadFile(macaroonPath)
 	if err != nil {
 		return nil, fmt.Errorf("ReadFile() %w", err)
 	}

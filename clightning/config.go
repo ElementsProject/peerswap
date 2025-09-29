@@ -3,7 +3,6 @@ package clightning
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -186,7 +185,7 @@ func CheckForLegacyClnConfig(plugin *glightning.Plugin) Processor {
 // in the running CLN container.
 func ReadFromFile() Processor {
 	return func(c *Config) (*Config, error) {
-		data, err := ioutil.ReadFile(filepath.Join(c.PeerswapDir, defaultConfigFileName))
+		data, err := os.ReadFile(filepath.Join(c.PeerswapDir, defaultConfigFileName))
 		if os.IsNotExist(err) {
 			return c, nil
 		}

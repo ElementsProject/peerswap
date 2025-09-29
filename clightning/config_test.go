@@ -2,7 +2,7 @@ package clightning
 
 import (
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -30,7 +30,7 @@ func Test_ReadFromFile(t *testing.T) {
 
 	dir := t.TempDir()
 	fp := filepath.Join(dir, "peerswap.conf")
-	_ = ioutil.WriteFile(fp, []byte(conf), fs.ModePerm)
+	_ = os.WriteFile(fp, []byte(conf), fs.ModePerm)
 
 	c := &Config{PeerswapDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
 	actual, err := ReadFromFile()(c)
@@ -68,7 +68,7 @@ func Test_ReadFromFile(t *testing.T) {
 func Test_ReadFromFile_EmptyFile(t *testing.T) {
 	dir := t.TempDir()
 	fp := filepath.Join(dir, "peerswap.conf")
-	_ = ioutil.WriteFile(fp, []byte{}, fs.ModePerm)
+	_ = os.WriteFile(fp, []byte{}, fs.ModePerm)
 
 	c := &Config{PeerswapDir: dir, Bitcoin: &BitcoinConf{}, Liquid: &LiquidConf{}}
 	actual, err := ReadFromFile()(c)
