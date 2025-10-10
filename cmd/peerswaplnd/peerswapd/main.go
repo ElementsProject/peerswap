@@ -31,7 +31,6 @@ import (
 	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
-	lnd_internal "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/peerswaprpc"
@@ -144,7 +143,7 @@ func run() error {
 	var supportedAssets = []string{}
 
 	var bitcoinOnChainService *onchain.BitcoinOnChain
-	var lndTxWatcher *lnd_internal.TxWatcher
+	var lndTxWatcher *lnd.TxWatcher
 	// setup bitcoin stuff
 	if cfg.BitcoinEnabled {
 		// bitcoin
@@ -154,7 +153,7 @@ func run() error {
 		}
 
 		supportedAssets = append(supportedAssets, "btc")
-		lndTxWatcher, err = lnd_internal.NewTxWatcher(
+		lndTxWatcher, err = lnd.NewTxWatcher(
 			ctx,
 			cc,
 			chain,
@@ -261,26 +260,26 @@ func run() error {
 		os.Exit(1)
 	}
 	// Start lnd listeners and watchers.
-	messageListener, err := lnd_internal.NewMessageListener(ctx, cc)
+	messageListener, err := lnd.NewMessageListener(ctx, cc)
 	if err != nil {
 		return err
 	}
 	defer messageListener.Stop()
 
-	paymentWatcher, err := lnd_internal.NewPaymentWatcher(ctx, cc)
+	paymentWatcher, err := lnd.NewPaymentWatcher(ctx, cc)
 	if err != nil {
 		return err
 	}
 	defer paymentWatcher.Stop()
 
-	peerListener, err := lnd_internal.NewPeerListener(ctx, cc)
+	peerListener, err := lnd.NewPeerListener(ctx, cc)
 	if err != nil {
 		return err
 	}
 	defer peerListener.Stop()
 
 	// Setup lnd client.
-	lnd, err := lnd_internal.NewClient(
+	lnd, err := lnd.NewClient(
 		ctx,
 		cc,
 		paymentWatcher,
