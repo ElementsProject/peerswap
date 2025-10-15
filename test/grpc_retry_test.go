@@ -4,19 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
+
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"google.golang.org/grpc/codes"
 
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
 	"github.com/elementsproject/peerswap/lightning"
 	peerswaplndinternal "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/testframework"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/codes"
 )
 
 func Test_GrpcRetryRequest(t *testing.T) {
@@ -79,13 +78,13 @@ func Test_GrpcRetryRequest(t *testing.T) {
 		_, fErr = lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	}()
 
-	n := rand.Intn(5) + 1
-	time.Sleep(time.Duration(n) * time.Second)
+	const restartDelay = 2 * time.Second
+	time.Sleep(restartDelay)
 	lnd.Run(true, true)
 
 	// Wait for GetInfo to return
 	wg.Wait()
-	assert.NoError(t, fErr)
+	assertNoError(t, fErr)
 }
 
 func Test_GrpcReconnectStream(t *testing.T) {
@@ -131,7 +130,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	// Add some invoices to prepopulate the database. We can only subscribe to
 	// invoices with an AddIndex > 1 if we want to return the invoices that we
 	// missed again.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		preimage, _ := lightning.GetPreimage()
 		_, err = lnrpcClient.AddInvoice(
 			context.Background(),
@@ -214,8 +213,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	// no error.
 	lnd.Kill()
 
-	n := rand.Intn(5) + 1
-	time.Sleep(time.Duration(n) * time.Second)
+	time.Sleep(2 * time.Second)
 	lnd.Run(true, true)
 
 	preimage, _ = lightning.GetPreimage()
@@ -237,5 +235,5 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	}
 
 	wg.Wait()
-	assert.NoError(t, fErr)
+	assertNoError(t, fErr)
 }

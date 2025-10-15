@@ -2,12 +2,10 @@ package test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/stretchr/testify/require"
 )
 
 // maxChanSize is the maximum channel size without the `--large-channels` or
@@ -94,7 +92,7 @@ func Test_Wumbo(t *testing.T) {
 		// Rebind for parallel tests.
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			require := require.New(t)
+			require := requireNew(t)
 
 			options := []string{
 				"--dev-bitcoind-poll=1",
@@ -109,27 +107,7 @@ func Test_Wumbo(t *testing.T) {
 			// Test Swap-out
 			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true,
 				[]byte("accept_all_peers=1\nswap_in_premium_rate_ppm=0\nswap_out_premium_rate_ppm=0\n"))
-			defer func() {
-				if t.Failed() {
-					filter := os.Getenv("PEERSWAP_TEST_FILTER")
-					pprintFail(
-						tailableProcess{
-							p:     bitcoind.DaemonProcess,
-							lines: defaultLines,
-						},
-						tailableProcess{
-							p:      lightningds[0].DaemonProcess,
-							filter: filter,
-							lines:  defaultLines,
-						},
-						tailableProcess{
-							p:      lightningds[1].DaemonProcess,
-							filter: filter,
-							lines:  defaultLines,
-						},
-					)
-				}
-			}()
+			DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
 			var channelBalances []uint64
 			var walletBalances []uint64
@@ -157,7 +135,7 @@ func Test_Wumbo(t *testing.T) {
 					makerNode:           lightningds[1],
 					takerPeerswap:       lightningds[0].DaemonProcess,
 					makerPeerswap:       lightningds[1].DaemonProcess,
-					chainRpc:            bitcoind.RpcProxy,
+					chainRPC:            bitcoind.RpcProxy,
 					chaind:              bitcoind,
 					confirms:            BitcoinConfirms,
 					csv:                 BitcoinCsv,
@@ -171,7 +149,8 @@ func Test_Wumbo(t *testing.T) {
 						SatAmt:              params.swapAmt,
 						ShortChannelId:      scid,
 						Asset:               "btc",
-						PremiumLimitRatePPM: params.premiumLimitRatePPM},
+						PremiumLimitRatePPM: params.premiumLimitRatePPM,
+					},
 					&response,
 				)
 			} else {
@@ -186,7 +165,7 @@ func Test_Wumbo(t *testing.T) {
 					makerNode:           lightningds[1],
 					takerPeerswap:       lightningds[0].DaemonProcess,
 					makerPeerswap:       lightningds[1].DaemonProcess,
-					chainRpc:            bitcoind.RpcProxy,
+					chainRPC:            bitcoind.RpcProxy,
 					chaind:              bitcoind,
 					confirms:            BitcoinConfirms,
 					csv:                 BitcoinCsv,
@@ -200,7 +179,8 @@ func Test_Wumbo(t *testing.T) {
 						SatAmt:              params.swapAmt,
 						ShortChannelId:      scid,
 						Asset:               "btc",
-						PremiumLimitRatePPM: params.premiumLimitRatePPM},
+						PremiumLimitRatePPM: params.premiumLimitRatePPM,
+					},
 					&response,
 				)
 			}

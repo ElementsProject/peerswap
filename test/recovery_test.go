@@ -2,14 +2,12 @@ package test
 
 import (
 	"math"
-	"os"
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
-	"github.com/stretchr/testify/require"
 )
 
 // Test_RestoreFromPassedCSV checks the following scenario: A swap is initiated
@@ -21,30 +19,10 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
-	require := require.New(t)
+	require := requireNew(t)
 
 	bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
-	defer func() {
-		if t.Failed() {
-			filter := os.Getenv("PEERSWAP_TEST_FILTER")
-			pprintFail(
-				tailableProcess{
-					p:     bitcoind.DaemonProcess,
-					lines: defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[0].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[1].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-			)
-		}
-	}()
+	DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
 	var channelBalances []uint64
 	var walletBalances []uint64
@@ -69,7 +47,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 		makerNode:           lightningds[1],
 		takerPeerswap:       lightningds[0].DaemonProcess,
 		makerPeerswap:       lightningds[1].DaemonProcess,
-		chainRpc:            bitcoind.RpcProxy,
+		chainRPC:            bitcoind.RpcProxy,
 		chaind:              bitcoind,
 		confirms:            BitcoinConfirms,
 		csv:                 BitcoinCsv,
@@ -88,35 +66,36 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
-			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
+			PremiumLimitRatePPM: params.premiumLimitRatePPM,
+		}, &response)
 	}()
 
-	var premium uint64
+	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		// Wait for channel balance to change, this means the invoice was payed.
+		// Wait for channel balance to change, this means the invoice was paid.
 		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
 		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		premium = params.origTakerBalance - newBalance
+		premiumAmt = params.origTakerBalance - newBalance
 	}
 
 	// Wait for opening tx being broadcasted.
 	// Get commitFee.
-	commitFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	commitFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Stop taker peer so that csv can trigger
 	params.makerNode.Stop()
 
 	// Generate one less block than required for csv.
-	params.chaind.GenerateBlocks(params.csv - 1)
+	require.NoError(params.chaind.GenerateBlocks(params.csv - 1))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Generate one more block to trigger csv.
-	params.chaind.GenerateBlocks(1)
+	require.NoError(params.chaind.GenerateBlocks(1))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Restart maker node and wait for recover
@@ -126,15 +105,15 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
-	claimFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	claimFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Confirm claim tx.
-	params.chaind.GenerateBlocks(3)
+	require.NoError(params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Check channel and wallet balance
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premium), 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premiumAmt), 1., testframework.TIMEOUT))
 
 	require.NoError(testframework.WaitFor(func() bool {
 		balance, err := params.makerNode.GetBtcBalanceSat()
@@ -155,30 +134,10 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
-	require := require.New(t)
+	require := requireNew(t)
 
 	bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(6)))
-	defer func() {
-		if t.Failed() {
-			filter := os.Getenv("PEERSWAP_TEST_FILTER")
-			pprintFail(
-				tailableProcess{
-					p:     bitcoind.DaemonProcess,
-					lines: defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[0].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[1].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-			)
-		}
-	}()
+	DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
 	var channelBalances []uint64
 	var walletBalances []uint64
@@ -203,7 +162,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 		makerNode:           lightningds[1],
 		takerPeerswap:       lightningds[0].DaemonProcess,
 		makerPeerswap:       lightningds[1].DaemonProcess,
-		chainRpc:            bitcoind.RpcProxy,
+		chainRPC:            bitcoind.RpcProxy,
 		chaind:              bitcoind,
 		confirms:            BitcoinConfirms,
 		csv:                 BitcoinCsv,
@@ -222,32 +181,33 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
-			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
+			PremiumLimitRatePPM: params.premiumLimitRatePPM,
+		}, &response)
 	}()
 
-	var premium uint64
+	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		// Wait for channel balance to change, this means the invoice was payed.
+		// Wait for channel balance to change, this means the invoice was paid.
 		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
 		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		premium = params.origTakerBalance - newBalance
+		premiumAmt = params.origTakerBalance - newBalance
 	}
 
 	// Wait for opening tx being broadcasted.
-	_, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	_, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
-	params.chaind.GenerateBlocks(1)
+	require.NoError(params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Stop taker peer so that csv can trigger
 	params.takerNode.Stop()
 
 	// Generate enought blocks to trigger csv
-	params.chaind.GenerateBlocks(params.csv + 50)
+	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
 	// Restart taker node and wait for recover
@@ -259,8 +219,8 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 
 	balance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 	require.NoError(err)
-	require.InDelta(params.origTakerBalance-premium, balance, 1., "expected %d, got %d",
-		params.origTakerBalance-premium, balance)
+	require.InDelta(params.origTakerBalance-premiumAmt, balance, 1., "expected %d, got %d",
+		params.origTakerBalance-premiumAmt, balance)
 }
 
 // Test_Recover_PassedSwap_LBTC that peerswap can recover from a swap that
@@ -269,30 +229,10 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
-	require := require.New(t)
+	require := requireNew(t)
 
 	bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(6)))
-	defer func() {
-		if t.Failed() {
-			filter := os.Getenv("PEERSWAP_TEST_FILTER")
-			pprintFail(
-				tailableProcess{
-					p:     bitcoind.DaemonProcess,
-					lines: defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[0].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-				tailableProcess{
-					p:      lightningds[1].DaemonProcess,
-					filter: filter,
-					lines:  defaultLines,
-				},
-			)
-		}
-	}()
+	DumpOnFailure(t, WithBitcoin(bitcoind), WithLiquid(liquidd), WithCLightningNodes(lightningds, nil))
 
 	var channelBalances []uint64
 	var walletBalances []uint64
@@ -317,7 +257,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 		makerNode:           lightningds[1],
 		takerPeerswap:       lightningds[0].DaemonProcess,
 		makerPeerswap:       lightningds[1].DaemonProcess,
-		chainRpc:            liquidd.RpcProxy,
+		chainRPC:            liquidd.RpcProxy,
 		chaind:              liquidd,
 		confirms:            LiquidConfirms,
 		csv:                 LiquidCsv,
@@ -336,32 +276,33 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
-			PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
+			PremiumLimitRatePPM: params.premiumLimitRatePPM,
+		}, &response)
 	}()
 
-	var premium uint64
+	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		// Wait for channel balance to change, this means the invoice was payed.
+		// Wait for channel balance to change, this means the invoice was paid.
 		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
 		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		premium = params.origTakerBalance - newBalance
+		premiumAmt = params.origTakerBalance - newBalance
 	}
 
 	// Wait for opening tx being broadcasted.
-	_, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	_, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
-	params.chaind.GenerateBlocks(1)
+	require.NoError(params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Stop taker peer so that csv can trigger
 	params.takerNode.Stop()
 
 	// Generate enought blocks to trigger csv
-	params.chaind.GenerateBlocks(params.csv + 50)
+	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
 	// Restart taker node and wait for recover
@@ -373,6 +314,6 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 
 	balance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 	require.NoError(err)
-	require.InDelta(params.origTakerBalance-premium, balance, 1., "expected %d, got %d",
-		params.origTakerBalance-premium, balance)
+	require.InDelta(params.origTakerBalance-premiumAmt, balance, 1., "expected %d, got %d",
+		params.origTakerBalance-premiumAmt, balance)
 }

@@ -6,781 +6,209 @@ import (
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
-	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
-	"github.com/stretchr/testify/require"
+	"github.com/elementsproject/peerswap/testframework"
 )
 
 // skipLWKTests skips all LWK-related tests due to intermittent CI failures
 // See: https://github.com/ElementsProject/peerswap/actions/runs/16069080660/job/45350236095?pr=385
 func skipLWKTests(t *testing.T) {
+	t.Helper()
+
 	t.Skip("Skipping lwk_cln_test due to intermittent CI failures")
+}
+
+// Failure log dumping is consolidated via DumpOnFailure in test/failuredump.go
+
+func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
+	t.Helper()
+
+	var req *testAssertions
+	if checkResp {
+		req = requireNew(t)
+	}
+
+	asset := "lbtc"
+	switch params.swapType {
+	case swap.SWAPTYPE_IN:
+		maker, ok := params.makerNode.(*CLightningNodeWithLiquid)
+		if !ok {
+			t.Fatalf("maker node is not a CLightningNodeWithLiquid")
+		}
+		go func(node *CLightningNodeWithLiquid) {
+			var response map[string]interface{}
+			err := node.Rpc.Request(&clightning.SwapIn{
+				SatAmt:              params.swapAmt,
+				ShortChannelId:      params.scid,
+				Asset:               asset,
+				PremiumLimitRatePPM: params.premiumLimitRatePPM,
+			}, &response)
+			if req != nil {
+				req.NoError(err)
+			}
+		}(maker)
+	case swap.SWAPTYPE_OUT:
+		taker, ok := params.takerNode.(*CLightningNodeWithLiquid)
+		if !ok {
+			t.Fatalf("taker node is not a CLightningNodeWithLiquid")
+		}
+		go func(node *CLightningNodeWithLiquid) {
+			var response map[string]interface{}
+			err := node.Rpc.Request(&clightning.SwapOut{
+				SatAmt:              params.swapAmt,
+				ShortChannelId:      params.scid,
+				Asset:               asset,
+				PremiumLimitRatePPM: params.premiumLimitRatePPM,
+			}, &response)
+			if req != nil {
+				req.NoError(err)
+			}
+		}(taker)
+	default:
+		t.Fatalf("unknown swap type: %v", params.swapType)
+	}
 }
 
 func Test_ClnCln_LWK_SwapIn(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
+	cases := []struct {
+		name   string
+		claim  func(t *testing.T, params *testParams)
+		filter [2]string
+	}{
+		{
+			name:  "claim_normal",
+			claim: preimageClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+		{
+			name:   "claim_coop",
+			claim:  coopClaimTest,
+			filter: [2]string{"", ""},
+		},
+		{
+			name:  "claim_csv",
+			claim: csvClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+	}
 
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithCLightningNodes(lightningds, []string{tc.filter[0], tc.filter[1]}),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+			params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_IN)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := ""
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		coopClaimTest(t, params)
-	})
-
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		csvClaimTest(t, params)
-	})
+			startClnLwkSwap(t, params, true)
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnCln_LWK_SwapOut(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
+	cases := []struct {
+		name   string
+		claim  func(t *testing.T, params *testParams)
+		filter [2]string
+	}{
+		{
+			name:  "claim_normal",
+			claim: preimageClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+		{
+			name:  "claim_coop",
+			claim: coopClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+		{
+			name:  "claim_csv",
+			claim: csvClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+	}
 
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithCLightningNodes(lightningds, []string{tc.filter[0], tc.filter[1]}),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+			params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_OUT)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		coopClaimTest(t, params)
-	})
-
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		csvClaimTest(t, params)
-	})
+			startClnLwkSwap(t, params, true)
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnLnd_LWK_SwapIn(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
+	cases := []struct {
+		name      string
+		claim     func(t *testing.T, params *testParams)
+		checkResp bool
+	}{
+		{name: "claim_normal", claim: preimageClaimTest, checkResp: true},
+		{name: "claim_coop", claim: coopClaimTest, checkResp: false},
+		{name: "claim_csv", claim: csvClaimTest, checkResp: false},
+	}
 
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderLND)
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithLightningNodes(lightningds),
+				WithPeerSwapd(peerswapd),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+			params := buildMixedLiquidParams(t, liquidd, lightningds, peerswapd, scid, swap.SWAPTYPE_IN)
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       peerswapd.DaemonProcess,
-			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			err := lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       peerswapd.DaemonProcess,
-			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		}()
-		coopClaimTest(t, params)
-	})
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_LND)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       peerswapd.DaemonProcess,
-			makerPeerswap:       lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			lightningds[1].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		}()
-		csvClaimTest(t, params)
-	})
+			startClnLwkSwap(t, params, tc.checkResp)
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
@@ -788,926 +216,203 @@ func Test_ClnLnd_LWK_SwapOut(t *testing.T) {
 	IsIntegrationTest(t)
 	t.Parallel()
 
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
+	cases := []struct {
+		name      string
+		claim     func(t *testing.T, params *testParams)
+		checkResp bool
+	}{
+		{name: "claim_normal", claim: preimageClaimTest, checkResp: true},
+		{name: "claim_coop", claim: coopClaimTest, checkResp: false},
+		{name: "claim_csv", claim: csvClaimTest, checkResp: false},
+	}
 
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderCLN)
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithLightningNodes(lightningds),
+				WithPeerSwapd(peerswapd),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+			params := buildMixedLiquidParams(t, liquidd, lightningds, peerswapd, scid, swap.SWAPTYPE_OUT)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:       peerswapd.DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:       peerswapd.DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		}()
-		coopClaimTest(t, params)
-	})
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FUNDER_CLN)
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lightningds[0].(*LndNodeWithLiquid).DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].(*CLightningNodeWithLiquid).DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     peerswapd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].(*CLightningNodeWithLiquid).DaemonProcess,
-			makerPeerswap:       peerswapd.DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-			var response map[string]interface{}
-			lightningds[0].(*CLightningNodeWithLiquid).Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		}()
-		csvClaimTest(t, params)
-	})
+			startClnLwkSwap(t, params, tc.checkResp)
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnCln_LWKElements_SwapIn(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p: lightningds[1].DaemonProcess,
-						// filter: filter,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	cases := []struct {
+		name   string
+		claim  func(t *testing.T, params *testParams)
+		filter [2]string
+	}{
+		{
+			name:  "claim_normal",
+			claim: preimageClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				"",
+			},
+		},
+		{
+			name:  "claim_coop",
+			claim: coopClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+		{
+			name:  "claim_csv",
+			claim: csvClaimTest,
+			filter: [2]string{
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+				os.Getenv("PEERSWAP_TEST_FILTER"),
+			},
+		},
+	}
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithCLightningNodes(lightningds, []string{tc.filter[0], tc.filter[1]}),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
+			params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_IN)
 
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
+			startClnLwkSwap(t, params, true)
 
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		coopClaimTest(t, params)
-	})
-
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_IN,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		csvClaimTest(t, params)
-	})
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnCln_LWKLiquid_SwapOut(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
-	t.Run("claim_normal", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	cases := []struct {
+		name  string
+		claim func(t *testing.T, params *testParams)
+		setup func(t *testing.T) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string, *testframework.Electrs, *testframework.LWK)
+	}{
+		{
+			name:  "claim_normal",
+			claim: preimageClaimTest,
+			setup: func(t *testing.T) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string, *testframework.Electrs, *testframework.LWK) {
+				t.Helper()
+				return clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
+			},
+		},
+		{
+			name:  "claim_coop",
+			claim: coopClaimTest,
+			setup: func(t *testing.T) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string, *testframework.Electrs, *testframework.LWK) {
+				t.Helper()
+				return clnclnLWKSetup(t, uint64(math.Pow10(9)))
+			},
+		},
+		{
+			name:  "claim_csv",
+			claim: csvClaimTest,
+			setup: func(t *testing.T) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string, *testframework.Electrs, *testframework.LWK) {
+				t.Helper()
+				return clnclnLWKSetup(t, uint64(math.Pow10(9)))
+			},
+		},
+	}
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bitcoind, liquidd, lightningds, scid, electrs, lwk := tc.setup(t)
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithCLightningNodes(lightningds, nil),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
+			params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_OUT)
 
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
+			startClnLwkSwap(t, params, true)
 
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		preimageClaimTest(t, params)
-	})
-	t.Run("claim_coop", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		coopClaimTest(t, params)
-	})
-
-	t.Run("claim_csv", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
-
-		// Do swap.
-		go func() {
-			var response map[string]interface{}
-			err := lightningds[0].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-			require.NoError(err)
-
-		}()
-		csvClaimTest(t, params)
-	})
+			tc.claim(t, params)
+		})
+	}
 }
 
 func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 	skipLWKTests(t)
 	IsIntegrationTest(t)
 	t.Parallel()
-	t.Run("lwkdown", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
 
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
+	cases := []struct {
+		name    string
+		kill    func(lwk *testframework.LWK, electrs *testframework.Electrs)
+		request func(node *CLightningNodeWithLiquid, params *testParams) error
+	}{
+		{
+			name: "lwkdown",
+			kill: func(lwk *testframework.LWK, _ *testframework.Electrs) {
+				lwk.Process.Kill()
+			},
+			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
+				var response map[string]interface{}
+				return node.Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: "lbtc", PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
+			},
+		},
+		{
+			name: "electrsdown",
+			kill: func(_ *testframework.LWK, electrs *testframework.Electrs) {
+				electrs.Process.Kill()
+			},
+			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
+				var response map[string]interface{}
+				return node.Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: "lbtc"}, &response)
+			},
+		},
+	}
 
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require := requireNew(t)
 
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
+			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
+			DumpOnFailure(t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithCLightningNodes(lightningds, nil),
+				WithElectrs(electrs),
+				WithLWK(lwk),
+			)
 
-		params := &testParams{
-			swapAmt:             channelBalances[0] / 2,
-			scid:                scid,
-			origTakerWallet:     walletBalances[0],
-			origMakerWallet:     walletBalances[1],
-			origTakerBalance:    channelBalances[0],
-			origMakerBalance:    channelBalances[1],
-			takerNode:           lightningds[0],
-			makerNode:           lightningds[1],
-			takerPeerswap:       lightningds[0].DaemonProcess,
-			makerPeerswap:       lightningds[1].DaemonProcess,
-			chainRpc:            liquidd.RpcProxy,
-			chaind:              liquidd,
-			confirms:            LiquidConfirms,
-			csv:                 LiquidCsv,
-			swapType:            swap.SWAPTYPE_OUT,
-			premiumLimitRatePPM: 100000,
-			swapInPremiumRate:   premium.DefaultLBTCSwapInPremiumRatePPM,
-			swapOutPremiumRate:  premium.DefaultLBTCSwapOutPremiumRatePPM,
-		}
-		asset := "lbtc"
+			params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_OUT)
 
-		lwk.Process.Kill()
+			tc.kill(lwk, electrs)
 
-		// Do swap.
-		var response map[string]interface{}
-		err := lightningds[1].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset, PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
-		require.Error(err)
-	})
-	t.Run("electrsdown", func(t *testing.T) {
-		t.Parallel()
-		require := require.New(t)
-
-		bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKLiquidSetup(t, uint64(math.Pow10(9)))
-		defer func() {
-			if t.Failed() {
-				filter := os.Getenv("PEERSWAP_TEST_FILTER")
-				pprintFail(
-					tailableProcess{
-						p:     bitcoind.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     liquidd.DaemonProcess,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[0].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:      lightningds[1].DaemonProcess,
-						filter: filter,
-						lines:  defaultLines,
-					},
-					tailableProcess{
-						p:     electrs.Process,
-						lines: defaultLines,
-					},
-					tailableProcess{
-						p:     lwk.Process,
-						lines: defaultLines,
-					},
-				)
-			}
-		}()
-
-		var channelBalances []uint64
-		var walletBalances []uint64
-		for _, lightningd := range lightningds {
-			b, err := lightningd.GetBtcBalanceSat()
-			require.NoError(err)
-			walletBalances = append(walletBalances, b)
-
-			b, err = lightningd.GetChannelBalanceSat(scid)
-			require.NoError(err)
-			channelBalances = append(channelBalances, b)
-		}
-
-		params := &testParams{
-			swapAmt:          channelBalances[0] / 2,
-			scid:             scid,
-			origTakerWallet:  walletBalances[0],
-			origMakerWallet:  walletBalances[1],
-			origTakerBalance: channelBalances[0],
-			origMakerBalance: channelBalances[1],
-			takerNode:        lightningds[0],
-			makerNode:        lightningds[1],
-			takerPeerswap:    lightningds[0].DaemonProcess,
-			makerPeerswap:    lightningds[1].DaemonProcess,
-			chainRpc:         liquidd.RpcProxy,
-			chaind:           liquidd,
-			confirms:         LiquidConfirms,
-			csv:              LiquidCsv,
-			swapType:         swap.SWAPTYPE_OUT,
-		}
-		asset := "lbtc"
-
-		electrs.Process.Kill()
-
-		// Do swap.
-		var response map[string]interface{}
-		err := lightningds[1].Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: asset}, &response)
-		require.Error(err)
-	})
-
+			err := tc.request(lightningds[1], params)
+			require.Error(err)
+		})
+	}
 }

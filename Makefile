@@ -198,8 +198,7 @@ TOOLS_DIR := ${CURDIR}/tools
 .PHONY: tool
 tool:
 	## Install an individual dependent tool.
-	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath github.com/golangci/golangci-lint/cmd/golangci-lint
-	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath go.uber.org/mock/mockgen@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 
 .PHONY: clean
 clean:  ## clean project directory.
@@ -211,8 +210,28 @@ lint: ## Lint source.
 
 .PHONY: lint/golangci-lint
 lint/golangci-lint: ## Lint source with golangci-lint.
-	$(TOOLS_DIR)/bin/golangci-lint version
-	${CURDIR}/tools/bin/golangci-lint run -v
+	golangci-lint version
+	@BASE_CANDIDATES="$$LINT_BASE origin/main origin/master main master"; \
+	for ref in $$BASE_CANDIDATES; do \
+		if [ -n "$$ref" ] && git rev-parse --verify "$$ref" >/dev/null 2>&1; then \
+			LINT_BASE_REF=$$ref; \
+			break; \
+		fi; \
+	done; \
+	if [ -n "$$LINT_BASE_REF" ]; then \
+		NEW_FROM_REV=$$(git merge-base "$$LINT_BASE_REF" HEAD); \
+		echo "lint: running golangci-lint for changes since $$LINT_BASE_REF (merge-base $$NEW_FROM_REV)"; \
+		golangci-lint run -v --new-from-rev "$$NEW_FROM_REV" $(args); \
+	else \
+		CHANGED_GO_FILES=$$( (git diff --name-only HEAD -- '*.go'; git diff --name-only --cached HEAD -- '*.go') | sort -u ); \
+		if [ -z "$$CHANGED_GO_FILES" ]; then \
+			echo "lint: no Go changes detected; skipping"; \
+		else \
+			echo "lint: running golangci-lint for local Go changes"; \
+			echo "$$CHANGED_GO_FILES"; \
+			golangci-lint run -v $(args) $$CHANGED_GO_FILES; \
+		fi; \
+	fi
 
 .PHONY: lint/fix
 lint/fix: ## Lint and fix source.
