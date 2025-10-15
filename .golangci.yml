@@ -1,106 +1,84 @@
 version: "2"
+
 run:
-  allow-parallel-runners: true
-  issues-exit-code: 1
-  relative-path-mode: gomod
   tests: true
-  timeout: 1m
-output:
-  formats:
-    text:
-      path: stderr
-      print-linter-name: true
-      print-issued-lines: true
-  sort-order:
-    - file
+  timeout: 5m
+
 linters:
-  default: fast
+  # v2 のデフォルトセット指定（standard/all/none/fast）
+  default: standard
   enable:
-    - asciicheck
-    - bidichk
-    - bodyclose
-    - containedctx
-    - contextcheck
-    - copyloopvar
-    - decorder
-    #    - depguard
-    - dogsled
-    - dupl
-    - errcheck
-    - errchkjson
-    - errname
-    - errorlint
-    - exhaustive
-    - exptostd
-    - fatcontext
-    - forcetypeassert
-    - funlen
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - godot
-    - goprintffuncname
-    - gosec # Inspects source code for security problems.
-    - govet
-    - iface
-    - importas
-    - inamedparam
-    - ineffassign
-    - intrange
-    - maintidx
-    - makezero
-    - misspell
-    - nakedret
-    - nestif
-    - nilerr
-    - nilnesserr
-    - noctx
-    - nolintlint
-    - nonamedreturns
-    - nosprintfhostport
-    - perfsprint
-    - prealloc
-    - predeclared
-    - protogetter
-    - reassign
-    - recvcheck
-    - revive
-    - rowserrcheck
+    # 重大・基本
     - staticcheck
-    - tagliatelle
-    - thelper
-    - tparallel
-    - unconvert
-    # - unparam # to avoid a panic of nil pointer temporally
+    - govet
+    - errcheck
+    - ineffassign
     - unused
-    - usestdlibvars
-    - usetesting
-    - wastedassign
-    - whitespace
-    # - wrapcheck TODO:consider error refactoring
-  disable:
-    - forbidigo # Forbids identifiers.
-    - gochecknoglobals # check that no global variables exist.
-    - gochecknoinits # Checks that no init functions are present in Go code.
-    - godox # Tool for detection of FIXME, TODO and other comment keywords.
-    - goheader # Checks is file header matches to pattern.
-    - gomodguard # Allow and block list linter for direct Go module dependencies.
-    - lll # Reports long lines.
-    - nlreturn # nlreturn checks for a new line before return and branch statements to increase code clarity.
-    - paralleltest # paralleltest detects missing usage of t.Parallel() method in your Go test.
-    - sqlclosecheck # Checks that sql.Rows and sql.Stmt are closed.
-    - wsl # Whitespace Linter.
-    # The following linters were not enabled in our v1 config and were only enabled by default or migration in v2. They are disabled here to maintain parity with our previous linting behavior and avoid introducing new issues unexpectedly.
+    - errorlint
+    - revive
+    - gocritic
+    - makezero
+    - durationcheck
+    - nilerr
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - noctx
+    - perfsprint
+    - sloglint
+    - nolintlint
+    - tparallel
+    - gosec
+    # ポリシー／補助
+    - depguard
+    - forbidigo
+    - copyloopvar
+    # 複雑度・重複（本体では有効）
+    - goconst
     - cyclop
-    - dupword
-    - funcorder
-    - interfacebloat
-    - mnd
-    - nilnesserr
-    - tagalign
-    - testpackage
+    - gocognit
+    - dupl
+    - unparam
+    - unconvert
+  disable:
+    # 好みが分かれる/段階導入推奨のものは一旦OFF
+    - exhaustruct
+    - varnamelen
+    - wsl
+    - nlreturn
+    - nonamedreturns
+    - funlen
+    - nakedret
+    - err113
+    - gochecknoglobals
+
+  # ★ テスト専用の緩和（_test.go を対象に特定のリンターを無効化）
+  exclusions:
+    rules:
+      - path: '(^|.*/)test/.*\.go'
+        linters:
+          - forbidigo # テスト内の fmt.Print / time.Sleep を許容
+          - revive # テスト内の細かいスタイル違反を許容
+          - gosec # テストの簡便なI/O等での誤検知を抑制
+          - dupl # 似たテストケースの重複を許容
+          - gocognit # 読みやすさ重視で複雑度を緩める
+          - cyclop
+          - goconst # 定数化強制はテストでは緩め
+          - funlen # 長いテスト関数を許容
+          - nlreturn
+          - varnamelen
+          - wsl
+          - nolintlint # テストの //nolint を簡便に
+          - perfsprint # パフォーマンス系はテストでは緩く
+          - unparam # 使わない引数の誤検知を抑制
+          - unconvert
+
   settings:
+    # ループ変数のクロージャ捕捉（loop capture）検出
+    govet:
+      enable:
+        - loopclosure
+    # テストでの testify 禁止（$test だけに適用）
     depguard:
       rules:
         main:
@@ -156,308 +134,43 @@ linters:
             - pkg: github.com/stretchr/testify
               desc: |
                 DO NOT USE testing framework.
-    dupl:
-      threshold: 150
-    errcheck:
-      check-type-assertions: true
-      check-blank: true
-      exclude-functions:
-        - (github.com/kouzoh-mercoin/mercoin-order-jp/internal/usecase/service.Stats).Histogram
-        - (github.com/kouzoh-mercoin/mercoin-order-jp/internal/usecase/service.Stats).Incr
-        - (github.com/kouzoh-mercoin/mercoin-order-jp/internal/domain/validate.Histogramer).Histogram
-        - (*github.com/DataDog/datadog-go/v5/statsd.Client).Histogram
-        - (github.com/DataDog/datadog-go/v5/statsd.ClientInterface).Histogram
-        - (github.com/DataDog/datadog-go/v5/statsd.ClientInterface).Gauge
-    errorlint:
-      errorf: true
-    exhaustive:
-      check:
-        - switch
-        - map
-      default-signifies-exhaustive: true
-      ignore-enum-members: (.*(_UNSPECIFIED|[a-z]Unspecified))
-      ignore-enum-types: money.CurrencyType
-      explicit-exhaustive-map: true
-    funlen:
-      lines: 100
-      statements: 60
+
     gocognit:
-      min-complexity: 30
-    goconst:
-      min-len: 5
-      min-occurrences: 5
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - experimental
-        - opinionated
-        - performance
-        - style
-      disabled-checks:
-        - commentedOutCode
-        - unnamedResult # using nonamedreturns
-      settings:
-        hugeParam:
-          sizeThreshold: 90
-        rangeExprCopy:
-          sizeThreshold: 512
-        rangeValCopy:
-          sizeThreshold: 128
-    gocyclo:
       min-complexity: 20
-    godot:
-      scope: declarations
-      capital: false
-    govet:
-      disable:
-        - fieldalignment
-      enable-all: true
-    iface:
-      # List of analyzers.
-      # Default: ["identical"]
-      enable:
-        - identical # Identifies interfaces in the same package that have identical method sets.
-        - unused # Identifies interfaces that are not used anywhere in the same package where the interface is defined.
-        # avoid panic
-        - opaque # Identifies functions that return interfaces, but the actual returned value is always a single concrete implementation.
-      settings:
-        unused:
-          # List of packages path to exclude from the check.
-          # Default: []
-          exclude: []
-    misspell:
-      locale: US
-      ignore-rules:
-        - cancelled
-    nakedret:
-      max-func-lines: 30
-    nestif:
-      min-complexity: 7
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    dupl:
+      threshold: 200
+
+    revive:
+      rules:
+        - name: error-strings
+        - name: indent-error-flow
+        - name: exported
+        - name: package-comments
+        - name: redefines-builtin-id
+        - name: if-return
+        - name: superfluous-else
+        - name: var-naming
+
     nolintlint:
-      # https://github.com/golangci/golangci-lint/issues/3228
-      allow-unused: true
-    prealloc:
-      simple: true
-      range-loops: true
-      for-loops: true
-    thelper:
-      test:
-        name: true
-        begin: true
-      benchmark:
-        name: true
-        begin: true
-    usestdlibvars:
-      # Suggest the use of http.MethodXX
-      # Default: true
-      http-method: true
-      # Suggest the use of http.StatusXX
-      # Default: true
-      http-status-code: true
-      # Suggest the use of time.Weekday
-      # Default: true
-      time-weekday: true
-      # Suggest the use of time.Month
-      # Default: false
-      time-month: true
-      # Suggest the use of time.Layout
-      # Default: false
-      time-layout: true
-      # Suggest the use of crypto.Hash
-      # Default: false
-      crypto-hash: true
-      # Suggest the use of pc.DefaultXXPath
-      # Default: false
-      default-rpc-path: true
-    usetesting:
-      # Enable/disable `os.CreateTemp("", ...)` detections.
-      # Default: true
-      os-create-temp: true
+      require-explanation: true
+      require-specific: true
 
-      # Enable/disable `os.MkdirTemp()` detections.
-      # Default: true
-      os-mkdir-temp: true
-
-      # Enable/disable `os.Setenv()` detections.
-      # Default: true
-      os-setenv: true
-
-      # Enable/disable `os.TempDir()` detections.
-      # Default: false
-      os-temp-dir: true
-
-      # Enable/disable `os.Chdir()` detections.
-      # Disabled if Go < 1.24.
-      # Default: true
-      os-chdir: true
-
-      # Enable/disable `context.Background()` detections.
-      # Disabled if Go < 1.24.
-      # Default: true
-      context-background: true
-
-      # Enable/disable `context.TODO()` detections.
-      # Disabled if Go < 1.24.
-      # Default: true
-      context-todo: true
-    gomoddirectives:
-      replace-allow-list:
-        - github.com/grpc-ecosystem/go-grpc-middleware
-        - google.golang.org/protobuf
-    unparam:
-      check-exported: true
-    unused:
-      # Mark all struct fields that have been written to as used.
-      # Default: true
-      field-writes-are-uses: true
-      # Treat IncDec statement (e.g. `i++` or `i--`) as both read and write operation instead of just write.
-      # Default: false
-      post-statements-are-reads: false
-      # Mark all exported fields as used.
-      # default: true
-      exported-fields-are-used: true
-      # Mark all function parameters as used.
-      # default: true
-      parameters-are-used: true
-      # Mark all local variables as used.
-      # default: true
-      local-variables-are-used: true
-      # Mark all identifiers inside generated files as used.
-      # Default: true
-      generated-is-used: true
-    whitespace:
-      multi-if: true
-      multi-func: true
-  exclusions:
-    generated: strict
-    presets:
-      - common-false-positives
-      - legacy
-      - comments
-      - std-error-handling
-    rules:
-      - linters:
-          - containedctx
-          - contextcheck
-          - dogsled
-          - dupl
-          - errcheck
-          - errorlint
-          - forcetypeassert
-          - funlen
-          - gocognit
-          - goconst
-          - gocyclo
-          - maintidx
-          - nonamedreturns
-          - perfsprint
-          - prealloc
-          - protogetter
-          - revive
-          - unused
-          - wrapcheck
-        path: _test\.go
-      - linters:
-          - unused
-        path: _export_test\.go
-      - linters:
-          - goconst
-        path: _repository\.go
-      - linters:
-          - staticcheck
-        text: "SA3000:"
-      - linters:
-          - govet
-        text: 'shadow: declaration of "(err|ok)"'
-      - linters:
-          - whitespace
-        text: multi-line statement should be followed by a newline
-      - linters:
-          - tparallel
-        path: timeutil/clock
-      - linters:
-          - gocritic
-        path: monitoring/exporter.go
-      - linters:
-          - gosec
-        path: _test\.go
-        text: "G115: integer overflow conversion"
-      - linters:
-          - errcheck
-        path: testutil/databasetest
-      - linters:
-          - wrapcheck
-        path: cmd/internal
-      - linters:
-          - errcheck
-        path: internal/usecase/service/errors\.go
-      - linters:
-          - errcheck
-        path: internal/usecase/errors\.go
-      - linters:
-          - errcheck
-        path: internal/usecase/state/error\.go
-      - linters:
-          - errcheck
-        path: internal/usecase/sender/errors\.go
-      - linters:
-          - errcheck
-          - errname
-        path: internal/domain/validateerr
-    paths:
-      - .*(.|_)gen\.go
-      - .*\.pb\.go
-      - .*\.yo\.go$
-      - testutil/
-      - third_party$
-      - builtin$
-      - examples$
-issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  uniq-by-line: true
+# v2のフォーマッタ（`golangci-lint fmt` で利用）
 formatters:
   enable:
-    - gci
-    - gofumpt
+    - gofmt
     - goimports
+    - gofumpt
+    - gci
+    - golines
   settings:
+    golines:
+      max-len: 120
     gci:
-      # Checks that no inline Comments are present.
-      # Default: false
-      no-inline-comments: false
-      # Checks that no prefix Comments(comment lines above an import) are present.
-      # Default: false
-      no-prefix-comments: false
-      # Section configuration to compare against.
-      # Section names are case-insensitive and may contain parameters in ().
-      # Default: ["standard", "default"]
       sections:
-        - standard # Captures all standard packages if they do not match another section.
-        - default # Contains all imports that could not be matched to another section type.
-        - prefix(github.com/kouzoh) # Groups all imports with the specified Prefix.
-        - prefix(github.com/kouzoh-mercoin)
-        - localmodule
-    gofmt:
-      simplify: true
-    gofumpt:
-      # Choose whether to use the extra rules.
-      # Default: false
-      extra-rules: true
-      # Module path which contains the source code being formatted.
-      # Default: empty string
-      module-path: github.com/kouzoh-mercoin/mercoin-order-jp
-    goimports:
-      local-prefixes:
-        - github.com/kouzoh-mercoin/mercoin-order-jp
-        - github.com/kouzoh-mercoin
-        - github.com/kouzoh
-  exclusions:
-    paths:
-      - .*(.|_)gen\.go
-      - .*\.pb\.go
-      - .*\.yo\.go$
-      - testutil/
-      - third_party$
-      - builtin$
-      - examples$
+        - standard
+        - default
+        - prefix(github.com/your/module) # ←モジュールパスに置換
