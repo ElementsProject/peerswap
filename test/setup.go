@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pelletier/go-toml/v2"
-
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/pelletier/go-toml/v2"
 )
 
 const (
@@ -36,7 +35,11 @@ func makeTestDataDir(t *testing.T) string {
 		testDir := filepath.Join(baseDir, fmt.Sprintf("t%d", time.Now().UnixNano()))
 		err := os.MkdirAll(testDir, 0o755)
 		requireNoError(t, err, "failed to create test dir in PEERSWAP_TEST_DIR")
-		t.Cleanup(func() { os.RemoveAll(testDir) })
+		t.Cleanup(func() {
+			if err := os.RemoveAll(testDir); err != nil {
+				t.Logf("Failed to remove testDir %s: %v", testDir, err)
+			}
+		})
 		return testDir
 	}
 
@@ -46,7 +49,11 @@ func makeTestDataDir(t *testing.T) string {
 		// Use process ID and timestamp for uniqueness
 		testDir := filepath.Join(shortBase, fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano()%1000000))
 		if err := os.MkdirAll(testDir, 0o755); err == nil {
-			t.Cleanup(func() { os.RemoveAll(testDir) })
+			t.Cleanup(func() {
+				if err := os.RemoveAll(testDir); err != nil {
+					t.Logf("Failed to remove testDir %s: %v", testDir, err)
+				}
+			})
 			return testDir
 		}
 	}
@@ -54,7 +61,11 @@ func makeTestDataDir(t *testing.T) string {
 	// 3. Fallback to standard temp directory with short prefix
 	tempDir, err := os.MkdirTemp("", "ps-") //nolint:usetesting // custom temp dir to avoid long socket paths.
 	requireNoError(t, err, "os.MkdirTemp failed")
-	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove tempDir %s: %v", tempDir, err)
+		}
+	})
 	return tempDir
 }
 
@@ -79,7 +90,13 @@ func clnclnSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 	return clnclnSetupWithConfig(t, fundAmt, 0, nil, true, nil)
 }
 
-func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []string, waitForActiveChannel bool, policyConf []byte) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
+func clnclnSetupWithConfig(
+	t *testing.T,
+	fundAmt, pushAmt uint64,
+	clnConf []string,
+	waitForActiveChannel bool,
+	policyConf []byte,
+) (*testframework.BitcoinNode, []*testframework.CLightningNode, string) {
 	t.Helper()
 
 	if len(clnConf) == 0 {
@@ -119,7 +136,10 @@ func clnclnSetupWithConfig(t *testing.T, fundAmt, pushAmt uint64, clnConf []stri
 	return bitcoind, lightningds, scid
 }
 
-func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*testframework.LndNode, []*PeerSwapd, string) {
+func lndlndSetup(
+	t *testing.T,
+	fundAmt uint64,
+) (*testframework.BitcoinNode, []*testframework.LndNode, []*PeerSwapd, string) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)
@@ -145,13 +165,20 @@ func lndlndSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, []*t
 	_, err = lightningds[1].FundWallet(10*fundAmt, true)
 	requireNoError(t, err)
 
-	err = syncPoll(&peerswapPollableNode{peerswapds[0], lightningds[0].Id()}, &peerswapPollableNode{peerswapds[1], lightningds[1].Id()})
+	err = syncPoll(
+		&peerswapPollableNode{peerswapds[0], lightningds[0].Id()},
+		&peerswapPollableNode{peerswapds[1], lightningds[1].Id()},
+	)
 	requireNoError(t, err)
 
 	return bitcoind, lightningds, peerswapds, scid
 }
 
-func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframework.BitcoinNode, []testframework.LightningNode, *PeerSwapd, string) {
+func mixedSetup(
+	t *testing.T,
+	fundAmt uint64,
+	funder fundingNode,
+) (*testframework.BitcoinNode, []testframework.LightningNode, *PeerSwapd, string) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)
@@ -190,7 +217,10 @@ func mixedSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframewor
 	return bitcoind, lightningds, peerswapd, scid
 }
 
-func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
+func clnclnElementsSetup(
+	t *testing.T,
+	fundAmt uint64,
+) (*testframework.BitcoinNode, *testframework.LiquidNode, []*CLightningNodeWithLiquid, string) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)
@@ -254,7 +284,10 @@ func clnclnElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 	return bitcoind, liquidd, []*CLightningNodeWithLiquid{{lightningds[0]}, {lightningds[1]}}, scid
 }
 
-func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNode, *testframework.LiquidNode, []*LndNodeWithLiquid, []*PeerSwapd, string) {
+func lndlndElementsSetup(
+	t *testing.T,
+	fundAmt uint64,
+) (*testframework.BitcoinNode, *testframework.LiquidNode, []*LndNodeWithLiquid, []*PeerSwapd, string) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)
@@ -315,11 +348,24 @@ func lndlndElementsSetup(t *testing.T, fundAmt uint64) (*testframework.BitcoinNo
 		t.Fatalf("lightningds[1].FundWallet() %v", err)
 	}
 
-	requireNoError(t, syncPoll(&peerswapPollableNode{peerswapds[0], lightningds[0].Id()}, &peerswapPollableNode{peerswapds[1], lightningds[1].Id()}))
-	return bitcoind, liquidd, []*LndNodeWithLiquid{{lightningds[0], peerswapds[0]}, {lightningds[1], peerswapds[1]}}, peerswapds, scid
+	requireNoError(
+		t,
+		syncPoll(
+			&peerswapPollableNode{peerswapds[0], lightningds[0].Id()},
+			&peerswapPollableNode{peerswapds[1], lightningds[1].Id()},
+		),
+	)
+	return bitcoind, liquidd, []*LndNodeWithLiquid{
+		{lightningds[0], peerswapds[0]},
+		{lightningds[1], peerswapds[1]},
+	}, peerswapds, scid
 }
 
-func mixedElementsSetup(t *testing.T, fundAmt uint64, funder fundingNode) (*testframework.BitcoinNode, *testframework.LiquidNode, []testframework.LightningNode, *PeerSwapd, string) {
+func mixedElementsSetup(
+	t *testing.T,
+	fundAmt uint64,
+	funder fundingNode,
+) (*testframework.BitcoinNode, *testframework.LiquidNode, []testframework.LightningNode, *PeerSwapd, string) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)
@@ -633,9 +679,18 @@ func lndlndLWKSetup(t *testing.T, fundAmt uint64) (
 		t.Fatalf("lightningds[1].FundWallet() %v", err)
 	}
 
-	requireNoError(t, syncPoll(&peerswapPollableNode{peerswapds[0], lightningds[0].Id()}, &peerswapPollableNode{peerswapds[1], lightningds[1].Id()}))
+	requireNoError(
+		t,
+		syncPoll(
+			&peerswapPollableNode{peerswapds[0], lightningds[0].Id()},
+			&peerswapPollableNode{peerswapds[1], lightningds[1].Id()},
+		),
+	)
 
-	return bitcoind, liquidd, []*LndNodeWithLiquid{{lightningds[0], peerswapds[0]}, {lightningds[1], peerswapds[1]}}, peerswapds, scid, electrsd, lwk
+	return bitcoind, liquidd, []*LndNodeWithLiquid{
+		{lightningds[0], peerswapds[0]},
+		{lightningds[1], peerswapds[1]},
+	}, peerswapds, scid, electrsd, lwk
 }
 
 //nolint:funlen,gocritic // integration wiring is intentionally verbose for clarity.
@@ -903,7 +958,10 @@ func clnclnLWKLiquidSetup(t *testing.T, fundAmt uint64) (
 	return bitcoind, liquidd, []*CLightningNodeWithLiquid{{lightningds[0]}, {lightningds[1]}}, scid, electrsd, lwk
 }
 
-func clnSingleElementsSetup(t *testing.T, elementsConfig map[string]string) (*testframework.BitcoinNode, *testframework.LiquidNode, *testframework.CLightningNode) {
+func clnSingleElementsSetup(
+	t *testing.T,
+	elementsConfig map[string]string,
+) (*testframework.BitcoinNode, *testframework.LiquidNode, *testframework.CLightningNode) {
 	t.Helper()
 
 	builder := NewHarnessBuilder(t)

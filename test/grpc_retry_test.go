@@ -2,20 +2,20 @@ package test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"testing"
 	"time"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
 	"github.com/elementsproject/peerswap/lightning"
 	peerswaplndinternal "github.com/elementsproject/peerswap/lnd"
 	"github.com/elementsproject/peerswap/testframework"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"google.golang.org/grpc/codes"
 )
 
 func Test_GrpcRetryRequest(t *testing.T) {
@@ -80,7 +80,9 @@ func Test_GrpcRetryRequest(t *testing.T) {
 
 	const restartDelay = 2 * time.Second
 	time.Sleep(restartDelay)
-	lnd.Run(true, true)
+	if err := lnd.Run(true, true); err != nil {
+		t.Fatalf("Cannot restart lnd: %v", err)
+	}
 
 	// Wait for GetInfo to return
 	wg.Wait()
@@ -176,7 +178,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 
 			var r *lnrpc.Invoice
 			r, fErr = stream.Recv()
-			if fErr == io.EOF {
+			if errors.Is(fErr, io.EOF) {
 				return
 			} else if fErr != nil {
 				return
@@ -214,7 +216,9 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	lnd.Kill()
 
 	time.Sleep(2 * time.Second)
-	lnd.Run(true, true)
+	if err := lnd.Run(true, true); err != nil {
+		t.Fatalf("Cannot restart lnd: %v", err)
+	}
 
 	preimage, _ = lightning.GetPreimage()
 	_, err = lnrpcClient.AddInvoice(

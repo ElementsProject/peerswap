@@ -203,7 +203,15 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 			},
 			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
 				var response map[string]interface{}
-				return node.Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: "lbtc", PremiumLimitRatePPM: params.premiumLimitRatePPM}, &response)
+				return node.Rpc.Request(
+					&clightning.SwapOut{
+						SatAmt:              params.swapAmt,
+						ShortChannelId:      params.scid,
+						Asset:               "lbtc",
+						PremiumLimitRatePPM: params.premiumLimitRatePPM,
+					},
+					&response,
+				)
 			},
 		},
 		{
@@ -213,7 +221,14 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 			},
 			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
 				var response map[string]interface{}
-				return node.Rpc.Request(&clightning.SwapOut{SatAmt: params.swapAmt, ShortChannelId: params.scid, Asset: "lbtc"}, &response)
+				return node.Rpc.Request(
+					&clightning.SwapOut{
+						SatAmt:         params.swapAmt,
+						ShortChannelId: params.scid,
+						Asset:          "lbtc",
+					},
+					&response,
+				)
 			},
 		},
 	}
@@ -244,7 +259,14 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 
 // Failure dumps are handled via DumpOnFailure in failuredump.go
 
-func buildLndLwkParams(t *testing.T, liquidd *testframework.LiquidNode, lightningds []*LndNodeWithLiquid, peerswapds []*PeerSwapd, scid string, swapType swap.SwapType) *testParams {
+func buildLndLwkParams(
+	t *testing.T,
+	liquidd *testframework.LiquidNode,
+	lightningds []*LndNodeWithLiquid,
+	peerswapds []*PeerSwapd,
+	scid string,
+	swapType swap.SwapType,
+) *testParams {
 	t.Helper()
 
 	require := requireNew(t)
@@ -312,7 +334,14 @@ func lndChanIDFromScid(t *testing.T, node *LndNodeWithLiquid, scid string) uint6
 	return lcid
 }
 
-func startLndLwkSwap(t *testing.T, requestType swap.SwapType, params *testParams, channelID uint64, requester *PeerSwapd, checkResp bool) {
+func startLndLwkSwap(
+	t *testing.T,
+	requestType swap.SwapType,
+	params *testParams,
+	channelID uint64,
+	requester *PeerSwapd,
+	checkResp bool,
+) {
 	t.Helper()
 
 	if requester == nil {

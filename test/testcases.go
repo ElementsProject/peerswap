@@ -161,7 +161,14 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	require.NoError(logs.Await("coop-claim"))
 
 	// Check no invoice was paid.
-	testframework.RequireWaitForChannelBalance(t, params.takerNode, params.scid, float64(setTakerFunds), 1., testframework.TIMEOUT)
+	testframework.RequireWaitForChannelBalance(
+		t,
+		params.takerNode,
+		params.scid,
+		float64(setTakerFunds),
+		1.,
+		testframework.TIMEOUT,
+	)
 
 	// Check Wallet balance.
 	// Expect:
@@ -216,8 +223,20 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	var feeInvoiceAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was paid.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get fee from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -240,8 +259,22 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 
 	// Check channel balances match.
 	// fee invoice amount is only !=0 when swap type is swap_out.
-	require.True(testframework.AssertWaitForChannelBalance(t, params.takerNode, params.scid, expect.TakerChannelAfterPreimageClaim(feeInvoiceAmt), 1., testframework.TIMEOUT))
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, expect.MakerChannelAfterPreimageClaim(feeInvoiceAmt), 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.takerNode,
+		params.scid,
+		expect.TakerChannelAfterPreimageClaim(feeInvoiceAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.makerNode,
+		params.scid,
+		expect.MakerChannelAfterPreimageClaim(feeInvoiceAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
@@ -303,8 +336,20 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was paid.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -362,7 +407,14 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
 	// Check channel and wallet balance
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, expect.MakerChannelAfterCsv(premiumAmt), 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.makerNode,
+		params.scid,
+		expect.MakerChannelAfterCsv(premiumAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
 
 	// Check Wallet balance.
 	testframework.AssertOnchainBalanceInDelta(t,

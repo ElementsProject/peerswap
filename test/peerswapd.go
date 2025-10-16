@@ -7,11 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/testframework"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type PeerSwapd struct {
@@ -30,7 +29,13 @@ type LndConfig struct {
 	MacaroonPath string
 }
 
-func NewPeerSwapd(testDir, pathToPeerswapPlugin string, lndConfig *LndConfig, extraConfig map[string]string, id int) (*PeerSwapd, error) {
+func NewPeerSwapd(
+	testDir string,
+	pathToPeerswapPlugin string,
+	lndConfig *LndConfig,
+	extraConfig map[string]string,
+	id int,
+) (*PeerSwapd, error) {
 	rpcPort, err := testframework.GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)

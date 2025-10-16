@@ -135,7 +135,10 @@ func (a *testAssertions) InDelta(expected, actual any, delta float64, msgAndArgs
 func (a *testAssertions) Len(value any, length int, msgAndArgs ...any) {
 	a.helper()
 	v := reflect.ValueOf(value)
-	if v.Kind() != reflect.Array && v.Kind() != reflect.Slice && v.Kind() != reflect.Map && v.Kind() != reflect.String && v.Kind() != reflect.Chan {
+	switch v.Kind() {
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.String, reflect.Chan:
+		// allowed collection types
+	default:
 		a.fail(fmt.Sprintf("unsupported type %T for Len assertion", value), msgAndArgs...)
 		return
 	}

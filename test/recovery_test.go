@@ -62,19 +62,33 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{
+		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
-		}, &response)
+		}, &response); err != nil {
+			t.Errorf("SwapOut request failed: %v", err)
+		}
 	}()
 
 	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was paid.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -88,7 +102,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	require.NoError(err)
 
 	// Stop taker peer so that csv can trigger
-	params.makerNode.Stop()
+	require.NoError(params.makerNode.Stop())
 
 	// Generate one less block than required for csv.
 	require.NoError(params.chaind.GenerateBlocks(params.csv - 1))
@@ -101,7 +115,10 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	// Restart maker node and wait for recover
 	require.NoError(params.makerNode.Run(true, true))
 	require.NoError(params.makerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
-	require.NoError(params.makerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv", testframework.TIMEOUT))
+	require.NoError(params.makerPeerswap.WaitForLog(
+		"Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv",
+		testframework.TIMEOUT,
+	))
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
@@ -113,7 +130,14 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Check channel and wallet balance
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premiumAmt), 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.makerNode,
+		params.scid,
+		float64(params.origMakerBalance+premiumAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
 
 	require.NoError(testframework.WaitFor(func() bool {
 		balance, err := params.makerNode.GetBtcBalanceSat()
@@ -177,19 +201,33 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{
+		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
-		}, &response)
+		}, &response); err != nil {
+			t.Errorf("SwapOut request failed: %v", err)
+		}
 	}()
 
 	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was paid.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -204,7 +242,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Stop taker peer so that csv can trigger
-	params.takerNode.Stop()
+	require.NoError(params.takerNode.Stop())
 
 	// Generate enought blocks to trigger csv
 	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
@@ -215,7 +253,10 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	// Ensure taker node is synced with the latest block height before recovery
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
-	require.NoError(params.takerPeerswap.WaitForLog("Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation", testframework.TIMEOUT))
+	require.NoError(params.takerPeerswap.WaitForLog(
+		"Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation",
+		testframework.TIMEOUT,
+	))
 
 	balance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 	require.NoError(err)
@@ -272,19 +313,33 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
 		var response map[string]interface{}
-		lightningds[0].Rpc.Request(&clightning.SwapOut{
+		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
-		}, &response)
+		}, &response); err != nil {
+			t.Errorf("SwapOut request failed: %v", err)
+		}
 	}()
 
 	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
 		// Wait for channel balance to change, this means the invoice was paid.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -299,7 +354,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 
 	// Stop taker peer so that csv can trigger
-	params.takerNode.Stop()
+	require.NoError(params.takerNode.Stop())
 
 	// Generate enought blocks to trigger csv
 	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
@@ -310,7 +365,10 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	// Ensure taker node is synced with the latest block height before recovery
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
-	require.NoError(params.takerPeerswap.WaitForLog("Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation", testframework.TIMEOUT))
+	require.NoError(params.takerPeerswap.WaitForLog(
+		"Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation",
+		testframework.TIMEOUT,
+	))
 
 	balance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 	require.NoError(err)

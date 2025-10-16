@@ -16,7 +16,13 @@ import (
 )
 
 // helpers for table-driven CLN BTC tests.
-func clnParams(t *testing.T, bitcoind *testframework.BitcoinNode, lightningds []*testframework.CLightningNode, scid string, st swap.SwapType) *testParams {
+func clnParams(
+	t *testing.T,
+	bitcoind *testframework.BitcoinNode,
+	lightningds []*testframework.CLightningNode,
+	scid string,
+	st swap.SwapType,
+) *testParams {
 	t.Helper()
 
 	var channelBalances []uint64
@@ -121,7 +127,14 @@ func runClnLndSwapCases(t *testing.T, cases []clnLndSwapCase) {
 	}
 }
 
-func buildClnLndParams(t *testing.T, bitcoind *testframework.BitcoinNode, lightningds []testframework.LightningNode, peerswapd *PeerSwapd, scid string, swapType swap.SwapType) *testParams {
+func buildClnLndParams(
+	t *testing.T,
+	bitcoind *testframework.BitcoinNode,
+	lightningds []testframework.LightningNode,
+	peerswapd *PeerSwapd,
+	scid string,
+	swapType swap.SwapType,
+) *testParams {
 	t.Helper()
 
 	require := requireNew(t)
@@ -434,7 +447,14 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 	}, testframework.TIMEOUT))
 
 	var response map[string]interface{}
-	err := lightningds[1].Rpc.Request(&clightning.SwapIn{SatAmt: 100, ShortChannelId: params.scid, Asset: "btc"}, &response)
+	err := lightningds[1].Rpc.Request(
+		&clightning.SwapIn{
+			SatAmt:         100,
+			ShortChannelId: params.scid,
+			Asset:          "btc",
+		},
+		&response,
+	)
 	assertError(t, err)
 }
 
@@ -446,7 +466,7 @@ func Test_Cln_shutdown(t *testing.T) {
 	bitcoind, lightningds, _ := clnclnSetup(t, uint64(math.Pow10(9)))
 	DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
-	lightningds[0].Shutdown()
+	require.NoError(lightningds[0].Shutdown())
 	require.NoError(lightningds[0].WaitForLog(
 		"plugin-peerswap: Killing plugin: exited during normal operation", 30))
 }
@@ -473,7 +493,14 @@ func Test_ClnCln_Poll(t *testing.T) {
 const lndFundAmount = uint64(1_000_000_000)
 
 // helpers for table-driven LND BTC tests.
-func lndParams(t *testing.T, bitcoind *testframework.BitcoinNode, lightningds []*testframework.LndNode, peerswapds []*PeerSwapd, scid string, st swap.SwapType) (*testParams, uint64) {
+func lndParams(
+	t *testing.T,
+	bitcoind *testframework.BitcoinNode,
+	lightningds []*testframework.LndNode,
+	peerswapds []*PeerSwapd,
+	scid string,
+	st swap.SwapType,
+) (*testParams, uint64) {
 	t.Helper()
 
 	var channelBalances []uint64

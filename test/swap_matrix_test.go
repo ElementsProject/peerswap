@@ -27,7 +27,6 @@ func Test_SwapInMatrix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			tc.run(t)
 		})
@@ -50,7 +49,6 @@ func runBitcoinClnClnSwapIn(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
@@ -111,7 +109,6 @@ func runLiquidClnClnSwapIn(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
@@ -193,7 +190,6 @@ func runLwkClnClnSwapIn(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
@@ -231,10 +227,13 @@ func runLwkMixedSwapIn(t *testing.T) {
 		}
 
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderLND)
+				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(
+					t,
+					uint64(math.Pow10(9)),
+					FunderLND,
+				)
 				DumpOnFailure(t,
 					WithBitcoin(bitcoind),
 					WithLiquid(liquidd),
@@ -267,10 +266,13 @@ func runLwkMixedSwapIn(t *testing.T) {
 		}
 
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderCLN)
+				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(
+					t,
+					uint64(math.Pow10(9)),
+					FunderCLN,
+				)
 				DumpOnFailure(t,
 					WithBitcoin(bitcoind),
 					WithLiquid(liquidd),
@@ -310,7 +312,6 @@ func runLwkLndLndSwapIn(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -358,7 +359,6 @@ func Test_SwapOutMatrix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			tc.run(t)
 		})
@@ -381,7 +381,6 @@ func runBitcoinClnClnSwapOut(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, lightningds, scid := clnclnSetup(t, uint64(math.Pow10(9)))
@@ -442,7 +441,6 @@ func runLiquidClnClnSwapOut(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
@@ -527,7 +525,6 @@ func runLwkClnClnSwapOut(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, scid, electrs, lwk := clnclnLWKSetup(t, uint64(math.Pow10(9)))
@@ -565,10 +562,13 @@ func runLwkMixedSwapOut(t *testing.T) {
 		}
 
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderCLN)
+				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(
+					t,
+					uint64(math.Pow10(9)),
+					FunderCLN,
+				)
 				DumpOnFailure(t,
 					WithBitcoin(bitcoind),
 					WithLiquid(liquidd),
@@ -601,10 +601,13 @@ func runLwkMixedSwapOut(t *testing.T) {
 		}
 
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(t, uint64(math.Pow10(9)), FunderLND)
+				bitcoind, liquidd, lightningds, peerswapd, scid, electrs, lwk := mixedLWKSetup(
+					t,
+					uint64(math.Pow10(9)),
+					FunderLND,
+				)
 				DumpOnFailure(t,
 					WithBitcoin(bitcoind),
 					WithLiquid(liquidd),
@@ -668,7 +671,6 @@ func runLwkLndLndSwapOut(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -705,11 +707,16 @@ func runClnLndLiquidSwapCases(t *testing.T, cases []clnLndSwapCase) {
 	t.Parallel()
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, uint64(math.Pow10(9)), tc.funder)
-			DumpOnFailure(t, WithBitcoin(bitcoind), WithLiquid(liquidd), WithLightningNodes(lightningds), WithPeerSwapd(peerswapd))
+			DumpOnFailure(
+				t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithLightningNodes(lightningds),
+				WithPeerSwapd(peerswapd),
+			)
 
 			params := buildMixedLiquidParams(t, liquidd, lightningds, peerswapd, scid, tc.swapType)
 			startLiquidSwap(t, params)

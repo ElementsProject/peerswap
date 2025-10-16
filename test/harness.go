@@ -289,7 +289,12 @@ func WithPeerSwapdFailurePrinter(printer logPrinter) PeerSwapdOption {
 	}
 }
 
-func (b *HarnessBuilder) AddPeerSwapd(index int, lnd *testframework.LndNode, extraConfig map[string]string, opts ...PeerSwapdOption) *PeerSwapd {
+func (b *HarnessBuilder) AddPeerSwapd(
+	index int,
+	lnd *testframework.LndNode,
+	extraConfig map[string]string,
+	opts ...PeerSwapdOption,
+) *PeerSwapd {
 	b.t.Helper()
 
 	spec := &peerswapdSpec{

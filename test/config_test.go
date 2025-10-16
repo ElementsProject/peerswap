@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pelletier/go-toml/v2"
-
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // Test_ClnConfig checks that the peerswap plugin does not accept

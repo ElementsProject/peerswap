@@ -2,13 +2,11 @@ package test
 
 import (
 	"context"
-	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/elementsproject/glightning/jrpc2"
-
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/premium"
@@ -17,7 +15,13 @@ import (
 )
 
 // helpers for table-driven Liquid CLN tests.
-func clnLiquidParams(t *testing.T, liquidd *testframework.LiquidNode, lightningds []*CLightningNodeWithLiquid, scid string, st swap.SwapType) *testParams {
+func clnLiquidParams(
+	t *testing.T,
+	liquidd *testframework.LiquidNode,
+	lightningds []*CLightningNodeWithLiquid,
+	scid string,
+	st swap.SwapType,
+) *testParams {
 	t.Helper()
 
 	var channelBalances []uint64
@@ -120,7 +124,14 @@ func isTransientClnPipeError(err error) bool {
 		strings.Contains(msg, "Connection reset by peer")
 }
 
-func buildMixedLiquidParams(t *testing.T, liquidd *testframework.LiquidNode, lightningds []testframework.LightningNode, peerswapd *PeerSwapd, scid string, swapType swap.SwapType) *testParams {
+func buildMixedLiquidParams(
+	t *testing.T,
+	liquidd *testframework.LiquidNode,
+	lightningds []testframework.LightningNode,
+	peerswapd *PeerSwapd,
+	scid string,
+	swapType swap.SwapType,
+) *testParams {
 	t.Helper()
 
 	require := requireNew(t)
@@ -242,7 +253,14 @@ func Test_CLNLiquidSetup(t *testing.T) {
 const lndLiquidFundAmount = uint64(1_000_000_000)
 
 // helpers for table-driven Liquid LND tests.
-func lndLiquidParams(t *testing.T, liquidd *testframework.LiquidNode, lightningds []*LndNodeWithLiquid, peerswapds []*PeerSwapd, scid string, st swap.SwapType) (*testParams, uint64) {
+func lndLiquidParams(
+	t *testing.T,
+	liquidd *testframework.LiquidNode,
+	lightningds []*LndNodeWithLiquid,
+	peerswapds []*PeerSwapd,
+	scid string,
+	st swap.SwapType,
+) (*testParams, uint64) {
 	t.Helper()
 
 	var channelBalances []uint64
@@ -328,7 +346,13 @@ func runLndLndLiquidSwapCases(t *testing.T, cases []lndSwapCase) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, peerswapds, scid := lndlndElementsSetup(t, lndLiquidFundAmount)
-			DumpOnFailure(t, WithBitcoin(bitcoind), WithLiquid(liquidd), WithLndNodesWithLiquid(lightningds), WithPeerSwapds(peerswapds...))
+			DumpOnFailure(
+				t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithLndNodesWithLiquid(lightningds),
+				WithPeerSwapds(peerswapds...),
+			)
 
 			params, channelID := lndLiquidParams(t, liquidd, lightningds, peerswapds, scid, tc.swapType)
 			starter := peerswapds[0]
@@ -351,7 +375,13 @@ func runLndClnLiquidSwapCases(t *testing.T, cases []lndClnSwapCase) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bitcoind, liquidd, lightningds, peerswapd, scid := mixedElementsSetup(t, lndLiquidFundAmount, tc.funder)
-			DumpOnFailure(t, WithBitcoin(bitcoind), WithLiquid(liquidd), WithLightningNodes(lightningds), WithPeerSwapd(peerswapd))
+			DumpOnFailure(
+				t,
+				WithBitcoin(bitcoind),
+				WithLiquid(liquidd),
+				WithLightningNodes(lightningds),
+				WithPeerSwapd(peerswapd),
+			)
 
 			params := buildMixedLiquidParams(t, liquidd, lightningds, peerswapd, scid, tc.swapType)
 			lndNode := mustFindLndNode(t, lightningds)
