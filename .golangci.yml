@@ -5,10 +5,10 @@ run:
   timeout: 5m
 
 linters:
-  # v2 のデフォルトセット指定（standard/all/none/fast）
+  # Default v2 linter set options (standard/all/none/fast)
   default: standard
   enable:
-    # 重大・基本
+    # Critical / foundational
     - staticcheck
     - govet
     - errcheck
@@ -29,11 +29,11 @@ linters:
     - nolintlint
     - tparallel
     - gosec
-    # ポリシー／補助
+    # Policy / helper
     - depguard
     - forbidigo
     - copyloopvar
-    # 複雑度・重複（本体では有効）
+    # Complexity / duplication (enabled for main code)
     - goconst
     - cyclop
     - gocognit
@@ -41,7 +41,7 @@ linters:
     - unparam
     - unconvert
   disable:
-    # 好みが分かれる/段階導入推奨のものは一旦OFF
+    # Linters with preference-dependent behavior; keep disabled for now
     - exhaustruct
     - varnamelen
     - wsl
@@ -52,33 +52,33 @@ linters:
     - err113
     - gochecknoglobals
 
-  # ★ テスト専用の緩和（_test.go を対象に特定のリンターを無効化）
+  # Test-only relaxations (disable specific linters for _test.go files)
   exclusions:
     rules:
       - path: '(^|.*/)test/.*\.go'
         linters:
-          - forbidigo # テスト内の fmt.Print / time.Sleep を許容
-          - revive # テスト内の細かいスタイル違反を許容
-          - gosec # テストの簡便なI/O等での誤検知を抑制
-          - dupl # 似たテストケースの重複を許容
-          - gocognit # 読みやすさ重視で複雑度を緩める
+          - forbidigo # Allow fmt.Print / time.Sleep in tests
+          - revive # Ignore minor style issues inside tests
+          - gosec # Reduce false positives for simple test I/O
+          - dupl # Accept similar duplicated test cases
+          - gocognit # Relax complexity requirements for readability
           - cyclop
-          - goconst # 定数化強制はテストでは緩め
-          - funlen # 長いテスト関数を許容
+          - goconst # Loosen constant enforcement within tests
+          - funlen # Allow longer test functions
           - nlreturn
           - varnamelen
           - wsl
-          - nolintlint # テストの //nolint を簡便に
-          - perfsprint # パフォーマンス系はテストでは緩く
-          - unparam # 使わない引数の誤検知を抑制
+          - nolintlint # Allow simpler usage of //nolint in tests
+          - perfsprint # Relax performance-focused checks for tests
+          - unparam # Avoid false positives for unused parameters
           - unconvert
 
   settings:
-    # ループ変数のクロージャ捕捉（loop capture）検出
+    # Detect loop variable capture issues
     govet:
       enable:
         - loopclosure
-    # テストでの testify 禁止（$test だけに適用）
+    # Block testify usage in tests (applies only to $test)
     depguard:
       rules:
         main:
@@ -158,7 +158,7 @@ linters:
       require-explanation: true
       require-specific: true
 
-# v2のフォーマッタ（`golangci-lint fmt` で利用）
+# v2 formatters (used by `golangci-lint fmt`)
 formatters:
   enable:
     - gofmt
@@ -173,4 +173,4 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/your/module) # ←モジュールパスに置換
+        - prefix(github.com/your/module) # Replace with your module path
