@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration, lwk-cln, lwk-lnd]
+        vector: [bitcoin_clncln, bitcoin_mixed, bitcoin_lndlnd, liquid_clncln, liquid_mixed, liquid_lndlnd, misc, lnd]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -57,6 +57,10 @@ jobs:
       # causing issues like "clightning-1: Lost connection to the RPC socket."
       # While the root cause is unclear, switching to nix-shell provides a more stable alternative for CI.
       # For more context, see the issue in this failed job: https://github.com/ElementsProject/peerswap/actions/runs/16064376179/job/45336040866?pr=385
+      - name: Build test binaries
+        run: |
+          nix-shell --run "make test-bins"
+
       - name: Run integration tests
         run: |
-          nix-shell --run "make test-${{matrix.test-vector}}"
+          nix-shell --run "RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=10 PEERSWAP_TEST_FILTER=$PEERSWAP_TEST_FILTER make test-matrix-${{ matrix.vector }}"

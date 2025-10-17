@@ -78,86 +78,13 @@ test:
 	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -race -timeout=10m -v ./...
 .PHONY: test
 
-test-integration: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./test
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./lnd
-.PHONY: test-integration
 
-test-bitcoin-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_Bitcoin_SwapOut|'\
-	'Test_ClnCln_Bitcoin_SwapIn|'\
-	'Test_ClnLnd_Bitcoin_SwapOut|'\
-	'Test_ClnLnd_Bitcoin_SwapIn|'\
-	'Test_ClnCln_ExcessiveAmount|'\
-	'Test_ClnCln_StuckChannels)'\
-	 ./test
-.PHONY: test-bitoin-cln
 
-test-bitcoin-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_Bitcoin_SwapOut|'\
-	'Test_LndLnd_Bitcoin_SwapIn|'\
-	'Test_LndCln_Bitcoin_SwapOut|'\
-	'Test_LndCln_Bitcoin_SwapIn|'\
-	'Test_LndLnd_ExcessiveAmount)'\
-	 ./test
-	${INTEGRATION_TEST_ENV} go test $(INTEGRATION_TEST_OPTS) ./lnd
-.PHONY: test-bitcoin-lnd
 
-test-liquid-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_Liquid_SwapOut|'\
-	'Test_ClnCln_Liquid_SwapIn|'\
-	'Test_ClnLnd_Liquid_SwapOut|'\
-	'Test_ClnLnd_Liquid_SwapIn)'\
-	 ./test
-.PHONY: test-liquid-cln
 
-test-liquid-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_Liquid_SwapOut|'\
-	'Test_LndLnd_Liquid_SwapIn|'\
-	'Test_LndCln_Liquid_SwapOut|'\
-	'Test_LndCln_Liquid_SwapIn)'\
-	 ./test
-.PHONY: test-liquid-lnd
 
-test-lwk-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_LWK_SwapIn)'\
-	 ./test
-.PHONY: test-lwk-cln
 
-test-lwk-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_LWK_SwapIn)'\
-	 ./test
-.PHONY: test-lwk-lnd
 
-test-misc-integration: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_OnlyOneActiveSwapPerChannelCln|'\
-	'Test_OnlyOneActiveSwapPerChannelLnd|'\
-	'Test_GrpcReconnectStream|'\
-	'Test_GrpcRetryRequest|'\
-	'Test_RestoreFromPassedCSV|'\
-	'Test_Recover_PassedSwap_BTC|'\
-	'Test_Recover_PassedSwap_LBTC|'\
-	'Test_ClnConfig|'\
-	'Test_ClnPluginConfigFile|'\
-	'Test_ClnPluginConfigFile_DoesNotExist|'\
-	'Test_ClnPluginConfig_ElementsAuthCookie|'\
-	'Test_ClnPluginConfig_DisableLiquid)'\
-	 ./test
-.PHONY: test-misc-integration
 
 # Release section. Has the commands to install binaries into the distinct locations.
 lnd-release: clean-lnd
@@ -244,3 +171,61 @@ mockgen: mockgen/lwk
 .PHONY: mockgen/lwk
 mockgen/lwk:
 	$(TOOLS_DIR)/bin/mockgen -source=electrum/electrum.go -destination=electrum/mock/electrum.go
+
+# Matrix-aligned integration targets (for CI and local parity)
+.PHONY: test-matrix-bitcoin_clncln
+test-matrix-bitcoin_clncln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_clncln).*$' ./test
+
+.PHONY: test-matrix-bitcoin_mixed
+test-matrix-bitcoin_mixed: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_mixed).*$' ./test
+
+.PHONY: test-matrix-bitcoin_lndlnd
+test-matrix-bitcoin_lndlnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*$' ./test
+
+.PHONY: test-matrix-liquid_clncln
+test-matrix-liquid_clncln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_clncln).*$' ./test
+
+.PHONY: test-matrix-liquid_mixed
+test-matrix-liquid_mixed: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_mixed).*$' ./test
+
+.PHONY: test-matrix-liquid_lndlnd
+test-matrix-liquid_lndlnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_lndlnd).*$' ./test
+
+# Consolidated misc tests including CLN/LND-specific invariants and setup checks
+.PHONY: test-matrix-misc
+test-matrix-misc: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
+	-run '^(\'\
+	'Test_OnlyOneActiveSwapPerChannelCln|'\
+	'Test_OnlyOneActiveSwapPerChannelLnd|'\
+	'Test_GrpcReconnectStream|'\
+	'Test_GrpcRetryRequest|'\
+	'Test_RestoreFromPassedCSV|'\
+	'Test_Recover_PassedSwap_BTC|'\
+	'Test_Recover_PassedSwap_LBTC|'\
+	'Test_ClnConfig|'\
+	'Test_ClnPluginConfigFile|'\
+	'Test_ClnPluginConfigFile_DoesNotExist|'\
+	'Test_ClnPluginConfig_ElementsAuthCookie|'\
+	'Test_ClnPluginConfig_DisableLiquid|'\
+	'Test_CLNLiquidSetup|'\
+	'Test_ClnCln_ExcessiveAmount|'\
+	'Test_ClnCln_StuckChannels|'\
+	'Test_LndLnd_ExcessiveAmount|'\
+	'Test_Wumbo|'\
+	'Test_Cln_HtlcMaximum|'\
+	'Test_Cln_Premium|'\
+	'Test_Cln_shutdown|'\
+	'Test_ClnCln_Poll)'\
+	 ./test
+
+# LND package tests
+.PHONY: test-matrix-lnd
+test-matrix-lnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./lnd
