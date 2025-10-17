@@ -175,27 +175,27 @@ mockgen/lwk:
 # Matrix-aligned integration targets (for CI and local parity)
 .PHONY: test-matrix-bitcoin_clncln
 test-matrix-bitcoin_clncln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_clncln).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_clncln).*$$' ./test
 
 .PHONY: test-matrix-bitcoin_mixed
 test-matrix-bitcoin_mixed: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_mixed).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_mixed).*$$' ./test
 
 .PHONY: test-matrix-bitcoin_lndlnd
 test-matrix-bitcoin_lndlnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*$$' ./test
 
 .PHONY: test-matrix-liquid_clncln
 test-matrix-liquid_clncln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_clncln).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_clncln).*$$' ./test
 
 .PHONY: test-matrix-liquid_mixed
 test-matrix-liquid_mixed: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_mixed).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_mixed).*$$' ./test
 
 .PHONY: test-matrix-liquid_lndlnd
 test-matrix-liquid_lndlnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_lndlnd).*$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_lndlnd).*$$' ./test
 
 # Consolidated misc tests including CLN/LND-specific invariants and setup checks
 .PHONY: test-matrix-misc
