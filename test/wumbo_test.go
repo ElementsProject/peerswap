@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
@@ -42,10 +41,8 @@ func Test_Wumbo(t *testing.T) {
 			largeChannelsEnabled: false,
 			swapAmtSat:           maxPaymentSize + 1,
 			swapType:             swap.SWAPTYPE_OUT,
-			expectedError: fmt.Errorf(
-				"-1:swap amount is 4294968000: need to enable option '--large-channels' " +
-					"to swap amounts larger than 2^32 msat",
-			),
+			// CLN >= v23.11 enables wumbo by default; no error expected.
+			expectedError: nil,
 		},
 		{
 			description:          "out_lc_max",
@@ -73,10 +70,8 @@ func Test_Wumbo(t *testing.T) {
 			largeChannelsEnabled: false,
 			swapAmtSat:           maxPaymentSize + 1,
 			swapType:             swap.SWAPTYPE_IN,
-			expectedError: fmt.Errorf(
-				"-1:swap amount is 4294968000: need to enable option '--large-channels' " +
-					"to swap amounts larger than 2^32 msat",
-			),
+			// CLN >= v23.11 enables wumbo by default; no error expected.
+			expectedError: nil,
 		},
 		{
 			description:          "in_lc_max",
@@ -110,10 +105,36 @@ func Test_Wumbo(t *testing.T) {
 				options = append(options, "--large-channels")
 			}
 
-			// Test Swap-out
+			// Test setup
 			bitcoind, lightningds, scid := clnclnSetupWithConfig(t, maxChanSize, 0, options, true,
-				[]byte("accept_all_peers=1\nswap_in_premium_rate_ppm=0\nswap_out_premium_rate_ppm=0\n"))
+				[]byte("accept_all_peers=1\n"))
 			DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
+
+			// Ensure BTC premiums are zero for this test. Defaults for swap_out are non-zero (2000 ppm).
+			// Use the global premium setter to avoid peer-specific state.
+			for _, ln := range lightningds {
+				var _resp map[string]interface{}
+				// Set BTC SWAP_OUT premium to 0 ppm.
+				err := ln.Rpc.Request(
+					&clightning.UpdateGlobalPremiumRate{
+						Asset:          "btc",
+						Operation:      "swap_out",
+						PremiumRatePPM: 0,
+					},
+					&_resp,
+				)
+				require.NoError(err)
+				// Set BTC SWAP_IN premium to 0 ppm (already default, but ensure explicitly).
+				err = ln.Rpc.Request(
+					&clightning.UpdateGlobalPremiumRate{
+						Asset:          "btc",
+						Operation:      "swap_in",
+						PremiumRatePPM: 0,
+					},
+					&_resp,
+				)
+				require.NoError(err)
+			}
 
 			var channelBalances []uint64
 			var walletBalances []uint64
