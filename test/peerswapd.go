@@ -10,6 +10,7 @@ import (
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/testframework"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type PeerSwapd struct {
@@ -18,17 +19,23 @@ type PeerSwapd struct {
 	PeerswapClient peerswaprpc.PeerSwapClient
 	clientConn     *grpc.ClientConn
 
-	RpcPort int
+	RPCPort int
 	DataDir string
 }
 
 type LndConfig struct {
 	LndHost      string
-	TlsPath      string
+	TLSPath      string
 	MacaroonPath string
 }
 
-func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndConfig, extraConfig map[string]string, id int) (*PeerSwapd, error) {
+func NewPeerSwapd(
+	testDir string,
+	pathToPeerswapPlugin string,
+	lndConfig *LndConfig,
+	extraConfig map[string]string,
+	id int,
+) (*PeerSwapd, error) {
 	rpcPort, err := testframework.GetFreePort()
 	if err != nil {
 		return nil, fmt.Errorf("getFreePort() %w", err)
@@ -39,7 +46,7 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 		return nil, fmt.Errorf("generateRandomString(5) %w", err)
 	}
 
-	dataDir := filepath.Join(testDir, fmt.Sprintf("peerswap-%s", rngDirExtension))
+	dataDir := filepath.Join(testDir, "peerswap-"+rngDirExtension)
 
 	err = os.MkdirAll(dataDir, os.ModeDir|os.ModePerm)
 	if err != nil {
@@ -48,7 +55,7 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 
 	peerswapConfig := map[string]string{
 		"network":          "regtest",
-		"lnd.tlscertpath":  lndConfig.TlsPath,
+		"lnd.tlscertpath":  lndConfig.TLSPath,
 		"lnd.macaroonpath": lndConfig.MacaroonPath,
 		"lnd.host":         lndConfig.LndHost,
 		"datadir":          dataDir,
@@ -73,14 +80,14 @@ func NewPeerSwapd(testDir string, pathToPeerswapPlugin string, lndConfig *LndCon
 
 	cmdLine := []string{
 		pathToPeerswapPlugin,
-		fmt.Sprintf("--configfile=%s", configFile),
-		fmt.Sprintf("--policyfile=%s", policyFile),
+		"--configfile=" + configFile,
+		"--policyfile=" + policyFile,
 	}
 
 	return &PeerSwapd{
 		DaemonProcess: testframework.NewDaemonProcess(cmdLine, fmt.Sprintf("peerswapd-%v", id)),
 		DataDir:       dataDir,
-		RpcPort:       rpcPort,
+		RPCPort:       rpcPort,
 	}, nil
 }
 
@@ -94,7 +101,7 @@ func (p *PeerSwapd) Run(waitForReady bool) error {
 		}
 	}
 
-	psClient, clientConn, err := getPeerswapClient(p.RpcPort)
+	psClient, clientConn, err := getPeerswapClient(p.RPCPort)
 	if err != nil {
 		return err
 	}
@@ -106,7 +113,9 @@ func (p *PeerSwapd) Run(waitForReady bool) error {
 
 func (p *PeerSwapd) Stop() {
 	if p.PeerswapClient != nil {
-		_, _ = p.PeerswapClient.Stop(context.Background(), &peerswaprpc.Empty{})
+		if _, err := p.PeerswapClient.Stop(context.Background(), &peerswaprpc.Empty{}); err != nil {
+			log.Printf("failed to stop peerswap client: %v", err)
+		}
 	}
 	if p.clientConn != nil {
 		if err := p.clientConn.Close(); err != nil {
@@ -132,17 +141,16 @@ func getPeerswapClient(rpcPort int) (peerswaprpc.PeerSwapClient, *grpc.ClientCon
 }
 
 func getClientConn(address string) (*grpc.ClientConn, error) {
-
 	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
 	opts := []grpc.DialOption{
 		grpc.WithDefaultCallOptions(maxMsgRecvSize),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	}
 
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to RPC server: %v",
+		return nil, fmt.Errorf("unable to connect to RPC server: %w",
 			err)
 	}
 

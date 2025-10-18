@@ -1,0 +1,176 @@
+version: "2"
+
+run:
+  tests: true
+  timeout: 5m
+
+linters:
+  # Default v2 linter set options (standard/all/none/fast)
+  default: standard
+  enable:
+    # Critical / foundational
+    - staticcheck
+    - govet
+    - errcheck
+    - ineffassign
+    - unused
+    - errorlint
+    - revive
+    - gocritic
+    - makezero
+    - durationcheck
+    - nilerr
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - noctx
+    - perfsprint
+    - sloglint
+    - nolintlint
+    - tparallel
+    - gosec
+    # Policy / helper
+    - depguard
+    - forbidigo
+    - copyloopvar
+    # Complexity / duplication (enabled for main code)
+    - goconst
+    - cyclop
+    - gocognit
+    - dupl
+    - unparam
+    - unconvert
+  disable:
+    # Linters with preference-dependent behavior; keep disabled for now
+    - exhaustruct
+    - varnamelen
+    - wsl
+    - nlreturn
+    - nonamedreturns
+    - funlen
+    - nakedret
+    - err113
+    - gochecknoglobals
+
+  # Test-only relaxations (disable specific linters for _test.go files)
+  exclusions:
+    rules:
+      - path: '(^|.*/)test/.*\.go'
+        linters:
+          - forbidigo # Allow fmt.Print / time.Sleep in tests
+          - revive # Ignore minor style issues inside tests
+          - gosec # Reduce false positives for simple test I/O
+          - dupl # Accept similar duplicated test cases
+          - gocognit # Relax complexity requirements for readability
+          - cyclop
+          - goconst # Loosen constant enforcement within tests
+          - funlen # Allow longer test functions
+          - nlreturn
+          - varnamelen
+          - wsl
+          - nolintlint # Allow simpler usage of //nolint in tests
+          - perfsprint # Relax performance-focused checks for tests
+          - unparam # Avoid false positives for unused parameters
+          - unconvert
+
+  settings:
+    # Detect loop variable capture issues
+    govet:
+      enable:
+        - loopclosure
+    # Block testify usage in tests (applies only to $test)
+    depguard:
+      rules:
+        main:
+          files:
+            - $all
+            - "!$test"
+          deny:
+            - pkg: syscall
+              desc: |
+                Deprecated: This package is locked down.
+                Callers should use the corresponding package in the golang.org/x/sys repository instead.
+                That is also where updates required by new systems or versions should be applied.
+                See https://golang.org/s/go1.4-syscall for more information.
+            - pkg: github.com/satori/go.uuid
+              desc: |
+                This package have vulnerability. Please use alternative uuid package such as "github.com/google/uuid".
+            - pkg: github.com/golang/protobuf/proto
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/proto" package instead.
+            - pkg: github.com/golang/protobuf/ptypes
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/anypb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/any
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/anypb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/duration
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/durationpb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/empty
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/emptypb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/struct
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/structpb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/timestamp
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/timestamppb" package instead.
+            - pkg: github.com/golang/protobuf/ptypes/wrappers
+              desc: |
+                Deprecated: Use the "google.golang.org/protobuf/types/known/wrapperspb" package instead.
+            - pkg: github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap
+              desc: |
+                DO NOT USE ctxzap. Please check grpcserver/internal#LogWithFields.
+            - pkg: github.com/pkg/errors
+              desc: Should be replaced by standard lib errors package
+            - pkg: golang.org/x/sync/errgroup
+              desc: |
+                Use panic recoverable version github.com/kouzoh-mercoin/mercoin-core-kit/sync/recoverable or github.com/sourcegraph/conc instead.
+        test:
+          files:
+            - $test
+          deny:
+            - pkg: github.com/stretchr/testify
+              desc: |
+                DO NOT USE testing framework.
+
+    gocognit:
+      min-complexity: 20
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    dupl:
+      threshold: 200
+
+    revive:
+      rules:
+        - name: error-strings
+        - name: indent-error-flow
+        - name: exported
+        - name: package-comments
+        - name: redefines-builtin-id
+        - name: if-return
+        - name: superfluous-else
+        - name: var-naming
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+# v2 formatters (used by `golangci-lint fmt`)
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gofumpt
+    - gci
+    - golines
+  settings:
+    golines:
+      max-len: 120
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/your/module) # Replace with your module path

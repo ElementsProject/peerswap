@@ -114,6 +114,10 @@ For a LND Bitcoin signet / Liquid testnet setup guide see this [guide](./docs/si
 
 PeerSwap uses the [nix](https://nixos.org/download.html) package manager for a simple development environment. In order to start hacking, install nix, [golang](https://golang.org/doc/install) and run `nix-shell`. This will fetch all dependencies (except golang).
 
+#### Linting Go Changes
+
+Run `make lint` before sending changes for review. The target runs `golangci-lint` against your local modifications, so new code must be lint-clean even if legacy issues remain elsewhere in the tree. If your branch does not track `origin/main`, set `LINT_BASE` to the commit or branch you want to diff against (for example, `make lint LINT_BASE=upstream/main`). Use `make lint/fix` when automatic fixes are desired.
+
 #### Development: Buf CLI Description
 
 In this project, we utilize Buf CLI to streamline the development environment for Protocol Buffers (protobuf).Buf is a powerful tool for managing the build, linting, formatting, and validation processes for protobuf files in a consistent and efficient manner.
