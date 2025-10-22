@@ -10,8 +10,6 @@ import (
 
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/pelletier/go-toml/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Test_ClnConfig checks that the peerswap plugin does not accept
@@ -23,30 +21,37 @@ func Test_ClnConfig(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
 
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(bitcoind.Kill)
 
 	err = bitcoind.Run(true)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	// Setup core lightning node.
 	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(lightningd.Kill)
+
+	// Dump lightningd logs on failure.
+	DumpOnFailure(t, WithCLightnings([]*testframework.CLightningNode{lightningd}))
 
 	policyPath := filepath.Join(lightningd.GetDataDir(), "..", "policy.conf")
 	// Write policy file, accept all peers.
-	os.WriteFile(
+	err = os.WriteFile(
 		policyPath,
 		[]byte("accept_all_peers=1"),
-		os.ModePerm,
+		0o600,
 	)
+	requireNoError(t, err)
 
 	// Add commandline arguments, especially peerswap related arguments.
 	lightningd.AppendCmdLine([]string{
@@ -56,51 +61,51 @@ func Test_ClnConfig(t *testing.T) {
 
 	// Start lightning daemon.
 	err = lightningd.Run(true, false)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = lightningd.WaitForLog(
 		"Setting config in core lightning config file is deprecated",
 		30*time.Second,
 	)
-	assert.NoError(t, err)
+	assertNoError(t, err)
 
-	if t.Failed() {
-		pprintFail(tailableProcess{
-			p: lightningd.DaemonProcess,
-		})
-	}
+	// Failure dump handled by DumpOnFailure
 }
 
-// Test_ClnPluginConfigFile checks that the config is read from the data directory
+// Test_ClnPluginConfigFile checks that the config is read from the data directory.
 func Test_ClnPluginConfigFile(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
 
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(bitcoind.Kill)
 
 	err = bitcoind.Run(true)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	// Setup core lightning node.
 	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(lightningd.Kill)
 
 	peerswapConfig := ``
 
 	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
-	os.WriteFile(
+	err = os.WriteFile(
 		configPath,
 		[]byte(peerswapConfig),
-		os.ModePerm,
+		0o600,
 	)
+	requireNoError(t, err)
 
 	// Add commandline arguments, especially peerswap related arguments.
 	lightningd.AppendCmdLine([]string{
@@ -109,13 +114,13 @@ func Test_ClnPluginConfigFile(t *testing.T) {
 
 	// Start lightning daemon.
 	err = lightningd.Run(true, false)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = lightningd.WaitForLog(
 		"Waiting for cln to be synced",
 		testframework.TIMEOUT,
 	)
-	assert.NoError(t, err)
+	assertNoError(t, err)
 
 	if t.Failed() {
 		pprintFail(tailableProcess{
@@ -130,22 +135,28 @@ func Test_ClnPluginConfigFile_DoesNotExist(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
 
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(bitcoind.Kill)
 
 	err = bitcoind.Run(true)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	// Setup core lightning node.
 	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(lightningd.Kill)
+
+	// Dump lightningd logs on failure.
+	DumpOnFailure(t, WithCLightnings([]*testframework.CLightningNode{lightningd}))
 
 	// Add commandline arguments, especially peerswap related arguments.
 	lightningd.AppendCmdLine([]string{
@@ -154,19 +165,15 @@ func Test_ClnPluginConfigFile_DoesNotExist(t *testing.T) {
 
 	// Start lightning daemon.
 	err = lightningd.Run(true, false)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = lightningd.WaitForLog(
 		"Waiting for cln to be synced",
 		testframework.TIMEOUT,
 	)
-	assert.NoError(t, err)
+	assertNoError(t, err)
 
-	if t.Failed() {
-		pprintFail(tailableProcess{
-			p: lightningd.DaemonProcess,
-		})
-	}
+	// Failure dump handled by DumpOnFailure
 }
 
 // Test_ClnPluginConfig_ElementsAuthCookie checks that peerswap can
@@ -175,17 +182,20 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
 
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(bitcoind.Kill)
 
 	err = bitcoind.Run(true)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	// Start Elements node
 	liquidd, err := testframework.NewLiquidNodeFromConfig(
@@ -198,32 +208,22 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 			"initialfreecoins": "2100000000000000",
 			"creatediscountct": "1",
 			"validatepegin":    "0",
-			"chain":            "liquidregtest"},
+			"chain":            "liquidregtest",
+		},
 		1,
 	)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = liquidd.Run(true)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if t.Failed() {
-			pprintFail(tailableProcess{
-				p: liquidd.DaemonProcess,
-			})
-		}
-	})
+	requireNoError(t, err)
 
 	// Setup core lightning node.
 	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if t.Failed() {
-			pprintFail(tailableProcess{
-				p: lightningd.DaemonProcess,
-			})
-		}
-	})
+	requireNoError(t, err)
 	t.Cleanup(lightningd.Kill)
+
+	// Dump both liquidd and lightningd logs on failure.
+	DumpOnFailure(t, WithLiquid(liquidd), WithCLightnings([]*testframework.CLightningNode{lightningd}))
 
 	peerswapConfig := struct {
 		Liquid struct {
@@ -241,16 +241,17 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 	}
 
 	data, err := toml.Marshal(peerswapConfig)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = os.MkdirAll(filepath.Join(lightningd.GetDataDir(), "peerswap"), os.ModePerm)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap", "peerswap.conf")
-	os.WriteFile(
+	err = os.WriteFile(
 		configPath,
 		data,
-		os.ModePerm,
+		0o600,
 	)
+	requireNoError(t, err)
 
 	// Add commandline arguments, especially peerswap related arguments.
 	lightningd.AppendCmdLine([]string{
@@ -259,13 +260,13 @@ func Test_ClnPluginConfig_ElementsAuthCookie(t *testing.T) {
 
 	// Start lightning daemon.
 	err = lightningd.Run(true, false)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = lightningd.WaitForLog(
 		"Liquid swaps enabled",
 		testframework.TIMEOUT,
 	)
-	assert.NoError(t, err)
+	assertNoError(t, err)
 }
 
 // Test_ClnPluginConfig_DisableLiquid checks that liquid can be disabled by
@@ -279,17 +280,20 @@ func Test_ClnPluginConfig_DisableLiquid(t *testing.T) {
 	t.Parallel()
 	IsIntegrationTest(t)
 
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
 	pathToPlugin := filepath.Join(filename, "..", "..", "out", "test-builds", "peerswap")
 	testDir := makeTestDataDir(t)
 
 	// Start bitcoin node
 	bitcoind, err := testframework.NewBitcoinNode(testDir, 1)
-	require.NoError(t, err)
+	requireNoError(t, err)
 	t.Cleanup(bitcoind.Kill)
 
 	err = bitcoind.Run(true)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	// Start Elements node
 	liquidd, err := testframework.NewLiquidNodeFromConfig(
@@ -302,32 +306,22 @@ func Test_ClnPluginConfig_DisableLiquid(t *testing.T) {
 			"creatediscountct": "1",
 			"initialfreecoins": "2100000000000000",
 			"validatepegin":    "0",
-			"chain":            "liquidregtest"},
+			"chain":            "liquidregtest",
+		},
 		1,
 	)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = liquidd.Run(true)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if t.Failed() {
-			pprintFail(tailableProcess{
-				p: liquidd.DaemonProcess,
-			})
-		}
-	})
+	requireNoError(t, err)
 
 	// Setup core lightning node.
 	lightningd, err := testframework.NewCLightningNode(testDir, bitcoind, 1)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if t.Failed() {
-			pprintFail(tailableProcess{
-				p: lightningd.DaemonProcess,
-			})
-		}
-	})
+	requireNoError(t, err)
 	t.Cleanup(lightningd.Kill)
+
+	// Dump both liquidd and lightningd logs on failure.
+	DumpOnFailure(t, WithLiquid(liquidd), WithCLightnings([]*testframework.CLightningNode{lightningd}))
 
 	peerswapConfig := struct {
 		Liquid struct {
@@ -348,14 +342,15 @@ func Test_ClnPluginConfig_DisableLiquid(t *testing.T) {
 	}
 
 	data, err := toml.Marshal(peerswapConfig)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	configPath := filepath.Join(lightningd.GetDataDir(), "peerswap.conf")
-	os.WriteFile(
+	err = os.WriteFile(
 		configPath,
 		data,
-		os.ModePerm,
+		0o600,
 	)
+	requireNoError(t, err)
 
 	// Add commandline arguments, especially peerswap related arguments.
 	lightningd.AppendCmdLine([]string{
@@ -364,11 +359,11 @@ func Test_ClnPluginConfig_DisableLiquid(t *testing.T) {
 
 	// Start lightning daemon.
 	err = lightningd.Run(true, false)
-	require.NoError(t, err)
+	requireNoError(t, err)
 
 	err = lightningd.WaitForLog(
 		"Liquid swaps disabled",
 		testframework.TIMEOUT,
 	)
-	assert.NoError(t, err)
+	assertNoError(t, err)
 }

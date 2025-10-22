@@ -16,12 +16,14 @@ INTEGRATION_TEST_ENV= \
 	PAYMENT_RETRY_TIME=$(PAYMENT_RETRY_TIME) \
 	PEERSWAP_TEST_FILTER=$(PEERSWAP_TEST_FILTER)
 
+# Default parallelism for in-package parallel tests (can be overridden via env)
+INTEGRATION_TEST_PARALLEL ?= 6
+
 INTEGRATION_TEST_OPTS= \
 	-tags dev \
 	-tags fast_test \
 	-timeout=30m -v \
-	-failfast \
-	-count=1
+	-parallel=$(INTEGRATION_TEST_PARALLEL)
 
 BINS= \
 	${OUTDIR}/peerswapd \
@@ -78,87 +80,6 @@ test:
 	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -race -timeout=10m -v ./...
 .PHONY: test
 
-test-integration: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./test
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./lnd
-.PHONY: test-integration
-
-test-bitcoin-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_Bitcoin_SwapOut|'\
-	'Test_ClnCln_Bitcoin_SwapIn|'\
-	'Test_ClnLnd_Bitcoin_SwapOut|'\
-	'Test_ClnLnd_Bitcoin_SwapIn|'\
-	'Test_ClnCln_ExcessiveAmount|'\
-	'Test_ClnCln_StuckChannels)'\
-	 ./test
-.PHONY: test-bitoin-cln
-
-test-bitcoin-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_Bitcoin_SwapOut|'\
-	'Test_LndLnd_Bitcoin_SwapIn|'\
-	'Test_LndCln_Bitcoin_SwapOut|'\
-	'Test_LndCln_Bitcoin_SwapIn|'\
-	'Test_LndLnd_ExcessiveAmount)'\
-	 ./test
-	${INTEGRATION_TEST_ENV} go test $(INTEGRATION_TEST_OPTS) ./lnd
-.PHONY: test-bitcoin-lnd
-
-test-liquid-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_Liquid_SwapOut|'\
-	'Test_ClnCln_Liquid_SwapIn|'\
-	'Test_ClnLnd_Liquid_SwapOut|'\
-	'Test_ClnLnd_Liquid_SwapIn)'\
-	 ./test
-.PHONY: test-liquid-cln
-
-test-liquid-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_Liquid_SwapOut|'\
-	'Test_LndLnd_Liquid_SwapIn|'\
-	'Test_LndCln_Liquid_SwapOut|'\
-	'Test_LndCln_Liquid_SwapIn)'\
-	 ./test
-.PHONY: test-liquid-lnd
-
-test-lwk-cln: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_ClnCln_LWK_SwapIn)'\
-	 ./test
-.PHONY: test-lwk-cln
-
-test-lwk-lnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_LndLnd_LWK_SwapIn)'\
-	 ./test
-.PHONY: test-lwk-lnd
-
-test-misc-integration: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} \
-	-run '^('\
-	'Test_OnlyOneActiveSwapPerChannelCln|'\
-	'Test_OnlyOneActiveSwapPerChannelLnd|'\
-	'Test_GrpcReconnectStream|'\
-	'Test_GrpcRetryRequest|'\
-	'Test_RestoreFromPassedCSV|'\
-	'Test_Recover_PassedSwap_BTC|'\
-	'Test_Recover_PassedSwap_LBTC|'\
-	'Test_ClnConfig|'\
-	'Test_ClnPluginConfigFile|'\
-	'Test_ClnPluginConfigFile_DoesNotExist|'\
-	'Test_ClnPluginConfig_ElementsAuthCookie|'\
-	'Test_ClnPluginConfig_DisableLiquid)'\
-	 ./test
-.PHONY: test-misc-integration
-
 # Release section. Has the commands to install binaries into the distinct locations.
 lnd-release: clean-lnd
 	go install -ldflags "-X main.GitCommit=$(GIT_COMMIT)" ./cmd/peerswaplnd/peerswapd
@@ -198,8 +119,7 @@ TOOLS_DIR := ${CURDIR}/tools
 .PHONY: tool
 tool:
 	## Install an individual dependent tool.
-	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath github.com/golangci/golangci-lint/cmd/golangci-lint
-	@cd $(TOOLS_DIR) && env GOBIN=$(TOOLS_DIR)/bin go install -trimpath go.uber.org/mock/mockgen@latest
+	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 
 .PHONY: clean
 clean:  ## clean project directory.
@@ -211,8 +131,28 @@ lint: ## Lint source.
 
 .PHONY: lint/golangci-lint
 lint/golangci-lint: ## Lint source with golangci-lint.
-	$(TOOLS_DIR)/bin/golangci-lint version
-	${CURDIR}/tools/bin/golangci-lint run -v
+	golangci-lint version
+	@BASE_CANDIDATES="$$LINT_BASE origin/main origin/master main master"; \
+	for ref in $$BASE_CANDIDATES; do \
+		if [ -n "$$ref" ] && git rev-parse --verify "$$ref" >/dev/null 2>&1; then \
+			LINT_BASE_REF=$$ref; \
+			break; \
+		fi; \
+	done; \
+	if [ -n "$$LINT_BASE_REF" ]; then \
+		NEW_FROM_REV=$$(git merge-base "$$LINT_BASE_REF" HEAD); \
+		echo "lint: running golangci-lint for changes since $$LINT_BASE_REF (merge-base $$NEW_FROM_REV)"; \
+		golangci-lint run -v --new-from-rev "$$NEW_FROM_REV" $(args); \
+	else \
+		CHANGED_GO_FILES=$$( (git diff --name-only HEAD -- '*.go'; git diff --name-only --cached HEAD -- '*.go') | sort -u ); \
+		if [ -z "$$CHANGED_GO_FILES" ]; then \
+			echo "lint: no Go changes detected; skipping"; \
+		else \
+			echo "lint: running golangci-lint for local Go changes"; \
+			echo "$$CHANGED_GO_FILES"; \
+			golangci-lint run -v $(args) $$CHANGED_GO_FILES; \
+		fi; \
+	fi
 
 .PHONY: lint/fix
 lint/fix: ## Lint and fix source.
@@ -225,3 +165,51 @@ mockgen: mockgen/lwk
 .PHONY: mockgen/lwk
 mockgen/lwk:
 	$(TOOLS_DIR)/bin/mockgen -source=electrum/electrum.go -destination=electrum/mock/electrum.go
+
+# Matrix-aligned integration targets (for CI and local parity)
+.PHONY: test-matrix-bitcoin_clncln
+test-matrix-bitcoin_clncln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_clncln).*$$' ./test
+
+.PHONY: test-matrix-bitcoin_mixed
+test-matrix-bitcoin_mixed: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_mixed).*$$' ./test
+
+.PHONY: test-matrix-bitcoin_lndlnd
+test-matrix-bitcoin_lndlnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*$$' ./test
+
+.PHONY: test-matrix-liquid_clncln
+test-matrix-liquid_clncln: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_clncln).*$$' ./test
+
+.PHONY: test-matrix-liquid_mixed
+test-matrix-liquid_mixed: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_mixed).*$$' ./test
+
+.PHONY: test-matrix-liquid_lndlnd
+test-matrix-liquid_lndlnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(liquid_lndlnd).*$$' ./test
+
+# Consolidated misc tests including CLN/LND-specific invariants and setup checks
+.PHONY: test-matrix-misc
+test-matrix-misc: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_OnlyOneActiveSwapPerChannelCln|Test_OnlyOneActiveSwapPerChannelLnd|Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC|Test_ClnConfig|Test_ClnPluginConfigFile|Test_ClnPluginConfigFile_DoesNotExist|Test_ClnPluginConfig_ElementsAuthCookie|Test_ClnPluginConfig_DisableLiquid|Test_CLNLiquidSetup|Test_ClnCln_ExcessiveAmount|Test_ClnCln_StuckChannels|Test_LndLnd_ExcessiveAmount|Test_Wumbo|Test_Cln_HtlcMaximum|Test_Cln_Premium|Test_Cln_shutdown|Test_ClnCln_Poll)$$' ./test
+
+# Sharded misc tests to reduce single-job runtime in CI
+.PHONY: test-matrix-misc_1
+test-matrix-misc_1: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_ClnConfig|Test_ClnPluginConfigFile|Test_ClnPluginConfigFile_DoesNotExist|Test_ClnPluginConfig_ElementsAuthCookie|Test_ClnPluginConfig_DisableLiquid|Test_CLNLiquidSetup|Test_Wumbo)$$' ./test
+
+.PHONY: test-matrix-misc_2
+test-matrix-misc_2: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC)$$' ./test
+
+.PHONY: test-matrix-misc_3
+test-matrix-misc_3: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_OnlyOneActiveSwapPerChannelCln|Test_OnlyOneActiveSwapPerChannelLnd|Test_ClnCln_ExcessiveAmount|Test_ClnCln_StuckChannels|Test_LndLnd_ExcessiveAmount|Test_Cln_HtlcMaximum|Test_Cln_Premium|Test_Cln_shutdown|Test_ClnCln_Poll)$$' ./test
+
+# LND package tests
+.PHONY: test-matrix-lnd
+test-matrix-lnd: test-bins
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} ./lnd

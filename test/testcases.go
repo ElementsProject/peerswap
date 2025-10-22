@@ -8,8 +8,8 @@ import (
 
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
+	"github.com/elementsproject/peerswap/test/scenario"
 	"github.com/elementsproject/peerswap/testframework"
-	"github.com/stretchr/testify/require"
 )
 
 type testParams struct {
@@ -23,7 +23,7 @@ type testParams struct {
 	makerNode           testframework.LightningNode
 	takerPeerswap       *testframework.DaemonProcess
 	makerPeerswap       *testframework.DaemonProcess
-	chainRpc            *testframework.RpcProxy
+	chainRPC            *testframework.RpcProxy
 	chaind              ChainNode
 	confirms            int
 	csv                 int
@@ -44,15 +44,42 @@ func (p *testParams) premium() int64 {
 	}
 }
 
+func (p *testParams) expectations() scenario.Expectations {
+	return scenario.Expectations{
+		SwapAmt:            p.swapAmt,
+		SwapType:           p.swapType,
+		SwapInPremiumRate:  p.swapInPremiumRate,
+		SwapOutPremiumRate: p.swapOutPremiumRate,
+		OrigTakerChannel:   p.origTakerBalance,
+		OrigMakerChannel:   p.origMakerBalance,
+		OrigTakerWallet:    p.origTakerWallet,
+		OrigMakerWallet:    p.origMakerWallet,
+	}
+}
+
 func coopClaimTest(t *testing.T, params *testParams) {
-	require := require.New(t)
+	t.Helper()
+
+	require := requireNew(t)
+	expect := params.expectations()
+	logs := scenario.NewLogBook()
+	closeLog := scenario.LogExpectation{
+		Action:  "coop-close-sent",
+		Waiter:  params.takerPeerswap,
+		Timeout: testframework.TIMEOUT,
+	}
+	claimLog := scenario.LogExpectation{
+		Action:  "coop-claim",
+		Waiter:  params.makerPeerswap,
+		Timeout: testframework.TIMEOUT,
+	}
 	//
 	//	STEP 1: Broadcasting opening tx
 	//
 
 	// Wait for opening tx being broadcasted.
 	// Get commitFee.
-	commitFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	commitFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	//
@@ -64,8 +91,17 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	require.NoError(err)
 
 	moveAmt := (params.origTakerBalance - feeInvoiceAmt - params.swapAmt) + 1
+	var premiumUint uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		moveAmt = uint64(int64(moveAmt) - params.premium())
+		premiumValue := params.premium()
+		if premiumValue < 0 {
+			t.Fatalf("unexpected negative premium: %d", premiumValue)
+		}
+		premiumUint = uint64(premiumValue)
+		if premiumUint > moveAmt {
+			t.Fatalf("premium %d exceeds move amount %d", premiumUint, moveAmt)
+		}
+		moveAmt -= premiumUint
 	}
 	inv, err := params.makerNode.AddInvoice(moveAmt, "shift balance", "")
 	require.NoError(err)
@@ -80,7 +116,7 @@ func coopClaimTest(t *testing.T, params *testParams) {
 		require.NoError(err)
 		expectTakerFunds := params.swapAmt - 1
 		if params.swapType == swap.SWAPTYPE_OUT {
-			expectTakerFunds = uint64(int64(expectTakerFunds) + params.premium())
+			expectTakerFunds += premiumUint
 		}
 		return setTakerFunds == expectTakerFunds
 	}, testframework.TIMEOUT)
@@ -90,18 +126,23 @@ func coopClaimTest(t *testing.T, params *testParams) {
 	//	STEP 3: Confirm opening tx
 	//
 
-	params.chaind.GenerateBlocks(params.confirms)
+	requireNoError(t, params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode, params.makerNode)
 
 	// Check that coop close was sent.
 	switch params.swapType {
 	case swap.SWAPTYPE_IN:
-		require.NoError(params.takerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose", testframework.TIMEOUT))
+		closeLog.Message = "Event_ActionSucceeded on State_SwapInReceiver_SendCoopClose"
+		claimLog.Message = "Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop"
 	case swap.SWAPTYPE_OUT:
-		require.NoError(params.takerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapOutSender_SendCoopClose", testframework.TIMEOUT))
+		closeLog.Message = "Event_ActionSucceeded on State_SwapOutSender_SendCoopClose"
+		claimLog.Message = "Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop"
 	default:
 		t.Fatal("unknown role")
 	}
+	logs.Register(closeLog)
+	logs.Register(claimLog)
+	require.NoError(logs.Await("coop-close-sent"))
 
 	//
 	//	STEP 4: Broadcasting coop claim tx
@@ -109,44 +150,93 @@ func coopClaimTest(t *testing.T, params *testParams) {
 
 	// Wait for coop claim tx being broadcasted.
 	// Get claim fee.
-	claimFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	claimFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Confirm coop claim tx.
-	params.chaind.GenerateBlocks(params.confirms)
+	requireNoError(t, params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode, params.makerNode)
 
 	// Check swap is done.
-	switch params.swapType {
-	case swap.SWAPTYPE_IN:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCoop", testframework.TIMEOUT))
-	case swap.SWAPTYPE_OUT:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCoop", testframework.TIMEOUT))
-	default:
-		t.Fatal("unknown role")
-	}
+	require.NoError(logs.Await("coop-claim"))
 
 	// Check no invoice was paid.
-	testframework.RequireWaitForChannelBalance(t, params.takerNode, params.scid, float64(setTakerFunds), 1., testframework.TIMEOUT)
+	testframework.RequireWaitForChannelBalance(
+		t,
+		params.takerNode,
+		params.scid,
+		float64(setTakerFunds),
+		1.,
+		testframework.TIMEOUT,
+	)
 
 	// Check Wallet balance.
 	// Expect:
 	// - [0] before
 	// - [1] before - commitment_fee - claim_fee
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.takerNode, params.origTakerWallet, 1, time.Second*30)
+		params.takerNode, expect.TakerWalletUnchanged(), 1, time.Second*30)
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.makerNode, params.origMakerWallet-commitFee-claimFee, 1, time.Second*30)
+		params.makerNode, expect.MakerWalletAfterFees(commitFee, claimFee), 1, time.Second*30)
 }
 
 func preimageClaimTest(t *testing.T, params *testParams) {
-	require := require.New(t)
+	t.Helper()
+
+	require := requireNew(t)
+
+	expect := params.expectations()
+	logs := scenario.NewLogBook()
+	logs.Register(scenario.LogExpectation{
+		Action:  "await-opening-confirmation",
+		Message: "Await confirmation for tx",
+		Waiter:  params.takerPeerswap,
+		Timeout: testframework.TIMEOUT,
+	})
+
+	invoiceLog := scenario.LogExpectation{
+		Action:  "invoice-paid",
+		Waiter:  params.makerPeerswap,
+		Timeout: testframework.TIMEOUT,
+	}
+	claimLog := scenario.LogExpectation{
+		Action:  "claim-success",
+		Timeout: testframework.TIMEOUT,
+	}
+
+	switch params.swapType {
+	case swap.SWAPTYPE_IN:
+		invoiceLog.Message = "Event_OnClaimInvoicePaid on State_SwapInSender_AwaitClaimPayment"
+		claimLog.Waiter = params.takerPeerswap
+		claimLog.Message = "Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap"
+	case swap.SWAPTYPE_OUT:
+		invoiceLog.Message = "Event_OnClaimInvoicePaid on State_SwapOutReceiver_AwaitClaimInvoicePayment"
+		claimLog.Waiter = params.takerPeerswap
+		claimLog.Message = "Event_ActionSucceeded on State_SwapOutSender_ClaimSwap"
+	default:
+		t.Fatal("unknown role")
+	}
+
+	logs.Register(invoiceLog)
+	logs.Register(claimLog)
 
 	var feeInvoiceAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		// Wait for channel balance to change, this means the invoice was payed.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		// Wait for channel balance to change, this means the invoice was paid.
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get fee from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
@@ -156,74 +246,56 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 
 	// Wait for opening tx being broadcasted.
 	// Get commitFee.
-	commitFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	commitFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Confirm opening tx.
-	require.NoError(params.takerPeerswap.WaitForLog("Await confirmation for tx", testframework.TIMEOUT))
-	params.chaind.GenerateBlocks(params.confirms)
+	require.NoError(logs.Await("await-opening-confirmation"))
+	requireNoError(t, params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode, params.makerNode)
 
 	// Wait for invoice being paid.
-	switch params.swapType {
-	case swap.SWAPTYPE_IN:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_OnClaimInvoicePaid on State_SwapInSender_AwaitClaimPayment", testframework.TIMEOUT))
-	case swap.SWAPTYPE_OUT:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_OnClaimInvoicePaid on State_SwapOutReceiver_AwaitClaimInvoicePayment", testframework.TIMEOUT))
-	default:
-		t.Fatal("unknown role")
-	}
+	require.NoError(logs.Await("invoice-paid"))
 
 	// Check channel balances match.
 	// fee invoice amount is only !=0 when swap type is swap_out.
-	expectedTakerChannelBalance := float64(int64(params.origTakerBalance - params.swapAmt - feeInvoiceAmt))
-	if params.swapType == swap.SWAPTYPE_OUT {
-		// taker pay premium by invoice being paid.
-		expectedTakerChannelBalance -= float64(params.premium())
-	}
-	require.True(testframework.AssertWaitForChannelBalance(t, params.takerNode, params.scid, expectedTakerChannelBalance, 1., testframework.TIMEOUT))
-	expectedMakerChannelBalance := float64(params.origMakerBalance + params.swapAmt + feeInvoiceAmt)
-	if params.swapType == swap.SWAPTYPE_OUT {
-		// maker receive premium by invoice being paid.
-		expectedMakerChannelBalance += float64(params.premium())
-	}
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, expectedMakerChannelBalance, 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.takerNode,
+		params.scid,
+		expect.TakerChannelAfterPreimageClaim(feeInvoiceAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.makerNode,
+		params.scid,
+		expect.MakerChannelAfterPreimageClaim(feeInvoiceAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
-	claimFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	claimFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Confirm claim tx.
-	params.chaind.GenerateBlocks(params.confirms)
+	requireNoError(t, params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode, params.makerNode)
 
 	// Wait for claim done
-	switch params.swapType {
-	case swap.SWAPTYPE_IN:
-		require.NoError(params.takerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapInReceiver_ClaimSwap", testframework.TIMEOUT))
-	case swap.SWAPTYPE_OUT:
-		require.NoError(params.takerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapOutSender_ClaimSwap", testframework.TIMEOUT))
-	default:
-		t.Fatal("unknown role")
-	}
+	require.NoError(logs.Await("claim-success"))
 
 	// Check Wallet takerBalance.
 	// Expect:
 	// - taker -> before - claim_fee + swapamt
 	// - maker -> before - commitment_fee - swapamt
-	expectTakerBalance := int64(params.origTakerWallet - claimFee + params.swapAmt)
-	if swap.SWAPTYPE_IN == params.swapType {
-		expectTakerBalance += params.premium()
-	}
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.takerNode, uint64(expectTakerBalance), 1, time.Second*10)
-	expectMakerBalance := int64(params.origMakerWallet - commitFee - params.swapAmt)
-	if swap.SWAPTYPE_IN == params.swapType {
-		expectMakerBalance -= params.premium()
-	}
+		params.takerNode, expect.TakerWalletAfterPreimageClaim(claimFee), 1, time.Second*10)
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.makerNode, uint64(expectMakerBalance), 1, time.Second*10)
+		params.makerNode, expect.MakerWalletAfterPreimageClaim(commitFee), 1, time.Second*10)
 
 	// Check latest invoice memo should be of the form "swap-in btc claim <swap_id>"
 	bolt11, err := params.makerNode.GetLatestInvoice()
@@ -244,37 +316,62 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 }
 
 func csvClaimTest(t *testing.T, params *testParams) {
-	require := require.New(t)
+	t.Helper()
 
-	var premium uint64
+	require := requireNew(t)
+	expect := params.expectations()
+	logs := scenario.NewLogBook()
+	claimLog := scenario.LogExpectation{
+		Action:  "csv-claim",
+		Waiter:  params.makerPeerswap,
+		Timeout: testframework.TIMEOUT,
+	}
+	suspiciousLog := scenario.LogExpectation{
+		Action:  "suspicious-peer",
+		Waiter:  params.makerPeerswap,
+		Message: fmt.Sprintf("added peer %s to suspicious peer list", params.takerNode.Id()),
+		Timeout: testframework.TIMEOUT,
+	}
+
+	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
-		// Wait for channel balance to change, this means the invoice was payed.
-		testframework.AssertWaitForBalanceChange(t, params.takerNode, params.scid, params.origTakerBalance, testframework.TIMEOUT)
-		testframework.AssertWaitForBalanceChange(t, params.makerNode, params.scid, params.origMakerBalance, testframework.TIMEOUT)
+		// Wait for channel balance to change, this means the invoice was paid.
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.takerNode,
+			params.scid,
+			params.origTakerBalance,
+			testframework.TIMEOUT,
+		)
+		testframework.AssertWaitForBalanceChange(
+			t,
+			params.makerNode,
+			params.scid,
+			params.origMakerBalance,
+			testframework.TIMEOUT,
+		)
 
 		// Get premium from difference.
 		newBalance, err := params.takerNode.GetChannelBalanceSat(params.scid)
 		require.NoError(err)
-		premium = params.origTakerBalance - newBalance
+		premiumAmt = params.origTakerBalance - newBalance
 	}
 
 	// Wait for opening tx being broadcasted.
 	// Get commitFee.
-	commitFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	commitFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Stop taker peer so that csv can trigger
 	params.takerPeerswap.Kill()
 
 	// if the taker is lnd kill it
-	switch params.takerNode.(type) {
-	case *testframework.LndNode:
-		params.takerNode.(*testframework.LndNode).Kill()
-
+	if lnd, ok := params.takerNode.(*testframework.LndNode); ok {
+		lnd.Kill()
 	}
 
 	// Generate one less block than required for csv.
-	params.chaind.GenerateBlocks(params.csv - 1)
+	requireNoError(t, params.chaind.GenerateBlocks(params.csv-1))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
 	// Check that csv is not claimed yet
@@ -282,44 +379,46 @@ func csvClaimTest(t *testing.T, params *testParams) {
 	switch params.swapType {
 	case swap.SWAPTYPE_IN:
 		triedToClaim, err = params.makerPeerswap.HasLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv")
+		claimLog.Message = "Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv"
 	case swap.SWAPTYPE_OUT:
 		triedToClaim, err = params.makerPeerswap.HasLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv")
+		claimLog.Message = "Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv"
 	default:
 		t.Fatal("unknown swap type")
 	}
 	require.NoError(err)
 	require.False(triedToClaim)
+	logs.Register(claimLog)
+	logs.Register(suspiciousLog)
 
 	// Generate one more block to trigger csv.
-	params.chaind.GenerateBlocks(1)
+	requireNoError(t, params.chaind.GenerateBlocks(1))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
-	switch params.swapType {
-	case swap.SWAPTYPE_IN:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapInSender_ClaimSwapCsv", testframework.TIMEOUT))
-	case swap.SWAPTYPE_OUT:
-		require.NoError(params.makerPeerswap.WaitForLog("Event_ActionSucceeded on State_SwapOutReceiver_ClaimSwapCsv", testframework.TIMEOUT))
-	default:
-		t.Fatal("unknown swap type")
-	}
+	require.NoError(logs.Await("csv-claim"))
 
 	// Wait for claim tx being broadcasted.
 	// Get claim fee.
-	claimFee, err := waitForTxInMempool(t, params.chainRpc, testframework.TIMEOUT)
+	claimFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
 	// Confirm claim tx.
-	params.chaind.GenerateBlocks(params.confirms)
+	requireNoError(t, params.chaind.GenerateBlocks(params.confirms))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
 	// Check channel and wallet balance
-	require.True(testframework.AssertWaitForChannelBalance(t, params.makerNode, params.scid, float64(params.origMakerBalance+premium), 1., testframework.TIMEOUT))
+	require.True(testframework.AssertWaitForChannelBalance(
+		t,
+		params.makerNode,
+		params.scid,
+		expect.MakerChannelAfterCsv(premiumAmt),
+		1.,
+		testframework.TIMEOUT,
+	))
 
 	// Check Wallet balance.
 	testframework.AssertOnchainBalanceInDelta(t,
-		params.makerNode, params.origMakerWallet-commitFee-claimFee, 1, time.Second*10)
+		params.makerNode, expect.MakerWalletAfterFees(commitFee, claimFee), 1, time.Second*10)
 
-	require.NoError(params.makerPeerswap.WaitForLog(
-		fmt.Sprintf("added peer %s to suspicious peer list", params.takerNode.Id()),
-		testframework.TIMEOUT))
+	require.NoError(logs.Await("suspicious-peer"))
 }

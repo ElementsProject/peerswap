@@ -5,7 +5,8 @@ on:
     branches:
       - master
   pull_request:
-    types: [opened, synchronize, reopened]  
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 env:
   SLOW_MACHINE: 1
@@ -37,20 +38,64 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    concurrency:
+      group: integration-${{ github.ref }}-${{ matrix.vector }}
+      cancel-in-progress: true
+    needs: [build-test-bins]
     strategy:
+      fail-fast: false
       matrix:
-        test-vector: [bitcoin-cln, bitcoin-lnd, liquid-cln, liquid-lnd, misc-integration, lwk-cln, lwk-lnd]
+        vector:
+          [
+            bitcoin_clncln,
+            bitcoin_mixed,
+            bitcoin_lndlnd,
+            liquid_clncln,
+            liquid_mixed,
+            liquid_lndlnd,
+            misc_1,
+            misc_2,
+            misc_3,
+            lnd,
+          ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        id: go-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download Go modules
+        if: ${{ steps.go-cache.outputs.cache-hit != 'true' }}
+        run: go mod download
+
+      # Test binaries are prebuilt and downloaded as artifact
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-bins
+          path: out/test-builds
+
       - uses: cachix/install-nix-action@v31
       - uses: cachix/cachix-action@v16
         with:
           name: peerswap
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
           useDaemon: true
       # Switch to nix-shell for integration tests instead of nix develop.
       # The 'nix develop' command can be unstable in some CI environments,
@@ -58,5 +103,45 @@ jobs:
       # While the root cause is unclear, switching to nix-shell provides a more stable alternative for CI.
       # For more context, see the issue in this failed job: https://github.com/ElementsProject/peerswap/actions/runs/16064376179/job/45336040866?pr=385
       - name: Run integration tests
+        env:
+          INTEGRATION_TEST_PARALLEL: "6"
+          SKIP_BUILD_TEST_BINS: "1"
         run: |
-          nix-shell --run "make test-${{matrix.test-vector}}"
+          nix-shell --run "RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=10 PEERSWAP_TEST_FILTER=$PEERSWAP_TEST_FILTER INTEGRATION_TEST_PARALLEL=$INTEGRATION_TEST_PARALLEL make test-matrix-${{ matrix.vector }}"
+
+  build-test-bins:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        id: go-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download Go modules
+        if: ${{ steps.go-cache.outputs.cache-hit != 'true' }}
+        run: go mod download
+
+      - name: Build test binaries
+        run: make test-bins
+
+      - name: Upload test binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-bins
+          path: out/test-builds
