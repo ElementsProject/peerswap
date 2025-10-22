@@ -613,8 +613,13 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 		return swap.HandleError(errors.New("swap.NextMessage is nil"))
 	}
 
-	// Send message repeated as we really want the message to be received at some point!
-	rm := messages.NewRedundantMessenger(services.messenger, 10*time.Second)
+    // Send message repeated as we really want the message to be received at some point!
+    // In fast_test builds, lower the retry interval to speed up tests.
+    retryDur := 10 * time.Second
+    if isdev.FastTests() {
+        retryDur = 1 * time.Second
+    }
+    rm := messages.NewRedundantMessenger(services.messenger, retryDur)
 	err := services.messengerManager.AddSender(swap.GetId().String(), rm)
 	if err != nil {
 		return swap.HandleError(err)

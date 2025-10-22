@@ -139,6 +139,14 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 	return conn, nil
 }
 
+// GetClientConnectionShortBackoff returns a client connection identical to
+// GetClientConnection, but uses a much shorter retry backoff suitable for
+// tests that intentionally bounce the LND daemon. This keeps production
+// behavior unchanged while allowing tests to run faster without build tags.
+func GetClientConnectionShortBackoff(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {
+    return getClientConnectionForTests(ctx, cfg)
+}
+
 func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {
 	// testGrpcBackoffTime is used for the test
 	testGrpcBackoffTime := 500 * time.Millisecond

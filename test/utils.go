@@ -11,12 +11,13 @@ import (
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/peerswaprpc"
 	"github.com/elementsproject/peerswap/testframework"
-	"github.com/stretchr/testify/require"
 )
 
 const defaultLines = 1000
 
 func IsIntegrationTest(t *testing.T) {
+	t.Helper()
+
 	if os.Getenv("RUN_INTEGRATION_TESTS") != "1" {
 		t.Skip("set env RUN_INTEGRATION_TESTS=1 to run this test")
 	}
@@ -57,6 +58,8 @@ func pprintFail(fps ...tailableProcess) {
 }
 
 func printFailedFiltered(t *testing.T, process *testframework.DaemonProcess) {
+	t.Helper()
+
 	if t.Failed() {
 		filter := os.Getenv("PEERSWAP_TEST_FILTER")
 		pprintFail(
@@ -70,6 +73,8 @@ func printFailedFiltered(t *testing.T, process *testframework.DaemonProcess) {
 }
 
 func printFailed(t *testing.T, process *testframework.DaemonProcess) {
+	t.Helper()
+
 	if t.Failed() {
 		filter := os.Getenv("PEERSWAP_TEST_FILTER")
 		pprintFail(
@@ -88,7 +93,7 @@ type ChainNode interface {
 }
 
 type pollableNode interface {
-	GetId() string
+	ID() string
 	TriggerPoll() error
 	AwaitPollFrom(node pollableNode) error
 }
@@ -97,7 +102,7 @@ type clnPollableNode struct {
 	*testframework.CLightningNode
 }
 
-func (n *clnPollableNode) GetId() string {
+func (n *clnPollableNode) ID() string {
 	return n.Id()
 }
 
@@ -111,16 +116,16 @@ func (n *clnPollableNode) TriggerPoll() error {
 }
 
 func (n *clnPollableNode) AwaitPollFrom(node pollableNode) error {
-	return n.WaitForLog(fmt.Sprintf("Received poll from peer %s", node.GetId()), testframework.TIMEOUT)
+	return n.WaitForLog("Received poll from peer "+node.ID(), testframework.TIMEOUT)
 }
 
 type peerswapPollableNode struct {
 	*PeerSwapd
-	peerId string
+	peerID string
 }
 
-func (n *peerswapPollableNode) GetId() string {
-	return n.peerId
+func (n *peerswapPollableNode) ID() string {
+	return n.peerID
 }
 
 func (n *peerswapPollableNode) TriggerPoll() error {
@@ -132,20 +137,22 @@ func (n *peerswapPollableNode) TriggerPoll() error {
 }
 
 func (n *peerswapPollableNode) AwaitPollFrom(node pollableNode) error {
-	return n.WaitForLog(fmt.Sprintf("Received poll from peer %s", node.GetId()), testframework.TIMEOUT)
+	return n.WaitForLog("Received poll from peer "+node.ID(), testframework.TIMEOUT)
 }
 
 func syncPoll(a, b pollableNode) error {
-	go a.TriggerPoll()
-	go b.TriggerPoll()
+	if err := a.TriggerPoll(); err != nil {
+		return fmt.Errorf("TriggerPoll() (a) %w", err)
+	}
+	if err := b.TriggerPoll(); err != nil {
+		return fmt.Errorf("TriggerPoll() (b) %w", err)
+	}
 
-	err := a.AwaitPollFrom(b)
-	if err != nil {
+	if err := a.AwaitPollFrom(b); err != nil {
 		return fmt.Errorf("AwaitPollFrom() (ab) %w", err)
 	}
 
-	err = b.AwaitPollFrom(a)
-	if err != nil {
+	if err := b.AwaitPollFrom(a); err != nil {
 		return fmt.Errorf("AwaitPollFrom() (ba) %w", err)
 	}
 
@@ -153,28 +160,33 @@ func syncPoll(a, b pollableNode) error {
 }
 
 func waitForBlockheightSync(t *testing.T, timeout time.Duration, nodes ...testframework.LightningNode) {
+	t.Helper()
+
 	for _, node := range nodes {
 		err := testframework.WaitFor(func() bool {
 			ok, err := node.IsBlockHeightSynced()
-			require.NoError(t, err)
+			requireNoError(t, err)
 			return ok
 		}, timeout)
-		require.NoError(t, err)
+		requireNoError(t, err)
 	}
 }
 
-func waitForTxInMempool(t *testing.T, chainRpc *testframework.RpcProxy, timeout time.Duration) (satFee uint64, err error) {
-	err = testframework.WaitFor(func() bool {
+func waitForTxInMempool(t *testing.T, chainRPC *testframework.RpcProxy, timeout time.Duration) (uint64, error) {
+	t.Helper()
+
+	var satFee uint64
+	err := testframework.WaitFor(func() bool {
 		var mempool map[string]struct {
 			Fees struct {
 				Base float64 `json:"base"`
 			} `json:"fees"`
 		}
-		jsonR, err := chainRpc.Call("getrawmempool", true)
-		require.NoError(t, err)
+		jsonR, err := chainRPC.Call("getrawmempool", true)
+		requireNoError(t, err)
 
 		err = jsonR.GetObject(&mempool)
-		require.NoError(t, err)
+		requireNoError(t, err)
 
 		if len(mempool) == 1 {
 			for _, tx := range mempool {

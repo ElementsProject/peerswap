@@ -14,6 +14,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/elementsproject/glightning v0.0.0-20250728212555-da2a093f26a9
+	github.com/google/go-cmp v0.7.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3
 	github.com/jessevdk/go-flags v1.5.0
@@ -126,7 +127,7 @@ require (
 	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.20.0
 	golang.org/x/term v0.20.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
@@ -205,6 +206,8 @@ require (
 require github.com/samber/lo v1.47.0
 
 // This fork contains some options we need to reconnect to lnd.
+//nolint:gomoddirectives // required fork for reconnect logic
 replace github.com/grpc-ecosystem/go-grpc-middleware => github.com/nepet/go-grpc-middleware v1.3.1-0.20220824133300-340e95267339
 
+//nolint:gomoddirectives // hex display support for debugging
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display

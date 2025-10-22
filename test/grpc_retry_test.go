@@ -2,9 +2,9 @@ package test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +15,6 @@ import (
 	"github.com/elementsproject/peerswap/testframework"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 )
 
@@ -46,14 +45,14 @@ func Test_GrpcRetryRequest(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err := peerswaplndinternal.GetClientConnection(
-		context.Background(),
-		&peerswaplnd.LndConfig{
-			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
-			TlsCertPath:  lnd.TlsPath,
-			MacaroonPath: lnd.MacaroonPath,
-		},
-	)
+    cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
+        context.Background(),
+        &peerswaplnd.LndConfig{
+            LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
+            TlsCertPath:  lnd.TlsPath,
+            MacaroonPath: lnd.MacaroonPath,
+        },
+    )
 	if err != nil {
 		t.Fatalf("Could not create lnd client connection: %v", err)
 	}
@@ -79,13 +78,15 @@ func Test_GrpcRetryRequest(t *testing.T) {
 		_, fErr = lnrpcClient.GetInfo(context.Background(), &lnrpc.GetInfoRequest{})
 	}()
 
-	n := rand.Intn(5) + 1
-	time.Sleep(time.Duration(n) * time.Second)
-	lnd.Run(true, true)
+	const restartDelay = 2 * time.Second
+	time.Sleep(restartDelay)
+	if err := lnd.Run(true, true); err != nil {
+		t.Fatalf("Cannot restart lnd: %v", err)
+	}
 
 	// Wait for GetInfo to return
 	wg.Wait()
-	assert.NoError(t, fErr)
+	assertNoError(t, fErr)
 }
 
 func Test_GrpcReconnectStream(t *testing.T) {
@@ -115,14 +116,14 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-	cc, err := peerswaplndinternal.GetClientConnection(
-		context.Background(),
-		&peerswaplnd.LndConfig{
-			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
-			TlsCertPath:  lnd.TlsPath,
-			MacaroonPath: lnd.MacaroonPath,
-		},
-	)
+    cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
+        context.Background(),
+        &peerswaplnd.LndConfig{
+            LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
+            TlsCertPath:  lnd.TlsPath,
+            MacaroonPath: lnd.MacaroonPath,
+        },
+    )
 	if err != nil {
 		t.Fatalf("Could not create lnd client connection: %v", err)
 	}
@@ -131,7 +132,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	// Add some invoices to prepopulate the database. We can only subscribe to
 	// invoices with an AddIndex > 1 if we want to return the invoices that we
 	// missed again.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		preimage, _ := lightning.GetPreimage()
 		_, err = lnrpcClient.AddInvoice(
 			context.Background(),
@@ -177,7 +178,7 @@ func Test_GrpcReconnectStream(t *testing.T) {
 
 			var r *lnrpc.Invoice
 			r, fErr = stream.Recv()
-			if fErr == io.EOF {
+			if errors.Is(fErr, io.EOF) {
 				return
 			} else if fErr != nil {
 				return
@@ -214,9 +215,10 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	// no error.
 	lnd.Kill()
 
-	n := rand.Intn(5) + 1
-	time.Sleep(time.Duration(n) * time.Second)
-	lnd.Run(true, true)
+	time.Sleep(2 * time.Second)
+	if err := lnd.Run(true, true); err != nil {
+		t.Fatalf("Cannot restart lnd: %v", err)
+	}
 
 	preimage, _ = lightning.GetPreimage()
 	_, err = lnrpcClient.AddInvoice(
@@ -237,5 +239,5 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	}
 
 	wg.Wait()
-	assert.NoError(t, fErr)
+	assertNoError(t, fErr)
 }
