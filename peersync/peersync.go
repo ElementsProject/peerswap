@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+    pslog "github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
@@ -246,11 +247,11 @@ func (ps *PeerSync) handlePollMessage(ctx context.Context, msg CustomMessage) {
 		return
 	}
 
-	peer, err := ps.findPeer(peerID)
-	if err != nil {
-		log.Printf("unknown peer %s: %v", peerID.String(), err)
-		return
-	}
+    peer, err := ps.findPeer(peerID)
+    if err != nil {
+        log.Printf("unknown peer %s: %v", peerID.String(), err)
+        return
+    }
 
 	if existing := peer.Capability(); existing != nil {
 		capability = ps.logic.MergeCapabilities(existing, capability)
@@ -258,9 +259,15 @@ func (ps *PeerSync) handlePollMessage(ctx context.Context, msg CustomMessage) {
 
 	peer.UpdateCapability(capability)
 
-	if err := ps.store.SavePeerState(peer); err != nil {
-		log.Printf("failed to store peer state: %v", err)
-	}
+    if err := ps.store.SavePeerState(peer); err != nil {
+        log.Printf("failed to store peer state: %v", err)
+    }
+
+    // Emit an informational log for successful poll handling to aid
+    // integration tests and operational debugging. Historic tests wait
+    // for this message to confirm that peers have exchanged poll data.
+    // Use project logger to ensure logs are written to stdout.
+    pslog.Infof("Received poll from peer %s", peerID.String())
 }
 
 func (ps *PeerSync) handleRequestPollMessage(ctx context.Context, msg CustomMessage) {
