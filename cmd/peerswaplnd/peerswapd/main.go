@@ -34,8 +34,8 @@ import (
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/peersync"
 	"github.com/elementsproject/peerswap/policy"
-	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/txwatcher"
 	"github.com/elementsproject/peerswap/wallet"
@@ -279,7 +279,7 @@ func run() error {
 	defer peerListener.Stop()
 
 	// Setup lnd client.
-	lnd, err := lnd.NewClient(
+	lndClient, err := lnd.NewClient(
 		ctx,
 		cc,
 		paymentWatcher,
@@ -323,12 +323,12 @@ func run() error {
 
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
-		lnd,
-		lnd,
+		lndClient,
+		lndClient,
 		mesmgr,
 		pol,
 		cfg.BitcoinEnabled,
-		lnd,
+		lndClient,
 		bitcoinOnChainService,
 		lndTxWatcher,
 		cfg.LiquidEnabled,
@@ -367,22 +367,53 @@ func run() error {
 		return err
 	}
 
-	pollStore, err := poll.NewStore(swapDb)
+	peerSyncDBPath := filepath.Join(cfg.DataDir, "peersync.db")
+	peerStore, err := peersync.NewStore(peerSyncDBPath)
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lnd, pol, lnd, supportedAssets, ps)
-	pollService.Start()
-	defer pollService.Stop()
+	defer func() {
+		if closeErr := peerStore.Close(); closeErr != nil {
+			log.Infof("peersync store close failed: %v", closeErr)
+		}
+	}()
 
-	// Add poll handler to peer event listener.
-	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.Poll)
+	nodeID, err := peersync.NewPeerID(info.IdentityPubkey)
+	if err != nil {
+		return err
+	}
+
+	rpcLightningClient := lnrpc.NewLightningClient(cc)
+	lightningAdapter := peersync.NewLightningAdapter(rpcLightningClient)
+	peerSync := peersync.NewPeerSync(nodeID, peerStore, lightningAdapter, pol, supportedAssets, ps)
+
+	if err := peerSync.Start(ctx); err != nil {
+		return err
+	}
+	defer func() {
+		if stopErr := peerSync.Stop(); stopErr != nil {
+			log.Infof("peersync stop failed: %v", stopErr)
+		}
+	}()
+
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, func(peerID string) {
+		pid, err := peersync.NewPeerID(peerID)
+		if err != nil {
+			log.Debugf("invalid peer id for request poll: %v", err)
+			return
+		}
+		if err := peerSync.RequestPoll(ctx, pid); err != nil {
+			log.Debugf("failed to request poll for %s: %v", peerID, err)
+		}
+	})
 	if err != nil {
 		return err
 	}
 
 	// Start internal lnd listener.
-	lnd.StartListening()
+	if err := lndClient.StartListening(); err != nil {
+		return err
+	}
 
 	// setup grpc server
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
@@ -390,10 +421,11 @@ func run() error {
 		liquidRpcWallet,
 		swapService,
 		sp,
-		pollService,
+		peerSync,
+		peerStore,
 		pol,
 		liquidCli,
-		lnrpc.NewLightningClient(cc),
+		rpcLightningClient,
 		ps,
 		sigChan,
 	)

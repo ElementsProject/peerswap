@@ -1,6 +1,7 @@
 package clightning
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/peersync"
 	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/elementsproject/glightning/glightning"
@@ -559,15 +561,28 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		fundingChannels[channel.ShortChannelId] = channel
 	}
 
-	// get polls
-	polls, err := l.cl.pollService.GetCompatiblePolls()
+	peerStates, err := l.cl.peerStore.GetAllPeerStates()
 	if err != nil {
 		return nil, err
 	}
 
+	compatible := make(map[string]*peersync.Peer)
+	targetVersion := peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION)
+	for _, state := range peerStates {
+		if state == nil || state.Capability() == nil {
+			continue
+		}
+		if !state.IsCompatibleWith(targetVersion) {
+			continue
+		}
+		compatible[state.ID().String()] = state
+	}
+
 	peerSwappers := []*peerswaprpc.PeerSwapPeer{}
 	for _, peer := range peers {
-		if p, ok := polls[peer.Id]; ok {
+		peerState, ok := compatible[peer.Id]
+		if ok {
+			capability := peerState.Capability()
 			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
 			if err != nil {
 				return nil, err
@@ -603,8 +618,8 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 
 			peerSwapPeer := &peerswaprpc.PeerSwapPeer{
 				NodeId:          peer.Id,
-				SwapsAllowed:    p.PeerAllowed,
-				SupportedAssets: p.Assets,
+				SwapsAllowed:    capability.IsAllowed(),
+				SupportedAssets: assetsFromCapability(capability),
 				AsSender: &peerswaprpc.SwapStats{
 					SwapsOut: SenderSwapsOut,
 					SwapsIn:  SenderSwapsIn,
@@ -624,22 +639,22 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 						{
 							Asset:          peerswaprpc.AssetType_BTC,
 							Operation:      peerswaprpc.OperationType_SWAP_IN,
-							PremiumRatePpm: p.BTCSwapInPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapIn),
 						},
 						{
 							Asset:          peerswaprpc.AssetType_BTC,
 							Operation:      peerswaprpc.OperationType_SWAP_OUT,
-							PremiumRatePpm: p.BTCSwapOutPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapOut),
 						},
 						{
 							Asset:          peerswaprpc.AssetType_LBTC,
 							Operation:      peerswaprpc.OperationType_SWAP_IN,
-							PremiumRatePpm: p.LBTCSwapInPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapIn),
 						},
 						{
 							Asset:          peerswaprpc.AssetType_LBTC,
 							Operation:      peerswaprpc.OperationType_SWAP_OUT,
-							PremiumRatePpm: p.LBTCSwapOutPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapOut),
 						},
 					},
 				},
@@ -670,6 +685,27 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		}
 	}
 	return peerSwappers, nil
+}
+
+func assetsFromCapability(capability *peersync.PeerCapability) []string {
+	assets := capability.SupportedAssets()
+	res := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		res = append(res, asset.String())
+	}
+	return res
+}
+
+func ppmFromCapability(
+	capability *peersync.PeerCapability,
+	asset premium.AssetType,
+	operation premium.OperationType,
+) int64 {
+	rate := capability.GetPremiumRate(asset, operation)
+	if rate == nil {
+		return 0
+	}
+	return rate.Value()
 }
 
 func channelActive(state string) bool {
@@ -754,8 +790,10 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Resend poll
-	c.cl.pollService.PollAllPeers()
+	// Resend capability updates
+	if c.cl.peerSync != nil {
+		c.cl.peerSync.ForcePollAllPeers(context.Background())
+	}
 	return c.cl.policy.Get(), nil
 }
 

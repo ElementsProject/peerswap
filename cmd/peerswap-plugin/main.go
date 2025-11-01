@@ -26,8 +26,8 @@ import (
 	"github.com/elementsproject/peerswap/clightning"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/peersync"
 	"github.com/elementsproject/peerswap/policy"
-	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/txwatcher"
@@ -372,16 +372,47 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		return err
 	}
 
-	pollStore, err := poll.NewStore(swapDb)
+	peerSyncDBPath := filepath.Join(config.PeerswapDir, "peersync.db")
+	peerStore, err := peersync.NewStore(peerSyncDBPath)
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lightningPlugin, pol, lightningPlugin, supportedAssets, ps)
-	pollService.Start()
-	defer pollService.Stop()
+	defer func() {
+		if closeErr := peerStore.Close(); closeErr != nil {
+			log.Infof("peersync store close failed: %v", closeErr)
+		}
+	}()
+
+	nodeID, err := peersync.NewPeerID(lightningPlugin.GetNodeId())
+	if err != nil {
+		return err
+	}
+
+	// Use the peersync CLN lightning adapter; it self-registers message handler
+	clnAdapter := peersync.NewClnLightningAdapter(lightningPlugin)
+	peerSync := peersync.NewPeerSync(nodeID, peerStore, clnAdapter, pol, supportedAssets, ps)
+
+	if err := peerSync.Start(ctx); err != nil {
+		return err
+	}
+	defer func() {
+		if stopErr := peerSync.Stop(); stopErr != nil {
+			log.Infof("peersync stop failed: %v", stopErr)
+		}
+	}()
 
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
-	lightningPlugin.SetupClients(liquidRpcWallet, swapService, pol, sp, bitcoinCli, bitcoinOnChainService, pollService, ps)
+	lightningPlugin.SetupClients(
+		liquidRpcWallet,
+		swapService,
+		pol,
+		sp,
+		bitcoinCli,
+		bitcoinOnChainService,
+		peerSync,
+		peerStore,
+		ps,
+	)
 
 	// We are ready to accept and handle requests.
 	// FIXME: Once we reworked the recovery service (non-blocking) we want to

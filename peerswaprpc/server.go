@@ -12,8 +12,8 @@ import (
 
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/log"
+	"github.com/elementsproject/peerswap/peersync"
 	"github.com/elementsproject/peerswap/policy"
-	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/samber/lo"
 
@@ -27,7 +27,8 @@ type PeerswapServer struct {
 	liquidWallet   wallet.Wallet
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
-	pollService    *poll.Service
+	peerSync       *peersync.PeerSync
+	peerStore      *peersync.Store
 	policy         *policy.Policy
 	ps             *premium.Setting
 
@@ -81,8 +82,30 @@ func (p *PeerswapServer) Stop(ctx context.Context, empty *Empty) (*Empty, error)
 	return &Empty{}, nil
 }
 
-func NewPeerswapServer(liquidWallet wallet.Wallet, swaps *swap.SwapService, requestedSwaps *swap.RequestedSwapsPrinter, pollService *poll.Service, policy *policy.Policy, gelements *gelements.Elements, lnd lnrpc.LightningClient, ps *premium.Setting, sigchan chan os.Signal) *PeerswapServer {
-	return &PeerswapServer{liquidWallet: liquidWallet, swaps: swaps, requestedSwaps: requestedSwaps, pollService: pollService, policy: policy, lnd: lnd, ps: ps, sigchan: sigchan}
+// NewPeerswapServer wires together the RPC server with its dependencies.
+func NewPeerswapServer(
+	liquidWallet wallet.Wallet,
+	swaps *swap.SwapService,
+	requestedSwaps *swap.RequestedSwapsPrinter,
+	peerSync *peersync.PeerSync,
+	peerStore *peersync.Store,
+	policy *policy.Policy,
+	gelements *gelements.Elements,
+	lnd lnrpc.LightningClient,
+	ps *premium.Setting,
+	sigchan chan os.Signal,
+) *PeerswapServer {
+	return &PeerswapServer{
+		liquidWallet:   liquidWallet,
+		swaps:          swaps,
+		requestedSwaps: requestedSwaps,
+		peerSync:       peerSync,
+		peerStore:      peerStore,
+		policy:         policy,
+		lnd:            lnd,
+		ps:             ps,
+		sigchan:        sigchan,
+	}
 }
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
@@ -190,14 +213,23 @@ func (p *PeerswapServer) isPeerConnected(ctx context.Context, peerId string) boo
 	return false
 }
 
-// peerRunsPeerSwap returns true if the peer has sent its poll info to the
-// pollService showing that it is supporting peerswap.
+// peerRunsPeerSwap returns true if the peer has a compatible capability registered in peersync.
 func (p *PeerswapServer) peerRunsPeerSwap(peerId string) bool {
-	pollInfo, err := p.pollService.GetPollFrom(peerId)
-	if err == nil && pollInfo != nil {
-		return true
+	if p.peerStore == nil {
+		return false
 	}
-	return false
+	id, err := peersync.NewPeerID(peerId)
+	if err != nil {
+		return false
+	}
+	peer, err := p.peerStore.GetPeerState(id)
+	if err != nil || peer == nil {
+		return false
+	}
+	if peer.Capability() == nil {
+		return false
+	}
+	return peer.IsCompatibleWith(peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION))
 }
 
 func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*SwapResponse, error) {
@@ -320,14 +352,15 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 		return nil, err
 	}
 
-	polls, err := p.pollService.GetCompatiblePolls()
+	compatiblePeers, err := p.loadCompatiblePeers()
 	if err != nil {
 		return nil, err
 	}
 
 	var peerSwapPeers []*PeerSwapPeer
 	for _, v := range peersRes.Peers {
-		if poll, ok := polls[v.PubKey]; ok {
+		if peerState, ok := compatiblePeers[v.PubKey]; ok {
+			capability := peerState.Capability()
 			swaps, err := p.swaps.ListSwapsByPeer(v.PubKey)
 			if err != nil {
 				return nil, err
@@ -363,8 +396,8 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 
 			peerSwapPeers = append(peerSwapPeers, &PeerSwapPeer{
 				NodeId:          v.PubKey,
-				SwapsAllowed:    poll.PeerAllowed,
-				SupportedAssets: poll.Assets,
+				SwapsAllowed:    capability.IsAllowed(),
+				SupportedAssets: assetsFromCapability(capability),
 				Channels:        getPeerSwapChannels(v.PubKey, channelRes.Channels),
 				AsSender: &SwapStats{
 					SwapsOut: SenderSwapsOut,
@@ -385,22 +418,22 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 						{
 							Asset:          AssetType_BTC,
 							Operation:      OperationType_SWAP_IN,
-							PremiumRatePpm: poll.BTCSwapInPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapIn),
 						},
 						{
 							Asset:          AssetType_BTC,
 							Operation:      OperationType_SWAP_OUT,
-							PremiumRatePpm: poll.BTCSwapOutPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapOut),
 						},
 						{
 							Asset:          AssetType_LBTC,
 							Operation:      OperationType_SWAP_IN,
-							PremiumRatePpm: poll.LBTCSwapInPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapIn),
 						},
 						{
 							Asset:          AssetType_LBTC,
 							Operation:      OperationType_SWAP_OUT,
-							PremiumRatePpm: poll.LBTCSwapOutPremiumRatePPM,
+							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapOut),
 						},
 					},
 				},
@@ -409,6 +442,51 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 
 	}
 	return &ListPeersResponse{Peers: peerSwapPeers}, nil
+}
+
+func (p *PeerswapServer) loadCompatiblePeers() (map[string]*peersync.Peer, error) {
+	result := make(map[string]*peersync.Peer)
+	if p.peerStore == nil {
+		return result, nil
+	}
+
+	peers, err := p.peerStore.GetAllPeerStates()
+	if err != nil {
+		return nil, err
+	}
+
+	targetVersion := peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION)
+	for _, peer := range peers {
+		if peer == nil || peer.Capability() == nil {
+			continue
+		}
+		if !peer.IsCompatibleWith(targetVersion) {
+			continue
+		}
+		result[peer.ID().String()] = peer
+	}
+	return result, nil
+}
+
+func assetsFromCapability(capability *peersync.PeerCapability) []string {
+	assets := capability.SupportedAssets()
+	res := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		res = append(res, asset.String())
+	}
+	return res
+}
+
+func ppmFromCapability(
+	capability *peersync.PeerCapability,
+	asset premium.AssetType,
+	operation premium.OperationType,
+) int64 {
+	rate := capability.GetPremiumRate(asset, operation)
+	if rate == nil {
+		return 0
+	}
+	return rate.Value()
 }
 
 func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwapPeerChannel {
@@ -452,7 +530,9 @@ func (p *PeerswapServer) ReloadPolicyFile(ctx context.Context, request *ReloadPo
 	if err != nil {
 		return nil, err
 	}
-	p.pollService.PollAllPeers()
+	if p.peerSync != nil {
+		p.peerSync.ForcePollAllPeers(context.Background())
+	}
 	pol := p.policy.Get()
 	return GetPolicyMessage(pol), nil
 }
