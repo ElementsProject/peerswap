@@ -120,7 +120,7 @@ func (p *Policy) Get() Policy {
 }
 
 // GetReserveOnchainMsat returns the amount of msats
-// that should be keept in the wallet when receiving
+// that should be kept in the wallet when receiving
 // a peerswap request.
 func (p *Policy) GetReserveOnchainMsat() uint64 {
 	mu.Lock()

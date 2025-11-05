@@ -886,7 +886,7 @@ func (s *SwapService) OnCancelReceived(swapId *SwapId, cancelMsg *CancelMessage)
 	return nil
 }
 
-// OnCoopCloseReceived sends the CoopMessage event to the corresponding swap state mahcine
+// OnCoopCloseReceived sends the CoopMessage event to the corresponding swap state machine
 func (s *SwapService) OnCoopCloseReceived(swapId *SwapId, coopCloseMessage *CoopCloseMessage) error {
 	swap, err := s.GetActiveSwap(swapId.String())
 	if err != nil {

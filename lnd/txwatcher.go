@@ -387,7 +387,7 @@ func (t *TxWatcher) AddCsvCallback(cb func(swapId string) error) {
 }
 
 // GetBlockHeight returns the current best block from the GetInfo call. Beware
-// that this hight is the best block from the nodes view.
+// that this height is the best block from the nodes view.
 func (t *TxWatcher) GetBlockHeight() (uint32, error) {
 	r, err := t.lnrpcClient.GetInfo(context.TODO(), &lnrpc.GetInfoRequest{})
 	if err != nil {
