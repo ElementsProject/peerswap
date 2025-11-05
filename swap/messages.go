@@ -169,7 +169,7 @@ type SwapInAgreementMessage struct {
 	// Pubkey is a 33 byte compressed public key used for the spending paths in
 	// the opening_transaction.
 	Pubkey string `json:"pubkey"`
-	// Premium is a compensation in Sats that the swap partner wants to be payed
+	// Premium is a compensation in Sats that the swap partner wants to be paid
 	// in order to participate in the swap.
 	Premium int64 `json:"premium"`
 }
@@ -267,7 +267,7 @@ type SwapOutAgreementMessage struct {
 	// Payreq is a BOLT#11 invoice with an amount that covers the fee expenses
 	// for the on-chain transactions.
 	Payreq string
-	// Premium is a compensation in Sats that the swap partner wants to be payed
+	// Premium is a compensation in Sats that the swap partner wants to be paid
 	// in order to participate in the swap.
 	Premium int64 `json:"premium"`
 }

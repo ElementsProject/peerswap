@@ -458,7 +458,7 @@ func (cl *ClightningClient) PayInvoice(payreq string) (preimage string, err erro
 	return res.PaymentPreimage, nil
 }
 
-// PayInvoiceViaChannel ensures that the invoice is payed via the direct channel
+// PayInvoiceViaChannel ensures that the invoice is paid via the direct channel
 // to the peer. It takes the desired channel as the enforced route and uses the
 // `sendpay` api for a direct payment via this route.
 func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (preimage string, err error) {

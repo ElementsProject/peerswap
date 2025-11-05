@@ -258,7 +258,7 @@ func Test_IsPeerAllowed_Allowlist(t *testing.T) {
 }
 
 func Test_IsPeerAllowed_AcceptAll(t *testing.T) {
-	// all incomming requests should be allowed
+	// all incoming requests should be allowed
 	conf := "accept_all_peers=1"
 
 	policy, err := create(strings.NewReader(conf))

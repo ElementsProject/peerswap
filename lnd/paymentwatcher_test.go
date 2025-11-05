@@ -20,7 +20,7 @@ import (
 // TestPaymentWatcher_WatchPayment tests the basic functionality of the payment
 // watcher. A callback is added to the watcher and a payment request is added to
 // the watcher. We expect the callback to be called after the payment request
-// was payed for.
+// was paid for.
 func TestPaymentWatcher_WatchPayment(t *testing.T) {
 	test.IsIntegrationTest(t)
 	t.Parallel()
@@ -76,7 +76,7 @@ func TestPaymentWatcher_WatchPayment(t *testing.T) {
 // TestPaymentWatcher_WatchPayment_Reconnect tests that the payment watcher is
 // still receiving payments after the node that the payment watcher is
 // subscribed to was killed and restarted after 1s to 5s. We expect the callback
-// to be called after the payment request was payed for.
+// to be called after the payment request was paid for.
 func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 	test.IsIntegrationTest(t)
 	t.Parallel()
@@ -144,7 +144,7 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 // TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop tests that the
 // payment watcher is still receiving payments after the node that the payment
 // watcher is subscribed to was gracefully shutdown and restarted after 1s to
-// 5s. We expect the callback to be called after the payment request was payed
+// 5s. We expect the callback to be called after the payment request was paid
 // for.
 func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 	test.IsIntegrationTest(t)
