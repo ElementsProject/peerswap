@@ -9,15 +9,15 @@ var (
 )
 
 type PeerswapLogger interface {
-	Infof(format string, v ...interface{})
-	Debugf(format string, v ...interface{})
+	Infof(format string, v ...any)
+	Debugf(format string, v ...any)
 }
 
 func SetLogger(peerswapLogger PeerswapLogger) {
 	logger = peerswapLogger
 }
 
-func Infof(format string, v ...interface{}) {
+func Infof(format string, v ...any) {
 	if logger != nil {
 		logger.Infof(format, v...)
 	} else {
@@ -25,7 +25,7 @@ func Infof(format string, v ...interface{}) {
 	}
 }
 
-func Debugf(format string, v ...interface{}) {
+func Debugf(format string, v ...any) {
 	if logger != nil {
 		logger.Debugf(format, v...)
 	} else {
