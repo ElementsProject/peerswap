@@ -29,7 +29,7 @@ package misc_tests
 //)
 //
 //// btc swap
-//// step 1: create opening tx segwit addresss
+//// step 1: create opening tx segwit address
 //// step 2: tx prepare to opening tx
 //// step 3: get fee from prepared opening tx
 //// step 4: tx send prepared opening tx

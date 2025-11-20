@@ -18,7 +18,7 @@ var ErrEventRejected = errors.New("event rejected")
 // ErrDataNotAvailable is the error returned when the store does not have the data stored yet
 var ErrDataNotAvailable = errors.New("data not in store")
 
-// ErrFsmConfig is the error returned when the fsm configuartion is invalid
+// ErrFsmConfig is the error returned when the fsm configuration is invalid
 // i.e. the fsm does not contain the next state
 var ErrFsmConfig = errors.New("fsm config invalid")
 

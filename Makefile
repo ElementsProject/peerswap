@@ -75,7 +75,7 @@ ${TEST_BIN_DIR}/peerswap:
 	go build ${TEST_BUILD_OPTS} -o ${TEST_BIN_DIR}/peerswap ./cmd/peerswap-plugin
 	chmod a+x ${TEST_BIN_DIR}/peerswap
 
-# Test section. Has commads for local and ci testing.
+# Test section. Has commands for local and ci testing.
 test:
 	PAYMENT_RETRY_TIME=5 go test -tags dev -tags fast_test -race -timeout=10m -v ./...
 .PHONY: test
