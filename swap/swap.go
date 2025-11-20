@@ -128,7 +128,7 @@ type SwapData struct {
 	LastErr       error  `json:"-"`
 	LastErrString string `json:"last_err,omitempty"`
 
-	// TimeOut cancel func. If set and called cancels the timout context so that
+	// TimeOut cancel func. If set and called cancels the timeout context so that
 	// the TimeOut callback does not get called after cancel.
 	toCancel context.CancelFunc
 }

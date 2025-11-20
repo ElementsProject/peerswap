@@ -277,7 +277,7 @@ func (l *Client) AddPaymentCallback(f func(swapId string, invoiceType swap.Invoi
 	l.paymentWatcher.AddPaymentCallback(f)
 }
 
-// PayInvoiceViaChannel ensures that the invoice is payed via the direct channel
+// PayInvoiceViaChannel ensures that the invoice is paid via the direct channel
 // to the peer. It takes the desired channel as the enforced route and uses the
 // `SendToRouteSync` api for a direct payment via this route.
 func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {

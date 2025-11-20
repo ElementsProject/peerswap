@@ -317,7 +317,7 @@ The receiving node (swap responder):
 
 `payreq` is a [BOLT#11](#https://github.com/Lightning/bolts/blob/master/11-payment-encoding.md) invoice with an amount that covers the fee expenses for the on-chain transactions.
 
-`premium` is a compensation in Sats that the swap partner wants to be payed in order to participate in the swap.
+`premium` is a compensation in Sats that the swap partner wants to be paid in order to participate in the swap.
 
 ##### Requirements
 
