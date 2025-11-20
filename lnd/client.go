@@ -289,7 +289,7 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 	if err != nil {
 		return "", err
 	}
-	// Ensures that the invoice is paied via the direct channel to the peer.
+	// Ensures that the invoice is paid via the direct channel to the peer.
 	if decoded.GetDestination() != channel.RemotePubkey {
 		return "", fmt.Errorf(`destination pubkey in invoice does not match remote pubkey of channel. 
 		destination pubkey in invoice: %s, remote pubkey of channel: %s `, decoded.GetDestination(), channel.RemotePubkey)

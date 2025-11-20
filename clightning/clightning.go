@@ -563,7 +563,7 @@ func (cl *ClightningClient) OnShutdown() {
 	cl.Plugin.Stop()
 }
 
-// RegisterMethods registeres rpc methods to c-lightning
+// RegisterMethods registers rpc methods to c-lightning
 func (cl *ClightningClient) RegisterMethods() error {
 	for _, v := range methods {
 		method := v.Get(cl)
