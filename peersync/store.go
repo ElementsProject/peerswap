@@ -259,6 +259,38 @@ type peerRecord struct {
 	LBTCSwapOutPremiumRatePPM int64      `json:"lbtc_swap_out_premium_rate_ppm,omitempty"`
 }
 
+func (r *peerRecord) snapshot() *PeerCapabilitySnapshot {
+	if !r.hasCapabilityData() {
+		return nil
+	}
+	assets := make([]string, len(r.Assets))
+	copy(assets, r.Assets)
+
+	return &PeerCapabilitySnapshot{
+		Version:                   r.Version,
+		Assets:                    assets,
+		PeerAllowed:               r.PeerAllowed,
+		BTCSwapInPremiumRatePPM:   r.BTCSwapInPremiumRatePPM,
+		BTCSwapOutPremiumRatePPM:  r.BTCSwapOutPremiumRatePPM,
+		LBTCSwapInPremiumRatePPM:  r.LBTCSwapInPremiumRatePPM,
+		LBTCSwapOutPremiumRatePPM: r.LBTCSwapOutPremiumRatePPM,
+	}
+}
+
+func (r *peerRecord) applySnapshot(snapshot *PeerCapabilitySnapshot) {
+	if snapshot == nil {
+		return
+	}
+
+	r.Version = snapshot.Version
+	r.Assets = append([]string(nil), snapshot.Assets...)
+	r.PeerAllowed = snapshot.PeerAllowed
+	r.BTCSwapInPremiumRatePPM = snapshot.BTCSwapInPremiumRatePPM
+	r.BTCSwapOutPremiumRatePPM = snapshot.BTCSwapOutPremiumRatePPM
+	r.LBTCSwapInPremiumRatePPM = snapshot.LBTCSwapInPremiumRatePPM
+	r.LBTCSwapOutPremiumRatePPM = snapshot.LBTCSwapOutPremiumRatePPM
+}
+
 func peerToRecord(peer *Peer) *peerRecord {
 	record := &peerRecord{
 		ID:         peer.ID().String(),
@@ -269,17 +301,7 @@ func peerToRecord(peer *Peer) *peerRecord {
 	}
 
 	if capability := peer.Capability(); capability != nil {
-		assets := make([]string, len(capability.supportedAssets))
-		for idx, asset := range capability.supportedAssets {
-			assets[idx] = asset.String()
-		}
-		record.Version = capability.version.Value()
-		record.Assets = assets
-		record.PeerAllowed = capability.isPeerAllowed
-		record.BTCSwapInPremiumRatePPM = ppmValue(capability.btcSwapInPremiumRate)
-		record.BTCSwapOutPremiumRatePPM = ppmValue(capability.btcSwapOutPremiumRate)
-		record.LBTCSwapInPremiumRatePPM = ppmValue(capability.lbtcSwapInPremiumRate)
-		record.LBTCSwapOutPremiumRatePPM = ppmValue(capability.lbtcSwapOutPremiumRate)
+		record.applySnapshot(SnapshotFromCapability(capability))
 	}
 
 	return record
@@ -334,41 +356,15 @@ func (r *peerRecord) rehydrateCapability() (*PeerCapability, error) {
 		return nil, nil
 	}
 
-	assets, err := r.decodeAssets()
+	snapshot := r.snapshot()
+	capability, err := snapshot.ToCapability()
 	if err != nil {
 		return nil, err
 	}
-
-	btcIn, err := NewPremiumRate(r.BTCSwapInPremiumRatePPM)
-	if err != nil {
-		return nil, err
+	if capability != nil {
+		capability.observedAt = r.LastSeen
 	}
-
-	btcOut, err := NewPremiumRate(r.BTCSwapOutPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-
-	lbtcIn, err := NewPremiumRate(r.LBTCSwapInPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-
-	lbtcOut, err := NewPremiumRate(r.LBTCSwapOutPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PeerCapability{
-		version:                NewVersion(r.Version),
-		supportedAssets:        assets,
-		isPeerAllowed:          r.PeerAllowed,
-		btcSwapInPremiumRate:   btcIn,
-		btcSwapOutPremiumRate:  btcOut,
-		lbtcSwapInPremiumRate:  lbtcIn,
-		lbtcSwapOutPremiumRate: lbtcOut,
-		observedAt:             r.LastSeen,
-	}, nil
+	return capability, nil
 }
 
 func (r *peerRecord) hasCapabilityData() bool {
@@ -379,20 +375,4 @@ func (r *peerRecord) hasCapabilityData() bool {
 		r.BTCSwapOutPremiumRatePPM != 0 ||
 		r.LBTCSwapInPremiumRatePPM != 0 ||
 		r.LBTCSwapOutPremiumRatePPM != 0
-}
-
-func (r *peerRecord) decodeAssets() ([]Asset, error) {
-	if len(r.Assets) == 0 {
-		return nil, nil
-	}
-
-	assets := make([]Asset, 0, len(r.Assets))
-	for _, symbol := range r.Assets {
-		asset, err := NewAsset(symbol)
-		if err != nil {
-			return nil, err
-		}
-		assets = append(assets, asset)
-	}
-	return assets, nil
 }

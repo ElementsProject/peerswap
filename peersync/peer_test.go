@@ -124,6 +124,44 @@ func TestPeerCapabilitySupportsAsset(t *testing.T) {
 	}
 }
 
+func TestPeerCapabilitySupportedAssetStrings(t *testing.T) {
+	capability := newTestCapability(t)
+
+	assets := capability.SupportedAssetStrings()
+	if joined := strings.Join(assets, ","); joined != "BTC,LBTC" {
+		t.Fatalf("unexpected asset ordering %s", joined)
+	}
+
+	assets[0] = "MUTATED"
+	if joined := strings.Join(capability.SupportedAssetStrings(), ","); joined != "BTC,LBTC" {
+		t.Fatalf("expected original assets to remain unchanged, got %s", joined)
+	}
+
+	var nilCapability *PeerCapability
+	if values := nilCapability.SupportedAssetStrings(); values != nil {
+		t.Fatalf("expected nil capability to return nil slice, got %v", values)
+	}
+}
+
+func TestPeerCapabilityPremiumRateValue(t *testing.T) {
+	capability := newTestCapability(t)
+
+	if got := capability.PremiumRateValue(premium.BTC, premium.SwapIn); got != 1000 {
+		t.Fatalf("unexpected BTC swap-in rate %d", got)
+	}
+	if got := capability.PremiumRateValue(premium.LBTC, premium.SwapOut); got != 700 {
+		t.Fatalf("unexpected LBTC swap-out rate %d", got)
+	}
+	if got := capability.PremiumRateValue(premium.AssetType(255), premium.SwapIn); got != 0 {
+		t.Fatalf("expected unknown asset to return 0, got %d", got)
+	}
+
+	var nilCapability *PeerCapability
+	if got := nilCapability.PremiumRateValue(premium.BTC, premium.SwapIn); got != 0 {
+		t.Fatalf("expected nil capability to return 0, got %d", got)
+	}
+}
+
 func TestPeerStatusLifecycle(t *testing.T) {
 	id, err := NewPeerID("peer-001")
 	if err != nil {

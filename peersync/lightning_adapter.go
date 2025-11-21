@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"sync"
 
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -41,11 +42,19 @@ type LightningClient interface {
 // LightningAdapter bridges a LightningClient to the peersync Lightning interface.
 type LightningAdapter struct {
 	client LightningClient
+	bus    *messageBus
+
+	mu            sync.Mutex
+	streamStarted bool
+	streamCancel  context.CancelFunc
 }
 
 // NewLightningAdapter returns a Lightning implementation backed by lnrpc types.
 func NewLightningAdapter(client LightningClient) *LightningAdapter {
-	return &LightningAdapter{client: client}
+	return &LightningAdapter{
+		client: client,
+		bus:    newMessageBus(),
+	}
 }
 
 // SendCustomMessage propagates the payload to the remote peer using the lightning client.
@@ -87,42 +96,76 @@ func (a *LightningAdapter) SubscribeCustomMessages(ctx context.Context) (<-chan 
 		return nil, errors.New("peersync adapter: client not configured")
 	}
 
-	stream, err := a.client.SubscribeCustomMessages(ctx, &lnrpc.SubscribeCustomMessagesRequest{})
-	if err != nil {
+	if err := a.ensureStream(ctx); err != nil {
 		return nil, err
 	}
 
-	out := make(chan CustomMessage)
+	return a.bus.subscribe(ctx)
+}
 
-	go func() {
-		defer close(out)
-		for {
-			msg, err := stream.Recv()
-			if err != nil {
-				if shouldStopReceiving(err, ctx) {
-					return
-				}
-				return
-			}
+func (a *LightningAdapter) ensureStream(ctx context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-			customMsg, ok := a.customMessageFrom(msg)
-			if !ok {
-				continue
-			}
+	if a.streamStarted {
+		return nil
+	}
 
-			select {
-			case out <- customMsg:
-			case <-ctx.Done():
-				return
+	streamCtx, cancel := context.WithCancel(ctx)
+	stream, err := a.client.SubscribeCustomMessages(streamCtx, &lnrpc.SubscribeCustomMessagesRequest{})
+	if err != nil {
+		cancel()
+		return err
+	}
+
+	a.streamStarted = true
+	a.streamCancel = cancel
+
+	go a.consumeStream(streamCtx, stream)
+
+	return nil
+}
+
+func (a *LightningAdapter) consumeStream(ctx context.Context, stream lnrpc.Lightning_SubscribeCustomMessagesClient) {
+	for {
+		msg, err := stream.Recv()
+		if err != nil {
+			if shouldStopReceiving(err, ctx) {
+				break
 			}
+			break
 		}
-	}()
 
-	return out, nil
+		customMsg, ok := a.customMessageFrom(msg)
+		if !ok {
+			continue
+		}
+
+		a.bus.publish(customMsg)
+	}
+
+	a.mu.Lock()
+	cancel := a.streamCancel
+	a.streamCancel = nil
+	a.streamStarted = false
+	a.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
 }
 
 // Stop is a no-op because the underlying listener lifecycle is managed elsewhere.
 func (a *LightningAdapter) Stop() error {
+	a.mu.Lock()
+	cancel := a.streamCancel
+	a.streamCancel = nil
+	a.streamStarted = false
+	a.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
 	return nil
 }
 

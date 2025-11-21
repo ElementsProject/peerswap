@@ -211,6 +211,30 @@ func (c *PeerCapability) GetPremiumRate(
 	return nil
 }
 
+// SupportedAssetStrings exposes the supported assets as their textual symbols.
+func (c *PeerCapability) SupportedAssetStrings() []string {
+	if c == nil {
+		return nil
+	}
+
+	result := make([]string, len(c.supportedAssets))
+	for i, asset := range c.supportedAssets {
+		result[i] = asset.String()
+	}
+	return result
+}
+
+// PremiumRateValue returns the premium rate in ppm for the given tuple.
+func (c *PeerCapability) PremiumRateValue(
+	asset premium.AssetType,
+	operation premium.OperationType,
+) int64 {
+	if c == nil {
+		return 0
+	}
+	return ppmValue(c.GetPremiumRate(asset, operation))
+}
+
 func ppmValue(rate *premium.PPM) int64 {
 	if rate == nil {
 		return 0

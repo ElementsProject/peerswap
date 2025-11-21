@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	pslog "github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/premium"
@@ -62,15 +61,20 @@ type PeerSync struct {
 	logic           *SyncLogic
 	store           *Store
 	lightning       Lightning
-	policy          *policy.Policy
+	guard           PeerGuard
 	supportedAssets []Asset
 	premiumSetting  *premium.Setting
 	version         Version
+
+	poller  *poller
+	handler *messageHandler
 
 	pollTickerInterval    time.Duration
 	cleanupTickerInterval time.Duration
 	cleanupTimeout        time.Duration
 }
+
+type capabilitySender func(ctx context.Context, peer PeerID, msgType messages.MessageType) error
 
 // NewPeerSync wires dependencies into a new synchronizer instance.
 func NewPeerSync(
@@ -81,12 +85,14 @@ func NewPeerSync(
 	supportedAssets []string,
 	premiumSetting *premium.Setting,
 ) *PeerSync {
+	guard := NewPeerGuard(policyCfg, premiumSetting)
+
 	ps := &PeerSync{
 		nodeID:                nodeID,
 		logic:                 NewSyncLogic(),
 		store:                 store,
 		lightning:             lightning,
-		policy:                policyCfg,
+		guard:                 guard,
 		supportedAssets:       normalizeSupportedAssets(supportedAssets),
 		premiumSetting:        premiumSetting,
 		version:               NewVersion(swap.PEERSWAP_PROTOCOL_VERSION),
@@ -94,6 +100,17 @@ func NewPeerSync(
 		cleanupTickerInterval: 1 * time.Minute,
 		cleanupTimeout:        30 * time.Minute,
 	}
+
+	ps.poller = newPoller(
+		ps.logic,
+		ps.store,
+		ps.guard,
+		ps.sendCapability,
+		ps.pollTickerInterval,
+		ps.cleanupTickerInterval,
+		ps.cleanupTimeout,
+	)
+	ps.handler = newMessageHandler(ps.store, ps.logic, ps.guard, ps.sendCapability)
 
 	if premiumSetting != nil {
 		premiumSetting.AddObserver(ps)
@@ -113,9 +130,12 @@ func (ps *PeerSync) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe to custom messages: %w", err)
 	}
 
-	go ps.runPollLoop(ctx)
-	go ps.runCleanupLoop(ctx)
-	go ps.handleMessages(ctx, msgChan)
+	if ps.poller != nil {
+		ps.poller.start(ctx)
+	}
+	if ps.handler != nil {
+		go ps.handler.handleMessages(ctx, msgChan)
+	}
 
 	return nil
 }
@@ -145,7 +165,7 @@ func (ps *PeerSync) performInitialSync(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	for _, peerID := range peers {
-		if ps.policy != nil && ps.policy.IsPeerSuspicious(peerID.String()) {
+		if ps.guard != nil && ps.guard.Suspicious(peerID) {
 			continue
 		}
 
@@ -163,158 +183,25 @@ func (ps *PeerSync) performInitialSync(ctx context.Context) error {
 	return nil
 }
 
-func (ps *PeerSync) runPollLoop(ctx context.Context) {
-	ticker := time.NewTicker(ps.pollTickerInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			ps.PollAllPeers(ctx)
-		}
-	}
-}
-
-func (ps *PeerSync) runCleanupLoop(ctx context.Context) {
-	ticker := time.NewTicker(ps.cleanupTickerInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if _, err := ps.store.CleanupExpired(ps.cleanupTimeout); err != nil {
-				log.Printf("cleanup expired peers failed: %v", err)
-			}
-		}
-	}
-}
-
 // PollAllPeers broadcasts the local capability to peers respecting the poll cadence.
 func (ps *PeerSync) PollAllPeers(ctx context.Context) {
-	ps.pollPeers(ctx, false)
+	if ps.poller == nil {
+		return
+	}
+	ps.poller.PollAllPeers(ctx)
 }
 
 // ForcePollAllPeers broadcasts the local capability to all peers regardless of cadence.
 func (ps *PeerSync) ForcePollAllPeers(ctx context.Context) {
-	ps.pollPeers(ctx, true)
-}
-
-func (ps *PeerSync) pollPeers(ctx context.Context, force bool) {
-	peers, err := ps.store.GetAllPeerStates()
-	if err != nil {
-		log.Printf("failed to get peers: %v", err)
+	if ps.poller == nil {
 		return
 	}
-
-	for _, peer := range peers {
-		if !force && !ps.logic.ShouldPoll(peer) {
-			continue
-		}
-
-		if ps.policy != nil && ps.policy.IsPeerSuspicious(peer.ID().String()) {
-			continue
-		}
-
-		if err := ps.sendCapability(ctx, peer.ID(), messages.MESSAGETYPE_POLL); err != nil {
-			log.Printf("failed to poll %s: %v", peer.ID().String(), err)
-			continue
-		}
-
-		peer.MarkAsPolled()
-		if err := ps.store.SavePeerState(peer); err != nil {
-			log.Printf("failed to persist peer state for %s: %v", peer.ID().String(), err)
-		}
-	}
-}
-
-func (ps *PeerSync) handleMessages(ctx context.Context, msgChan <-chan CustomMessage) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case msg, ok := <-msgChan:
-			if !ok {
-				return
-			}
-			ps.processMessage(ctx, msg)
-		}
-	}
-}
-
-func (ps *PeerSync) processMessage(ctx context.Context, msg CustomMessage) {
-	switch msg.Type {
-	case messages.MESSAGETYPE_POLL:
-		ps.handlePollMessage(ctx, msg)
-	case messages.MESSAGETYPE_REQUEST_POLL:
-		ps.handleRequestPollMessage(ctx, msg)
-	default:
-		log.Printf("unknown message type: %v", msg.Type)
-	}
-}
-
-func (ps *PeerSync) handlePollMessage(ctx context.Context, msg CustomMessage) {
-	if err := ctx.Err(); err != nil {
-		return
-	}
-
-	peerID, capability, err := ps.parsePollMessage(msg)
-	if err != nil {
-		log.Printf("failed to parse poll message: %v", err)
-		return
-	}
-
-	if ps.policy != nil && ps.policy.IsPeerSuspicious(peerID.String()) {
-		return
-	}
-
-	peer, err := ps.findPeer(peerID)
-	if err != nil {
-		log.Printf("unknown peer %s: %v", peerID.String(), err)
-		return
-	}
-
-	if existing := peer.Capability(); existing != nil {
-		capability = ps.logic.MergeCapabilities(existing, capability)
-	}
-
-	peer.UpdateCapability(capability)
-
-	if err := ps.store.SavePeerState(peer); err != nil {
-		log.Printf("failed to store peer state: %v", err)
-	}
-
-	// Emit an informational log for successful poll handling to aid
-	// integration tests and operational debugging. Historic tests wait
-	// for this message to confirm that peers have exchanged poll data.
-	// Use project logger to ensure logs are written to stdout.
-	pslog.Infof("Received poll from peer %s", peerID.String())
-}
-
-func (ps *PeerSync) handleRequestPollMessage(ctx context.Context, msg CustomMessage) {
-	var payload RequestPollMessageDTO
-	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		log.Printf("failed to decode request poll message: %v", err)
-		return
-	}
-
-	fromPeerID := msg.From
-
-	if ps.policy != nil && ps.policy.IsPeerSuspicious(fromPeerID.String()) {
-		return
-	}
-
-	if err := ps.sendCapability(ctx, fromPeerID, messages.MESSAGETYPE_POLL); err != nil {
-		log.Printf("failed to respond with poll to %s: %v", fromPeerID.String(), err)
-	}
+	ps.poller.ForcePollAllPeers(ctx)
 }
 
 // RequestPoll requests a peer to send its capability information immediately.
 func (ps *PeerSync) RequestPoll(ctx context.Context, peer PeerID) error {
-	if ps.policy != nil && ps.policy.IsPeerSuspicious(peer.String()) {
+	if ps.guard != nil && ps.guard.Suspicious(peer) {
 		return nil
 	}
 	return ps.sendCapability(ctx, peer, messages.MESSAGETYPE_REQUEST_POLL)
@@ -335,19 +222,36 @@ func (ps *PeerSync) sendCapability(ctx context.Context, peer PeerID, msgType mes
 	return ps.lightning.SendCustomMessage(cctx, peer, msgType, payload)
 }
 
+// Stop terminates the underlying receiver.
+func (ps *PeerSync) Stop() error {
+	if ps.lightning == nil {
+		return errors.New("lightning not configured")
+	}
+	return ps.lightning.Stop()
+}
+
 func (ps *PeerSync) localCapabilityForPeer(peer PeerID) *PeerCapability {
 	assets := make([]Asset, len(ps.supportedAssets))
 	copy(assets, ps.supportedAssets)
 
 	allowed := true
-	if ps.policy != nil {
-		allowed = ps.policy.IsPeerAllowed(peer.String())
+	if ps.guard != nil {
+		allowed = ps.guard.Allow(peer)
 	}
 
-	btcIn := ps.premiumRateForPeer(peer, premium.BTC, premium.SwapIn)
-	btcOut := ps.premiumRateForPeer(peer, premium.BTC, premium.SwapOut)
-	lbtcIn := ps.premiumRateForPeer(peer, premium.LBTC, premium.SwapIn)
-	lbtcOut := ps.premiumRateForPeer(peer, premium.LBTC, premium.SwapOut)
+	var (
+		btcIn   = premium.NewPPM(defaultPremiumRate(premium.BTC, premium.SwapIn))
+		btcOut  = premium.NewPPM(defaultPremiumRate(premium.BTC, premium.SwapOut))
+		lbtcIn  = premium.NewPPM(defaultPremiumRate(premium.LBTC, premium.SwapIn))
+		lbtcOut = premium.NewPPM(defaultPremiumRate(premium.LBTC, premium.SwapOut))
+	)
+
+	if ps.guard != nil {
+		btcIn = ps.guard.PremiumRate(peer, premium.BTC, premium.SwapIn)
+		btcOut = ps.guard.PremiumRate(peer, premium.BTC, premium.SwapOut)
+		lbtcIn = ps.guard.PremiumRate(peer, premium.LBTC, premium.SwapIn)
+		lbtcOut = ps.guard.PremiumRate(peer, premium.LBTC, premium.SwapOut)
+	}
 
 	return NewPeerCapability(
 		ps.version,
@@ -360,139 +264,22 @@ func (ps *PeerSync) localCapabilityForPeer(peer PeerID) *PeerCapability {
 	)
 }
 
-func (ps *PeerSync) premiumRateForPeer(
-	peer PeerID,
-	asset premium.AssetType,
-	operation premium.OperationType,
-) *premium.PPM {
-	defaultValue := defaultPremiumRate(asset, operation)
-
-	if ps.premiumSetting == nil {
-		return premium.NewPPM(defaultValue)
-	}
-
-	rate, err := ps.premiumSetting.GetRate(peer.String(), asset, operation)
-	if err != nil {
-		log.Printf("failed to get premium rate for %s (%s/%s): %v", peer.String(), asset, operation, err)
-		return premium.NewPPM(defaultValue)
-	}
-
-	if rate == nil || rate.PremiumRatePPM() == nil {
-		return premium.NewPPM(defaultValue)
-	}
-
-	return rate.PremiumRatePPM()
-}
-
 // OnPremiumUpdate is invoked when premium settings change, forcing a broadcast.
 func (ps *PeerSync) OnPremiumUpdate() {
 	go ps.ForcePollAllPeers(context.Background())
 }
 
 func (ps *PeerSync) capabilityToDTO(capability *PeerCapability, peer PeerID) *PollMessageDTO {
-	assets := make([]string, 0, len(capability.SupportedAssets()))
-	for _, a := range capability.SupportedAssets() {
-		assets = append(assets, a.String())
+	snapshot := SnapshotFromCapability(capability)
+	if snapshot == nil {
+		return &PollMessageDTO{}
 	}
 
-	allowed := capability.IsAllowed()
-	peerIDValue := peer.String()
-	if ps.policy != nil && peerIDValue != "" {
-		allowed = ps.policy.IsPeerAllowed(peerIDValue)
+	if ps.guard != nil {
+		snapshot.PeerAllowed = ps.guard.Allow(peer)
 	}
 
-	return &PollMessageDTO{
-		Version:                   capability.Version().Value(),
-		Assets:                    assets,
-		PeerAllowed:               allowed,
-		BTCSwapInPremiumRatePPM:   ppmValue(capability.GetPremiumRate(premium.BTC, premium.SwapIn)),
-		BTCSwapOutPremiumRatePPM:  ppmValue(capability.GetPremiumRate(premium.BTC, premium.SwapOut)),
-		LBTCSwapInPremiumRatePPM:  ppmValue(capability.GetPremiumRate(premium.LBTC, premium.SwapIn)),
-		LBTCSwapOutPremiumRatePPM: ppmValue(capability.GetPremiumRate(premium.LBTC, premium.SwapOut)),
-	}
-}
-
-func (ps *PeerSync) dtoToCapability(dto PollMessageDTO) (*PeerCapability, error) {
-	assets := make([]Asset, 0, len(dto.Assets))
-	for _, symbol := range dto.Assets {
-		asset, err := NewAsset(symbol)
-		if err != nil {
-			return nil, err
-		}
-		assets = append(assets, asset)
-	}
-
-	btcIn, err := NewPremiumRate(dto.BTCSwapInPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-	btcOut, err := NewPremiumRate(dto.BTCSwapOutPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-	lbtcIn, err := NewPremiumRate(dto.LBTCSwapInPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-	lbtcOut, err := NewPremiumRate(dto.LBTCSwapOutPremiumRatePPM)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewPeerCapability(
-		NewVersion(dto.Version),
-		assets,
-		dto.PeerAllowed,
-		btcIn,
-		btcOut,
-		lbtcIn,
-		lbtcOut,
-	), nil
-}
-
-func (ps *PeerSync) parsePollMessage(
-	msg CustomMessage,
-) (PeerID, *PeerCapability, error) {
-	peerID := msg.From
-	var payload PollMessageDTO
-	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		return peerID, nil, fmt.Errorf("decode poll message: %w", err)
-	}
-
-	capability, err := ps.dtoToCapability(payload)
-	if err != nil {
-		return peerID, nil, fmt.Errorf("invalid poll payload: %w", err)
-	}
-
-	return peerID, capability, nil
-}
-
-func (ps *PeerSync) findPeer(peerID PeerID) (*Peer, error) {
-	peer, err := ps.store.GetPeerState(peerID)
-	if err == nil {
-		return peer, nil
-	}
-	if errors.Is(err, ErrPeerNotFound) {
-		return NewPeer(peerID, ""), nil
-	}
-	return nil, err
-}
-
-// Stop terminates the underlying receiver.
-func (ps *PeerSync) Stop() error {
-	if ps.lightning == nil {
-		return errors.New("lightning not configured")
-	}
-	return ps.lightning.Stop()
-}
-
-func defaultPremiumRate(asset premium.AssetType, operation premium.OperationType) int64 {
-	if ratesByAsset, ok := premium.DefaultPremiumRate[asset]; ok {
-		if value, ok := ratesByAsset[operation]; ok {
-			return value
-		}
-	}
-	return 0
+	return snapshot
 }
 
 func normalizeSupportedAssets(symbols []string) []Asset {
@@ -525,17 +312,3 @@ func normalizeSupportedAssets(symbols []string) []Asset {
 	}
 	return assets
 }
-
-// PollMessageDTO carries capability information in transport messages.
-type PollMessageDTO struct {
-	Version                   uint64   `json:"version"`
-	Assets                    []string `json:"assets"`
-	PeerAllowed               bool     `json:"peer_allowed"`
-	BTCSwapInPremiumRatePPM   int64    `json:"btc_swap_in_premium_rate_ppm"`
-	BTCSwapOutPremiumRatePPM  int64    `json:"btc_swap_out_premium_rate_ppm"`
-	LBTCSwapInPremiumRatePPM  int64    `json:"lbtc_swap_in_premium_rate_ppm"`
-	LBTCSwapOutPremiumRatePPM int64    `json:"lbtc_swap_out_premium_rate_ppm"`
-}
-
-// RequestPollMessageDTO requests a peer to send an updated poll message.
-type RequestPollMessageDTO = PollMessageDTO

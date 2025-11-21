@@ -3,7 +3,6 @@ package peersync
 import (
 	"context"
 	"errors"
-	"sync"
 
 	"github.com/elementsproject/peerswap/messages"
 )
@@ -26,14 +25,15 @@ type GlightningClient interface {
 // For inbound messages, integrate by calling PushCustomMessage from the CLN plugin hook.
 type ClnLightningAdapter struct {
 	client GlightningClient
-
-	mu          sync.Mutex
-	subscribers []chan CustomMessage
+	bus    *messageBus
 }
 
 // NewClnLightningAdapter returns a Lightning implementation backed by glightning.
 func NewClnLightningAdapter(client GlightningClient) *ClnLightningAdapter {
-	a := &ClnLightningAdapter{client: client}
+	a := &ClnLightningAdapter{
+		client: client,
+		bus:    newMessageBus(),
+	}
 	if a.client != nil {
 		// Register a handler once to forward inbound messages into our subscribers.
 		a.client.AddMessageHandler(func(peerID, msgType string, payload []byte) error {
@@ -66,27 +66,7 @@ func (a *ClnLightningAdapter) SubscribeCustomMessages(ctx context.Context) (<-ch
 		return nil, errors.New("peersync cln adapter: client not configured")
 	}
 
-	ch := make(chan CustomMessage, 8)
-
-	a.mu.Lock()
-	a.subscribers = append(a.subscribers, ch)
-	a.mu.Unlock()
-
-	go func() {
-		<-ctx.Done()
-		a.mu.Lock()
-		// Remove ch from subscribers and close it
-		for i, c := range a.subscribers {
-			if c == ch {
-				a.subscribers = append(a.subscribers[:i], a.subscribers[i+1:]...)
-				break
-			}
-		}
-		a.mu.Unlock()
-		close(ch)
-	}()
-
-	return ch, nil
+	return a.bus.subscribe(ctx)
 }
 
 // PushCustomMessage feeds an inbound custom message (as delivered by the CLN plugin hook)
@@ -101,16 +81,7 @@ func (a *ClnLightningAdapter) PushCustomMessage(peerID, msgType string, payload 
 	if err != nil {
 		return
 	}
-	a.mu.Lock()
-	subs := append([]chan CustomMessage(nil), a.subscribers...)
-	a.mu.Unlock()
-	for _, c := range subs {
-		select {
-		case c <- CustomMessage{From: id, Type: messageType, Payload: payload}:
-		default:
-			// Drop if subscriber is slow; upstream applies backpressure on its own.
-		}
-	}
+	a.bus.publish(CustomMessage{From: id, Type: messageType, Payload: payload})
 }
 
 // Stop is a no-op because lifecycle is owned by the plugin / caller.

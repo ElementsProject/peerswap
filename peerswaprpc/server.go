@@ -13,6 +13,7 @@ import (
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/peersync"
+	"github.com/elementsproject/peerswap/peersync/format"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/samber/lo"
@@ -366,78 +367,10 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 				return nil, err
 			}
 
-			var paidFees uint64
-			var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
-			var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
-			for _, s := range swaps {
-				// We only list successful swaps. They all end in an
-				// State_ClaimedPreimage state.
-				if s.Current == swap.State_ClaimedPreimage {
-					if s.Role == swap.SWAPROLE_SENDER {
-						paidFees += s.Data.OpeningTxFee
-						if s.Type == swap.SWAPTYPE_OUT {
-							SenderSwapsOut++
-							SenderSatsOut += s.Data.GetAmount()
-						} else {
-							SenderSwapsIn++
-							SenderSatsIn += s.Data.GetAmount()
-						}
-					} else {
-						if s.Type == swap.SWAPTYPE_OUT {
-							ReceiverSwapsOut++
-							ReceiverSatsOut += s.Data.GetAmount()
-						} else {
-							ReceiverSwapsIn++
-							ReceiverSatsIn += s.Data.GetAmount()
-						}
-					}
-				}
-			}
-
-			peerSwapPeers = append(peerSwapPeers, &PeerSwapPeer{
-				NodeId:          v.PubKey,
-				SwapsAllowed:    capability.IsAllowed(),
-				SupportedAssets: assetsFromCapability(capability),
-				Channels:        getPeerSwapChannels(v.PubKey, channelRes.Channels),
-				AsSender: &SwapStats{
-					SwapsOut: SenderSwapsOut,
-					SwapsIn:  SenderSwapsIn,
-					SatsOut:  SenderSatsOut,
-					SatsIn:   SenderSatsIn,
-				},
-				AsReceiver: &SwapStats{
-					SwapsOut: ReceiverSwapsOut,
-					SwapsIn:  ReceiverSwapsIn,
-					SatsOut:  ReceiverSatsOut,
-					SatsIn:   ReceiverSatsIn,
-				},
-				PaidFee: paidFees,
-				PeerPremium: &PeerPremium{
-					NodeId: v.PubKey,
-					Rates: []*PremiumRate{
-						{
-							Asset:          AssetType_BTC,
-							Operation:      OperationType_SWAP_IN,
-							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapIn),
-						},
-						{
-							Asset:          AssetType_BTC,
-							Operation:      OperationType_SWAP_OUT,
-							PremiumRatePpm: ppmFromCapability(capability, premium.BTC, premium.SwapOut),
-						},
-						{
-							Asset:          AssetType_LBTC,
-							Operation:      OperationType_SWAP_IN,
-							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapIn),
-						},
-						{
-							Asset:          AssetType_LBTC,
-							Operation:      OperationType_SWAP_OUT,
-							PremiumRatePpm: ppmFromCapability(capability, premium.LBTC, premium.SwapOut),
-						},
-					},
-				},
-			})
+			view := format.BuildPeerView(v.PubKey, capability, swaps)
+			peer := NewPeerSwapPeerFromView(view)
+			peer.Channels = getPeerSwapChannels(v.PubKey, channelRes.Channels)
+			peerSwapPeers = append(peerSwapPeers, peer)
 		}
 
 	}
@@ -466,27 +399,6 @@ func (p *PeerswapServer) loadCompatiblePeers() (map[string]*peersync.Peer, error
 		result[peer.ID().String()] = peer
 	}
 	return result, nil
-}
-
-func assetsFromCapability(capability *peersync.PeerCapability) []string {
-	assets := capability.SupportedAssets()
-	res := make([]string, 0, len(assets))
-	for _, asset := range assets {
-		res = append(res, asset.String())
-	}
-	return res
-}
-
-func ppmFromCapability(
-	capability *peersync.PeerCapability,
-	asset premium.AssetType,
-	operation premium.OperationType,
-) int64 {
-	rate := capability.GetPremiumRate(asset, operation)
-	if rate == nil {
-		return 0
-	}
-	return rate.Value()
 }
 
 func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwapPeerChannel {

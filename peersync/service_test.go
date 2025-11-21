@@ -235,7 +235,7 @@ func TestHandlePollMessage(t *testing.T) {
 		t.Fatalf("failed to marshal payload: %v", err)
 	}
 
-	syncer.handlePollMessage(ctx, CustomMessage{From: peerID, Type: messages.MESSAGETYPE_POLL, Payload: data})
+	syncer.handler.handlePollMessage(ctx, CustomMessage{From: peerID, Type: messages.MESSAGETYPE_POLL, Payload: data})
 
 	stored, err := deps.store.GetPeerState(peerID)
 	if err != nil {
@@ -265,7 +265,7 @@ func TestHandleRequestPollMessage(t *testing.T) {
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 
-	syncer.handleRequestPollMessage(
+	syncer.handler.handleRequestPollMessage(
 		ctx,
 		CustomMessage{
 			From:    peerID,
