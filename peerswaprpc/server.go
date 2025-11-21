@@ -163,8 +163,10 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
 
 	// Skip this test if force flag is set.
-	if !request.Force && !p.peerRunsPeerSwap(peerId) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !request.Force {
+		if p.peerSync == nil || !p.peerSync.HasCompatiblePeer(peerId) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !p.isPeerConnected(ctx, peerId) {
@@ -214,25 +216,6 @@ func (p *PeerswapServer) isPeerConnected(ctx context.Context, peerId string) boo
 	return false
 }
 
-// peerRunsPeerSwap returns true if the peer has a compatible capability registered in peersync.
-func (p *PeerswapServer) peerRunsPeerSwap(peerId string) bool {
-	if p.peerStore == nil {
-		return false
-	}
-	id, err := peersync.NewPeerID(peerId)
-	if err != nil {
-		return false
-	}
-	peer, err := p.peerStore.GetPeerState(id)
-	if err != nil || peer == nil {
-		return false
-	}
-	if peer.Capability() == nil {
-		return false
-	}
-	return peer.IsCompatibleWith(peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION))
-}
-
 func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*SwapResponse, error) {
 	var swapchan *lnrpc.Channel
 	chans, err := p.lnd.ListChannels(ctx, &lnrpc.ListChannelsRequest{ActiveOnly: true})
@@ -279,8 +262,10 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
 
 	// Skip this test if force flag is set.
-	if !request.Force && !p.peerRunsPeerSwap(peerId) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !request.Force {
+		if p.peerSync == nil || !p.peerSync.HasCompatiblePeer(peerId) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !p.isPeerConnected(ctx, peerId) {
@@ -353,9 +338,13 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 		return nil, err
 	}
 
-	compatiblePeers, err := p.loadCompatiblePeers()
-	if err != nil {
-		return nil, err
+	compatiblePeers := make(map[string]*peersync.Peer)
+	if p.peerSync != nil {
+		var err error
+		compatiblePeers, err = p.peerSync.CompatiblePeers()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var peerSwapPeers []*PeerSwapPeer
@@ -375,30 +364,6 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 
 	}
 	return &ListPeersResponse{Peers: peerSwapPeers}, nil
-}
-
-func (p *PeerswapServer) loadCompatiblePeers() (map[string]*peersync.Peer, error) {
-	result := make(map[string]*peersync.Peer)
-	if p.peerStore == nil {
-		return result, nil
-	}
-
-	peers, err := p.peerStore.GetAllPeerStates()
-	if err != nil {
-		return nil, err
-	}
-
-	targetVersion := peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION)
-	for _, peer := range peers {
-		if peer == nil || peer.Capability() == nil {
-			continue
-		}
-		if !peer.IsCompatibleWith(targetVersion) {
-			continue
-		}
-		result[peer.ID().String()] = peer
-	}
-	return result, nil
 }
 
 func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwapPeerChannel {

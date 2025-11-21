@@ -192,3 +192,115 @@ func assertLegacyCapability(t *testing.T, capability *PeerCapability, info legac
 		t.Fatalf("expected peer allowed")
 	}
 }
+
+func TestHasCompatiblePeer(t *testing.T) {
+	store := newTestStore(t)
+	target := NewVersion(42)
+	ps := &PeerSync{store: store, version: target}
+
+	makeCapability := func(version Version) *PeerCapability {
+		return NewPeerCapability(version, []Asset{AssetBTC}, true, nil, nil, nil, nil)
+	}
+
+	savePeer := func(idStr string, capability *PeerCapability) {
+		id, err := NewPeerID(idStr)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		peer := NewPeer(id, "addr-"+idStr)
+		if capability != nil {
+			peer.UpdateCapability(capability)
+		}
+		if err := store.SavePeerState(peer); err != nil {
+			t.Fatalf("failed to save peer %s: %v", idStr, err)
+		}
+	}
+
+	savePeer("compatible-peer", makeCapability(target))
+	savePeer("missing-capability", nil)
+
+	if !ps.HasCompatiblePeer("compatible-peer") {
+		t.Fatalf("expected compatible peer to be detected")
+	}
+
+	ps.version = target.Next()
+	if ps.HasCompatiblePeer("compatible-peer") {
+		t.Fatalf("expected mismatch when version differs")
+	}
+
+	ps.version = target
+	if ps.HasCompatiblePeer("missing-capability") {
+		t.Fatalf("expected peers without capability to be excluded")
+	}
+	if ps.HasCompatiblePeer("unknown-peer") {
+		t.Fatalf("expected unknown peers to be excluded")
+	}
+
+	var nilSync *PeerSync
+	if nilSync.HasCompatiblePeer("compatible-peer") {
+		t.Fatalf("expected nil peersync to be treated as incompatible")
+	}
+	if (&PeerSync{}).HasCompatiblePeer("compatible-peer") {
+		t.Fatalf("expected peersync without store to be treated as incompatible")
+	}
+}
+
+func TestCompatiblePeers(t *testing.T) {
+	store := newTestStore(t)
+	target := NewVersion(7)
+	ps := &PeerSync{store: store, version: target}
+
+	registerPeer := func(idStr string, capabilityVersion *Version) {
+		id, err := NewPeerID(idStr)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		peer := NewPeer(id, "addr-"+idStr)
+		if capabilityVersion != nil {
+			capability := NewPeerCapability(*capabilityVersion, []Asset{AssetBTC}, true, nil, nil, nil, nil)
+			peer.UpdateCapability(capability)
+		}
+		if err := store.SavePeerState(peer); err != nil {
+			t.Fatalf("failed to store peer %s: %v", idStr, err)
+		}
+	}
+
+	registerPeer("match-1", &target)
+	registerPeer("match-2", &target)
+
+	next := target.Next()
+	registerPeer("wrong-version", &next)
+	registerPeer("no-capability", nil)
+
+	peers, err := ps.CompatiblePeers()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(peers) != 2 {
+		t.Fatalf("expected 2 compatible peers, got %d", len(peers))
+	}
+	if _, ok := peers["match-1"]; !ok {
+		t.Fatalf("expected match-1 to be returned")
+	}
+	if _, ok := peers["match-2"]; !ok {
+		t.Fatalf("expected match-2 to be returned")
+	}
+	if _, ok := peers["wrong-version"]; ok {
+		t.Fatalf("did not expect wrong-version to be returned")
+	}
+	if _, ok := peers["no-capability"]; ok {
+		t.Fatalf("did not expect no-capability to be returned")
+	}
+
+	var nilSync *PeerSync
+	empty, err := nilSync.CompatiblePeers()
+	if err != nil {
+		t.Fatalf("expected nil peersync lookup to succeed: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("expected no peers from nil peersync, got %d", len(empty))
+	}
+	if res, err := (&PeerSync{}).CompatiblePeers(); err != nil || len(res) != 0 {
+		t.Fatalf("expected peersync without store to succeed, err=%v len=%d", err, len(res))
+	}
+}

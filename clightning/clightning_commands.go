@@ -228,8 +228,10 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	// Skip this check when `force` is set.
-	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !l.Force {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !l.cl.isPeerConnected(fundingChannels.Id) {
@@ -348,8 +350,10 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	// Skip this check when `force` is set.
-	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !l.Force {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !l.cl.isPeerConnected(fundingChannels.Id) {
@@ -562,21 +566,12 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		fundingChannels[channel.ShortChannelId] = channel
 	}
 
-	peerStates, err := l.cl.peerStore.GetAllPeerStates()
-	if err != nil {
-		return nil, err
-	}
-
 	compatible := make(map[string]*peersync.Peer)
-	targetVersion := peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION)
-	for _, state := range peerStates {
-		if state == nil || state.Capability() == nil {
-			continue
+	if l.cl.peerSync != nil {
+		compatible, err = l.cl.peerSync.CompatiblePeers()
+		if err != nil {
+			return nil, err
 		}
-		if !state.IsCompatibleWith(targetVersion) {
-			continue
-		}
-		compatible[state.ID().String()] = state
 	}
 
 	peerSwappers := []*peerswaprpc.PeerSwapPeer{}

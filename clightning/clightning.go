@@ -519,26 +519,6 @@ func (cl *ClightningClient) isPeerConnected(nodeId string) bool {
 	return peer.Connected
 }
 
-// peerRunsPeerSwap returns true if the peer with peerId is listed in the
-// peerRunsPeerSwap returns true if the peersync store has a compatible capability for the peer.
-func (cl *ClightningClient) peerRunsPeerSwap(peerId string) bool {
-	if cl.peerStore == nil {
-		return false
-	}
-	id, err := peersync.NewPeerID(peerId)
-	if err != nil {
-		return false
-	}
-	peer, err := cl.peerStore.GetPeerState(id)
-	if err != nil || peer == nil {
-		return false
-	}
-	if peer.Capability() == nil {
-		return false
-	}
-	return peer.IsCompatibleWith(peersync.NewVersion(swap.PEERSWAP_PROTOCOL_VERSION))
-}
-
 // This is called after the Plugin starts up successfully
 func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
 	cl.glightning.StartUp(config.RpcFile, config.LightningDir)
