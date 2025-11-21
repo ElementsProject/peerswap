@@ -42,6 +42,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
+	"github.com/thejerf/suture/v4"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
@@ -387,12 +388,19 @@ func run() error {
 	lightningAdapter := peersync.NewLightningAdapter(rpcLightningClient)
 	peerSync := peersync.NewPeerSync(nodeID, peerStore, lightningAdapter, pol, supportedAssets, ps)
 
-	if err := peerSync.Start(ctx); err != nil {
-		return err
-	}
+	psSupervisor := suture.New("peersync", suture.Spec{
+		EventHook: func(e suture.Event) {
+			log.Infof("peersync supervisor event: %s", e)
+		},
+	})
+	psSupervisor.Add(peerSync)
+
+	peerSyncCtx, peerSyncCancel := context.WithCancel(ctx)
+	peerSyncErrCh := psSupervisor.ServeBackground(peerSyncCtx)
 	defer func() {
-		if stopErr := peerSync.Stop(); stopErr != nil {
-			log.Infof("peersync stop failed: %v", stopErr)
+		peerSyncCancel()
+		if err := <-peerSyncErrCh; err != nil && !errors.Is(err, context.Canceled) {
+			log.Infof("peersync supervisor exited: %v", err)
 		}
 	}()
 

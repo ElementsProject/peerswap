@@ -20,6 +20,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/lightningnetwork/lnd v0.18.4-beta.rc1
 	github.com/stretchr/testify v1.9.0
+	github.com/thejerf/suture/v4 v4.0.6
 	github.com/urfave/cli v1.22.9
 	github.com/vulpemventures/go-elements v0.5.1
 	github.com/ybbus/jsonrpc v2.1.2+incompatible

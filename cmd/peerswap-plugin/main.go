@@ -14,6 +14,7 @@ import (
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/lwk"
 	"github.com/elementsproject/peerswap/version"
+	"github.com/thejerf/suture/v4"
 	"golang.org/x/sys/unix"
 
 	"github.com/vulpemventures/go-elements/network"
@@ -392,12 +393,19 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 	clnAdapter := peersync.NewClnLightningAdapter(lightningPlugin)
 	peerSync := peersync.NewPeerSync(nodeID, peerStore, clnAdapter, pol, supportedAssets, ps)
 
-	if err := peerSync.Start(ctx); err != nil {
-		return err
-	}
+	psSupervisor := suture.New("peersync", suture.Spec{
+		EventHook: func(e suture.Event) {
+			log.Infof("peersync supervisor event: %s", e)
+		},
+	})
+	psSupervisor.Add(peerSync)
+
+	peerSyncCtx, peerSyncCancel := context.WithCancel(ctx)
+	peerSyncErrCh := psSupervisor.ServeBackground(peerSyncCtx)
 	defer func() {
-		if stopErr := peerSync.Stop(); stopErr != nil {
-			log.Infof("peersync stop failed: %v", stopErr)
+		peerSyncCancel()
+		if err := <-peerSyncErrCh; err != nil && !errors.Is(err, context.Canceled) {
+			log.Infof("peersync supervisor exited: %v", err)
 		}
 	}()
 

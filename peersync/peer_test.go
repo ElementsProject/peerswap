@@ -302,16 +302,53 @@ func TestShouldPoll(t *testing.T) {
 func TestMergeCapabilities(t *testing.T) {
 	logic := NewSyncLogic()
 
-	local := buildCapability(t, 1)
-	remote := buildCapability(t, 2)
+	t.Run("remoteNewerWins", func(t *testing.T) {
+		local := buildCapability(t, 1)
+		remote := buildCapability(t, 2)
 
-	result := logic.MergeCapabilities(local, remote)
-	if result != remote {
-		t.Fatalf("expected remote capability to win")
-	}
+		result := logic.MergeCapabilities(local, remote)
+		if result != remote {
+			t.Fatalf("expected remote capability to win")
+		}
+	})
 
-	result = logic.MergeCapabilities(remote, local)
-	if result != remote {
-		t.Fatalf("expected remote capability to win when local newer")
-	}
+	t.Run("localNewerRetained", func(t *testing.T) {
+		local := buildCapability(t, 2)
+		remote := buildCapability(t, 1)
+
+		result := logic.MergeCapabilities(local, remote)
+		if result != local {
+			t.Fatalf("expected newer local capability to win")
+		}
+	})
+
+	t.Run("equalVersionUpdates", func(t *testing.T) {
+		local := buildCapability(t, 1)
+
+		asset, err := NewAsset("BTC")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		rate, err := NewPremiumRate(5000)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		remote := NewPeerCapability(
+			NewVersion(1),
+			[]Asset{asset},
+			false,
+			rate,
+			rate,
+			rate,
+			rate,
+		)
+
+		result := logic.MergeCapabilities(local, remote)
+		if result != remote {
+			t.Fatalf("expected remote capability to win when versions equal")
+		}
+		if result.IsAllowed() {
+			t.Fatalf("expected merged capability to reflect remote changes")
+		}
+	})
 }

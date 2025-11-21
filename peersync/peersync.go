@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	pslog "github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/messages"
-    pslog "github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/policy"
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
@@ -42,10 +42,18 @@ func (l *SyncLogic) MergeCapabilities(
 	local *PeerCapability,
 	remote *PeerCapability,
 ) *PeerCapability {
-	if remote.Version().Value() > local.Version().Value() {
+	if local == nil {
 		return remote
 	}
-	return local
+	if remote == nil {
+		return local
+	}
+
+	if remote.Version().Value() < local.Version().Value() {
+		return local
+	}
+
+	return remote
 }
 
 // PeerSync orchestrates polling and capability exchange between peers.
@@ -108,6 +116,22 @@ func (ps *PeerSync) Start(ctx context.Context) error {
 	go ps.runPollLoop(ctx)
 	go ps.runCleanupLoop(ctx)
 	go ps.handleMessages(ctx, msgChan)
+
+	return nil
+}
+
+// Serve allows PeerSync to satisfy suture.Service. It starts the sync loops and
+// blocks until the provided context is canceled, ensuring a graceful shutdown.
+func (ps *PeerSync) Serve(ctx context.Context) error {
+	if err := ps.Start(ctx); err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+
+	if err := ps.Stop(); err != nil {
+		log.Printf("peersync stop failed: %v", err)
+	}
 
 	return nil
 }
@@ -247,11 +271,11 @@ func (ps *PeerSync) handlePollMessage(ctx context.Context, msg CustomMessage) {
 		return
 	}
 
-    peer, err := ps.findPeer(peerID)
-    if err != nil {
-        log.Printf("unknown peer %s: %v", peerID.String(), err)
-        return
-    }
+	peer, err := ps.findPeer(peerID)
+	if err != nil {
+		log.Printf("unknown peer %s: %v", peerID.String(), err)
+		return
+	}
 
 	if existing := peer.Capability(); existing != nil {
 		capability = ps.logic.MergeCapabilities(existing, capability)
@@ -259,15 +283,15 @@ func (ps *PeerSync) handlePollMessage(ctx context.Context, msg CustomMessage) {
 
 	peer.UpdateCapability(capability)
 
-    if err := ps.store.SavePeerState(peer); err != nil {
-        log.Printf("failed to store peer state: %v", err)
-    }
+	if err := ps.store.SavePeerState(peer); err != nil {
+		log.Printf("failed to store peer state: %v", err)
+	}
 
-    // Emit an informational log for successful poll handling to aid
-    // integration tests and operational debugging. Historic tests wait
-    // for this message to confirm that peers have exchanged poll data.
-    // Use project logger to ensure logs are written to stdout.
-    pslog.Infof("Received poll from peer %s", peerID.String())
+	// Emit an informational log for successful poll handling to aid
+	// integration tests and operational debugging. Historic tests wait
+	// for this message to confirm that peers have exchanged poll data.
+	// Use project logger to ensure logs are written to stdout.
+	pslog.Infof("Received poll from peer %s", peerID.String())
 }
 
 func (ps *PeerSync) handleRequestPollMessage(ctx context.Context, msg CustomMessage) {
