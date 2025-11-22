@@ -22,11 +22,6 @@ var (
 	AlreadyLoadedError = errors.New("wallet is already loaded")
 )
 
-const (
-	// https://github.com/ElementsProject/elements/releases/tag/elements-23.2.2
-	elementsdFeeDiscountedVersion = 230202
-)
-
 type RpcClient interface {
 	GetNewAddress(addrType int) (string, error)
 	SendToAddress(address string, amount string) (string, error)

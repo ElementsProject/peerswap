@@ -264,7 +264,6 @@ func (cl *Client) GetNetwork() string {
 type LndFeeEstimator struct {
 	ctx       context.Context
 	walletkit walletrpc.WalletKitClient
-	lndrpc    lnrpc.LightningClient
 }
 
 func NewLndFeeEstimator(ctx context.Context, walletkit walletrpc.WalletKitClient) *LndFeeEstimator {

@@ -20,6 +20,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/lightningnetwork/lnd v0.18.4-beta.rc1
 	github.com/stretchr/testify v1.9.0
+	github.com/thejerf/suture/v4 v4.0.6
 	github.com/urfave/cli v1.22.9
 	github.com/vulpemventures/go-elements v0.5.1
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
@@ -163,6 +164,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang-migrate/migrate/v4 v4.17.0 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/elementsproject/peerswap/log"
@@ -831,16 +830,6 @@ func (s *SwapService) SenderOnTxConfirmed(swapId string) error {
 	}
 	s.RemoveActiveSwap(swap.SwapId.String())
 	return nil
-}
-
-const PaymentLabelSeparator = "_"
-
-func getPaymentLabel(description string) string {
-	parts := strings.SplitN(description, PaymentLabelSeparator, 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	return parts[0]
 }
 
 // OnPayment handles incoming payments and if it corresponds to a claim or
