@@ -18,8 +18,6 @@ const (
 	DefaultLBTCSwapInPremiumRatePPM int64 = 0
 	// DefaultLBTCSwapOutPremiumRatePPM is the default premium rate in ppm.
 	DefaultLBTCSwapOutPremiumRatePPM int64 = 1000
-
-	premiumRatePPMKey = "premium_rate_ppm"
 )
 
 var DefaultPremiumRate = map[AssetType]map[OperationType]int64{

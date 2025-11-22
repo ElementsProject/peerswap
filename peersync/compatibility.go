@@ -17,7 +17,7 @@ func (ps *PeerSync) HasCompatiblePeer(peerID string) bool {
 		return false
 	}
 
-	return peerHasCompatibleCapability(peer, ps.version)
+	return peer.IsCompatibleWith(ps.version)
 }
 
 // CompatiblePeers returns all peers with a capability compatible with the local
@@ -34,7 +34,7 @@ func (ps *PeerSync) CompatiblePeers() (map[string]*Peer, error) {
 	}
 
 	for _, peer := range peers {
-		if peerHasCompatibleCapability(peer, ps.version) {
+		if peer != nil && peer.IsCompatibleWith(ps.version) {
 			result[peer.ID().String()] = peer
 		}
 	}
@@ -42,14 +42,3 @@ func (ps *PeerSync) CompatiblePeers() (map[string]*Peer, error) {
 	return result, nil
 }
 
-func peerHasCompatibleCapability(peer *Peer, target Version) bool {
-	if peer == nil {
-		return false
-	}
-
-	if peer.Capability() == nil {
-		return false
-	}
-
-	return peer.IsCompatibleWith(target)
-}

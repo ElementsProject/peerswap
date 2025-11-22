@@ -28,7 +28,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
 	"github.com/elementsproject/peerswap/messages"
@@ -507,16 +506,6 @@ func getBitcoinChain(ctx context.Context, li lnrpc.LightningClient) (*chaincfg.P
 	default:
 		return nil, errors.New("unknown bitcoin network")
 	}
-}
-
-func getBitcoinClient(cfg *peerswaplnd.OnchainConfig) (*gbitcoin.Bitcoin, error) {
-	bitcoin := gbitcoin.NewBitcoin(cfg.RpcUser, cfg.RpcPassword, cfg.RpcCookieFilePath)
-	err := bitcoin.StartUp(cfg.RpcHost, "", cfg.RpcPort)
-	if err != nil {
-		return nil, err
-	}
-
-	return bitcoin, nil
 }
 
 func getLiquidChain(li *gelements.Elements) (*network.Network, error) {

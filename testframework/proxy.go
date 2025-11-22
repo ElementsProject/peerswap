@@ -82,7 +82,6 @@ type RpcProxy struct {
 	configFile string
 	serviceURL *url.URL
 	authHeader []byte
-	cookieFile string
 
 	Rpc jsonrpc.RPCClient
 }
