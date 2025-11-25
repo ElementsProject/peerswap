@@ -6,7 +6,7 @@ lint:
   use:
     - STANDARD
   except:
-    # TODO suport excepted standard rules.
+    # TODO support excepted standard rules.
     # - COMMENT_ENUM
     # - COMMENT_ENUM_VALUE
     # - COMMENT_FIELD

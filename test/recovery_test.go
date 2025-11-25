@@ -244,7 +244,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	// Stop taker peer so that csv can trigger
 	require.NoError(params.takerNode.Stop())
 
-	// Generate enought blocks to trigger csv
+	// Generate enough blocks to trigger csv
 	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
@@ -356,7 +356,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	// Stop taker peer so that csv can trigger
 	require.NoError(params.takerNode.Stop())
 
-	// Generate enought blocks to trigger csv
+	// Generate enough blocks to trigger csv
 	require.NoError(params.chaind.GenerateBlocks(params.csv + 50))
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.makerNode)
 
