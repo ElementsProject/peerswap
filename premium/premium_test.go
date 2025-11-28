@@ -1,6 +1,7 @@
 package premium_test
 
 import (
+	"context"
 	"os"
 	"path"
 	"testing"
@@ -53,7 +54,7 @@ func Test_Setting_GetRate(t *testing.T) {
 			setting := setupPremium(t)
 			rate := lo.Must(premium.NewPremiumRate(tt.asset, tt.operation, premium.NewPPM(tt.ppm)))
 			// Add test data to the store
-			err := setting.SetRate(tt.peerID, rate)
+			err := setting.SetRate(context.Background(), tt.peerID, rate)
 			if err != nil {
 				t.Fatalf("failed to set rate: %v", err)
 			}
@@ -88,12 +89,12 @@ func Test_Setting_DeleteRate(t *testing.T) {
 			setting := setupPremium(t)
 			rate := lo.Must(premium.NewPremiumRate(tt.asset, tt.operation, premium.NewPPM(tt.ppm)))
 			// Add test data to the store
-			err := setting.SetRate(tt.peerID, rate)
+			err := setting.SetRate(context.Background(), tt.peerID, rate)
 			if err != nil {
 				t.Fatalf("failed to set rate: %v", err)
 			}
 			// Delete the rate
-			err = setting.DeleteRate(tt.peerID, rate.Asset(), rate.Operation())
+			err = setting.DeleteRate(context.Background(), tt.peerID, rate.Asset(), rate.Operation())
 			if err != nil {
 				t.Fatalf("failed to delete rate: %v", err)
 			}
@@ -113,7 +114,7 @@ func Test_Setting_GetRate_Default(t *testing.T) {
 	t.Parallel()
 	setting := setupPremium(t)
 	rate := lo.Must(premium.NewPremiumRate(premium.BTC, premium.SwapIn, premium.NewPPM(testPPM1)))
-	err := setting.SetRate("peer", rate)
+	err := setting.SetRate(context.Background(), "peer", rate)
 	if err != nil {
 		t.Fatalf("failed to set rate: %v", err)
 	}
@@ -149,7 +150,7 @@ func Test_Setting_Compute(t *testing.T) {
 			setting := setupPremium(t)
 			rate := lo.Must(premium.NewPremiumRate(tt.asset, tt.operation, premium.NewPPM(tt.ppm)))
 			// Add test data to the store
-			err := setting.SetRate(tt.peerID, rate)
+			err := setting.SetRate(context.Background(), tt.peerID, rate)
 			if err != nil {
 				t.Fatalf("failed to set rate: %v", err)
 			}

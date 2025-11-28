@@ -1,6 +1,7 @@
 package clightning
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/peersync"
+	"github.com/elementsproject/peerswap/peersync/format"
 	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/elementsproject/glightning/glightning"
@@ -225,8 +228,10 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	// Skip this check when `force` is set.
-	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !l.Force {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !l.cl.isPeerConnected(fundingChannels.Id) {
@@ -345,8 +350,10 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	// Skip this check when `force` is set.
-	if !l.Force && !l.cl.peerRunsPeerSwap(fundingChannels.Id) {
-		return nil, fmt.Errorf("peer does not run peerswap")
+	if !l.Force {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+			return nil, fmt.Errorf("peer does not run peerswap")
+		}
 	}
 
 	if !l.cl.isPeerConnected(fundingChannels.Id) {
@@ -559,91 +566,26 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		fundingChannels[channel.ShortChannelId] = channel
 	}
 
-	// get polls
-	polls, err := l.cl.pollService.GetCompatiblePolls()
-	if err != nil {
-		return nil, err
+	compatible := make(map[string]*peersync.Peer)
+	if l.cl.peerSync != nil {
+		compatible, err = l.cl.peerSync.CompatiblePeers()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	peerSwappers := []*peerswaprpc.PeerSwapPeer{}
 	for _, peer := range peers {
-		if p, ok := polls[peer.Id]; ok {
+		peerState, ok := compatible[peer.Id]
+		if ok {
+			capability := peerState.Capability()
 			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
 			if err != nil {
 				return nil, err
 			}
 
-			var paidFees uint64
-			var ReceiverSwapsOut, ReceiverSwapsIn, ReceiverSatsOut, ReceiverSatsIn uint64
-			var SenderSwapsOut, SenderSwapsIn, SenderSatsOut, SenderSatsIn uint64
-			for _, s := range swaps {
-				// We only list successful swaps. They all end in an
-				// State_ClaimedPreimage state.
-				if s.Current == swap.State_ClaimedPreimage {
-					if s.Role == swap.SWAPROLE_SENDER {
-						paidFees += s.Data.OpeningTxFee
-						if s.Type == swap.SWAPTYPE_OUT {
-							SenderSwapsOut++
-							SenderSatsOut += s.Data.GetAmount()
-						} else {
-							SenderSwapsIn++
-							SenderSatsIn += s.Data.GetAmount()
-						}
-					} else {
-						if s.Type == swap.SWAPTYPE_OUT {
-							ReceiverSwapsOut++
-							ReceiverSatsOut += s.Data.GetAmount()
-						} else {
-							ReceiverSwapsIn++
-							ReceiverSatsIn += s.Data.GetAmount()
-						}
-					}
-				}
-			}
-
-			peerSwapPeer := &peerswaprpc.PeerSwapPeer{
-				NodeId:          peer.Id,
-				SwapsAllowed:    p.PeerAllowed,
-				SupportedAssets: p.Assets,
-				AsSender: &peerswaprpc.SwapStats{
-					SwapsOut: SenderSwapsOut,
-					SwapsIn:  SenderSwapsIn,
-					SatsOut:  SenderSatsOut,
-					SatsIn:   SenderSatsIn,
-				},
-				AsReceiver: &peerswaprpc.SwapStats{
-					SwapsOut: ReceiverSwapsOut,
-					SwapsIn:  ReceiverSwapsIn,
-					SatsOut:  ReceiverSatsOut,
-					SatsIn:   ReceiverSatsIn,
-				},
-				PaidFee: paidFees,
-				PeerPremium: &peerswaprpc.PeerPremium{
-					NodeId: peer.Id,
-					Rates: []*peerswaprpc.PremiumRate{
-						{
-							Asset:          peerswaprpc.AssetType_BTC,
-							Operation:      peerswaprpc.OperationType_SWAP_IN,
-							PremiumRatePpm: p.BTCSwapInPremiumRatePPM,
-						},
-						{
-							Asset:          peerswaprpc.AssetType_BTC,
-							Operation:      peerswaprpc.OperationType_SWAP_OUT,
-							PremiumRatePpm: p.BTCSwapOutPremiumRatePPM,
-						},
-						{
-							Asset:          peerswaprpc.AssetType_LBTC,
-							Operation:      peerswaprpc.OperationType_SWAP_IN,
-							PremiumRatePpm: p.LBTCSwapInPremiumRatePPM,
-						},
-						{
-							Asset:          peerswaprpc.AssetType_LBTC,
-							Operation:      peerswaprpc.OperationType_SWAP_OUT,
-							PremiumRatePpm: p.LBTCSwapOutPremiumRatePPM,
-						},
-					},
-				},
-			}
+			view := format.BuildPeerView(peer.Id, capability, swaps)
+			peerSwapPeer := peerswaprpc.NewPeerSwapPeerFromView(view)
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
 			if err != nil {
 				return nil, err
@@ -754,8 +696,10 @@ func (c ReloadPolicyFile) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Resend poll
-	c.cl.pollService.PollAllPeers()
+	// Resend capability updates
+	if c.cl.peerSync != nil {
+		c.cl.peerSync.ForcePollAllPeers(context.Background())
+	}
 	return c.cl.policy.Get(), nil
 }
 
@@ -1217,9 +1161,12 @@ func (c *UpdatePremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating premium rate: %v", err)
 	}
-	err = c.cl.ps.SetRate(c.PeerID, rate)
+	err = c.cl.ps.SetRate(context.Background(), c.PeerID, rate)
 	if err != nil {
 		return nil, fmt.Errorf("error setting premium rate: %v", err)
+	}
+	if c.cl.peerSync != nil {
+		c.cl.peerSync.ForcePollAllPeers(context.Background())
 	}
 	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(rate.Asset()),
@@ -1263,10 +1210,13 @@ func (c *DeletePremiumRate) Call() (jrpc2.Result, error) {
 	if !c.cl.isReady {
 		return nil, ErrWaitingForReady
 	}
-	err := c.cl.ps.DeleteRate(c.PeerID, toPremiumAssetType(c.Asset),
+	err := c.cl.ps.DeleteRate(context.Background(), c.PeerID, toPremiumAssetType(c.Asset),
 		toPremiumOperationType(c.Operation))
 	if err != nil {
 		return nil, fmt.Errorf("error deleting premium rate: %v", err)
+	}
+	if c.cl.peerSync != nil {
+		c.cl.peerSync.ForcePollAllPeers(context.Background())
 	}
 	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(toPremiumAssetType(c.Asset)),
@@ -1315,9 +1265,12 @@ func (c *UpdateGlobalPremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating premium rate: %v", err)
 	}
-	err = c.cl.ps.SetDefaultRate(rate)
+	err = c.cl.ps.SetDefaultRate(context.Background(), rate)
 	if err != nil {
 		return nil, fmt.Errorf("error setting default premium rate: %v", err)
+	}
+	if c.cl.peerSync != nil {
+		c.cl.peerSync.ForcePollAllPeers(context.Background())
 	}
 	return &peerswaprpc.PremiumRate{
 		Asset:          peerswaprpc.ToAssetType(rate.Asset()),

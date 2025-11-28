@@ -395,12 +395,6 @@ func (s *SwapData) GetCancelMessage() string {
 	return ""
 }
 
-func (s *SwapData) cancelTimeout() {
-	if s.toCancel != nil {
-		s.toCancel()
-	}
-}
-
 func (s *SwapData) GetPrivkey() *btcec.PrivateKey {
 	privkey, _ := btcec.PrivKeyFromBytes(s.PrivkeyBytes)
 	return privkey
