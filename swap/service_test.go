@@ -416,17 +416,18 @@ func getTestSetup(t *testing.T, name string) *SwapService {
 	require.NoError(t, err)
 	premiumSetting, err := premium.NewSetting(db)
 	require.NoError(t, err)
+	ctx := context.Background()
 	require.NoError(t,
-		premiumSetting.SetDefaultRate(
+		premiumSetting.SetDefaultRate(ctx,
 			lo.Must(premium.NewPremiumRate(premium.BTC, premium.SwapIn, premium.NewPPM(10000)))))
 	require.NoError(t,
-		premiumSetting.SetDefaultRate(
+		premiumSetting.SetDefaultRate(ctx,
 			lo.Must(premium.NewPremiumRate(premium.BTC, premium.SwapOut, premium.NewPPM(10000)))))
 	require.NoError(t,
-		premiumSetting.SetDefaultRate(
+		premiumSetting.SetDefaultRate(ctx,
 			lo.Must(premium.NewPremiumRate(premium.LBTC, premium.SwapIn, premium.NewPPM(10000)))))
 	require.NoError(t,
-		premiumSetting.SetDefaultRate(
+		premiumSetting.SetDefaultRate(ctx,
 			lo.Must(premium.NewPremiumRate(premium.LBTC, premium.SwapOut, premium.NewPPM(10000)))))
 
 	swapServices := NewSwapServices(store, reqSwapsStore, lc, messenger, mmgr, policy, true, chain, chain, chain, true, chain, chain, chain, premiumSetting)

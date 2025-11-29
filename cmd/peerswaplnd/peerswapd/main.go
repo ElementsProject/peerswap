@@ -28,20 +28,20 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/elementsproject/glightning/gbitcoin"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/peerswaprpc"
+	"github.com/elementsproject/peerswap/peersync"
 	"github.com/elementsproject/peerswap/policy"
-	"github.com/elementsproject/peerswap/poll"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/txwatcher"
 	"github.com/elementsproject/peerswap/wallet"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
+	"github.com/thejerf/suture/v4"
 	"github.com/vulpemventures/go-elements/network"
 	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
@@ -279,7 +279,7 @@ func run() error {
 	defer peerListener.Stop()
 
 	// Setup lnd client.
-	lnd, err := lnd.NewClient(
+	lndClient, err := lnd.NewClient(
 		ctx,
 		cc,
 		paymentWatcher,
@@ -323,12 +323,12 @@ func run() error {
 
 	swapServices := swap.NewSwapServices(swapStore,
 		requestedSwapStore,
-		lnd,
-		lnd,
+		lndClient,
+		lndClient,
 		mesmgr,
 		pol,
 		cfg.BitcoinEnabled,
-		lnd,
+		lndClient,
 		bitcoinOnChainService,
 		lndTxWatcher,
 		cfg.LiquidEnabled,
@@ -367,22 +367,60 @@ func run() error {
 		return err
 	}
 
-	pollStore, err := poll.NewStore(swapDb)
+	peerSyncDBPath := filepath.Join(cfg.DataDir, "peersync.db")
+	peerStore, err := peersync.NewStore(peerSyncDBPath)
 	if err != nil {
 		return err
 	}
-	pollService := poll.NewService(1*time.Hour, 2*time.Hour, pollStore, lnd, pol, lnd, supportedAssets, ps)
-	pollService.Start()
-	defer pollService.Stop()
+	defer func() {
+		if closeErr := peerStore.Close(); closeErr != nil {
+			log.Infof("peersync store close failed: %v", closeErr)
+		}
+	}()
 
-	// Add poll handler to peer event listener.
-	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, pollService.Poll)
+	nodeID, err := peersync.NewPeerID(info.IdentityPubkey)
+	if err != nil {
+		return err
+	}
+
+	rpcLightningClient := lnrpc.NewLightningClient(cc)
+	lightningAdapter := peersync.NewLightningAdapter(rpcLightningClient)
+	peerSync := peersync.NewPeerSync(nodeID, peerStore, lightningAdapter, pol, supportedAssets, ps)
+
+	psSupervisor := suture.New("peersync", suture.Spec{
+		EventHook: func(e suture.Event) {
+			log.Infof("peersync supervisor event: %s", e)
+		},
+	})
+	psSupervisor.Add(peerSync)
+
+	peerSyncCtx, peerSyncCancel := context.WithCancel(ctx)
+	peerSyncErrCh := psSupervisor.ServeBackground(peerSyncCtx)
+	defer func() {
+		peerSyncCancel()
+		if err := <-peerSyncErrCh; err != nil && !errors.Is(err, context.Canceled) {
+			log.Infof("peersync supervisor exited: %v", err)
+		}
+	}()
+
+	err = peerListener.AddHandler(lnrpc.PeerEvent_PEER_ONLINE, func(peerID string) {
+		pid, err := peersync.NewPeerID(peerID)
+		if err != nil {
+			log.Debugf("invalid peer id for request poll: %v", err)
+			return
+		}
+		if err := peerSync.RequestPoll(ctx, pid); err != nil {
+			log.Debugf("failed to request poll for %s: %v", peerID, err)
+		}
+	})
 	if err != nil {
 		return err
 	}
 
 	// Start internal lnd listener.
-	lnd.StartListening()
+	if err := lndClient.StartListening(); err != nil {
+		return err
+	}
 
 	// setup grpc server
 	sp := swap.NewRequestedSwapsPrinter(requestedSwapStore)
@@ -390,10 +428,11 @@ func run() error {
 		liquidRpcWallet,
 		swapService,
 		sp,
-		pollService,
+		peerSync,
+		peerStore,
 		pol,
 		liquidCli,
-		lnrpc.NewLightningClient(cc),
+		rpcLightningClient,
 		ps,
 		sigChan,
 	)
@@ -467,16 +506,6 @@ func getBitcoinChain(ctx context.Context, li lnrpc.LightningClient) (*chaincfg.P
 	default:
 		return nil, errors.New("unknown bitcoin network")
 	}
-}
-
-func getBitcoinClient(cfg *peerswaplnd.OnchainConfig) (*gbitcoin.Bitcoin, error) {
-	bitcoin := gbitcoin.NewBitcoin(cfg.RpcUser, cfg.RpcPassword, cfg.RpcCookieFilePath)
-	err := bitcoin.StartUp(cfg.RpcHost, "", cfg.RpcPort)
-	if err != nil {
-		return nil, err
-	}
-
-	return bitcoin, nil
 }
 
 func getLiquidChain(li *gelements.Elements) (*network.Network, error) {

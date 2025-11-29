@@ -1,6 +1,7 @@
 package premium
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -18,8 +19,6 @@ const (
 	DefaultLBTCSwapInPremiumRatePPM int64 = 0
 	// DefaultLBTCSwapOutPremiumRatePPM is the default premium rate in ppm.
 	DefaultLBTCSwapOutPremiumRatePPM int64 = 1000
-
-	premiumRatePPMKey = "premium_rate_ppm"
 )
 
 var DefaultPremiumRate = map[AssetType]map[OperationType]int64{
@@ -119,18 +118,11 @@ func (p *PPM) Compute(amtSat uint64) (sat int64) {
 	return int64(amtSat) * p.ppmValue / premiumRateParts
 }
 
-// Observer pattern implementation
-// -----------------------------
-
-// Observer defines the interface for objects that should be notified of premium rate changes
-type Observer interface {
-	// OnPremiumUpdate is called when premium rates are updated
-	OnPremiumUpdate()
-}
+// Premium rate operations
+// ---------------------
 
 type Setting struct {
-	store    *BBoltPremiumStore
-	observer []Observer // List of observers to be notified of premium rate changes
+	store *BBoltPremiumStore
 }
 
 func NewSetting(bbolt *bbolt.DB) (*Setting, error) {
@@ -142,21 +134,6 @@ func NewSetting(bbolt *bbolt.DB) (*Setting, error) {
 		store: store,
 	}, nil
 }
-
-// AddObserver registers a new observer to be notified of premium rate changes
-func (p *Setting) AddObserver(observer Observer) {
-	p.observer = append(p.observer, observer)
-}
-
-// notifyObservers notifies all registered observers when premium rates change
-func (p *Setting) notifyObservers() {
-	for _, observer := range p.observer {
-		observer.OnPremiumUpdate()
-	}
-}
-
-// Premium rate operations
-// ---------------------
 
 // GetRate retrieves the premium rate for a given peer, asset, and operation.
 // If the rate is not found, it retrieves the default rate.
@@ -171,23 +148,13 @@ func (p *Setting) GetRate(peerID string, asset AssetType, operation OperationTyp
 	return rate, nil
 }
 
-// SetRate sets the premium rate for a given peer and notifies observers if successful.
-func (p *Setting) SetRate(peerID string, rate *PremiumRate) error {
-	err := p.store.SetRate(peerID, rate)
-	if err == nil {
-		// Notify observers only if the update was successful
-		p.notifyObservers()
-	}
-	return err
+// SetRate sets the premium rate for a given peer.
+func (p *Setting) SetRate(ctx context.Context, peerID string, rate *PremiumRate) error {
+	return p.store.SetRate(peerID, rate)
 }
 
-func (p *Setting) DeleteRate(peerID string, asset AssetType, operation OperationType) error {
-	err := p.store.DeleteRate(peerID, asset, operation)
-	if err == nil {
-		// Notify observers only if the update was successful
-		p.notifyObservers()
-	}
-	return err
+func (p *Setting) DeleteRate(ctx context.Context, peerID string, asset AssetType, operation OperationType) error {
+	return p.store.DeleteRate(peerID, asset, operation)
 }
 
 // GetDefaultRate retrieves the default premium rate for a given asset and operation.
@@ -195,21 +162,24 @@ func (p *Setting) GetDefaultRate(asset AssetType, operation OperationType) (*Pre
 	rate, err := p.store.GetDefaultRate(asset, operation)
 	if err != nil {
 		if errors.Is(err, ErrRateNotFound) {
-			return NewPremiumRate(asset, operation, NewPPM(DefaultPremiumRate[asset][operation]))
+			ratesByAsset, ok := DefaultPremiumRate[asset]
+			if !ok {
+				return nil, fmt.Errorf("no default premium rate configured for asset %v", asset)
+			}
+			value, ok := ratesByAsset[operation]
+			if !ok {
+				return nil, fmt.Errorf("no default premium rate configured for asset %v and operation %v", asset, operation)
+			}
+			return NewPremiumRate(asset, operation, NewPPM(value))
 		}
 		return nil, err
 	}
 	return rate, nil
 }
 
-// SetDefaultRate sets the default premium rate and notifies observers if successful.
-func (p *Setting) SetDefaultRate(rate *PremiumRate) error {
-	err := p.store.SetDefaultRate(rate)
-	if err == nil {
-		// Notify observers only if the update was successful
-		p.notifyObservers()
-	}
-	return err
+// SetDefaultRate sets the default premium rate.
+func (p *Setting) SetDefaultRate(ctx context.Context, rate *PremiumRate) error {
+	return p.store.SetDefaultRate(rate)
 }
 
 // Compute calculates the premium in satoshis for a given amount in satoshis.

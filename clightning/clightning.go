@@ -10,18 +10,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/premium"
-
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/gbitcoin"
-	"github.com/elementsproject/peerswap/onchain"
-
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/glightning/jrpc2"
 	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/messages"
-	"github.com/elementsproject/peerswap/poll"
+	"github.com/elementsproject/peerswap/onchain"
+	"github.com/elementsproject/peerswap/peersync"
+	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/wallet"
 	goerrors "github.com/go-errors/errors"
@@ -75,7 +73,8 @@ type ClightningClient struct {
 	swaps          *swap.SwapService
 	requestedSwaps *swap.RequestedSwapsPrinter
 	policy         PolicyReloader
-	pollService    *poll.Service
+	peerSync       *peersync.PeerSync
+	peerStore      *peersync.Store
 	ps             *premium.Setting
 
 	gbitcoin       *gbitcoin.Bitcoin
@@ -326,14 +325,15 @@ func (cl *ClightningClient) GetPreimage() (lightning.Preimage, error) {
 func (cl *ClightningClient) SetupClients(liquidWallet wallet.Wallet,
 	swaps *swap.SwapService,
 	policy PolicyReloader, requestedSwaps *swap.RequestedSwapsPrinter,
-	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, pollService *poll.Service,
+	bitcoin *gbitcoin.Bitcoin, bitcoinChain *onchain.BitcoinOnChain, peerSync *peersync.PeerSync, peerStore *peersync.Store,
 	ps *premium.Setting) {
 	cl.liquidWallet = liquidWallet
 	cl.requestedSwaps = requestedSwaps
 	cl.swaps = swaps
 	cl.policy = policy
 	cl.gbitcoin = bitcoin
-	cl.pollService = pollService
+	cl.peerSync = peerSync
+	cl.peerStore = peerStore
 	cl.bitcoinChain = bitcoinChain
 	cl.ps = ps
 	if cl.bitcoinChain != nil {
@@ -519,16 +519,6 @@ func (cl *ClightningClient) isPeerConnected(nodeId string) bool {
 	return peer.Connected
 }
 
-// peerRunsPeerSwap returns true if the peer with peerId is listed in the
-// pollService.
-func (cl *ClightningClient) peerRunsPeerSwap(peerId string) bool {
-	pollInfo, err := cl.pollService.GetPollFrom(peerId)
-	if err == nil && pollInfo != nil {
-		return true
-	}
-	return false
-}
-
 // This is called after the Plugin starts up successfully
 func (cl *ClightningClient) onInit(plugin *glightning.Plugin, options map[string]glightning.Option, config *glightning.Config) {
 	cl.glightning.StartUp(config.RpcFile, config.LightningDir)
@@ -549,10 +539,20 @@ func (cl *ClightningClient) OnConnect(connectEvent *glightning.ConnectEvent) {
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			if cl.pollService != nil {
-				cl.pollService.RequestPoll(
-					lo.Ternary(connectEvent.PeerId != "",
-						connectEvent.PeerId, connectEvent.Conn.PeerId))
+			if cl.peerSync != nil {
+				peerIDValue := lo.Ternary(connectEvent.PeerId != "",
+					connectEvent.PeerId, connectEvent.Conn.PeerId)
+				if peerIDValue == "" {
+					return
+				}
+				peerID, err := peersync.NewPeerID(peerIDValue)
+				if err != nil {
+					log.Debugf("invalid peer id for request poll: %v", err)
+					return
+				}
+				if err := cl.peerSync.RequestPoll(cl.ctx, peerID); err != nil {
+					log.Debugf("failed to request poll for %s: %v", peerIDValue, err)
+				}
 				return
 			}
 		}
