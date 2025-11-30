@@ -1,5 +1,4 @@
 //go:build misc
-// +build misc
 
 package lnd
 
