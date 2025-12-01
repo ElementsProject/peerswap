@@ -19,7 +19,6 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 
 	"github.com/vulpemventures/go-elements/address"
-	address2 "github.com/vulpemventures/go-elements/address"
 	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
 	"github.com/vulpemventures/go-elements/payment"
@@ -505,7 +504,7 @@ func (b *LiquidOnChain) GetOutputScript(params *swap.OpeningParams) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	wantBytes, err := address2.ToOutputScript(wantAddr)
+	wantBytes, err := address.ToOutputScript(wantAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +516,7 @@ func (l *LiquidOnChain) FindVout(outputs []*transaction.TxOutput, redeemScript [
 	if err != nil {
 		return 0, err
 	}
-	wantBytes, err := address2.ToOutputScript(wantAddr)
+	wantBytes, err := address.ToOutputScript(wantAddr)
 	if err != nil {
 		return 0, err
 	}
