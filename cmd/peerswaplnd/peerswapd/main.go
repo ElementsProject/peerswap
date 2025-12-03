@@ -51,6 +51,10 @@ import (
 
 const (
 	minLndVersion = float64(14.1)
+	// maxMsgRecvSize is the largest message our gRPC server and REST gateway
+	// will receive. This is set to 500 MiB to be consistent with other
+	// gRPC clients in this repo (e.g. lnd/connect.go, testframework/proxy.go).
+	maxMsgRecvSize = 1 * 1024 * 1024 * 500
 )
 
 var GitCommit string
@@ -443,7 +447,10 @@ func run() error {
 	}
 	defer lis.Close()
 
-	grpcSrv := grpc.NewServer()
+	grpcSrv := grpc.NewServer(
+		grpc.MaxRecvMsgSize(maxMsgRecvSize),
+		grpc.MaxSendMsgSize(maxMsgRecvSize),
+	)
 
 	peerswaprpc.RegisterPeerSwapServer(grpcSrv, peerswaprpcServer)
 
@@ -467,7 +474,10 @@ func run() error {
 				},
 			}),
 		)
-		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgRecvSize)),
+		}
 		err := peerswaprpc.RegisterPeerSwapHandlerFromEndpoint(ctx, mux, cfg.Host, opts)
 		if err != nil {
 			return err
