@@ -170,7 +170,12 @@ func Test_LndSystemsPreimage(t *testing.T) {
 	address := fmt.Sprintf("localhost:%v", 10101+1*100)
 
 	lndFeeEstimator := NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
-	btcOnchain := onchain.NewBitcoinOnChain(lndFeeEstimator, &chaincfg.RegressionNetParams)
+	btcOnchain := onchain.NewBitcoinOnChain(
+		lndFeeEstimator,
+		onchain.LegacyFeeFloorSatPerKw,
+		onchain.LegacyFeeFloorSatPerKw,
+		&chaincfg.RegressionNetParams,
+	)
 
 	swapLnd, err := NewLnd(ctx, tlsCertPath, macaroonPath, address, btcOnchain)
 	if err != nil {
@@ -276,7 +281,12 @@ func Test_LndSystemsCsv(t *testing.T) {
 	address := fmt.Sprintf("localhost:%v", 10101+1*100)
 
 	lndFeeEstimator := NewLndFeeEstimator(ctx, walletrpc.NewWalletKitClient(lndConn))
-	btcOnchain := onchain.NewBitcoinOnChain(lndFeeEstimator, &chaincfg.RegressionNetParams)
+	btcOnchain := onchain.NewBitcoinOnChain(
+		lndFeeEstimator,
+		onchain.LegacyFeeFloorSatPerKw,
+		onchain.LegacyFeeFloorSatPerKw,
+		&chaincfg.RegressionNetParams,
+	)
 
 	swapLnd, err := NewLnd(ctx, tlsCertPath, macaroonPath, address, btcOnchain)
 	if err != nil {

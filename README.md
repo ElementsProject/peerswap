@@ -80,6 +80,10 @@ See the [Usage guide](./docs/usage.md) for instructions on how to use PeerSwap.
 ### Upgrading
 See the [Upgrade guide](./docs/upgrade.md) for instructions to safely upgrade your PeerSwap binary.
 
+### Bitcoin Fee Floor
+
+- PeerSwap now chooses the Bitcoin onchain fee floor based on the connected Bitcoin Core version: v29.2+ defaults to 25 sat/kw (0.1 sat/vB) while older releases stay at 253 sat/kw (~1 sat/vB).
+- If your node enforces a higher `mempoolminfee`, that higher limit is still respected—version detection only adjusts the default so behavior stays predictable without scraping runtime mempool values.
 
 ## Further Information
 ### FAQ

@@ -15,10 +15,6 @@ const (
 	// witnessScaleFactor is the discount for witness data.
 	witnessScaleFactor = 4
 
-	// FeePerKwFloor is the lowest fee rate in sat/kw that we should use for
-	// estimating transaction fees before signing.
-	FeePerKwFloor btcutil.Amount = 253
-
 	// defaultUpdateInterval is the interval in which the minFeeManager collects
 	// new data from the bitcoin backend.
 	defaultUpdateInterval = 10 * time.Minute
@@ -48,6 +44,10 @@ type GBitcoindEstimator struct {
 	// enough information to calculate a fee. This value is in sat/kw.
 	fallbackFeeRate btcutil.Amount
 
+	// feeFloorSatPerKw keeps the version-dependent minimum relay fee we
+	// enforce when estimator data is missing or too low.
+	feeFloorSatPerKw btcutil.Amount
+
 	// minFeeManager is used to keep track of the minimum fee, in sat/kw,
 	// that we should enforce. This will be used as the default fee rate
 	// for a transaction when the estimated fee rate is too low to allow
@@ -64,16 +64,17 @@ type GBitcoindEstimator struct {
 // in the occasion that the estimator has insufficient data, or returns zero
 // for a fee estimate.
 func NewGBitcoindEstimator(bitcoindRpc GBitcoindBackend, estimateMode string,
-	fallBackFeeRate btcutil.Amount) (*GBitcoindEstimator, error) {
+	fallBackFeeRate btcutil.Amount, feeFloorSatPerKw btcutil.Amount) (*GBitcoindEstimator, error) {
 
 	if ok, err := bitcoindRpc.Ping(); !ok {
 		return nil, err
 	}
 
 	return &GBitcoindEstimator{
-		estimateMode:    estimateMode,
-		fallbackFeeRate: fallBackFeeRate,
-		bitcoindRpc:     bitcoindRpc,
+		estimateMode:     estimateMode,
+		fallbackFeeRate:  fallBackFeeRate,
+		feeFloorSatPerKw: feeFloorSatPerKw,
+		bitcoindRpc:      bitcoindRpc,
 	}, nil
 }
 
@@ -87,6 +88,7 @@ func (g *GBitcoindEstimator) Start() error {
 	// the backend node for its minimum mempool fee.
 	relayFeeManager, err := newMinFeeManager(
 		defaultUpdateInterval,
+		g.feeFloorSatPerKw,
 		g.fetchMinMempoolFee,
 	)
 	if err != nil {
@@ -128,8 +130,9 @@ func (g *GBitcoindEstimator) EstimateFeePerKW(targetBlocks uint32) (btcutil.Amou
 		log.Infof("Could not calculate on-chain fee: %v", err)
 		fallthrough
 	case feeEstimate == 0:
-		log.Debugf("Estimated fee is 0, using fallback fee %d", g.fallbackFeeRate)
-		return g.fallbackFeeRate, nil
+		fallback := max(g.fallbackFeeRate, g.currentFeeFloor())
+		log.Debugf("Estimated fee is 0, using fallback fee %d", fallback)
+		return fallback, nil
 
 	}
 
@@ -153,13 +156,24 @@ func (g *GBitcoindEstimator) estimateFee(targetBlocks uint32) (btcutil.Amount, e
 	satPerKw := satPerKB / witnessScaleFactor
 
 	// Finally compare the fee to our minimum floor
-	minRelayFee := g.minFeeManager.fetchMinFee()
+	minRelayFee := g.feeFloorSatPerKw
+	if g.minFeeManager != nil {
+		minRelayFee = g.minFeeManager.fetchMinFee()
+	}
 	if satPerKw < minRelayFee {
 		log.Debugf("Estimated fee rate %v sat/kw is too low, using floor %v sat/kw", satPerKw, minRelayFee)
 		satPerKw = minRelayFee
 	}
 
 	return satPerKw, nil
+}
+
+func (g *GBitcoindEstimator) currentFeeFloor() btcutil.Amount {
+	if g.minFeeManager == nil {
+		return g.feeFloorSatPerKw
+	}
+
+	return g.minFeeManager.fetchMinFee()
 }
 
 // LndEstimator uses the WalletKitClient to estimate the fee.
@@ -249,6 +263,7 @@ type minFeeManager struct {
 	lastUpdatedTime   time.Time
 	minUpdateInterval time.Duration
 	fetchFeeFunc      fetchFee
+	feeFloorSatPerKw  btcutil.Amount
 }
 
 // fetchFee represents a function that can be used to fetch a fee that is returned
@@ -259,6 +274,7 @@ type fetchFee func() (btcutil.Amount, error)
 // given fetchMinFee function to set the minFeePerKW of the minFeeManager.
 // This function requires the fetchMinFee function to succeed.
 func newMinFeeManager(minUpdateInterval time.Duration,
+	feeFloorSatPerKw btcutil.Amount,
 	fetchMinFee fetchFee) (*minFeeManager, error) {
 
 	minFee, err := fetchMinFee()
@@ -267,10 +283,11 @@ func newMinFeeManager(minUpdateInterval time.Duration,
 	}
 
 	return &minFeeManager{
-		minFeePerKW:       minFee,
+		minFeePerKW:       max(minFee, feeFloorSatPerKw),
 		lastUpdatedTime:   time.Now(),
 		minUpdateInterval: minUpdateInterval,
 		fetchFeeFunc:      fetchMinFee,
+		feeFloorSatPerKw:  feeFloorSatPerKw,
 	}, nil
 }
 
@@ -294,10 +311,10 @@ func (m *minFeeManager) fetchMinFee() btcutil.Amount {
 		return m.minFeePerKW
 	}
 
-	// By default, we'll use the backend node's minimum fee as the
-	// minimum fee rate we'll propose for transactions. However, if this
-	// happens to be lower than our fee floor, we'll enforce that instead.
-	m.minFeePerKW = max(newMinFee, FeePerKwFloor)
+	// By default, we'll use the backend node's minimum fee as the minimum fee
+	// rate we'll propose for transactions. However, if this happens to be lower
+	// than our fee floor, we'll enforce that instead.
+	m.minFeePerKW = max(newMinFee, m.feeFloorSatPerKw)
 	m.lastUpdatedTime = time.Now()
 
 	log.Debugf("Using minimum fee rate of %v sat/kw",
