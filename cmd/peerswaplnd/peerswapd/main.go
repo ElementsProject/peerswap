@@ -26,7 +26,6 @@ import (
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
