@@ -74,7 +74,7 @@ func (g *LiquidGetAddress) Get(client *ClightningClient) jrpc2.ServerMethod {
 	}
 }
 
-// GetBalance returns the liquid balance
+// LiquidGetBalance returns the liquid balance
 type LiquidGetBalance struct {
 	cl *ClightningClient
 }

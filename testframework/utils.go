@@ -20,7 +20,7 @@ import (
 // the desired conditions are met.
 type WaitFunc func() bool
 
-// WaitFunc returns a bool value to check if
+// WaitFuncWithErr returns a bool value to check if
 // the desired conditions are met. Also returns an
 // error.
 type WaitFuncWithErr func() (bool, error)
