@@ -1,4 +1,5 @@
 {
+  # Nix version: 2.29.1
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -37,14 +38,14 @@
         {
           devShells.default = mkShell {
             buildInputs = [
-              go_1_23        # Go 1.23.10 (updated from nixpkgs-unstable)
+              go             # Go 1.25.4
               gotools        # Go development tools
               blockstream-electrs  # Electrum Rust Server 0.4.1
-              bitcoind       # Bitcoin Core daemon v29.0.0 (updated from v28.0.0)
+              bitcoind       # Bitcoin Core daemon v30.0
               elementsd      # Elements daemon v23.2.4 (Liquid)
-              clightning     # Core Lightning v25.05 (updated from v24.11)
-              lnd           # Lightning Network Daemon 0.19.1-beta (updated from 0.18.3-beta)
-              lwk           # Liquid Wallet Kit 0.8.0
+              clightning     # Core Lightning v25.09.2
+              lnd            # Lightning Network Daemon 0.19.3-beta
+              lwk            # Liquid Wallet Kit 0.8.0
             ];
             # Cannot run the debugger without this
             # see https://github.com/go-delve/delve/issues/3085
