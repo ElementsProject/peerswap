@@ -18,13 +18,13 @@ import (
 )
 
 const (
-	// defaultGrpcBackoffTime is the linear back off time between failing grpc
+	// defaultGrpcBackoffTime is the linear backoff time between failing grpc
 	// calls (also server side stream) to the lnd node.
 	defaultGrpcBackoffTime = 30 * time.Second
 
 	// defaultMaxGrpcRetries is the amount of retries we take if the grpc
 	// connection to the lnd node drops for some reason or if the resource is
-	// exhausted. With the defaultGrpcBackoffTime and a constant back off
+	// exhausted. With the defaultGrpcBackoffTime and a constant backoff
 	// strategy this leads to 10 hours of retry.
 	defaultMaxGrpcRetries = 1200
 )
@@ -34,7 +34,7 @@ var (
 	// error, on which we retry our call (and server side stream) to the lnd
 	// node. The codes represent:
 	// - Unavailable:	The service is currently unavailable. This is most
-	//					likely a transient condition, which can be correctesd by
+	//					likely a transient condition, which can be corrected by
 	//					retrying with a backoff. Note that it is not always safe
 	//					to retry non-idempotent operations.
 	//

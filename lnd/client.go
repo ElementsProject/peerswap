@@ -25,7 +25,7 @@ import (
 )
 
 // Client combines multiple methods, functions and watchers to a service that
-// is consumed by the swap service. Client fulfils the swap.LightningClient
+// is consumed by the swap service. Client fulfills the swap.LightningClient
 // interface.
 // TODO: Rework the swap.LightningClient interface to separate the watchers from
 // the client service. This will make it easier to test and more modular to use.

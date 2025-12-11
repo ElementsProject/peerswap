@@ -54,7 +54,7 @@ func (s *RedundantMessenger) SendMessage(peerId string, message []byte, messageT
 		}
 	}()
 
-	// This function returns an error to fulfil the Messenger interface.
+	// This function returns an error to fulfill the Messenger interface.
 	return nil
 }
 

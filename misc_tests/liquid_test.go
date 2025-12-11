@@ -697,7 +697,7 @@ func Test_RpcWalletCoop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// todo muss ins protocol
+	// todo must be in protocol
 	if !bytes.Equal(ubRes.Asset, lbtc) {
 
 	}

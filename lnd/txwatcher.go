@@ -273,7 +273,7 @@ func (t *TxWatcher) AddWaitForCsvTx(swapId string, txId string, vout uint32, hei
 	// We use a confirmation number of 144 here as this is the maximum supported
 	// by lnd. Lnd assumes this to be a good value after which it is unlikely
 	// for a tx to be reorganized out of the chain.
-	// This means that we have to count the blocks after this by our self.
+	// This means that we have to count the blocks after this ourselves.
 	// TODO: Ask lnd why we can not listen longer?
 	confChan, errChan, err := t.addTxWatcher(ctx, swapId, txId, 144, heightHint, script)
 	if err != nil {
