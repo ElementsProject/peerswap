@@ -45,14 +45,14 @@ func Test_GrpcRetryRequest(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-    cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
-        context.Background(),
-        &peerswaplnd.LndConfig{
-            LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
-            TlsCertPath:  lnd.TlsPath,
-            MacaroonPath: lnd.MacaroonPath,
-        },
-    )
+	cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
+		context.Background(),
+		&peerswaplnd.LndConfig{
+			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
+			TlsCertPath:  lnd.TlsPath,
+			MacaroonPath: lnd.MacaroonPath,
+		},
+	)
 	if err != nil {
 		t.Fatalf("Could not create lnd client connection: %v", err)
 	}
@@ -116,14 +116,14 @@ func Test_GrpcReconnectStream(t *testing.T) {
 	t.Cleanup(lnd.Kill)
 
 	// Create a client connection to the lnd node. And a new lnd client.
-    cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
-        context.Background(),
-        &peerswaplnd.LndConfig{
-            LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
-            TlsCertPath:  lnd.TlsPath,
-            MacaroonPath: lnd.MacaroonPath,
-        },
-    )
+	cc, err := peerswaplndinternal.GetClientConnectionShortBackoff(
+		context.Background(),
+		&peerswaplnd.LndConfig{
+			LndHost:      fmt.Sprintf("localhost:%d", lnd.RpcPort),
+			TlsCertPath:  lnd.TlsPath,
+			MacaroonPath: lnd.MacaroonPath,
+		},
+	)
 	if err != nil {
 		t.Fatalf("Could not create lnd client connection: %v", err)
 	}

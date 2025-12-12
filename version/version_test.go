@@ -1,10 +1,11 @@
 package version
 
 import (
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func Test_VersionStore(t *testing.T) {

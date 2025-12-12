@@ -10,7 +10,7 @@ const (
 	liquidRpcUserOption             = "peerswap-elementsd-rpcuser"
 	liquidRpcPasswordOption         = "peerswap-elementsd-rpcpassword"
 	liquidRpcPasswordFilepathOption = "peerswap-elementsd-rpcpasswordfile"
-	liquidSwapsOption             = "peerswap-elementsd-swaps"
+	liquidSwapsOption               = "peerswap-elementsd-swaps"
 	liquidRpcWalletOption           = "peerswap-elementsd-rpcwallet"
 
 	bitcoinRpcHostOption     = "peerswap-bitcoin-rpchost"
@@ -53,7 +53,7 @@ type PeerswapClightningConfig struct {
 	LiquidRpcHost         string `json:"liquid.rpchost"`
 	LiquidRpcPort         uint   `json:"liquid.rpcport"`
 	LiquidRpcWallet       string `json:"liquid.rpcwallet"`
-	LiquidSwaps         bool   `json:"liquid.swaps"`
+	LiquidSwaps           bool   `json:"liquid.swaps"`
 
 	LWKSignerName    string `json:"lwksignername"`
 	LWKWalletName    string `json:"lwkwalletname"`
