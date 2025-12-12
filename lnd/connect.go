@@ -144,7 +144,7 @@ func GetClientConnection(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc
 // tests that intentionally bounce the LND daemon. This keeps production
 // behavior unchanged while allowing tests to run faster without build tags.
 func GetClientConnectionShortBackoff(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {
-    return getClientConnectionForTests(ctx, cfg)
+	return getClientConnectionForTests(ctx, cfg)
 }
 
 func getClientConnectionForTests(ctx context.Context, cfg *peerswaplnd.LndConfig) (*grpc.ClientConn, error) {

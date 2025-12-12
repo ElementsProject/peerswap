@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+
 	"go.etcd.io/bbolt"
 )
 

@@ -9,9 +9,9 @@ import (
 )
 
 func Test_SwapInMatrix(t *testing.T) {
-    t.Helper()
-    // Run this top-level matrix in parallel with others to reduce CI wall time.
-    t.Parallel()
+	t.Helper()
+	// Run this top-level matrix in parallel with others to reduce CI wall time.
+	t.Parallel()
 
 	cases := []struct {
 		name string
@@ -343,9 +343,9 @@ func runLwkLndLndSwapIn(t *testing.T) {
 }
 
 func Test_SwapOutMatrix(t *testing.T) {
-    t.Helper()
-    // Run this top-level matrix in parallel with others to reduce CI wall time.
-    t.Parallel()
+	t.Helper()
+	// Run this top-level matrix in parallel with others to reduce CI wall time.
+	t.Parallel()
 
 	cases := []struct {
 		name string
