@@ -25,7 +25,7 @@ func NewLwk(endpoint string) *lwkclient {
 	}
 }
 
-func (l *lwkclient) request(ctx context.Context, m jrpc2.Method, resp interface{}) error {
+func (l *lwkclient) request(ctx context.Context, m jrpc2.Method, resp any) error {
 	id := l.api.nextID()
 	mr := &jrpc2.Request{Id: id, Method: m}
 	jbytes, err := json.Marshal(mr)

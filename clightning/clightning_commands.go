@@ -34,7 +34,7 @@ type LiquidGetAddress struct {
 	cl *ClightningClient `json:"-"`
 }
 
-func (g *LiquidGetAddress) New() interface{} {
+func (g *LiquidGetAddress) New() any {
 	return &LiquidGetAddress{
 		cl: g.cl,
 	}
@@ -83,7 +83,7 @@ func (g *LiquidGetBalance) Name() string {
 	return "peerswap-lbtc-getbalance"
 }
 
-func (g *LiquidGetBalance) New() interface{} {
+func (g *LiquidGetBalance) New() any {
 	return &LiquidGetBalance{
 		cl: g.cl,
 	}
@@ -131,7 +131,7 @@ func (s *LiquidSendToAddress) Name() string {
 	return "peerswap-lbtc-sendtoaddress"
 }
 
-func (s *LiquidSendToAddress) New() interface{} {
+func (s *LiquidSendToAddress) New() any {
 	return &LiquidSendToAddress{
 		cl: s.cl,
 	}
@@ -183,7 +183,7 @@ type SwapOut struct {
 	cl                  *ClightningClient `json:"-"`
 }
 
-func (l *SwapOut) New() interface{} {
+func (l *SwapOut) New() any {
 	return &SwapOut{
 		cl: l.cl,
 	}
@@ -305,7 +305,7 @@ type SwapIn struct {
 	cl                  *ClightningClient `json:"-"`
 }
 
-func (l *SwapIn) New() interface{} {
+func (l *SwapIn) New() any {
 	return &SwapIn{
 		cl: l.cl,
 	}
@@ -419,7 +419,7 @@ type ListSwaps struct {
 	cl            *ClightningClient `json:"-"`
 }
 
-func (l *ListSwaps) New() interface{} {
+func (l *ListSwaps) New() any {
 	return &ListSwaps{
 		cl: l.cl,
 	}
@@ -484,7 +484,7 @@ func (l *ListNodes) LongDescription() string {
 	return ""
 }
 
-func (l *ListNodes) New() interface{} {
+func (l *ListNodes) New() any {
 	return &ListNodes{
 		cl: l.cl,
 	}
@@ -536,7 +536,7 @@ func (l *ListPeers) LongDescription() string {
 	return ""
 }
 
-func (l *ListPeers) New() interface{} {
+func (l *ListPeers) New() any {
 	return &ListPeers{
 		cl: l.cl,
 	}
@@ -627,7 +627,7 @@ func (g *GetSwap) Name() string {
 	return "peerswap-getswap"
 }
 
-func (g *GetSwap) New() interface{} {
+func (g *GetSwap) New() any {
 	return &GetSwap{
 		cl:     g.cl,
 		SwapId: g.SwapId,
@@ -682,7 +682,7 @@ func (c ReloadPolicyFile) Name() string {
 	return "peerswap-reloadpolicy"
 }
 
-func (c ReloadPolicyFile) New() interface{} {
+func (c ReloadPolicyFile) New() any {
 	return c
 }
 
@@ -727,7 +727,7 @@ func (c GetRequestedSwaps) Name() string {
 	return "peerswap-listswaprequests"
 }
 
-func (c GetRequestedSwaps) New() interface{} {
+func (c GetRequestedSwaps) New() any {
 	return c
 }
 
@@ -766,7 +766,7 @@ func (g *ListActiveSwaps) Name() string {
 	return "peerswap-listactiveswaps"
 }
 
-func (g *ListActiveSwaps) New() interface{} {
+func (g *ListActiveSwaps) New() any {
 	return &ListActiveSwaps{
 		cl: g.cl,
 	}
@@ -813,7 +813,7 @@ func (g *AllowSwapRequests) Name() string {
 	return "peerswap-allowswaprequests"
 }
 
-func (g *AllowSwapRequests) New() interface{} {
+func (g *AllowSwapRequests) New() any {
 	return &AllowSwapRequests{
 		cl:                      g.cl,
 		AllowSwapRequestsString: g.AllowSwapRequestsString,
@@ -863,7 +863,7 @@ func (g *AddPeer) Name() string {
 	return "peerswap-addpeer"
 }
 
-func (g *AddPeer) New() interface{} {
+func (g *AddPeer) New() any {
 	return &AddPeer{
 		cl:         g.cl,
 		PeerPubkey: g.PeerPubkey,
@@ -906,7 +906,7 @@ func (g *RemovePeer) Name() string {
 	return "peerswap-removepeer"
 }
 
-func (g *RemovePeer) New() interface{} {
+func (g *RemovePeer) New() any {
 	return &RemovePeer{
 		cl:         g.cl,
 		PeerPubkey: g.PeerPubkey,
@@ -949,7 +949,7 @@ func (g *AddSuspiciousPeer) Name() string {
 	return "peerswap-addsuspeer"
 }
 
-func (g *AddSuspiciousPeer) New() interface{} {
+func (g *AddSuspiciousPeer) New() any {
 	return &AddSuspiciousPeer{
 		cl:         g.cl,
 		PeerPubkey: g.PeerPubkey,
@@ -993,7 +993,7 @@ func (g *RemoveSuspiciousPeer) Name() string {
 	return "peerswap-removesuspeer"
 }
 
-func (g *RemoveSuspiciousPeer) New() interface{} {
+func (g *RemoveSuspiciousPeer) New() any {
 	return &RemoveSuspiciousPeer{
 		cl:         g.cl,
 		PeerPubkey: g.PeerPubkey,
@@ -1037,7 +1037,7 @@ func (c *ListConfig) Name() string {
 	return "peerswap-listconfig"
 }
 
-func (c *ListConfig) New() interface{} {
+func (c *ListConfig) New() any {
 	return &ListConfig{
 		cl: c.cl,
 	}
@@ -1098,7 +1098,7 @@ func (c *GetPremiumRate) Name() string {
 	return "peerswap-getpremiumrate"
 }
 
-func (c *GetPremiumRate) New() interface{} {
+func (c *GetPremiumRate) New() any {
 	return &GetPremiumRate{
 		cl: c.cl,
 	}
@@ -1146,7 +1146,7 @@ func (c *UpdatePremiumRate) Name() string {
 	return "peerswap-updatepremiumrate"
 }
 
-func (c *UpdatePremiumRate) New() interface{} {
+func (c *UpdatePremiumRate) New() any {
 	return &UpdatePremiumRate{
 		cl: c.cl,
 	}
@@ -1200,7 +1200,7 @@ func (c *DeletePremiumRate) Name() string {
 	return "peerswap-deletepremiumrate"
 }
 
-func (c *DeletePremiumRate) New() interface{} {
+func (c *DeletePremiumRate) New() any {
 	return &DeletePremiumRate{
 		cl: c.cl,
 	}
@@ -1250,7 +1250,7 @@ func (c *UpdateGlobalPremiumRate) Name() string {
 	return "peerswap-updateglobalpremiumrate"
 }
 
-func (c *UpdateGlobalPremiumRate) New() interface{} {
+func (c *UpdateGlobalPremiumRate) New() any {
 	return &UpdateGlobalPremiumRate{
 		cl: c.cl,
 	}
@@ -1303,7 +1303,7 @@ func (c *GetGlobalPremiumRate) Name() string {
 	return "peerswap-getglobalpremiumrate"
 }
 
-func (c *GetGlobalPremiumRate) New() interface{} {
+func (c *GetGlobalPremiumRate) New() any {
 	return &GetGlobalPremiumRate{
 		cl: c.cl,
 	}

@@ -41,7 +41,7 @@ type Client struct {
 	cc  *grpc.ClientConn
 	ctx context.Context
 
-	invoiceSubscriptions map[string]interface{}
+	invoiceSubscriptions map[string]any
 	pubkey               string
 
 	sync.Mutex
@@ -72,7 +72,7 @@ func NewClient(
 		cc:                   cc,
 		ctx:                  ctx,
 		pubkey:               gi.IdentityPubkey,
-		invoiceSubscriptions: make(map[string]interface{}),
+		invoiceSubscriptions: make(map[string]any),
 	}, nil
 }
 

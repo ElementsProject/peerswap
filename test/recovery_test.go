@@ -61,7 +61,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	// Do swap.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-		var response map[string]interface{}
+		var response map[string]any
 		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -200,7 +200,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	// Do swap.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-		var response map[string]interface{}
+		var response map[string]any
 		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -312,7 +312,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	// Do swap.
 	go func() {
 		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-		var response map[string]interface{}
+		var response map[string]any
 		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,

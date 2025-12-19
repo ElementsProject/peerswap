@@ -71,7 +71,7 @@ func startLiquidSwap(t *testing.T, params *testParams) {
 		)
 
 		var (
-			response map[string]interface{}
+			response map[string]any
 			err      error
 		)
 

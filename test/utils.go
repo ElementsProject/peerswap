@@ -107,7 +107,7 @@ func (n *clnPollableNode) ID() string {
 }
 
 func (n *clnPollableNode) TriggerPoll() error {
-	var result interface{}
+	var result any
 	err := n.Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
 	if err != nil {
 		return err

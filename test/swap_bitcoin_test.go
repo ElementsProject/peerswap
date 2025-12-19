@@ -72,7 +72,7 @@ func startClnSwap(t *testing.T, params *testParams) {
 			t.Fatalf("maker node is not a CLightningNode")
 		}
 		go func(node *testframework.CLightningNode) {
-			var response map[string]interface{}
+			var response map[string]any
 			_ = node.Rpc.Request(&clightning.SwapIn{
 				SatAmt:              params.swapAmt,
 				ShortChannelId:      params.scid,
@@ -86,7 +86,7 @@ func startClnSwap(t *testing.T, params *testParams) {
 			t.Fatalf("taker node is not a CLightningNode")
 		}
 		go func(node *testframework.CLightningNode) {
-			var response map[string]interface{}
+			var response map[string]any
 			_ = node.Rpc.Request(&clightning.SwapOut{
 				SatAmt:              params.swapAmt,
 				ShortChannelId:      params.scid,
@@ -216,7 +216,7 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			var response map[string]interface{}
+			var response map[string]any
 			err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 				SatAmt:              params.swapAmt,
 				ShortChannelId:      params.scid,
@@ -256,7 +256,7 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 		asset := "btc"
 
 		// Swap out should fail as the swap_amt is to high.
-		var response map[string]interface{}
+		var response map[string]any
 		err := lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -291,7 +291,7 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 		_, err := lightningds[0].SetHtlcMaximumMilliSatoshis(scid, params.origTakerBalance*1000/2-1)
 		assertNoError(t, err)
 
-		var response map[string]interface{}
+		var response map[string]any
 		err = lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -312,7 +312,7 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 		_, err := lightningds[0].SetHtlcMaximumMilliSatoshis(scid, params.origTakerBalance*1000/2-1)
 		assertNoError(t, err)
 
-		var response map[string]interface{}
+		var response map[string]any
 		err = lightningds[1].Rpc.Request(&clightning.SwapIn{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -339,7 +339,7 @@ func Test_Cln_Premium(t *testing.T) {
 		DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
 		var premiumRatePPM int64 = -10000
-		var premiumRes interface{}
+		var premiumRes any
 		err := lightningds[0].Rpc.Request(&clightning.UpdatePremiumRate{
 			PeerID:         lightningds[1].Id(),
 			Asset:          premium.BTC.String(),
@@ -352,7 +352,7 @@ func Test_Cln_Premium(t *testing.T) {
 		params.swapInPremiumRate = premiumRatePPM
 		asset := "btc"
 
-		var response map[string]interface{}
+		var response map[string]any
 		err = lightningds[1].Rpc.Request(&clightning.SwapIn{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -376,7 +376,7 @@ func Test_Cln_Premium(t *testing.T) {
 		DumpOnFailure(t, WithBitcoin(bitcoind), WithCLightnings(lightningds))
 
 		var premiumRatePPM int64 = -10000
-		var premiumRes interface{}
+		var premiumRes any
 		err := lightningds[1].Rpc.Request(&clightning.UpdatePremiumRate{
 			PeerID:         lightningds[0].Id(),
 			Asset:          premium.BTC.String(),
@@ -389,7 +389,7 @@ func Test_Cln_Premium(t *testing.T) {
 		params.swapOutPremiumRate = premiumRatePPM
 		asset := "btc"
 
-		var response map[string]interface{}
+		var response map[string]any
 		err = lightningds[0].Rpc.Request(&clightning.SwapOut{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -411,7 +411,7 @@ func Test_Cln_Premium(t *testing.T) {
 		params.premiumLimitRatePPM = -1
 		asset := "btc"
 
-		var response map[string]interface{}
+		var response map[string]any
 		err := lightningds[1].Rpc.Request(&clightning.SwapIn{
 			SatAmt:              params.swapAmt,
 			ShortChannelId:      params.scid,
@@ -446,7 +446,7 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 		return lightningds[1].IsChannelActive(scid)
 	}, testframework.TIMEOUT))
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := lightningds[1].Rpc.Request(
 		&clightning.SwapIn{
 			SatAmt:         100,
@@ -482,7 +482,7 @@ func Test_ClnCln_Poll(t *testing.T) {
 	// Ensure that the poll executed at the start of peerswap succeeds
 	require.Error(lightningds[0].WaitForLog("failed to send custom message", 20*time.Second))
 	for _, lightningd := range lightningds {
-		var result interface{}
+		var result any
 		err := lightningd.Rpc.Request(&clightning.ReloadPolicyFile{}, &result)
 		if err != nil {
 			t.Fatal(err)

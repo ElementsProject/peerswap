@@ -344,9 +344,9 @@ type ParsedClnConfig struct {
 }
 
 type PluginConfig struct {
-	Path    string                 `json:"path"`
-	Name    string                 `json:"name"`
-	Options map[string]interface{} `json:"options"`
+	Path    string         `json:"path"`
+	Name    string         `json:"name"`
+	Options map[string]any `json:"options"`
 }
 
 type ConfigEntry struct {
@@ -378,7 +378,7 @@ func isBitcoinConfigEmpty(bitcoin *BitcoinConf) bool {
 		bitcoin.RpcPasswordFile == "" && bitcoin.RpcHost == "" && bitcoin.RpcPort == 0
 }
 
-func parseClnConfig(conf interface{}) (*ParsedClnConfig, error) {
+func parseClnConfig(conf any) (*ParsedClnConfig, error) {
 	data, err := json.Marshal(conf)
 	if err != nil {
 		return nil, err
@@ -425,7 +425,7 @@ func applyPluginConfig(c *Config, plugins []*PluginConfig) {
 	}
 }
 
-func applyBcliOptions(c *Config, options map[string]interface{}) {
+func applyBcliOptions(c *Config, options map[string]any) {
 	if v, ok := options["bitcoin-datadir"]; ok {
 		c.Bitcoin.DataDir = toString(v)
 	}
@@ -443,14 +443,14 @@ func applyBcliOptions(c *Config, options map[string]interface{}) {
 	}
 }
 
-func toString(v interface{}) string {
+func toString(v any) string {
 	if str, ok := v.(string); ok {
 		return str
 	}
 	return ""
 }
 
-func toUint(v interface{}) uint {
+func toUint(v any) uint {
 	switch val := v.(type) {
 	case string:
 		port, err := strconv.Atoi(val)

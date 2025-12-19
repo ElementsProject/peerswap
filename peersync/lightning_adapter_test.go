@@ -68,11 +68,11 @@ func (m *mockCustomMessageStream) Context() context.Context {
 	return m.ctx
 }
 
-func (m *mockCustomMessageStream) SendMsg(interface{}) error {
+func (m *mockCustomMessageStream) SendMsg(any) error {
 	return nil
 }
 
-func (m *mockCustomMessageStream) RecvMsg(interface{}) error {
+func (m *mockCustomMessageStream) RecvMsg(any) error {
 	return nil
 }
 

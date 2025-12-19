@@ -154,7 +154,7 @@ func NewRpcProxy(configFile string) (*RpcProxy, error) {
 	}, nil
 }
 
-func (p *RpcProxy) Call(method string, parameters ...interface{}) (*jsonrpc.RPCResponse, error) {
+func (p *RpcProxy) Call(method string, parameters ...any) (*jsonrpc.RPCResponse, error) {
 	return p.Rpc.Call(method, parameters...)
 }
 

@@ -383,7 +383,7 @@ func (s *SwapStateMachine) printFeeInvoiceInfo() {
 	s.Infof("Paid Feeinvoice of %v sats", paidAmt)
 }
 
-func (s *SwapStateMachine) Infof(format string, v ...interface{}) {
+func (s *SwapStateMachine) Infof(format string, v ...any) {
 	idString := fmt.Sprintf("%s", s.SwapId.String())
 	log.Infof("[Swap:"+idString+"] "+format, v...)
 }

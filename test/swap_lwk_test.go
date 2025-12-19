@@ -39,7 +39,7 @@ func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
 			t.Fatalf("maker node is not a CLightningNodeWithLiquid")
 		}
 		go func(node *CLightningNodeWithLiquid) {
-			var response map[string]interface{}
+			var response map[string]any
 			err := node.Rpc.Request(&clightning.SwapIn{
 				SatAmt:              params.swapAmt,
 				ShortChannelId:      params.scid,
@@ -56,7 +56,7 @@ func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
 			t.Fatalf("taker node is not a CLightningNodeWithLiquid")
 		}
 		go func(node *CLightningNodeWithLiquid) {
-			var response map[string]interface{}
+			var response map[string]any
 			err := node.Rpc.Request(&clightning.SwapOut{
 				SatAmt:              params.swapAmt,
 				ShortChannelId:      params.scid,
@@ -202,7 +202,7 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 				lwk.Process.Kill()
 			},
 			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
-				var response map[string]interface{}
+				var response map[string]any
 				return node.Rpc.Request(
 					&clightning.SwapOut{
 						SatAmt:              params.swapAmt,
@@ -220,7 +220,7 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 				electrs.Process.Kill()
 			},
 			request: func(node *CLightningNodeWithLiquid, params *testParams) error {
-				var response map[string]interface{}
+				var response map[string]any
 				return node.Rpc.Request(
 					&clightning.SwapOut{
 						SatAmt:         params.swapAmt,

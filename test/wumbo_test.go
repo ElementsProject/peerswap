@@ -113,7 +113,7 @@ func Test_Wumbo(t *testing.T) {
 			// Ensure BTC premiums are zero for this test. Defaults for swap_out are non-zero (2000 ppm).
 			// Use the global premium setter to avoid peer-specific state.
 			for _, ln := range lightningds {
-				var _resp map[string]interface{}
+				var _resp map[string]any
 				// Set BTC SWAP_OUT premium to 0 ppm.
 				err := ln.Rpc.Request(
 					&clightning.UpdateGlobalPremiumRate{
@@ -170,7 +170,7 @@ func Test_Wumbo(t *testing.T) {
 					premiumLimitRatePPM: int64(tt.swapAmtSat / 10),
 				}
 
-				var response map[string]interface{}
+				var response map[string]any
 				err = lightningds[0].Rpc.Request(
 					&clightning.SwapOut{
 						SatAmt:              params.swapAmt,
@@ -200,7 +200,7 @@ func Test_Wumbo(t *testing.T) {
 					premiumLimitRatePPM: int64(tt.swapAmtSat / 10),
 				}
 
-				var response map[string]interface{}
+				var response map[string]any
 				err = lightningds[1].Rpc.Request(
 					&clightning.SwapIn{
 						SatAmt:              params.swapAmt,

@@ -611,11 +611,11 @@ func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, func() error, er
 	return &LndLogger{loglevel: cfg.LogLevel}, logFile.Close, nil
 }
 
-func (l *LndLogger) Infof(format string, v ...interface{}) {
+func (l *LndLogger) Infof(format string, v ...any) {
 	core_log.Printf("[INFO] "+format, v...)
 }
 
-func (l *LndLogger) Debugf(format string, v ...interface{}) {
+func (l *LndLogger) Debugf(format string, v ...any) {
 	if l.loglevel == peerswaplnd.LOGLEVEL_DEBUG {
 		core_log.Printf("[DEBUG] "+format, v...)
 	}

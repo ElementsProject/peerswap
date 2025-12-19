@@ -69,7 +69,7 @@ func makeTestDataDir(t *testing.T) string {
 	return tempDir
 }
 
-func mustToml(tb testing.TB, v interface{}) []byte {
+func mustToml(tb testing.TB, v any) []byte {
 	tb.Helper()
 
 	data, err := toml.Marshal(v)
@@ -275,7 +275,7 @@ func clnclnElementsSetup(
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
 
-	var result interface{}
+	var result any
 	requireNoError(t, lightningds[0].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 	requireNoError(t, lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 
@@ -579,7 +579,7 @@ func clnclnLWKSetup(t *testing.T, fundAmt uint64) (
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
 
-	var result interface{}
+	var result any
 	requireNoError(t, lightningds[0].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 	requireNoError(t, lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 
@@ -949,7 +949,7 @@ func clnclnLWKLiquidSetup(t *testing.T, fundAmt uint64) (
 		t.Fatalf("lightingds[0].OpenChannel() %v", err)
 	}
 
-	var result interface{}
+	var result any
 	requireNoError(t, lightningds[0].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 	requireNoError(t, lightningds[1].Rpc.Request(&clightning.ReloadPolicyFile{}, &result))
 

@@ -83,7 +83,7 @@ type ClightningClient struct {
 
 	msgHandlers     []func(peerId string, messageType string, payload []byte) error
 	paymenthandlers []func(swapId string, invoiceType swap.InvoiceType)
-	initChan        chan interface{}
+	initChan        chan any
 	nodeId          string
 	hexToIdMap      map[string]string
 
@@ -134,7 +134,7 @@ func (cl *ClightningClient) AddPaymentNotifier(swapId string, payreq string, inv
 }
 
 // NewClightningClient returns a new clightning cl and channel which get closed when the Plugin is initialized
-func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interface{}, error) {
+func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan any, error) {
 	cl := &ClightningClient{ctx: ctx}
 	cl.Plugin = glightning.NewPlugin(cl.onInit)
 	err := cl.Plugin.RegisterHooks(&glightning.Hooks{
@@ -154,7 +154,7 @@ func NewClightningClient(ctx context.Context) (*ClightningClient, <-chan interfa
 	//b = b.Exp(big.NewInt(2), big.NewInt(featureBit), nil)
 	//cl.Plugin.AddNodeFeatures(b.Bytes())
 	cl.Plugin.SetDynamic(true)
-	cl.initChan = make(chan interface{})
+	cl.initChan = make(chan any)
 	cl.hexToIdMap = make(map[string]string)
 	return cl, cl.initChan, nil
 }
@@ -685,10 +685,10 @@ func NewGlightninglogger(plugin *glightning.Plugin) *Glightninglogger {
 	return &Glightninglogger{plugin: plugin}
 }
 
-func (g *Glightninglogger) Infof(format string, v ...interface{}) {
+func (g *Glightninglogger) Infof(format string, v ...any) {
 	g.plugin.Log(fmt.Sprintf(format, v...), glightning.Info)
 }
 
-func (g *Glightninglogger) Debugf(format string, v ...interface{}) {
+func (g *Glightninglogger) Debugf(format string, v ...any) {
 	g.plugin.Log(fmt.Sprintf(format, v...), glightning.Debug)
 }
