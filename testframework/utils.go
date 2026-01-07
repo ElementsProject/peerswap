@@ -74,7 +74,7 @@ func RequireWaitForBalanceChange(t *testing.T, node LightningNode, scid string, 
 	}
 }
 
-// AssertWaitForBalanceChange waits for a change form the before value until
+// AssertWaitForBalanceChange waits for a change from the before value until
 // timeout. Returns false if timeout was triggered and fails the test.
 func AssertWaitForBalanceChange(t *testing.T, node LightningNode, scid string, before uint64, timeout time.Duration) bool {
 	err := waitForBalanceChange(t, node, scid, before, timeout)

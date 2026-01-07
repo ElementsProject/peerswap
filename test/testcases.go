@@ -297,7 +297,7 @@ func preimageClaimTest(t *testing.T, params *testParams) {
 	testframework.AssertOnchainBalanceInDelta(t,
 		params.makerNode, expect.MakerWalletAfterPreimageClaim(commitFee), 1, time.Second*10)
 
-	// Check latest invoice memo should be of the form "swap-in btc claim <swap_id>"
+	// Check latest invoice memo should be in the form "swap-in btc claim <swap_id>"
 	bolt11, err := params.makerNode.GetLatestInvoice()
 	require.NoError(err)
 

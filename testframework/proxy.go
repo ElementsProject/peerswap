@@ -41,7 +41,7 @@ var (
 	// error, on which we retry our call (and server side stream) to the lnd
 	// node. The codes represent:
 	// - Unavailable:	The service is currently unavailable. This is most
-	//					likely a transient condition, which can be correctesd by
+	//					likely a transient condition, which can be corrected by
 	//					retrying with a backoff. Note that it is not always safe
 	//					to retry non-idempotent operations.
 	//
