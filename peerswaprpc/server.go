@@ -320,11 +320,24 @@ func (p *PeerswapServer) ListSwaps(ctx context.Context, request *ListSwapsReques
 		}
 		return false
 	})
-	var resSwaps []*PrettyPrintSwap
-	for _, v := range swaps {
+
+	if request.GetDescending() {
+		for i, j := 0, len(swaps)-1; i < j; i, j = i+1, j-1 {
+			swaps[i], swaps[j] = swaps[j], swaps[i]
+		}
+	}
+
+	start, end, nextToken, err := pagingBounds(len(swaps), request.GetPageSize(), request.GetPageToken(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	pageSwaps := swaps[start:end]
+	resSwaps := make([]*PrettyPrintSwap, 0, len(pageSwaps))
+	for _, v := range pageSwaps {
 		resSwaps = append(resSwaps, PrettyprintFromServiceSwap(v))
 	}
-	return &ListSwapsResponse{Swaps: resSwaps}, nil
+	return &ListSwapsResponse{Swaps: resSwaps, NextPageToken: nextToken}, nil
 }
 
 func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersRequest) (*ListPeersResponse, error) {
@@ -347,23 +360,39 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 		}
 	}
 
-	var peerSwapPeers []*PeerSwapPeer
+	eligiblePubKeys := make([]string, 0, len(peersRes.Peers))
 	for _, v := range peersRes.Peers {
-		if peerState, ok := compatiblePeers[v.PubKey]; ok {
-			capability := peerState.Capability()
-			swaps, err := p.swaps.ListSwapsByPeer(v.PubKey)
-			if err != nil {
-				return nil, err
-			}
+		if _, ok := compatiblePeers[v.PubKey]; ok {
+			eligiblePubKeys = append(eligiblePubKeys, v.PubKey)
+		}
+	}
 
-			view := format.BuildPeerView(v.PubKey, capability, swaps)
-			peer := NewPeerSwapPeerFromView(view)
-			peer.Channels = getPeerSwapChannels(v.PubKey, channelRes.Channels)
-			peerSwapPeers = append(peerSwapPeers, peer)
+	sort.Strings(eligiblePubKeys)
+
+	start, end, nextToken, err := pagingBounds(len(eligiblePubKeys), request.GetPageSize(), request.GetPageToken(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	pagePubKeys := eligiblePubKeys[start:end]
+
+	peerSwapPeers := make([]*PeerSwapPeer, 0, len(pagePubKeys))
+	for _, pubKey := range pagePubKeys {
+		peerState := compatiblePeers[pubKey]
+		capability := peerState.Capability()
+
+		swaps, err := p.swaps.ListSwapsByPeer(pubKey)
+		if err != nil {
+			return nil, err
 		}
 
+		view := format.BuildPeerView(pubKey, capability, swaps)
+		peer := NewPeerSwapPeerFromView(view)
+		peer.Channels = getPeerSwapChannels(pubKey, channelRes.Channels)
+		peerSwapPeers = append(peerSwapPeers, peer)
 	}
-	return &ListPeersResponse{Peers: peerSwapPeers}, nil
+
+	return &ListPeersResponse{Peers: peerSwapPeers, NextPageToken: nextToken}, nil
 }
 
 func getPeerSwapChannels(peerId string, channelList []*lnrpc.Channel) []*PeerSwapPeerChannel {
@@ -490,11 +519,24 @@ func (p *PeerswapServer) ListActiveSwaps(ctx context.Context, request *ListSwaps
 		}
 		return false
 	})
-	var resSwaps []*PrettyPrintSwap
-	for _, v := range swaps {
+
+	if request.GetDescending() {
+		for i, j := 0, len(swaps)-1; i < j; i, j = i+1, j-1 {
+			swaps[i], swaps[j] = swaps[j], swaps[i]
+		}
+	}
+
+	start, end, nextToken, err := pagingBounds(len(swaps), request.GetPageSize(), request.GetPageToken(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	pageSwaps := swaps[start:end]
+	resSwaps := make([]*PrettyPrintSwap, 0, len(pageSwaps))
+	for _, v := range pageSwaps {
 		resSwaps = append(resSwaps, PrettyprintFromServiceSwap(v))
 	}
-	return &ListSwapsResponse{Swaps: resSwaps}, nil
+	return &ListSwapsResponse{Swaps: resSwaps, NextPageToken: nextToken}, nil
 }
 
 func (p *PeerswapServer) AllowSwapRequests(ctx context.Context, request *AllowSwapRequestsRequest) (*Policy, error) {

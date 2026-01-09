@@ -173,6 +173,16 @@ pscli deletepeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [
 
 `listpeers` - A command that returns peers that support the PeerSwap protocol. It also gives statistics about received and sent swaps to a peer.
 
+For LND:
+```bash
+# Page through results using next_page_token
+pscli listpeers --page_size 100
+pscli listpeers --page_size 100 --page_token "<next_page_token from previous response>"
+
+# Return all peers (may be large)
+pscli listpeers --page_size 0
+```
+
 Example output:
 ```bash
 [
@@ -207,7 +217,23 @@ Example output:
 
 `listswaps [detailed bool (optional)]` - A command that lists all swaps. If _detailed_ is set the output shows the swap data as it is saved in the database
 
+For LND:
+```bash
+# Page through results using next_page_token (newest first by default)
+pscli listswaps --page_size 100
+pscli listswaps --page_size 100 --page_token "<next_page_token from previous response>"
+
+# Return all swaps (may be large)
+pscli listswaps --page_size 0
+```
+
 `listactiveswaps` - List all ongoing swaps, useful to track swaps when upgrading PeerSwap
+
+For LND:
+```bash
+pscli listactiveswaps --page_size 100
+pscli listactiveswaps --page_size 100 --page_token "<next_page_token from previous response>"
+```
 
 `listswaprequests` - Lists rejected swaps requested by peer nodes.
 
