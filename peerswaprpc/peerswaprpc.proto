@@ -94,16 +94,39 @@ message GetSwapRequest {
   string swap_id = 1;
 }
 
-message ListSwapsRequest {}
+message ListSwapsRequest {
+  // The maximum number of swaps to return in a single response.
+  // If omitted (0) and page_token is empty, the server returns all swaps for
+  // backward compatibility.
+  // If omitted (0) and page_token is set, the server uses a default page size.
+  uint32 page_size = 1;
+
+  // Opaque token returned by a previous ListSwaps call.
+  string page_token = 2;
+
+  // If true, return swaps ordered by created_at descending (newest first).
+  bool descending = 3;
+}
 
 message ListSwapsResponse {
   repeated PrettyPrintSwap swaps = 1;
+  string next_page_token = 2;
 }
 
-message ListPeersRequest {}
+message ListPeersRequest {
+  // The maximum number of peers to return in a single response.
+  // If omitted (0) and page_token is empty, the server returns all peers for
+  // backward compatibility.
+  // If omitted (0) and page_token is set, the server uses a default page size.
+  uint32 page_size = 1;
+
+  // Opaque token returned by a previous ListPeers call.
+  string page_token = 2;
+}
 
 message ListPeersResponse {
   repeated PeerSwapPeer peers = 1;
+  string next_page_token = 2;
 }
 
 message ReloadPolicyFileRequest {}

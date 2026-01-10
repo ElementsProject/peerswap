@@ -110,6 +110,23 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "pageSize",
+            "description": "The maximum number of peers to return in a single response.\nIf omitted (0) and page_token is empty, the server returns all peers for\nbackward compatibility.\nIf omitted (0) and page_token is set, the server uses a default page size.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "pageToken",
+            "description": "Opaque token returned by a previous ListPeers call.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "PeerSwap"
         ]
@@ -314,6 +331,30 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "pageSize",
+            "description": "The maximum number of swaps to return in a single response.\nIf omitted (0) and page_token is empty, the server returns all swaps for\nbackward compatibility.\nIf omitted (0) and page_token is set, the server uses a default page size.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "pageToken",
+            "description": "Opaque token returned by a previous ListSwaps call.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "descending",
+            "description": "If true, return swaps ordered by created_at descending (newest first).",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
         "tags": [
           "PeerSwap"
         ]
@@ -336,6 +377,30 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "pageSize",
+            "description": "The maximum number of swaps to return in a single response.\nIf omitted (0) and page_token is empty, the server returns all swaps for\nbackward compatibility.\nIf omitted (0) and page_token is set, the server uses a default page size.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "pageToken",
+            "description": "Opaque token returned by a previous ListSwaps call.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "descending",
+            "description": "If true, return swaps ordered by created_at descending (newest first).",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
         "tags": [
           "PeerSwap"
         ]
@@ -554,6 +619,9 @@
           "items": {
             "$ref": "#/definitions/peerswapPeerSwapPeer"
           }
+        },
+        "nextPageToken": {
+          "type": "string"
         }
       }
     },
@@ -576,6 +644,9 @@
           "items": {
             "$ref": "#/definitions/peerswapPrettyPrintSwap"
           }
+        },
+        "nextPageToken": {
+          "type": "string"
         }
       }
     },

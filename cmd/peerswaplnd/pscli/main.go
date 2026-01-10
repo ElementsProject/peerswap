@@ -95,6 +95,19 @@ var (
 		Usage:    "node ID of the peer",
 		Required: true,
 	}
+	listPageSizeFlag = cli.UintFlag{
+		Name:  "page_size",
+		Usage: "max number of items to return (0 = all)",
+		Value: 100,
+	}
+	listPageTokenFlag = cli.StringFlag{
+		Name:  "page_token",
+		Usage: "paging token returned by the previous response",
+	}
+	listDescendingFlag = cli.BoolTFlag{
+		Name:  "descending",
+		Usage: "order by created_at descending (newest first)",
+	}
 
 	swapOutCommand = cli.Command{
 		Name:  "swapout",
@@ -131,15 +144,15 @@ var (
 
 	listSwapsCommand = cli.Command{
 		Name:   "listswaps",
-		Usage:  "lists all swaps",
-		Flags:  []cli.Flag{},
+		Usage:  "lists swaps (paged by default)",
+		Flags:  []cli.Flag{listPageSizeFlag, listPageTokenFlag, listDescendingFlag},
 		Action: listSwaps,
 	}
 
 	listPeersCommand = cli.Command{
 		Name:   "listpeers",
-		Usage:  "lists all peerswap-enabled peers",
-		Flags:  []cli.Flag{},
+		Usage:  "lists peerswap-enabled peers (paged by default)",
+		Flags:  []cli.Flag{listPageSizeFlag, listPageTokenFlag},
 		Action: listPeers,
 	}
 	reloadPolicyFileCommand = cli.Command{
@@ -178,6 +191,7 @@ var (
 	listActiveSwapsCommand = cli.Command{
 		Name:   "listactiveswaps",
 		Usage:  "list active swaps",
+		Flags:  []cli.Flag{listPageSizeFlag, listPageTokenFlag, listDescendingFlag},
 		Action: listActiveSwaps,
 	}
 	allowSwapRequestsCommand = cli.Command{
@@ -344,7 +358,11 @@ func listSwaps(ctx *cli.Context) error {
 	}
 	defer cleanup()
 
-	res, err := client.ListSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{})
+	res, err := client.ListSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{
+		PageSize:   uint32(ctx.Uint(listPageSizeFlag.Name)),
+		PageToken:  ctx.String(listPageTokenFlag.Name),
+		Descending: ctx.Bool(listDescendingFlag.Name),
+	})
 	if err != nil {
 		return err
 	}
@@ -359,7 +377,10 @@ func listPeers(ctx *cli.Context) error {
 	}
 	defer cleanup()
 
-	res, err := client.ListPeers(context.Background(), &peerswaprpc.ListPeersRequest{})
+	res, err := client.ListPeers(context.Background(), &peerswaprpc.ListPeersRequest{
+		PageSize:  uint32(ctx.Uint(listPageSizeFlag.Name)),
+		PageToken: ctx.String(listPageTokenFlag.Name),
+	})
 	if err != nil {
 		return err
 	}
@@ -452,7 +473,11 @@ func listActiveSwaps(ctx *cli.Context) error {
 	}
 	defer cleanup()
 
-	res, err := client.ListActiveSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{})
+	res, err := client.ListActiveSwaps(context.Background(), &peerswaprpc.ListSwapsRequest{
+		PageSize:   uint32(ctx.Uint(listPageSizeFlag.Name)),
+		PageToken:  ctx.String(listPageTokenFlag.Name),
+		Descending: ctx.Bool(listDescendingFlag.Name),
+	})
 	if err != nil {
 		return err
 	}
