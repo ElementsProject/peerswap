@@ -244,6 +244,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		return err
 	}
 
+	bitcoinFeeFloor := onchain.LegacyFeeFloorSatPerKw
 	var bitcoinTxWatcher *txwatcher.BlockchainRpcTxWatcher
 	var bitcoinOnChainService *onchain.BitcoinOnChain
 	var bitcoinEnabled bool
@@ -252,6 +253,14 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true
 		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
+
+		floor, detectedVersion, floorErr := determineBitcoinFeeFloor(bitcoinCli)
+		if floorErr != nil {
+			log.Infof("Unable to detect Bitcoin Core version, defaulting fee floor to %d sat/kw: %v", floor, floorErr)
+		} else {
+			log.Infof("Detected Bitcoin Core version %s, using fee floor %d sat/kw", detectedVersion, floor)
+		}
+		bitcoinFeeFloor = floor
 
 		// We set the default Estimator to the static regtest estimator.
 		var bitcoinEstimator onchain.Estimator
@@ -271,6 +280,7 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 				bitcoinCli,
 				"ECONOMICAL",
 				fallbackFeeRateSatPerKw,
+				bitcoinFeeFloor,
 			)
 			if err != nil {
 				return err
@@ -281,14 +291,12 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			return err
 		}
 
-		// Create the bitcoin onchain service with a fallback fee rate of
-		// 253 sat/kw. (This should be useless in this case).
-		// TODO: This fee rate does not matter right now but we might want to
-		// add a config flag to set this higher than the assumed floor fee rate
-		// of 275 sat/kw (1.1 sat/vb).
+		// Create the bitcoin onchain service while keeping the same fee floor for
+		// estimator and fallback paths.
 		bitcoinOnChainService = onchain.NewBitcoinOnChain(
 			bitcoinEstimator,
-			btcutil.Amount(253),
+			bitcoinFeeFloor,
+			bitcoinFeeFloor,
 			chain,
 		)
 	} else {
@@ -506,6 +514,30 @@ func getBitcoinClient(li *glightning.Lightning, pluginConfig *clightning.Config)
 		return nil, err
 	}
 	return bitcoin, nil
+}
+
+type getNetworkInfoRequest struct{}
+
+func (r *getNetworkInfoRequest) Name() string {
+	return "getnetworkinfo"
+}
+
+type bitcoindNetworkInfo struct {
+	Subversion string `json:"subversion"`
+}
+
+func determineBitcoinFeeFloor(bitcoinCli *gbitcoin.Bitcoin) (btcutil.Amount, string, error) {
+	var networkInfo bitcoindNetworkInfo
+	if err := bitcoinCli.Request(&getNetworkInfoRequest{}, &networkInfo); err != nil {
+		return onchain.LegacyFeeFloorSatPerKw, "", err
+	}
+
+	floor, normalized := onchain.DetermineFeeFloor(networkInfo.Subversion)
+	if normalized == "" {
+		return floor, "", fmt.Errorf("unable to parse bitcoin core subversion %q", networkInfo.Subversion)
+	}
+
+	return floor, normalized, nil
 }
 
 func checkClnVersion(network string, fullVersionString string) (bool, error) {
