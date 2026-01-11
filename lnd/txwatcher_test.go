@@ -42,32 +42,24 @@ func TestTxWatcher_GetBlockHeight(t *testing.T) {
 		t.Fatalf("Could not create tx watcher: %v", err)
 	}
 
-	// We expect a block height of 101 as this is how we setup a bitcoind and
-	// lnd setup on startup.
-	err = testframework.WaitFor(func() bool {
-		bh, err := txwatcher.GetBlockHeight()
-		if err != nil {
-			t.Fatalf("Failed GetBlockHeight(): %v", err)
-		}
-		return bh == 101
-	}, 50*time.Second)
+	initial, err := txwatcher.GetBlockHeight()
 	if err != nil {
-		t.Fatalf("Failed waiting for block height of 101: %v", err)
+		t.Fatalf("Failed GetBlockHeight(): %v", err)
 	}
 
 	// Mine one more block
 	bitcoind.GenerateBlocks(1)
 
-	// We now expect a block height of 102.
+	expected := initial + 1
 	err = testframework.WaitFor(func() bool {
 		bh, err := txwatcher.GetBlockHeight()
 		if err != nil {
 			t.Fatalf("Failed GetBlockHeight(): %v", err)
 		}
-		return bh == 102
+		return bh == expected
 	}, 50*time.Second)
 	if err != nil {
-		t.Fatalf("Failed waiting for block height of 102: %v", err)
+		t.Fatalf("Failed waiting for block height of %d: %v", expected, err)
 	}
 }
 

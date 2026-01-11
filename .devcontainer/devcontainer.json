@@ -3,6 +3,9 @@
 {
     "name": "peerswap",
     "image": "ghcr.io/xtruder/nix-devcontainer:v1",
+    "runArgs": [
+        "--platform=linux/amd64"
+    ],
     "onCreateCommand": "nix-env -iA cachix -f https://cachix.org/api/v1/install && cachix use peerswap && nix develop --command echo 'Nix environment ready'",
     "postCreateCommand": "sudo chmod a+w /usr/local/bin/ && nix develop --command bash -c 'GOBIN=/usr/local/bin go install github.com/bufbuild/buf/cmd/buf@v1.50.0'",
     "customizations": {
@@ -12,7 +15,8 @@
                 "jnoortheen.nix-ide",
                 "mkhl.direnv",
                 "golang.go",
-                "bufbuild.vscode-buf"
+                "bufbuild.vscode-buf",
+                "openai.chatgpt"
             ]
         }
     },

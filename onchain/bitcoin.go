@@ -43,11 +43,6 @@ const (
 	// leads to an expected size for the opening tx of (3*68 + 84) = 288 vByte.
 	// We add a security margin to this which leads to the size of 350 vByte.
 	EstimatedOpeningTxSize = 350
-
-	// This defines the absolute floor of the feerate. This will be the minimum
-	// feerate that will be used. The floor is set to 275 sat/kw so that we
-	// always have a minimum fee rate of 1.1 sat/vb.
-	floorFeeRateSatPerKw = 275
 )
 
 type BitcoinOnChain struct {
@@ -61,13 +56,18 @@ type BitcoinOnChain struct {
 	// fallbackFeeRateSatPerKw is the fee rate that is used to calculate the
 	// fee of a transaction if the Estimator returned an error.
 	fallbackFeeRateSatPerKw btcutil.Amount
+
+	// feeFloorSatPerKw enforces the minimum rate we will ever return. This is
+	// version-dependent to match the Bitcoin Core mempool defaults.
+	feeFloorSatPerKw btcutil.Amount
 }
 
-func NewBitcoinOnChain(estimator Estimator, fallbackFeeRateSatPerKw btcutil.Amount, chain *chaincfg.Params) *BitcoinOnChain {
+func NewBitcoinOnChain(estimator Estimator, fallbackFeeRateSatPerKw, feeFloorSatPerKw btcutil.Amount, chain *chaincfg.Params) *BitcoinOnChain {
 	return &BitcoinOnChain{
 		chain:                   chain,
 		estimator:               estimator,
 		fallbackFeeRateSatPerKw: fallbackFeeRateSatPerKw,
+		feeFloorSatPerKw:        feeFloorSatPerKw,
 	}
 }
 
@@ -311,10 +311,10 @@ func (b *BitcoinOnChain) GetFee(txSize int64) (uint64, error) {
 	}
 
 	// Ensure that the fee rate is at least as big as our fee floor.
-	if satPerKw < floorFeeRateSatPerKw {
+	if satPerKw < b.feeFloorSatPerKw {
 		log.Infof("Estimated fee rate is below floor of %d sat/kw, take floor "+
-			"instead", floorFeeRateSatPerKw)
-		satPerKw = floorFeeRateSatPerKw
+			"instead", b.feeFloorSatPerKw)
+		satPerKw = b.feeFloorSatPerKw
 	}
 
 	// Convert to sat/vb. This operation is rounding down but should never be

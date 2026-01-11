@@ -18,7 +18,8 @@ func TestGBitcoin_Estimator(t *testing.T) {
 	feeEstimator, err := NewGBitcoindEstimator(
 		gbitcoinBackend,
 		"ECONOMICAL",
-		FeePerKwFloor,
+		LegacyFeeFloorSatPerKw,
+		LegacyFeeFloorSatPerKw,
 	)
 	require.NoError(t, err)
 
@@ -34,14 +35,15 @@ func TestGBitcoin_Estimator(t *testing.T) {
 	// Check that min fee manager is set. mempoolMinFee should be in sat/kw
 	mempoolMinFeeSatPerKb, _ := btcutil.NewAmount(mempoolMinFeeBTCPerKb)
 	mempoolMinFeeSatPerKw := mempoolMinFeeSatPerKb / 4
-	require.Equal(t, mempoolMinFeeSatPerKw, feeEstimator.minFeeManager.minFeePerKW)
+	require.Less(t, mempoolMinFeeSatPerKw, LegacyFeeFloorSatPerKw)
+	require.Equal(t, LegacyFeeFloorSatPerKw, feeEstimator.minFeeManager.minFeePerKW)
 
 	// Check that fallback fee is returned if the feeEstimator returns an error
 	efe := fmt.Errorf("some error")
 	gbitcoinBackend.EstimateFeeError = &efe
 	fee, err := feeEstimator.EstimateFeePerKW(10)
 	require.NoError(t, err)
-	require.Equal(t, FeePerKwFloor, fee)
+	require.Equal(t, LegacyFeeFloorSatPerKw, fee)
 
 	// Check that fee is converted correctly
 	feeRateBTCPerKb := 0.00023

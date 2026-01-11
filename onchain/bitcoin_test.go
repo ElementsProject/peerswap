@@ -13,9 +13,11 @@ func TestBitcoinOnChain_GetFee_UseFallbackFeeRate(t *testing.T) {
 
 	estimator := &EstimatorMock{}
 	fallbackFeeRate := btcutil.Amount(300)
+	feeFloor := btcutil.Amount(100)
 	btcOnChain := NewBitcoinOnChain(
 		estimator,
 		fallbackFeeRate,
+		feeFloor,
 		&chaincfg.Params{},
 	)
 
@@ -48,9 +50,11 @@ func TestBitcoinOnChain_GetFee_UseFloorFeeRate(t *testing.T) {
 	estimator := &EstimatorMock{}
 	// Set fallback below floor so that floor is used
 	fallbackFeeRate := btcutil.Amount(200)
+	feeFloor := btcutil.Amount(275)
 	btcOnChain := NewBitcoinOnChain(
 		estimator,
 		fallbackFeeRate,
+		feeFloor,
 		&chaincfg.Params{},
 	)
 

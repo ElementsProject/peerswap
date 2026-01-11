@@ -26,7 +26,6 @@ import (
 	"github.com/elementsproject/peerswap/version"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/cmd/peerswaplnd"
@@ -164,10 +163,12 @@ func run() error {
 			return err
 		}
 
+		bitcoinFeeFloor := onchain.LegacyFeeFloorSatPerKw
+
 		// Start the LndEstimator.
 		lndEstimator, err := onchain.NewLndEstimator(
 			walletrpc.NewWalletKitClient(cc),
-			btcutil.Amount(253),
+			bitcoinFeeFloor,
 			10*time.Minute,
 		)
 		if err != nil {
@@ -177,14 +178,11 @@ func run() error {
 			return err
 		}
 
-		// Create the bitcoin onchain service with a fallback fee rate of
-		// 253 sat/kw.
-		// TODO: This fee rate does not matter right now but we might want to
-		// add a config flag to set this higher than the assumed floor fee rate
-		// of 275 sat/kw (1.1 sat/vb).
+		// Keep estimator and fallback paths aligned by reusing the same fee floor.
 		bitcoinOnChainService = onchain.NewBitcoinOnChain(
 			lndEstimator,
-			btcutil.Amount(253),
+			bitcoinFeeFloor,
+			bitcoinFeeFloor,
 			chain,
 		)
 		log.Infof("Bitcoin swaps enabled on network %s", chain.Name)
