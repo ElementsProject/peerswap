@@ -197,40 +197,48 @@ func (s *SwapData) GetScidInBoltFormat() string {
 
 func (s *SwapData) GetAmount() uint64 {
 	if s.SwapInRequest != nil {
-		return s.SwapInRequest.Amount
+		return s.SwapInRequest.LnAmountSat
 	}
 	if s.SwapOutRequest != nil {
-		return s.SwapOutRequest.Amount
+		return s.SwapOutRequest.LnAmountSat
+	}
+	return 0
+}
+
+func (s *SwapData) GetLnAmountSat() uint64 {
+	if s.SwapInRequest != nil {
+		return s.SwapInRequest.LnAmountSat
+	}
+	if s.SwapOutRequest != nil {
+		return s.SwapOutRequest.LnAmountSat
+	}
+	return 0
+}
+
+func (s *SwapData) GetAssetAmount() uint64 {
+	if s.SwapInRequest != nil {
+		return s.SwapInRequest.AssetAmount
+	}
+	if s.SwapOutRequest != nil {
+		return s.SwapOutRequest.AssetAmount
 	}
 	return 0
 }
 
 func (s *SwapData) GetClaimAmount() uint64 {
-	if s.SwapInRequest != nil {
-		return s.SwapInRequest.Amount
-	}
-	if s.SwapOutRequest != nil {
-		return uint64(int64(s.SwapOutRequest.Amount) + s.SwapOutAgreement.Premium)
-	}
-	return 0
+	return s.GetLnAmountSat()
 }
 
 func (s *SwapData) GetOpeningTXAmount() uint64 {
-	if s.SwapInRequest != nil {
-		return uint64(int64(s.SwapInRequest.Amount) + s.SwapInAgreement.Premium)
-	}
-	if s.SwapOutRequest != nil {
-		return s.SwapOutRequest.Amount
-	}
-	return 0
+	return s.GetAssetAmount()
 }
 
 func (s *SwapData) GetAsset() string {
 	if s.SwapInRequest != nil {
-		return s.SwapInRequest.Asset
+		return s.SwapInRequest.AssetId
 	}
 	if s.SwapOutRequest != nil {
-		return s.SwapOutRequest.Asset
+		return s.SwapOutRequest.AssetId
 	}
 	return ""
 }
@@ -279,9 +287,9 @@ func (s *SwapData) GetNetwork() string {
 }
 
 func (s *SwapData) GetChain() string {
-	if s.GetAsset() != "" && s.GetNetwork() == "" {
+	if isLiquidNetwork(s.GetNetwork()) {
 		return l_btc_chain
-	} else if s.GetAsset() == "" && s.GetNetwork() != "" {
+	} else if isBitcoinNetwork(s.GetNetwork()) {
 		return btc_chain
 	} else {
 		return ""
@@ -356,6 +364,7 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 		MakerPubkey:      s.GetMakerPubkey(),
 		ClaimPaymentHash: s.GetPaymentHash(),
 		Amount:           s.GetOpeningTXAmount(),
+		AssetId:          s.GetAsset(),
 		BlindingKey:      blindingKey,
 	}
 }

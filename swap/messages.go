@@ -16,7 +16,7 @@ var (
 	InvalidLengthError     = errors.New("Hex string is of invalid length")
 	InvalidNetworkError    = errors.New("Invalid network")
 	InvalidScidError       = errors.New("Invalid Scid")
-	AssetOrNetworkSetError = errors.New("Either asset or network must be set")
+	InvalidAssetIdError    = errors.New("Invalid asset_id")
 )
 
 func NewInvalidLengthError(paramName string, expected, actual int) error {
@@ -32,18 +32,20 @@ type SwapInRequestMessage struct {
 	// specific swap.
 	SwapId *SwapId `json:"swap_id"`
 	// Network is the desired on-chain network to use. This can be:
-	// Bitcoin: mainnet, testnet, signet, regtest
-	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	// Bitcoin: mainnet, testnet3, testnet4, signet, regtest
+	// Liquid: liquid, liquid-testnet, liquid-regtest
 	Network string `json:"network"`
-	// Asset is the desired on-chain asset to use. This can be:
-	// Bitcoin: The field is left blank.
-	// Liquid: The asset id of the networks Bitcoin asset.
-	Asset string `json:"asset"`
+	// AssetId is the desired on-chain asset id to use.
+	// Bitcoin: MUST be empty.
+	// Liquid: MUST be set to a 32-byte hex encoded asset id.
+	AssetId string `json:"asset_id"`
 	// Scid is the short channel id in human readable format, defined by BOLT#7
 	// with x as separator, e.g. 539268x845x1.
 	Scid string `json:"scid"`
-	// Amount is The amount in Sats that is asked for.
-	Amount       uint64 `json:"amount"`
+	// LnAmountSat is the amount in satoshis on the Lightning side (BTC).
+	LnAmountSat uint64 `json:"ln_amount_sat"`
+	// AssetAmount is the amount in the on-chain asset base units.
+	AssetAmount uint64 `json:"asset_amount"`
 	Pubkey       string `json:"pubkey"`
 	PremiumLimit int64  `json:"acceptable_premium"`
 }
@@ -57,25 +59,19 @@ func (s SwapInRequestMessage) Validate(swap *SwapData) error {
 	if err != nil {
 		return err
 	}
-	err = validateAssetAndNetwork(s.Asset, s.Network)
+	err = validateAssetIdAndNetwork(s.AssetId, s.Network)
 	if err != nil {
 		return err
-	}
-	if s.Asset != "" {
-		err = validateHexString("asset", s.Asset, 33)
-		if err != nil {
-			return err
-		}
-	}
-	if s.Network != "" {
-		err = validateNetwork(s.Network)
-		if err != nil {
-			return err
-		}
 	}
 	err = validateScid(s.Scid)
 	if err != nil {
 		return err
+	}
+	if s.LnAmountSat == 0 {
+		return fmt.Errorf("Param %s must be set", "ln_amount_sat")
+	}
+	if s.AssetAmount == 0 {
+		return fmt.Errorf("Param %s must be set", "asset_amount")
 	}
 	return nil
 }
@@ -101,41 +97,54 @@ func validateScid(scid string) error {
 	}
 	return nil
 }
-func validateAssetAndNetwork(asset string, network string) error {
-	if (asset == "" && network == "") || (asset != "" && network != "") {
-		return AssetOrNetworkSetError
+func validateAssetIdAndNetwork(assetId string, network string) error {
+	if network == "" {
+		return fmt.Errorf("Param %s must be set", "network")
 	}
-	if asset != "" {
-		err := validateHexString("asset", asset, 33)
-		if err != nil {
-			return err
+	err := validateNetwork(network)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case isBitcoinNetwork(network):
+		if assetId != "" {
+			return fmt.Errorf("%w: asset_id must be empty for bitcoin networks", InvalidAssetIdError)
 		}
-	}
-	if network != "" {
-		err := validateNetwork(network)
-		if err != nil {
-			return err
+		return nil
+	case isLiquidNetwork(network):
+		if assetId == "" {
+			return fmt.Errorf("%w: asset_id must be set for liquid networks", InvalidAssetIdError)
 		}
+		return validateHexString("asset_id", assetId, 32)
+	default:
+		return InvalidNetworkError
 	}
-	return nil
 }
 
 func validateNetwork(network string) error {
-	switch network {
-	case "mainnet":
-		fallthrough
-	case "testnet":
-		fallthrough
-	case "testnet3":
-		fallthrough
-	case "testnet4":
-		fallthrough
-	case "signet":
-		fallthrough
-	case "regtest":
+	if isBitcoinNetwork(network) || isLiquidNetwork(network) {
 		return nil
 	}
 	return InvalidNetworkError
+}
+
+func isBitcoinNetwork(network string) bool {
+	switch network {
+	case "mainnet", "testnet", "testnet3", "testnet4", "signet", "regtest":
+		return true
+	default:
+		return false
+	}
+}
+
+func isLiquidNetwork(network string) bool {
+	switch network {
+	case "liquid", "liquid-testnet", "liquid-regtest":
+		return true
+	default:
+		return false
+	}
 }
 func validateHexString(paramName, hexString string, expectedLength int) error {
 	data, err := hex.DecodeString(hexString)
@@ -204,19 +213,21 @@ type SwapOutRequestMessage struct {
 	// through the whole process of a swap and serves as an identifier for a
 	// specific swap.
 	SwapId *SwapId `json:"swap_id"`
-	// Asset is the desired on-chain asset to use. This can be:
-	// Bitcoin: The field is left blank.
-	// Liquid: The asset id of the networks Bitcoin asset.
-	Asset string `json:"asset"`
 	// Network is the desired on-chain network to use. This can be:
-	// Bitcoin: mainnet, testnet, signet, regtest
-	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
+	// Bitcoin: mainnet, testnet3, testnet4, signet, regtest
+	// Liquid: liquid, liquid-testnet, liquid-regtest
 	Network string `json:"network"`
+	// AssetId is the desired on-chain asset id to use.
+	// Bitcoin: MUST be empty.
+	// Liquid: MUST be set to a 32-byte hex encoded asset id.
+	AssetId string `json:"asset_id"`
 	// Scid is the short channel id in human readable format, defined by BOLT#7
 	// with x as separator, e.g. 539268x845x1.
 	Scid string `json:"scid"`
-	// Amount is The amount in Sats that is asked for.
-	Amount uint64 `json:"amount"`
+	// LnAmountSat is the amount in satoshis on the Lightning side (BTC).
+	LnAmountSat uint64 `json:"ln_amount_sat"`
+	// AssetAmount is the amount in the on-chain asset base units.
+	AssetAmount uint64 `json:"asset_amount"`
 	// Pubkey is a 33 byte compressed public key used for the spending paths in
 	// the opening_transaction.
 	Pubkey       string `json:"pubkey"`
@@ -228,13 +239,19 @@ func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
 	if err != nil {
 		return err
 	}
-	err = validateAssetAndNetwork(s.Asset, s.Network)
+	err = validateAssetIdAndNetwork(s.AssetId, s.Network)
 	if err != nil {
 		return err
 	}
 	err = validateScid(s.Scid)
 	if err != nil {
 		return err
+	}
+	if s.LnAmountSat == 0 {
+		return fmt.Errorf("Param %s must be set", "ln_amount_sat")
+	}
+	if s.AssetAmount == 0 {
+		return fmt.Errorf("Param %s must be set", "asset_amount")
 	}
 	return nil
 }

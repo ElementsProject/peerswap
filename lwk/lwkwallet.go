@@ -157,18 +157,27 @@ func (r *LWKRpcWallet) createWallet(ctx context.Context, walletName, signerName 
 
 // CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
-	asset []byte) (txid, rawTx string, fee Satoshi, err error) {
+	outputs []wallet.TxOutput) (txid, rawTx string, fee Satoshi, err error) {
+	if len(outputs) == 0 {
+		return "", "", 0, errors.New("missing outputs")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
 	feerate := r.getFeeSatPerVByte(ctx).getValue() * kb
+	addressees := make([]*unvalidatedAddressee, 0, len(outputs))
+	for _, out := range outputs {
+		if out.AssetID == "" {
+			return "", "", 0, errors.New("missing asset id")
+		}
+		addressees = append(addressees, &unvalidatedAddressee{
+			Address: swapParams.OpeningAddress,
+			Asset:   out.AssetID,
+			Satoshi: out.Amount,
+		})
+	}
 	// todo: There will be an option in the tx builder to enable the discount.
 	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
-		Addressees: []*unvalidatedAddressee{
-			{
-				Address: swapParams.OpeningAddress,
-				Satoshi: swapParams.Amount,
-			},
-		},
+		Addressees:      addressees,
 		WalletName:       r.c.GetWalletName(),
 		FeeRate:          &feerate,
 		EnableCtDiscount: true,

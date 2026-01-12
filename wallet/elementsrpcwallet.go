@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -77,20 +78,37 @@ func (r *ElementsRpcWallet) FinalizeTransaction(rawTx string) (string, error) {
 
 // CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
 func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
-	asset []byte) (txid, rawTx string, fee uint64, err error) {
+	outputs []TxOutput) (txid, rawTx string, fee uint64, err error) {
+	if len(outputs) == 0 {
+		return "", "", 0, errors.New("missing outputs")
+	}
+	if swapParams.BlindingKey == nil {
+		return "", "", 0, errors.New("missing blinding key")
+	}
 	outputscript, err := address.ToOutputScript(swapParams.OpeningAddress)
 	if err != nil {
 		return "", "", 0, err
 	}
-	sats, err := elementsutil.ValueToBytes(swapParams.Amount)
-	if err != nil {
-		return "", "", 0, err
-	}
-	output := transaction.NewTxOutput(asset, sats, outputscript)
-	output.Nonce = swapParams.BlindingKey.PubKey().SerializeCompressed()
 
 	tx := transaction.NewTx(2)
-	tx.Outputs = append(tx.Outputs, output)
+	for _, out := range outputs {
+		assetIdBytes, err := hex.DecodeString(out.AssetID)
+		if err != nil {
+			return "", "", 0, err
+		}
+		if len(assetIdBytes) != 32 {
+			return "", "", 0, fmt.Errorf("invalid asset id length: %d", len(assetIdBytes))
+		}
+		assetTag := append([]byte{0x01}, elementsutil.ReverseBytes(assetIdBytes)...)
+
+		sats, err := elementsutil.ValueToBytes(out.Amount)
+		if err != nil {
+			return "", "", 0, err
+		}
+		output := transaction.NewTxOutput(assetTag, sats, outputscript)
+		output.Nonce = swapParams.BlindingKey.PubKey().SerializeCompressed()
+		tx.Outputs = append(tx.Outputs, output)
+	}
 
 	txHex, err := tx.ToHex()
 	if err != nil {

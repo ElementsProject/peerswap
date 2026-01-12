@@ -173,7 +173,7 @@ func Test_Wumbo(t *testing.T) {
 				var response map[string]interface{}
 				err = lightningds[0].Rpc.Request(
 					&clightning.SwapOut{
-						SatAmt:              params.swapAmt,
+						LnAmountSat:         params.swapAmt,
 						ShortChannelId:      scid,
 						Asset:               "btc",
 						PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -203,7 +203,7 @@ func Test_Wumbo(t *testing.T) {
 				var response map[string]interface{}
 				err = lightningds[1].Rpc.Request(
 					&clightning.SwapIn{
-						SatAmt:              params.swapAmt,
+						LnAmountSat:         params.swapAmt,
 						ShortChannelId:      scid,
 						Asset:               "btc",
 						PremiumLimitRatePPM: params.premiumLimitRatePPM,

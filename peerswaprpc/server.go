@@ -110,8 +110,8 @@ func NewPeerswapServer(
 }
 
 func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (*SwapResponse, error) {
-	if request.SwapAmount <= 0 {
-		return nil, errors.New("Missing required swap_amount parameter")
+	if request.LnAmountSat <= 0 {
+		return nil, errors.New("Missing required ln_amount_sat parameter")
 	}
 	if request.ChannelId == 0 {
 		return nil, errors.New("Missing required channel_id parameter")
@@ -130,7 +130,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, errors.New("channel not found")
 	}
 
-	if uint64(swapchan.LocalBalance) < (request.SwapAmount + 5000) {
+	if uint64(swapchan.LocalBalance) < (request.LnAmountSat + 5000) {
 		return nil, errors.New("not enough local balance on channel to perform swap out")
 	}
 
@@ -138,7 +138,8 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, errors.New("channel is not connected")
 	}
 
-	if strings.Compare(request.Asset, "lbtc") == 0 {
+	chain := strings.ToLower(request.Asset)
+	if strings.Compare(chain, "lbtc") == 0 {
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
@@ -146,9 +147,22 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 			return nil, fmt.Errorf("liquid wallet not reachable: %v", perr)
 		}
 
-	} else if strings.Compare(request.Asset, "btc") == 0 {
+		if request.AssetId == "" {
+			return nil, errors.New("Missing required asset_id parameter for lbtc swaps")
+		}
+		if len(request.AssetId) != 64 {
+			return nil, errors.New("asset_id must be a 32-byte hex string")
+		}
+		if request.AssetAmount == 0 {
+			return nil, errors.New("Missing required asset_amount parameter for lbtc swaps")
+		}
+	} else if strings.Compare(chain, "btc") == 0 {
 		if !p.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		// For bitcoin swaps, default asset_amount to ln_amount_sat if not set.
+		if request.AssetAmount == 0 {
+			request.AssetAmount = request.LnAmountSat
 		}
 	} else {
 		return nil, errors.New("invalid asset (btc or lbtc)")
@@ -173,7 +187,7 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	swapOut, err := p.swaps.SwapOut(peerId, chain, shortId.String(), pk, request.LnAmountSat, request.AssetId, request.AssetAmount, request.GetPremiumLimitRatePpm())
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +245,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, errors.New("channel not found")
 	}
 
-	if uint64(swapchan.RemoteBalance) < (request.SwapAmount) {
+	if uint64(swapchan.RemoteBalance) < (request.LnAmountSat) {
 		return nil, errors.New("not enough remote balance on channel to perform swap in")
 	}
 
@@ -239,14 +253,28 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, errors.New("channel is not connected")
 	}
 
-	switch request.Asset {
+	chain := strings.ToLower(request.Asset)
+	switch chain {
 	case "lbtc":
 		if !p.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
+		if request.AssetId == "" {
+			return nil, errors.New("Missing required asset_id parameter for lbtc swaps")
+		}
+		if len(request.AssetId) != 64 {
+			return nil, errors.New("asset_id must be a 32-byte hex string")
+		}
+		if request.AssetAmount == 0 {
+			return nil, errors.New("Missing required asset_amount parameter for lbtc swaps")
+		}
 	case "btc":
 		if !p.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		// For bitcoin swaps, default asset_amount to ln_amount_sat if not set.
+		if request.AssetAmount == 0 {
+			request.AssetAmount = request.LnAmountSat
 		}
 	default:
 		return nil, errors.New("invalid asset (btc or lbtc)")
@@ -272,7 +300,7 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	swapIn, err := p.swaps.SwapIn(peerId, chain, shortId.String(), pk, request.LnAmountSat, request.AssetId, request.AssetAmount, request.GetPremiumLimitRatePpm())
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +700,10 @@ func PrettyprintFromServiceSwap(swp *swap.SwapStateMachine) *PrettyPrintSwap {
 		State:           string(swp.Current),
 		InitiatorNodeId: swp.Data.InitiatorNodeId,
 		PeerNodeId:      swp.Data.PeerNodeId,
-		Amount:          swp.Data.GetAmount(),
+		LnAmountSat:     swp.Data.GetLnAmountSat(),
+		Network:         swp.Data.GetNetwork(),
+		AssetId:         swp.Data.GetAsset(),
+		AssetAmount:     swp.Data.GetAssetAmount(),
 		ChannelId:       swp.Data.GetScid(),
 		OpeningTxId:     swp.Data.GetOpeningTxId(),
 		ClaimTxId:       swp.Data.ClaimTxId,

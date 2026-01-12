@@ -721,7 +721,8 @@
           "format": "int64"
         },
         "asset": {
-          "type": "string"
+          "type": "string",
+          "description": "asset is the on-chain chain selector: \"btc\" | \"lbtc\"."
         },
         "type": {
           "type": "string"
@@ -738,9 +739,23 @@
         "peerNodeId": {
           "type": "string"
         },
-        "amount": {
+        "lnAmountSat": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "description": "ln_amount_sat is the amount in satoshis on the Lightning side (BTC)."
+        },
+        "network": {
+          "type": "string",
+          "description": "network is the on-chain network (bitcoin: mainnet/testnet3/... , liquid: liquid/liquid-testnet/liquid-regtest)."
+        },
+        "assetId": {
+          "type": "string",
+          "description": "asset_id is the Elements/Liquid asset id (required for liquid swaps)."
+        },
+        "assetAmount": {
+          "type": "string",
+          "format": "uint64",
+          "description": "asset_amount is the amount in the on-chain asset base units."
         },
         "channelId": {
           "type": "string"
@@ -828,19 +843,31 @@
           "type": "string",
           "format": "uint64"
         },
-        "swapAmount": {
+        "lnAmountSat": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "description": "ln_amount_sat is the amount in satoshis on the Lightning side (BTC)."
         },
         "asset": {
-          "type": "string"
+          "type": "string",
+          "description": "asset keeps the on-chain chain selector for backwards compatibility.\nExpected values: \"btc\" | \"lbtc\"."
         },
         "force": {
           "type": "boolean"
         },
         "premiumLimitRatePpm": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "premium_limit_rate_ppm is ignored in protocol v6 (MVP)."
+        },
+        "assetId": {
+          "type": "string",
+          "description": "asset_id is the Elements/Liquid asset id (32-byte hex, big-endian as commonly displayed).\nRequired if asset == \"lbtc\"."
+        },
+        "assetAmount": {
+          "type": "string",
+          "format": "uint64",
+          "description": "asset_amount is the amount in the on-chain asset base units.\nRequired for protocol v6."
         }
       }
     },
@@ -851,19 +878,31 @@
           "type": "string",
           "format": "uint64"
         },
-        "swapAmount": {
+        "lnAmountSat": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "description": "ln_amount_sat is the amount in satoshis on the Lightning side (BTC)."
         },
         "asset": {
-          "type": "string"
+          "type": "string",
+          "description": "asset keeps the on-chain chain selector for backwards compatibility.\nExpected values: \"btc\" | \"lbtc\"."
         },
         "force": {
           "type": "boolean"
         },
         "premiumLimitRatePpm": {
           "type": "string",
-          "format": "int64"
+          "format": "int64",
+          "description": "premium_limit_rate_ppm is ignored in protocol v6 (MVP)."
+        },
+        "assetId": {
+          "type": "string",
+          "description": "asset_id is the Elements/Liquid asset id (32-byte hex, big-endian as commonly displayed).\nRequired if asset == \"lbtc\"."
+        },
+        "assetAmount": {
+          "type": "string",
+          "format": "uint64",
+          "description": "asset_amount is the amount in the on-chain asset base units.\nRequired for protocol v6."
         }
       }
     },

@@ -71,31 +71,52 @@ There are two types of swaps.
 
 A swap-out is when the initiator wants to pay a lightning payment in order to receive on-chain funds. From the perspective of channel balancing the initiator gains inbound liquidity.
 
-For CLN:
+For CLN (named parameters):
 ```bash
-lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
+# Bitcoin swap (asset_amount defaults to ln_amount_sat)
+lightning-cli peerswap-swap-out short_channel_id=539268x845x1 ln_amount_sat=100000 asset=btc premium_rate_limit_ppm=0
+
+# Liquid swap (requires asset_id + asset_amount)
+lightning-cli peerswap-swap-out short_channel_id=539268x845x1 ln_amount_sat=100000 asset=lbtc asset_id=<asset_id_hex> asset_amount=12345 premium_rate_limit_ppm=0
 ```
 
 For LND:
 ```bash
-pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
+# Bitcoin swap (asset_amt defaults to sat_amt)
+pscli swapout --channel_id [chan_id] --sat_amt [ln_amount_sat] --asset btc --premium_limit_rate_ppm 0
+
+# Liquid swap (requires asset_id + asset_amt)
+pscli swapout --channel_id [chan_id] --sat_amt [ln_amount_sat] --asset lbtc --asset_id [asset_id_hex] --asset_amt [asset_amount] --premium_limit_rate_ppm 0
 ```
 
 ### Swap-In
 
 A swap-in is when the initiator wants to spend onchain bitcoin in order to receive lightning funds. From the perspective of balancing terms they gain outbound liquidity.
 
-For CLN:
+For CLN (named parameters):
 ```bash
-lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
+# Bitcoin swap (asset_amount defaults to ln_amount_sat)
+lightning-cli peerswap-swap-in short_channel_id=539268x845x1 ln_amount_sat=100000 asset=btc premium_limit_ppm=0
+
+# Liquid swap (requires asset_id + asset_amount)
+lightning-cli peerswap-swap-in short_channel_id=539268x845x1 ln_amount_sat=100000 asset=lbtc asset_id=<asset_id_hex> asset_amount=12345 premium_limit_ppm=0
 ```
 
 For LND:
 ```bash
-pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
+# Bitcoin swap (asset_amt defaults to sat_amt)
+pscli swapin --channel_id [chan_id] --sat_amt [ln_amount_sat] --asset btc --premium_limit_rate_ppm 0
+
+# Liquid swap (requires asset_id + asset_amt)
+pscli swapin --channel_id [chan_id] --sat_amt [ln_amount_sat] --asset lbtc --asset_id [asset_id_hex] --asset_amt [asset_amount] --premium_limit_rate_ppm 0
 ```
 
+Notes:
+- For protocol v6 Liquid swaps, the on-chain amount is `asset_amount` (arbitrary asset units) and the Lightning amount is `ln_amount_sat` (BTC).
+- Liquid swaps require the maker to fund both the swap asset and additional LBTC for fees (opening tx fee + LBTC fee-reserve output).
+
 ## Premium
+Note: Protocol v6 MVP currently ignores premium and always uses `premium=0`. The premium configuration commands are kept for future use but do not affect v6 swaps.
 
 The premium rate is the rate applied during a swap. There are default premium rates and peer-specific premium rates.
 

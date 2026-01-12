@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	PEERSWAP_PROTOCOL_VERSION = 5
+	PEERSWAP_PROTOCOL_VERSION = 6
 )
 
 var (
@@ -374,7 +374,7 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
-func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePpm int64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, lnAmountSat uint64, assetId string, assetAmount uint64, premiumLimitRatePpm int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -383,11 +383,11 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+	if lnAmountSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
 		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
-	err := s.swapServices.lightning.CanSpend(amtSat * 1000)
+	err := s.swapServices.lightning.CanSpend(lnAmountSat * 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	if err != nil {
 		return nil, err
 	}
-	if sp < amtSat*1000 {
+	if sp < lnAmountSat*1000 {
 		return nil, fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 	}
 
@@ -406,24 +406,36 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		return nil, err
 	}
 
-	var bitcoinNetwork string
-	var elementsAsset string
+	var onchainNetwork string
 	if chain == l_btc_chain {
-		elementsAsset = s.swapServices.liquidWallet.GetAsset()
+		onchainNetwork = s.swapServices.liquidWallet.GetNetwork()
+		if assetId == "" {
+			return nil, errors.New("missing asset_id for lbtc swap")
+		}
+		if assetAmount == 0 {
+			return nil, errors.New("missing asset_amount for lbtc swap")
+		}
 	} else if chain == btc_chain {
-		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+		onchainNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+		if assetId != "" {
+			return nil, errors.New("asset_id must be empty for btc swap")
+		}
+		if assetAmount == 0 {
+			assetAmount = lnAmountSat
+		}
 	} else {
 		return nil, errors.New("invalid chain")
 	}
 	request := &SwapOutRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
-		Asset:           elementsAsset,
-		Network:         bitcoinNetwork,
+		Network:         onchainNetwork,
+		AssetId:         assetId,
 		Scid:            channelId,
-		Amount:          amtSat,
+		LnAmountSat:     lnAmountSat,
+		AssetAmount:     assetAmount,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
-		PremiumLimit:    premium.NewPPM(premiumLimitRatePpm).Compute(amtSat),
+		PremiumLimit:    premium.NewPPM(premiumLimitRatePpm).Compute(lnAmountSat),
 	}
 
 	done, err := swap.SendEvent(Event_OnSwapOutStarted, request)
@@ -439,7 +451,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 
 // todo check prerequisites
 // SwapIn starts a new swap in process
-func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePPM int64) (*SwapStateMachine, error) {
+func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, lnAmountSat uint64, assetId string, assetAmount uint64, premiumLimitRatePPM int64) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -448,11 +460,11 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, PeerIsSuspiciousError(peer)
 	}
 
-	if amtSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
+	if lnAmountSat*1000 < s.swapServices.policy.GetMinSwapAmountMsat() {
 		return nil, ErrMinimumSwapSize(s.swapServices.policy.GetMinSwapAmountMsat())
 	}
 
-	err := s.swapServices.lightning.CanSpend(amtSat * 1000)
+	err := s.swapServices.lightning.CanSpend(lnAmountSat * 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -460,22 +472,38 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	if err != nil {
 		return nil, err
 	}
-	if rs < amtSat*1000 {
+	if rs < lnAmountSat*1000 {
 		return nil, fmt.Errorf("exceeding receivable amount_msat: %d", rs)
 	}
-	maximumSwapAmountSat, err := s.estimateMaximumSwapAmountSat(chain)
-	if err != nil {
-		return nil, err
+	// NOTE: For Liquid swaps with arbitrary assets we can not reliably compute
+	// an upper bound via LBTC wallet balance. We let wallet funding fail later
+	// if there are insufficient funds.
+	if chain == btc_chain {
+		maximumSwapAmountSat, err := s.estimateMaximumSwapAmountSat(chain)
+		if err != nil {
+			return nil, err
+		}
+		if lnAmountSat > maximumSwapAmountSat {
+			return nil, fmt.Errorf("exceeding maximum swap amount: %d", maximumSwapAmountSat)
+		}
 	}
-	if amtSat > maximumSwapAmountSat {
-		return nil, fmt.Errorf("exceeding maximum swap amount: %d", maximumSwapAmountSat)
-	}
-	var bitcoinNetwork string
-	var elementsAsset string
+	var onchainNetwork string
 	if chain == l_btc_chain {
-		elementsAsset = s.swapServices.liquidWallet.GetAsset()
+		onchainNetwork = s.swapServices.liquidWallet.GetNetwork()
+		if assetId == "" {
+			return nil, errors.New("missing asset_id for lbtc swap")
+		}
+		if assetAmount == 0 {
+			return nil, errors.New("missing asset_amount for lbtc swap")
+		}
 	} else if chain == btc_chain {
-		bitcoinNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+		onchainNetwork = s.swapServices.bitcoinWallet.GetNetwork()
+		if assetId != "" {
+			return nil, errors.New("asset_id must be empty for btc swap")
+		}
+		if assetAmount == 0 {
+			assetAmount = lnAmountSat
+		}
 	} else {
 		return nil, errors.New("invalid chain")
 	}
@@ -488,12 +516,13 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	request := &SwapInRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
-		Asset:           elementsAsset,
-		Network:         bitcoinNetwork,
+		Network:         onchainNetwork,
+		AssetId:         assetId,
 		Scid:            channelId,
-		Amount:          amtSat,
+		LnAmountSat:     lnAmountSat,
+		AssetAmount:     assetAmount,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
-		PremiumLimit:    premium.NewPPM(premiumLimitRatePPM).Compute(amtSat),
+		PremiumLimit:    premium.NewPPM(premiumLimitRatePPM).Compute(lnAmountSat),
 	}
 
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, request)
@@ -542,38 +571,7 @@ func (s *SwapService) estimateMaximumSwapAmountSat(chain string) (uint64, error)
 
 // OnSwapInRequestReceived creates a new swap-in process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, message *SwapInRequestMessage) error {
-	var (
-		premiumValue int64
-		err          error
-	)
-	// Network is the desired on-chain network to use. This can be:
-	// Bitcoin: mainnet, testnet, signet, regtest
-	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
-	if message.Network == "" {
-		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.LBTC, premium.SwapIn, message.Amount)
-		if err != nil {
-			return err
-		}
-	} else {
-		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.BTC, premium.SwapIn, message.Amount)
-		if err != nil {
-			return err
-		}
-	}
-
-	if premiumValue > message.PremiumLimit {
-		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premiumValue, message.PremiumLimit)
-		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
-		// We want to tell our peer why we can not do this swap.
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: msg,
-		})
-		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-		return err
-	}
-
-	err = s.swapServices.lightning.CanSpend(message.Amount * 1000)
+	err := s.swapServices.lightning.CanSpend(message.LnAmountSat * 1000)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -597,7 +595,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	if sp < message.Amount*1000 {
+	if sp < message.LnAmountSat*1000 {
 		err = fmt.Errorf("exceeding spendable amount_msat: %d", sp)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -609,7 +607,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	success, failureReason, err := s.swapServices.lightning.ProbePayment(message.Scid, message.Amount*1000)
+	success, failureReason, err := s.swapServices.lightning.ProbePayment(message.Scid, message.LnAmountSat*1000)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -653,35 +651,7 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 
 // OnSwapOutRequestReceived creates a new swap-out process and sends the event to the swap statemachine
 func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, message *SwapOutRequestMessage) error {
-	var (
-		premiumValue int64
-		err          error
-	)
-	// Network is the desired on-chain network to use. This can be:
-	// Bitcoin: mainnet, testnet, signet, regtest
-	// Liquid: The field is left blank as the asset id also defines the bitcoinNetwork.
-	if message.Network == "" {
-		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.LBTC, premium.SwapOut, message.Amount)
-		if err != nil {
-			return err
-		}
-	} else {
-		premiumValue, err = s.swapServices.ps.Compute(peerId, premium.BTC, premium.SwapOut, message.Amount)
-		if err != nil {
-			return err
-		}
-	}
-	if premiumValue > message.PremiumLimit {
-		err := fmt.Errorf("unacceptable premium: %d, limit: %d", premiumValue, message.PremiumLimit)
-		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
-		// We want to tell our peer why we can not do this swap.
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: msg,
-		})
-		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-		return err
-	}
+	var err error
 	rs, err := s.swapServices.lightning.ReceivableMsat(message.Scid)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
@@ -694,7 +664,7 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		return err
 	}
 
-	if rs < message.Amount*1000 {
+	if rs < message.LnAmountSat*1000 {
 		err = fmt.Errorf("exceeding receivable amount_msat: %d", rs)
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.

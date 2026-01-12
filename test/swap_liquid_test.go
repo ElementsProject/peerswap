@@ -12,6 +12,7 @@ import (
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/vulpemventures/go-elements/network"
 )
 
 // helpers for table-driven Liquid CLN tests.
@@ -64,6 +65,7 @@ func startLiquidSwap(t *testing.T, params *testParams) {
 	t.Helper()
 
 	asset := "lbtc"
+	assetID := network.Regtest.AssetID
 	callWithRetry := func(node *CLightningNodeWithLiquid, req jrpc2.Method) {
 		const (
 			maxAttempts = 5
@@ -93,7 +95,9 @@ func startLiquidSwap(t *testing.T, params *testParams) {
 			t.Fatalf("maker node is not a CLightningNodeWithLiquid")
 		}
 		callWithRetry(maker, &clightning.SwapIn{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
+			AssetAmount:         params.swapAmt,
+			AssetId:             assetID,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -104,7 +108,9 @@ func startLiquidSwap(t *testing.T, params *testParams) {
 			t.Fatalf("taker node is not a CLightningNodeWithLiquid")
 		}
 		callWithRetry(taker, &clightning.SwapOut{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
+			AssetAmount:         params.swapAmt,
+			AssetId:             assetID,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -312,14 +318,17 @@ func startLndLiquidSwap(t *testing.T, peerswapd *PeerSwapd, channelID uint64, pa
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	asset := "lbtc"
+	assetID := network.Regtest.AssetID
 
 	switch params.swapType {
 	case swap.SWAPTYPE_IN:
 		go func() {
 			_, _ = peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
+				AssetId:             assetID,
+				AssetAmount:         params.swapAmt,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()
@@ -327,8 +336,10 @@ func startLndLiquidSwap(t *testing.T, peerswapd *PeerSwapd, channelID uint64, pa
 		go func() {
 			_, _ = peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
+				AssetId:             assetID,
+				AssetAmount:         params.swapAmt,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 		}()

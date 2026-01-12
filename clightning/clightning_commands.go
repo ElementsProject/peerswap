@@ -176,7 +176,9 @@ func (s *LiquidSendToAddress) LongDescription() string {
 // SwapOut starts a new swapout (paying an invoice for onchain liquidity)
 type SwapOut struct {
 	ShortChannelId      string            `json:"short_channel_id"`
-	SatAmt              uint64            `json:"amt_sat"`
+	LnAmountSat         uint64            `json:"ln_amount_sat"`
+	AssetAmount         uint64            `json:"asset_amount"`
+	AssetId             string            `json:"asset_id"`
 	Asset               string            `json:"asset"`
 	PremiumLimitRatePPM int64             `json:"premium_rate_limit_ppm"`
 	Force               bool              `json:"force"`
@@ -198,8 +200,8 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, ErrWaitingForReady
 	}
 
-	if l.SatAmt <= 0 {
-		return nil, errors.New("Missing required amt_sat parameter")
+	if l.LnAmountSat <= 0 {
+		return nil, errors.New("Missing required ln_amount_sat parameter")
 	}
 	if l.ShortChannelId == "" {
 		return nil, errors.New("Missing required short_channel_id parameter")
@@ -220,7 +222,7 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels not found")
 	}
 
-	if fundingChannels.AmountMilliSatoshi.MSat() < (l.SatAmt+5000)*1000 {
+	if fundingChannels.AmountMilliSatoshi.MSat() < (l.LnAmountSat+5000)*1000 {
 		return nil, errors.New("not enough outbound capacity to perform swapOut")
 	}
 	if !fundingChannels.Connected {
@@ -246,16 +248,25 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 			return nil, fmt.Errorf("liquid wallet not reachable: %v", perr)
 		}
 
+		if l.AssetId == "" {
+			return nil, errors.New("Missing required asset_id parameter for lbtc swaps")
+		}
+		if l.AssetAmount == 0 {
+			return nil, errors.New("Missing required asset_amount parameter for lbtc swaps")
+		}
 	} else if strings.Compare(l.Asset, "btc") == 0 {
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		if l.AssetAmount == 0 {
+			l.AssetAmount = l.LnAmountSat
 		}
 	} else {
 		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.LnAmountSat, l.AssetId, l.AssetAmount, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +309,9 @@ func (g *SwapOut) Get(client *ClightningClient) jrpc2.ServerMethod {
 // SwapIn Starts a new swap in(providing onchain liquidity)
 type SwapIn struct {
 	ShortChannelId      string            `json:"short_channel_id"`
-	SatAmt              uint64            `json:"amt_sat"`
+	LnAmountSat         uint64            `json:"ln_amount_sat"`
+	AssetAmount         uint64            `json:"asset_amount"`
+	AssetId             string            `json:"asset_id"`
 	Asset               string            `json:"asset"`
 	PremiumLimitRatePPM int64             `json:"premium_limit_ppm"`
 	Force               bool              `json:"force"`
@@ -320,8 +333,8 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, ErrWaitingForReady
 	}
 
-	if l.SatAmt <= 0 {
-		return nil, errors.New("Missing required amt_sat parameter")
+	if l.LnAmountSat <= 0 {
+		return nil, errors.New("Missing required ln_amount_sat parameter")
 	}
 
 	if l.ShortChannelId == "" {
@@ -342,7 +355,7 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	if fundingChannels == nil {
 		return nil, errors.New("fundingChannels not found")
 	}
-	if fundingChannels.AmountMilliSatoshi.MSat()-fundingChannels.OurAmountMilliSatoshi.MSat() < (l.SatAmt * 1000) {
+	if fundingChannels.AmountMilliSatoshi.MSat()-fundingChannels.OurAmountMilliSatoshi.MSat() < (l.LnAmountSat * 1000) {
 		return nil, errors.New("not enough inbound capacity to perform swap")
 	}
 	if !fundingChannels.Connected {
@@ -364,16 +377,25 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		if !l.cl.swaps.LiquidEnabled {
 			return nil, errors.New("liquid swaps are not enabled")
 		}
+		if l.AssetId == "" {
+			return nil, errors.New("Missing required asset_id parameter for lbtc swaps")
+		}
+		if l.AssetAmount == 0 {
+			return nil, errors.New("Missing required asset_amount parameter for lbtc swaps")
+		}
 	case "btc":
 		if !l.cl.swaps.BitcoinEnabled {
 			return nil, errors.New("bitcoin swaps are not enabled")
+		}
+		if l.AssetAmount == 0 {
+			l.AssetAmount = l.LnAmountSat
 		}
 	default:
 		return nil, errors.New("invalid asset (btc or lbtc)")
 	}
 
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.LnAmountSat, l.AssetId, l.AssetAmount, l.PremiumLimitRatePPM)
 	if err != nil {
 		return nil, err
 	}

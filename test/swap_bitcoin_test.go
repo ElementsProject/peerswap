@@ -74,7 +74,7 @@ func startClnSwap(t *testing.T, params *testParams) {
 		go func(node *testframework.CLightningNode) {
 			var response map[string]interface{}
 			_ = node.Rpc.Request(&clightning.SwapIn{
-				SatAmt:              params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				ShortChannelId:      params.scid,
 				Asset:               asset,
 				PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -88,7 +88,7 @@ func startClnSwap(t *testing.T, params *testParams) {
 		go func(node *testframework.CLightningNode) {
 			var response map[string]interface{}
 			_ = node.Rpc.Request(&clightning.SwapOut{
-				SatAmt:              params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				ShortChannelId:      params.scid,
 				Asset:               asset,
 				PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -218,7 +218,7 @@ func Test_OnlyOneActiveSwapPerChannelCln(t *testing.T) {
 			defer wg.Done()
 			var response map[string]interface{}
 			err := lightningds[0].Rpc.Request(&clightning.SwapOut{
-				SatAmt:              params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				ShortChannelId:      params.scid,
 				Asset:               asset,
 				PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -258,7 +258,7 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 		// Swap out should fail as the swap_amt is to high.
 		var response map[string]interface{}
 		err := lightningds[0].Rpc.Request(&clightning.SwapOut{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -267,7 +267,7 @@ func Test_ClnCln_ExcessiveAmount(t *testing.T) {
 
 		// Swap in should fail as the swap_amt is to high.
 		err = lightningds[1].Rpc.Request(&clightning.SwapIn{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -293,7 +293,7 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 
 		var response map[string]interface{}
 		err = lightningds[0].Rpc.Request(&clightning.SwapOut{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -314,7 +314,7 @@ func Test_Cln_HtlcMaximum(t *testing.T) {
 
 		var response map[string]interface{}
 		err = lightningds[1].Rpc.Request(&clightning.SwapIn{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -354,7 +354,7 @@ func Test_Cln_Premium(t *testing.T) {
 
 		var response map[string]interface{}
 		err = lightningds[1].Rpc.Request(&clightning.SwapIn{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -391,7 +391,7 @@ func Test_Cln_Premium(t *testing.T) {
 
 		var response map[string]interface{}
 		err = lightningds[0].Rpc.Request(&clightning.SwapOut{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -413,7 +413,7 @@ func Test_Cln_Premium(t *testing.T) {
 
 		var response map[string]interface{}
 		err := lightningds[1].Rpc.Request(&clightning.SwapIn{
-			SatAmt:              params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			ShortChannelId:      params.scid,
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -449,7 +449,7 @@ func Test_ClnCln_StuckChannels(t *testing.T) {
 	var response map[string]interface{}
 	err := lightningds[1].Rpc.Request(
 		&clightning.SwapIn{
-			SatAmt:         100,
+			LnAmountSat:    100,
 			ShortChannelId: params.scid,
 			Asset:          "btc",
 		},
@@ -558,7 +558,7 @@ func startLndSwap(t *testing.T, peerswapd *PeerSwapd, channelID uint64, params *
 		go func() {
 			_, _ = peerswapd.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
@@ -567,7 +567,7 @@ func startLndSwap(t *testing.T, peerswapd *PeerSwapd, channelID uint64, params *
 		go func() {
 			_, _ = peerswapd.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
@@ -675,7 +675,7 @@ func Test_OnlyOneActiveSwapPerChannelLnd(t *testing.T) {
 			defer wg.Done()
 			res, err := peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
@@ -724,7 +724,7 @@ func Test_LndLnd_ExcessiveAmount(t *testing.T) {
 		defer cancel()
 		_, err = peerswapds[0].PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
 			ChannelId:           channelID,
-			SwapAmount:          params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			Asset:               asset,
 			PremiumLimitRatePpm: params.premiumLimitRatePPM,
 		})
@@ -746,7 +746,7 @@ func Test_LndLnd_ExcessiveAmount(t *testing.T) {
 		defer cancel()
 		_, err = peerswapds[1].PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
 			ChannelId:           channelID,
-			SwapAmount:          params.swapAmt,
+			LnAmountSat:         params.swapAmt,
 			Asset:               asset,
 			PremiumLimitRatePpm: params.premiumLimitRatePPM,
 		})

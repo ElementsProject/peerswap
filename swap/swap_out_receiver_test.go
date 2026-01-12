@@ -20,11 +20,12 @@ func Test_SwapOutReceiverValidSwap(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -59,11 +60,12 @@ func Test_SwapOutReceiverClaimCoop(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -98,11 +100,12 @@ func Test_SwapOutReceiverCancelReceived(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -132,11 +135,12 @@ func Test_SwapOutReceiverCancelInternal(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -164,11 +168,12 @@ func Test_SwapOutReceiverInsufficientBalance(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          takerPubkeyHash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -206,11 +211,12 @@ func Test_SwapOutReceiver_PeerIsSuspicious(t *testing.T) {
 	swapFSM := newSwapOutReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutRequestReceived, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Pubkey:          peer,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {

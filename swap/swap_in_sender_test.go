@@ -26,10 +26,11 @@ func Test_SwapInSenderValidSwap(t *testing.T) {
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		Scid:            chanId,
 		Pubkey:          initiator,
 	})
@@ -68,10 +69,11 @@ func Test_SwapInSenderCancel1(t *testing.T) {
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		Scid:            chanId,
 		Pubkey:          initiator,
 	})
@@ -98,10 +100,11 @@ func Test_SwapInSenderCoopClose(t *testing.T) {
 	swap := newSwapInSenderFSM(swapServices, initiator, peer)
 
 	_, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		Scid:            chanId,
 		Pubkey:          initiator,
 	})

@@ -46,11 +46,12 @@ func Test_ValidSwap(t *testing.T) {
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapFSM.SwapId,
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		PremiumLimit:    10000,
 	})
@@ -67,7 +68,7 @@ func Test_ValidSwap(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
 		Payreq:  FeeInvoice,
 		Pubkey:  peer,
-		Premium: 1000,
+		Premium: 0,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -101,11 +102,12 @@ func Test_Cancel2(t *testing.T) {
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapFSM.SwapId,
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -130,11 +132,12 @@ func Test_Cancel1(t *testing.T) {
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapFSM.SwapId,
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -162,11 +165,12 @@ func Test_AbortCsvClaim(t *testing.T) {
 	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
 
 	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
-		Amount:          swapAmount,
 		Scid:            chanId,
 		SwapId:          swapFSM.SwapId,
 		Pubkey:          takerpubkeyhash,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		PremiumLimit:    10000,
 	})
@@ -180,7 +184,7 @@ func Test_AbortCsvClaim(t *testing.T) {
 	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
 		Payreq:  FeeInvoice,
 		Pubkey:  peer,
-		Premium: 1000,
+		Premium: 0,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -328,7 +332,7 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, int6
 	if payreq == "swapin" {
 		return "foo", 100000 * 1000, 10, nil
 	}
-	return "foo", (100000 + 1000) * 1000, 10, nil
+	return "foo", 100000 * 1000, 10, nil
 }
 
 func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err error) {

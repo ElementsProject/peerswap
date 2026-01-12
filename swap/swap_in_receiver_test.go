@@ -19,11 +19,12 @@ func Test_SwapInReceiverValid(t *testing.T) {
 	swapServices := getSwapServices(t, msgChan)
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		PremiumLimit:    10000,
 	})
@@ -67,11 +68,12 @@ func Test_SwapInReceiverCancel1(t *testing.T) {
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 	})
 	if err != nil {
@@ -100,11 +102,12 @@ func Test_SwapInReceiverCancel2(t *testing.T) {
 	swap := newSwapInReceiverFSM(swapId, swapServices, peer)
 
 	_, err := swap.SendEvent(Event_SwapInReceiver_OnRequestReceived, &SwapInRequestMessage{
-		Amount:          swapAmount,
 		Pubkey:          initiator,
 		Scid:            chanId,
 		SwapId:          swapId,
 		Network:         "mainnet",
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		PremiumLimit:    10000,
 	})
@@ -157,9 +160,9 @@ func Test_SwapInReceiver_PeerIsSuspicious(t *testing.T) {
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swapId,
 		Network:         "mainnet",
-		Asset:           "",
 		Scid:            chanId,
-		Amount:          swapAmount,
+		LnAmountSat:     swapAmount,
+		AssetAmount:     swapAmount,
 		Pubkey:          initiator,
 	})
 	if err != nil {

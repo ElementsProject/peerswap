@@ -46,8 +46,18 @@ func main() {
 var (
 	satAmountFlag = cli.Uint64Flag{
 		Name:     "sat_amt",
-		Usage:    "Amount of Sats to swap for",
+		Usage:    "Lightning amount in sats (ln_amount_sat)",
 		Required: true,
+	}
+	assetAmountFlag = cli.Uint64Flag{
+		Name:     "asset_amt",
+		Usage:    "On-chain asset amount (asset_amount). If omitted for btc, defaults to sat_amt.",
+		Required: false,
+	}
+	assetIdFlag = cli.StringFlag{
+		Name:     "asset_id",
+		Usage:    "Liquid asset id (32-byte hex). Required for lbtc swaps.",
+		Required: false,
 	}
 	channelIdFlag = cli.Uint64Flag{
 		Name:     "channel_id",
@@ -101,6 +111,8 @@ var (
 		Usage: "Perform a swap-out (sending lightning funds to receive onchain funds)",
 		Flags: []cli.Flag{
 			satAmountFlag,
+			assetAmountFlag,
+			assetIdFlag,
 			channelIdFlag,
 			assetFlag,
 			PremiumLimitRatePPMFlag,
@@ -113,6 +125,8 @@ var (
 		Usage: "Perform a swap-in (sending onchain funds to receive lightning funds)",
 		Flags: []cli.Flag{
 			satAmountFlag,
+			assetAmountFlag,
+			assetIdFlag,
 			channelIdFlag,
 			assetFlag,
 			PremiumLimitRatePPMFlag,
@@ -288,8 +302,10 @@ func swapIn(ctx *cli.Context) error {
 
 	res, err := client.SwapIn(context.Background(), &peerswaprpc.SwapInRequest{
 		ChannelId:           ctx.Uint64(channelIdFlag.Name),
-		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		LnAmountSat:         ctx.Uint64(satAmountFlag.Name),
 		Asset:               ctx.String(assetFlag.Name),
+		AssetId:             ctx.String(assetIdFlag.Name),
+		AssetAmount:         ctx.Uint64(assetAmountFlag.Name),
 		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {
@@ -309,8 +325,10 @@ func swapOut(ctx *cli.Context) error {
 
 	res, err := client.SwapOut(context.Background(), &peerswaprpc.SwapOutRequest{
 		ChannelId:           ctx.Uint64(channelIdFlag.Name),
-		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
+		LnAmountSat:         ctx.Uint64(satAmountFlag.Name),
 		Asset:               ctx.String(assetFlag.Name),
+		AssetId:             ctx.String(assetIdFlag.Name),
+		AssetAmount:         ctx.Uint64(assetAmountFlag.Name),
 		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
 	})
 	if err != nil {

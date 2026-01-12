@@ -57,7 +57,7 @@ func (l *LiquidOnChain) GetOnchainBalance() (uint64, error) {
 	return l.liquidWallet.GetBalance()
 }
 
-func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (txHex, address, txid string, fee uint64, vout uint32, err error) {
+func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (txHex, openingAddress, txid string, fee uint64, vout uint32, err error) {
 	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
 		return "", "", "", 0, 0, err
@@ -72,38 +72,76 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 		return "", "", "", 0, 0, err
 	}
 	swapParams.OpeningAddress = blindedScriptAddr
-	txId, txHex, fee, err := l.liquidWallet.CreateAndBroadcastTransaction(swapParams, l.asset)
+
+	// Fee reserve for the spending tx (paid in LBTC).
+	feeEstimate, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
+	if err != nil {
+		log.Infof("error getting fee estimate %v", err)
+		feeEstimate = feeAmountPlaceholder
+	}
+	feeReserve := feeEstimate * 2
+
+	// OpeningTx outputs:
+	// 1) swap asset output (confidential) locked to swap script
+	// 2) LBTC fee-reserve output (confidential) locked to swap script
+	outputs := []wallet.TxOutput{
+		{AssetID: swapParams.AssetId, Amount: swapParams.Amount},
+		{AssetID: l.network.AssetID, Amount: feeReserve},
+	}
+
+	txId, txHex, fee, err := l.liquidWallet.CreateAndBroadcastTransaction(swapParams, outputs)
 	if err != nil {
 		return "", "", "", 0, 0, err
 	}
-	return txHex, blindedScriptAddr, txId, fee, vout, nil
+
+	// Find vout of the swap-asset output (used for txwatcher and spending).
+	assetIdBytes, err := hex.DecodeString(swapParams.AssetId)
+	if err != nil {
+		return "", "", "", 0, 0, err
+	}
+	if len(assetIdBytes) != 32 {
+		return "", "", "", 0, 0, fmt.Errorf("invalid asset id length: %d", len(assetIdBytes))
+	}
+	wantAsset := elementsutil.ReverseBytes(assetIdBytes)
+	wantScript, err := address.ToOutputScript(blindedScriptAddr)
+	if err != nil {
+		return "", "", "", 0, 0, err
+	}
+	openingTx, err := transaction.NewTxFromHex(txHex)
+	if err != nil {
+		return "", "", "", 0, 0, err
+	}
+	for i, out := range openingTx.Outputs {
+		if !bytes.Equal(out.Script, wantScript) {
+			continue
+		}
+		ubRes, err := confidential.UnblindOutputWithKey(out, swapParams.BlindingKey.Serialize())
+		if err != nil {
+			continue
+		}
+		if bytes.Equal(ubRes.Asset, wantAsset) && ubRes.Value == swapParams.Amount {
+			return txHex, blindedScriptAddr, txId, fee, uint32(i), nil
+		}
+	}
+
+	return "", "", "", 0, 0, errors.New("swap output vout not found")
 }
 
 // feeAmountPlaceholder is a placeholder for the fee amount
 const feeAmountPlaceholder = uint64(500)
 
 func (l *LiquidOnChain) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	return l.createPreimageSpendingTransaction(swapParams, claimParams, fee)
+	return l.createPreimageSpendingTransaction(swapParams, claimParams)
 }
 
-func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, fee uint64) (string, string, string, error) {
+func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
 
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, 0, fee)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	txHex, err := tx.ToHex()
+	tx, sigHashes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, 0)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -113,9 +151,15 @@ func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.Openi
 		return "", "", "", err
 	}
 
-	tx.Inputs[0].Witness = GetPreimageWitness(sigBytes, preimage[:], redeemScript)
+	for i := range tx.Inputs {
+		sig, err := claimParams.Signer.Sign(sigHashes[i][:])
+		if err != nil {
+			return "", "", "", err
+		}
+		tx.Inputs[i].Witness = GetPreimageWitness(sig.Serialize(), preimage[:], redeemScript)
+	}
 
-	txHex, err = tx.ToHex()
+	txHex, err := tx.ToHex()
 	if err != nil {
 		return "", "", "", err
 	}
@@ -128,25 +172,28 @@ func (l *LiquidOnChain) createPreimageSpendingTransaction(swapParams *swap.Openi
 }
 
 func (l *LiquidOnChain) CreateCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	return l.createCsvSpendingTransaction(swapParams, claimParams, fee)
+	return l.createCsvSpendingTransaction(swapParams, claimParams)
 }
 
-func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, fee uint64) (txId, txHex, address string, error error) {
+func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, error error) {
 	newAddr, err := l.liquidWallet.GetAddress()
 	if err != nil {
 		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv, fee)
+	tx, sigHashes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv)
 	if err != nil {
 		return "", "", "", err
 	}
-	tx.Inputs[0].Witness = GetCsvWitness(sigBytes, redeemScript)
+
+	for i := range tx.Inputs {
+		sig, err := claimParams.Signer.Sign(sigHashes[i][:])
+		if err != nil {
+			return "", "", "", err
+		}
+		tx.Inputs[i].Witness = GetCsvWitness(sig.Serialize(), redeemScript)
+	}
+
 	txHex, err = tx.ToHex()
 	if err != nil {
 		return "", "", "", err
@@ -159,15 +206,10 @@ func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningPar
 }
 
 func (l *LiquidOnChain) CreateCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
-	fee, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindCoop)))
-	if err != nil {
-		log.Infof("error getting fee %v", err)
-		fee = feeAmountPlaceholder
-	}
-	return l.createCoopSpendingTransaction(swapParams, claimParams, takerSigner, fee)
+	return l.createCoopSpendingTransaction(swapParams, claimParams, takerSigner)
 }
 
-func (l *LiquidOnChain) createCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer, fee uint64) (txId, txHex, address string, error error) {
+func (l *LiquidOnChain) createCoopSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, takerSigner swap.Signer) (txId, txHex, address string, error error) {
 	refundAddr, err := l.NewAddress()
 	if err != nil {
 		return "", "", "", err
@@ -180,20 +222,21 @@ func (l *LiquidOnChain) createCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", "", err
 	}
-	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, 0, l.asset, redeemScript, refundAddr, fee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
+	spendingTx, sigHashes, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.AssetId, swapParams.Amount, 0, redeemScript, refundAddr, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
 	if err != nil {
 		return "", "", "", err
 	}
-	takerSig, err := takerSigner.Sign(sigHash[:])
-	if err != nil {
-		return "", "", "", err
+	for i := range spendingTx.Inputs {
+		takerSig, err := takerSigner.Sign(sigHashes[i][:])
+		if err != nil {
+			return "", "", "", err
+		}
+		makerSig, err := claimParams.Signer.Sign(sigHashes[i][:])
+		if err != nil {
+			return "", "", "", err
+		}
+		spendingTx.Inputs[i].Witness = GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
 	}
-	makerSig, err := claimParams.Signer.Sign(sigHash[:])
-	if err != nil {
-		return "", "", "", err
-	}
-
-	spendingTx.Inputs[0].Witness = GetCooperativeWitness(takerSig.Serialize(), makerSig.Serialize(), redeemScript)
 
 	txHex, err = spendingTx.ToHex()
 	if err != nil {
@@ -239,129 +282,168 @@ func (l *LiquidOnChain) NewAddress() (string, error) {
 	return addr, nil
 }
 
-func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr string, csv uint32, preparedFee uint64) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
+func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr string, csv uint32) (tx *transaction.Transaction, sigHashes [][32]byte, redeemScript []byte, err error) {
 	redeemScript, err = ParamsToTxScript(swapParams, LiquidCsv)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	spendingTx, sigHash, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.Amount, csv, l.asset, redeemScript, spendingAddr, preparedFee, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
+	spendingTx, sigHashes, err := l.createSpendingTransaction(claimParams.OpeningTxHex, swapParams.AssetId, swapParams.Amount, csv, redeemScript, spendingAddr, swapParams.BlindingKey, claimParams.EphemeralKey, claimParams.OutputAssetBlindingFactor, claimParams.BlindingSeed)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
-	sig, err := claimParams.Signer.Sign(sigHash[:])
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return spendingTx, sig.Serialize(), redeemScript, nil
+	return spendingTx, sigHashes, redeemScript, nil
 }
 
-// CreateSpendingTransaction returns the spendningTransaction for the swap
-func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmount uint64, csv uint32, asset, redeemScript []byte, redeemAddr string, preparedFee uint64, blindingKey, ephemeralPrivKey *btcec.PrivateKey, outputAbf, seed []byte) (tx *transaction.Transaction, sigHash [32]byte, err error) {
-	if preparedFee == 0 {
-		return nil, [32]byte{}, errors.New("fee must be set other than 0")
+// createSpendingTransaction builds a Liquid spending transaction consuming:
+// - the swap-asset output (asset_id, asset_amount) and
+// - an additional LBTC fee-reserve output (locked to the same script).
+//
+// The spending transaction pays the full swap asset amount to redeemAddr and
+// burns the entire fee-reserve as a fee output (no LBTC change output).
+func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAssetId string, swapAmount uint64, csv uint32, redeemScript []byte, redeemAddr string, blindingKey, ephemeralPrivKey *btcec.PrivateKey, outputAbf, seed []byte) (tx *transaction.Transaction, sigHashes [][32]byte, err error) {
+	if swapAssetId == "" {
+		return nil, nil, errors.New("asset_id must be set for liquid spending transaction")
 	}
+	if blindingKey == nil {
+		return nil, nil, errors.New("blinding_key must be set for liquid spending transaction")
+	}
+	if ephemeralPrivKey == nil {
+		return nil, nil, errors.New("ephemeral_key must be set for liquid spending transaction")
+	}
+
 	firstTx, err := transaction.NewTxFromHex(openingTxHex)
 	if err != nil {
 		log.Infof("error creating first tx %s, %v", openingTxHex, err)
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
-	vout, err := l.FindVout(firstTx.Outputs, redeemScript)
+	swapAssetIdBytes, err := hex.DecodeString(swapAssetId)
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
+	}
+	if len(swapAssetIdBytes) != 32 {
+		return nil, nil, fmt.Errorf("invalid asset id length: %d", len(swapAssetIdBytes))
+	}
+	wantSwapAsset := elementsutil.ReverseBytes(swapAssetIdBytes)
+	wantLbtcAsset := elementsutil.ReverseBytes(h2b(l.network.AssetID))
+
+	scriptPubKey := []byte{0x00, 0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
+
+	var swapVout uint32
+	var feeVout uint32
+	var ubSwap *confidential.UnblindOutputResult
+	var ubFee *confidential.UnblindOutputResult
+	var foundSwap bool
+	var foundFee bool
+
+	for i, out := range firstTx.Outputs {
+		if !bytes.Equal(out.Script, scriptPubKey) {
+			continue
+		}
+		ubRes, err := confidential.UnblindOutputWithKey(out, blindingKey.Serialize())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !foundSwap && bytes.Equal(ubRes.Asset, wantSwapAsset) && ubRes.Value == swapAmount {
+			foundSwap = true
+			swapVout = uint32(i)
+			ubSwap = ubRes
+			continue
+		}
+
+		if !foundFee && bytes.Equal(ubRes.Asset, wantLbtcAsset) && ubRes.Value > 0 {
+			foundFee = true
+			feeVout = uint32(i)
+			ubFee = ubRes
+			continue
+		}
 	}
 
-	// unblind output
-	ubRes, err := confidential.UnblindOutputWithKey(firstTx.Outputs[vout], blindingKey.Serialize())
-	if err != nil {
-		log.Infof("error unblinding output %v", err)
-		return nil, [32]byte{}, err
+	if !foundSwap {
+		return nil, nil, errors.New("swap output not found in opening tx")
+	}
+	if !foundFee || feeVout == swapVout {
+		return nil, nil, errors.New("fee-reserve output not found in opening tx")
 	}
 
-	if bytes.Equal(ubRes.Asset, l.asset) {
-		err = errors.New(fmt.Sprintf("invalid asset id got: %x, expected %x", ubRes.Asset, l.asset))
-		return nil, [32]byte{}, err
-	}
-
-	//check output amounts
-	if ubRes.Value != swapAmount {
-		return nil, [32]byte{}, errors.New(fmt.Sprintf("Tx value is not equal to the swap contract expected: %v, tx: %v", swapAmount, ubRes.Value))
-	}
-
-	outputValue := ubRes.Value - preparedFee
+	feeValue := ubFee.Value
+	outputValue := ubSwap.Value
 
 	finalVbfArgs := confidential.FinalValueBlindingFactorArgs{
-		InValues:      []uint64{ubRes.Value},
+		InValues:      []uint64{ubSwap.Value, ubFee.Value},
 		OutValues:     []uint64{outputValue},
-		InGenerators:  [][]byte{ubRes.AssetBlindingFactor},
+		InGenerators:  [][]byte{ubSwap.AssetBlindingFactor, ubFee.AssetBlindingFactor},
 		OutGenerators: [][]byte{outputAbf},
-		InFactors:     [][]byte{ubRes.ValueBlindingFactor},
+		InFactors:     [][]byte{ubSwap.ValueBlindingFactor, ubFee.ValueBlindingFactor},
 		OutFactors:    [][]byte{},
 	}
 
 	outputVbf, err := confidential.FinalValueBlindingFactor(finalVbfArgs)
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	// get asset commitment
-	assetcommitment, err := confidential.AssetCommitment(ubRes.Asset, outputAbf[:])
+	assetcommitment, err := confidential.AssetCommitment(ubSwap.Asset, outputAbf[:])
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	valueCommitment, err := confidential.ValueCommitment(outputValue, assetcommitment[:], outputVbf[:])
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	surjectionProofArgs := confidential.SurjectionProofArgs{
-		OutputAsset:               ubRes.Asset,
+		OutputAsset:               ubSwap.Asset,
 		OutputAssetBlindingFactor: outputAbf[:],
-		InputAssets:               [][]byte{ubRes.Asset},
-		InputAssetBlindingFactors: [][]byte{ubRes.AssetBlindingFactor},
+		InputAssets:               [][]byte{ubSwap.Asset, ubFee.Asset},
+		InputAssetBlindingFactors: [][]byte{ubSwap.AssetBlindingFactor, ubFee.AssetBlindingFactor},
 		Seed:                      seed[:],
 	}
 
 	surjectionProof, ok := confidential.SurjectionProof(surjectionProofArgs)
 	if !ok {
-		return nil, [32]byte{}, errors.New(
+		return nil, nil, errors.New(
 			"failed to generate surjection proof, please retry",
 		)
 	}
 	confOutputScript, err := address.ToOutputScript(redeemAddr)
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	confAddr, err := address.FromConfidential(redeemAddr)
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	// create new transaction
 	spendingTx := transaction.NewTx(2)
 
-	// add input
+	// add inputs
 	txHash := firstTx.TxHash()
-	swapInput := transaction.NewTxInput(txHash[:], vout)
+	swapInput := transaction.NewTxInput(txHash[:], swapVout)
 	swapInput.Sequence = 0 | csv
-	spendingTx.Inputs = []*transaction.TxInput{swapInput}
+	feeInput := transaction.NewTxInput(txHash[:], feeVout)
+	feeInput.Sequence = 0 | csv
+	spendingTx.Inputs = []*transaction.TxInput{swapInput, feeInput}
 
 	outputNonce := ephemeralPrivKey.PubKey()
 
 	nonce, err := confidential.NonceHash(confAddr.BlindingKey, ephemeralPrivKey.Serialize())
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	// build rangeproof
 	rangeProofArgs := confidential.RangeProofArgs{
 		Value:               outputValue,
 		Nonce:               nonce,
-		Asset:               ubRes.Asset,
+		Asset:               ubSwap.Asset,
 		AssetBlindingFactor: outputAbf[:],
 		ValueBlindFactor:    outputVbf,
 		ValueCommit:         valueCommitment[:],
@@ -372,11 +454,11 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 
 	rangeProof, err := confidential.RangeProof(rangeProofArgs)
 	if err != nil {
-		return nil, [32]byte{}, err
+		return nil, nil, err
 	}
 
 	//create output
-	receiverOutput := transaction.NewTxOutput(asset, valueCommitment, confOutputScript)
+	receiverOutput := transaction.NewTxOutput(l.asset, valueCommitment, confOutputScript)
 	receiverOutput.Asset = assetcommitment
 	receiverOutput.Value = valueCommitment
 	receiverOutput.Nonce = outputNonce.SerializeCompressed()
@@ -386,16 +468,18 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 	spendingTx.Outputs = append(spendingTx.Outputs, receiverOutput)
 
 	// add feeoutput
-	feeValue, _ := elementsutil.ValueToBytes(preparedFee)
+	feeValueBytes, _ := elementsutil.ValueToBytes(feeValue)
 	feeScript := []byte{}
-	feeOutput := transaction.NewTxOutput(asset, feeValue, feeScript)
+	feeOutput := transaction.NewTxOutput(l.asset, feeValueBytes, feeScript)
 	spendingTx.Outputs = append(spendingTx.Outputs, feeOutput)
 
-	// create sighash
-	sigHash = spendingTx.HashForWitnessV0(
-		0, redeemScript[:], firstTx.Outputs[vout].Value, txscript.SigHashAll)
+	// create sighashes (one per input)
+	sigHashSwap := spendingTx.HashForWitnessV0(
+		0, redeemScript[:], firstTx.Outputs[swapVout].Value, txscript.SigHashAll)
+	sigHashFee := spendingTx.HashForWitnessV0(
+		1, redeemScript[:], firstTx.Outputs[feeVout].Value, txscript.SigHashAll)
 
-	return spendingTx, sigHash, nil
+	return spendingTx, [][32]byte{sigHashSwap, sigHashFee}, nil
 }
 
 type transactionKind string
@@ -447,6 +531,13 @@ func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
 }
 
 func (l *LiquidOnChain) ValidateTx(openingParams *swap.OpeningParams, txHex string) (bool, error) {
+	if openingParams.AssetId == "" {
+		return false, errors.New("asset_id must be set for liquid opening tx validation")
+	}
+	if openingParams.BlindingKey == nil {
+		return false, errors.New("blinding_key must be set for liquid opening tx validation")
+	}
+
 	redeemScript, err := ParamsToTxScript(openingParams, LiquidCsv)
 	if err != nil {
 		return false, err
@@ -457,29 +548,61 @@ func (l *LiquidOnChain) ValidateTx(openingParams *swap.OpeningParams, txHex stri
 		return false, err
 	}
 
-	vout, err := l.FindVout(openingTx.Outputs, redeemScript)
+	swapAssetIdBytes, err := hex.DecodeString(openingParams.AssetId)
 	if err != nil {
 		return false, err
 	}
+	if len(swapAssetIdBytes) != 32 {
+		return false, fmt.Errorf("invalid asset id length: %d", len(swapAssetIdBytes))
+	}
+	wantSwapAsset := elementsutil.ReverseBytes(swapAssetIdBytes)
+	wantLbtcAsset := elementsutil.ReverseBytes(h2b(l.network.AssetID))
 
-	// unblind output
-	ubRes, err := confidential.UnblindOutputWithKey(openingTx.Outputs[vout], openingParams.BlindingKey.Serialize())
+	feeEstimate, err := l.liquidWallet.GetFee(int64(getEstimatedTxSize(transactionKindPreimageSpending)))
 	if err != nil {
-		return false, err
+		log.Infof("error getting fee estimate %v", err)
+		feeEstimate = feeAmountPlaceholder
 	}
 
-	// todo muss ins protocol
-	if bytes.Equal(ubRes.Asset, l.asset) {
-		err = errors.New(fmt.Sprintf("invalid asset id got: %x, expected %x", ubRes.Asset, l.asset))
-		return false, err
+	scriptPubKey := []byte{0x00, 0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
+
+	var foundSwap bool
+	var foundFeeReserve bool
+	var swapVout uint32
+	var feeVout uint32
+
+	for i, out := range openingTx.Outputs {
+		if !bytes.Equal(out.Script, scriptPubKey) {
+			continue
+		}
+
+		ubRes, err := confidential.UnblindOutputWithKey(out, openingParams.BlindingKey.Serialize())
+		if err != nil {
+			return false, err
+		}
+
+		if !foundSwap && bytes.Equal(ubRes.Asset, wantSwapAsset) && ubRes.Value == openingParams.Amount {
+			foundSwap = true
+			swapVout = uint32(i)
+			continue
+		}
+
+		if !foundFeeReserve && bytes.Equal(ubRes.Asset, wantLbtcAsset) && ubRes.Value >= feeEstimate {
+			foundFeeReserve = true
+			feeVout = uint32(i)
+			continue
+		}
 	}
 
-	//check output amounts
-	if ubRes.Value != openingParams.Amount {
-		return false, errors.New(fmt.Sprintf("Tx value is not equal to the swap contract expected: %v, tx: %v", openingParams.Amount, ubRes.Value))
+	if !foundSwap {
+		return false, errors.New("swap output not found in opening tx")
+	}
+	if !foundFeeReserve || feeVout == swapVout {
+		return false, errors.New("fee-reserve output not found or too small in opening tx")
 	}
 
-	//todo check script
 	return true, nil
 }
 
@@ -590,11 +713,25 @@ func (l *LiquidOnChain) GetFlatOpeningTXFee() (uint64, error) {
 }
 
 func (l *LiquidOnChain) GetAsset() string {
-	return hex.EncodeToString(l.asset)
+	// Return the canonical (big-endian) asset id as commonly displayed in
+	// explorers and Elements APIs.
+	return l.network.AssetID
 }
 
 func (l *LiquidOnChain) GetNetwork() string {
-	return ""
+	// `network.Network.Name` is "liquid", "testnet", "regtest" which would
+	// collide with Bitcoin network names. For peerswap protocol we disambiguate
+	// Liquid by prefixing the test networks.
+	switch l.network.Name {
+	case "liquid":
+		return "liquid"
+	case "testnet":
+		return "liquid-testnet"
+	case "regtest":
+		return "liquid-regtest"
+	default:
+		return l.network.Name
+	}
 }
 
 func generateRandom32Bytes() []byte {

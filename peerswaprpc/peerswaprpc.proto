@@ -68,10 +68,20 @@ message SendToAddressResponse {
 
 message SwapOutRequest {
   uint64 channel_id = 1;
-  uint64 swap_amount = 2;
+  // ln_amount_sat is the amount in satoshis on the Lightning side (BTC).
+  uint64 ln_amount_sat = 2;
+  // asset keeps the on-chain chain selector for backwards compatibility.
+  // Expected values: "btc" | "lbtc".
   string asset = 3;
   bool force = 4;
+  // premium_limit_rate_ppm is ignored in protocol v6 (MVP).
   int64 premium_limit_rate_ppm = 5;
+  // asset_id is the Elements/Liquid asset id (32-byte hex, big-endian as commonly displayed).
+  // Required if asset == "lbtc".
+  string asset_id = 6;
+  // asset_amount is the amount in the on-chain asset base units.
+  // Required for protocol v6.
+  uint64 asset_amount = 7;
 }
 
 message SwapOutResponse {
@@ -80,10 +90,20 @@ message SwapOutResponse {
 
 message SwapInRequest {
   uint64 channel_id = 1;
-  uint64 swap_amount = 2;
+  // ln_amount_sat is the amount in satoshis on the Lightning side (BTC).
+  uint64 ln_amount_sat = 2;
+  // asset keeps the on-chain chain selector for backwards compatibility.
+  // Expected values: "btc" | "lbtc".
   string asset = 3;
   bool force = 4;
+  // premium_limit_rate_ppm is ignored in protocol v6 (MVP).
   int64 premium_limit_rate_ppm = 5;
+  // asset_id is the Elements/Liquid asset id (32-byte hex, big-endian as commonly displayed).
+  // Required if asset == "lbtc".
+  string asset_id = 6;
+  // asset_amount is the amount in the on-chain asset base units.
+  // Required for protocol v6.
+  uint64 asset_amount = 7;
 }
 
 message SwapResponse {
@@ -141,13 +161,21 @@ message RequestedSwap {
 message PrettyPrintSwap {
   string id = 1;
   int64 created_at = 2;
+  // asset is the on-chain chain selector: "btc" | "lbtc".
   string asset = 3;
   string type = 4;
   string role = 5;
   string state = 6;
   string initiator_node_id = 7;
   string peer_node_id = 8;
-  uint64 amount = 9;
+  // ln_amount_sat is the amount in satoshis on the Lightning side (BTC).
+  uint64 ln_amount_sat = 9;
+  // network is the on-chain network (bitcoin: mainnet/testnet3/... , liquid: liquid/liquid-testnet/liquid-regtest).
+  string network = 16;
+  // asset_id is the Elements/Liquid asset id (required for liquid swaps).
+  string asset_id = 17;
+  // asset_amount is the amount in the on-chain asset base units.
+  uint64 asset_amount = 18;
   string channel_id = 10;
   string opening_tx_id = 11;
   string claim_tx_id = 12;

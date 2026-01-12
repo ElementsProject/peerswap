@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/log"
-	"github.com/elementsproject/peerswap/premium"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/isdev"
@@ -92,19 +91,8 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(err)
 	}
 
-	if swap.GetAsset() != "" && swap.GetAsset() != wallet.GetAsset() {
-		swap.CancelMessage = fmt.Sprintf("invalid liquid asset %s", swap.GetAsset())
-		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
-			Asset:           swap.GetChain(),
-			AmountSat:       swap.GetAmount(),
-			Type:            swap.GetType(),
-			RejectionReason: swap.CancelMessage,
-		})
-		return swap.HandleError(errors.New(swap.CancelMessage))
-	}
-
 	if swap.GetNetwork() != "" && swap.GetNetwork() != wallet.GetNetwork() {
-		swap.CancelMessage = fmt.Sprintf("invalid bitcoin network %s", swap.GetNetwork())
+		swap.CancelMessage = fmt.Sprintf("invalid onchain network %s", swap.GetNetwork())
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
 			Asset:           swap.GetChain(),
 			AmountSat:       swap.GetAmount(),
@@ -145,26 +133,11 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 type SwapInReceiverInitAction struct{}
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	var (
-		premiumValue int64
-		err          error
-	)
-	if swap.GetChain() == l_btc_chain {
-		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.LBTC, premium.SwapIn, swap.GetAmount())
-		if err != nil {
-			return swap.HandleError(err)
-		}
-	} else {
-		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.BTC, premium.SwapIn, swap.GetAmount())
-		if err != nil {
-			return swap.HandleError(err)
-		}
-	}
 	agreementMessage := &SwapInAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
-		Premium:         premiumValue,
+		Premium:         0,
 	}
 	swap.SwapInAgreement = agreementMessage
 
@@ -280,6 +253,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		MakerPubkey:      swap.GetMakerPubkey(),
 		ClaimPaymentHash: preimage.Hash().String(),
 		Amount:           swap.GetOpeningTXAmount(),
+		AssetId:          swap.GetAsset(),
 		BlindingKey:      blindingKey,
 	})
 	if err != nil {
@@ -414,13 +388,35 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(err)
 	}
 
-	// Check if onchain balance is sufficient for swap + fees
+	// Check if onchain balance is sufficient for opening fees (+ fee-reserve for liquid).
+	// NOTE: For Liquid swaps with arbitrary assets, the on-chain "swap amount"
+	// (asset_amount) is not denominated in LBTC. We can only sanity check the
+	// LBTC balance required for fees/reserve here; funding the swap asset will
+	// fail later if insufficient.
 	walletBalance, err := wallet.GetOnchainBalance()
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	if walletBalance < swap.GetAmount()+openingFee {
-		return swap.HandleError(errors.New("insufficient walletbalance"))
+
+	requiredBalance := openingFee
+	switch swap.GetChain() {
+	case btc_chain:
+		requiredBalance += swap.GetOpeningTXAmount()
+	case l_btc_chain:
+		refundFee, err := wallet.GetRefundFee()
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		feeReserveEstimate := refundFee * 2
+		requiredBalance += feeReserveEstimate
+
+		// If the swap asset itself is LBTC, include it in the LBTC balance check.
+		if swap.GetAsset() == wallet.GetAsset() {
+			requiredBalance += swap.GetOpeningTXAmount()
+		}
+	}
+	if walletBalance < requiredBalance {
+		return swap.HandleError(fmt.Errorf("insufficient walletbalance: have %d, need at least %d", walletBalance, requiredBalance))
 	}
 
 	// Construct memo
@@ -435,25 +431,13 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	var premiumValue int64
-	if swap.GetChain() == l_btc_chain {
-		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.LBTC, premium.SwapOut, swap.GetAmount())
-		if err != nil {
-			return swap.HandleError(err)
-		}
-	} else {
-		premiumValue, err = services.ps.Compute(swap.PeerNodeId, premium.BTC, premium.SwapOut, swap.GetAmount())
-		if err != nil {
-			return swap.HandleError(err)
-		}
-	}
 
 	message := &SwapOutAgreementMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.GetId(),
 		Pubkey:          hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
 		Payreq:          feeInvoice,
-		Premium:         premiumValue,
+		Premium:         0,
 	}
 	swap.SwapOutAgreement = message
 
@@ -653,7 +637,7 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	// Calculate the total required balance
 	// This includes the swap amount (multiplied by 1000 to convert from sat to msat)
 	// plus the fee in millisatoshis
-	requiredBalance := swap.SwapOutRequest.Amount*1000 + msatAmt
+	requiredBalance := swap.SwapOutRequest.LnAmountSat*1000 + msatAmt
 
 	// Check if the spendable balance (sp) is sufficient
 	if sp < requiredBalance {

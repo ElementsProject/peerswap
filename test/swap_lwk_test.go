@@ -11,6 +11,7 @@ import (
 	"github.com/elementsproject/peerswap/premium"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/testframework"
+	"github.com/vulpemventures/go-elements/network"
 )
 
 // skipLWKTests skips all LWK-related tests due to intermittent CI failures
@@ -32,6 +33,7 @@ func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
 	}
 
 	asset := "lbtc"
+	assetID := network.Regtest.AssetID
 	switch params.swapType {
 	case swap.SWAPTYPE_IN:
 		maker, ok := params.makerNode.(*CLightningNodeWithLiquid)
@@ -41,7 +43,9 @@ func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
 		go func(node *CLightningNodeWithLiquid) {
 			var response map[string]interface{}
 			err := node.Rpc.Request(&clightning.SwapIn{
-				SatAmt:              params.swapAmt,
+				LnAmountSat:         params.swapAmt,
+				AssetAmount:         params.swapAmt,
+				AssetId:             assetID,
 				ShortChannelId:      params.scid,
 				Asset:               asset,
 				PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -58,7 +62,9 @@ func startClnLwkSwap(t *testing.T, params *testParams, checkResp bool) {
 		go func(node *CLightningNodeWithLiquid) {
 			var response map[string]interface{}
 			err := node.Rpc.Request(&clightning.SwapOut{
-				SatAmt:              params.swapAmt,
+				LnAmountSat:         params.swapAmt,
+				AssetAmount:         params.swapAmt,
+				AssetId:             assetID,
 				ShortChannelId:      params.scid,
 				Asset:               asset,
 				PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -205,7 +211,9 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 				var response map[string]interface{}
 				return node.Rpc.Request(
 					&clightning.SwapOut{
-						SatAmt:              params.swapAmt,
+						LnAmountSat:         params.swapAmt,
+						AssetAmount:         params.swapAmt,
+						AssetId:             network.Regtest.AssetID,
 						ShortChannelId:      params.scid,
 						Asset:               "lbtc",
 						PremiumLimitRatePPM: params.premiumLimitRatePPM,
@@ -223,7 +231,9 @@ func Test_ClnCln_LWKLiquid_BackendDown(t *testing.T) {
 				var response map[string]interface{}
 				return node.Rpc.Request(
 					&clightning.SwapOut{
-						SatAmt:         params.swapAmt,
+						LnAmountSat:    params.swapAmt,
+						AssetAmount:    params.swapAmt,
+						AssetId:        network.Regtest.AssetID,
 						ShortChannelId: params.scid,
 						Asset:          "lbtc",
 					},
@@ -354,6 +364,7 @@ func startLndLwkSwap(
 	}
 
 	asset := "lbtc"
+	assetID := network.Regtest.AssetID
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -364,8 +375,10 @@ func startLndLwkSwap(
 		call = func(ctx context.Context) error {
 			_, err := requester.PeerswapClient.SwapIn(ctx, &peerswaprpc.SwapInRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
+				AssetId:             assetID,
+				AssetAmount:         params.swapAmt,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 			return err
@@ -374,8 +387,10 @@ func startLndLwkSwap(
 		call = func(ctx context.Context) error {
 			_, err := requester.PeerswapClient.SwapOut(ctx, &peerswaprpc.SwapOutRequest{
 				ChannelId:           channelID,
-				SwapAmount:          params.swapAmt,
+				LnAmountSat:         params.swapAmt,
 				Asset:               asset,
+				AssetId:             assetID,
+				AssetAmount:         params.swapAmt,
 				PremiumLimitRatePpm: params.premiumLimitRatePPM,
 			})
 			return err

@@ -90,6 +90,10 @@ type OpeningParams struct {
 	MakerPubkey      string
 	ClaimPaymentHash string
 	Amount           uint64
+	// AssetId is the on-chain asset id.
+	// Bitcoin: empty.
+	// Liquid: 32-byte hex string (big-endian as commonly displayed).
+	AssetId        string
 	BlindingKey      *btcec.PrivateKey
 	OpeningAddress   string
 }
