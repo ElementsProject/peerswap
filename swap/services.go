@@ -37,6 +37,7 @@ type Policy interface {
 	AddToSuspiciousPeerList(pubkey string) error
 	GetReserveOnchainMsat() uint64
 	GetMinSwapAmountMsat() uint64
+	ValidateAssetSwap(network, assetId string, lnAmountSat, assetAmount uint64) error
 	NewSwapsAllowed() bool
 }
 
@@ -94,8 +95,8 @@ type OpeningParams struct {
 	// Bitcoin: empty.
 	// Liquid: 32-byte hex string (big-endian as commonly displayed).
 	AssetId        string
-	BlindingKey      *btcec.PrivateKey
-	OpeningAddress   string
+	BlindingKey    *btcec.PrivateKey
+	OpeningAddress string
 }
 
 func (o *OpeningParams) String() string {

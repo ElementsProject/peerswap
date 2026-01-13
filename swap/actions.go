@@ -102,6 +102,18 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 		return swap.HandleError(errors.New(swap.CancelMessage))
 	}
 
+	// Apply per-asset swap policy (if configured).
+	if err := services.policy.ValidateAssetSwap(swap.GetNetwork(), swap.GetAsset(), swap.GetLnAmountSat(), swap.GetAssetAmount()); err != nil {
+		swap.CancelMessage = err.Error()
+		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
+			Asset:           swap.GetChain(),
+			AmountSat:       swap.GetAmount(),
+			Type:            swap.GetType(),
+			RejectionReason: swap.CancelMessage,
+		})
+		return swap.HandleError(err)
+	}
+
 	if !services.policy.IsPeerAllowed(swap.PeerNodeId) {
 		swap.CancelMessage = fmt.Sprintf("peer %s not allowed to request swaps", swap.PeerNodeId)
 		services.requestedSwapsStore.Add(swap.PeerNodeId, RequestedSwap{
@@ -597,13 +609,13 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 		return swap.HandleError(errors.New("swap.NextMessage is nil"))
 	}
 
-    // Send message repeated as we really want the message to be received at some point!
-    // In fast_test builds, lower the retry interval to speed up tests.
-    retryDur := 10 * time.Second
-    if isdev.FastTests() {
-        retryDur = 1 * time.Second
-    }
-    rm := messages.NewRedundantMessenger(services.messenger, retryDur)
+	// Send message repeated as we really want the message to be received at some point!
+	// In fast_test builds, lower the retry interval to speed up tests.
+	retryDur := 10 * time.Second
+	if isdev.FastTests() {
+		retryDur = 1 * time.Second
+	}
+	rm := messages.NewRedundantMessenger(services.messenger, retryDur)
 	err := services.messengerManager.AddSender(swap.GetId().String(), rm)
 	if err != nil {
 		return swap.HandleError(err)

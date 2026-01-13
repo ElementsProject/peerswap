@@ -190,6 +190,21 @@ For LND:
 pscli deletepeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [SWAP_IN|SWAP_OUT]
 ```
 
+## Policy: Liquid asset rules
+
+You can restrict which Liquid swaps are accepted/initiated per `asset_id` via the policy file (`policy.conf`) using repeated `asset_policy=` lines.
+
+Format:
+```ini
+asset_policy=asset_id=<32-byte-hex>,min_asset_amount=<n>,max_asset_amount=<n>,price_scale=<n>,min_sat_per_unit=<n>,max_sat_per_unit=<n>
+```
+
+Interpretation:
+- `min_asset_amount` / `max_asset_amount`: bounds for the on-chain `asset_amount` (base units).
+- `min_sat_per_unit` / `max_sat_per_unit`: bounds for the implied price, defined as:
+  - `implied_sat_per_unit = ln_amount_sat * price_scale / asset_amount`
+- `price_scale`: defines what “1 unit” means for price checks (example: if the asset uses 8 decimals, set `price_scale=100000000` to express sats per whole token).
+
 ## Misc
 
 `listpeers` - A command that returns peers that support the PeerSwap protocol. It also gives statistics about received and sent swaps to a peer.

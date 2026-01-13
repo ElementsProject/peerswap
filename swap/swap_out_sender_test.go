@@ -392,6 +392,10 @@ func (d *dummyPolicy) GetMinSwapAmountMsat() uint64 {
 	return d.getMinSwapAmountMsatReturn
 }
 
+func (d *dummyPolicy) ValidateAssetSwap(network, assetId string, lnAmountSat, assetAmount uint64) error {
+	return nil
+}
+
 func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
 	return true
 }

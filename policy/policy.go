@@ -85,6 +85,12 @@ type Policy struct {
 	// when we want to upgrade the node and do not want to allow for any new
 	// swap request from the peer or the node operator.
 	AllowNewSwaps bool `json:"allow_new_swaps" long:"allow_new_swaps" description:"If set to false, disables all swap requests, defaults to true."`
+
+	// AssetPolicies defines per-asset swap constraints for Liquid swaps.
+	// Each entry is configured via repeated `asset_policy=` lines.
+	AssetPolicies []AssetPolicyRule `json:"asset_policies" long:"asset_policy" description:"Per-asset swap constraints. Format: asset_id=<hex>,min_asset_amount=<n>,max_asset_amount=<n>,price_scale=<n>,min_sat_per_unit=<n>,max_sat_per_unit=<n>"`
+
+	assetPolicyByID map[string]AssetPolicyRule
 }
 
 func (p *Policy) String() string {
@@ -94,13 +100,15 @@ func (p *Policy) String() string {
 			"reserve_onchain_msat: %d\n"+
 			"allowlisted_peers: %s\n"+
 			"accept_all_peers: %t\n"+
-			"suspicious_peers: %s\n",
+			"suspicious_peers: %s\n"+
+			"asset_policies: %v\n",
 		p.AllowNewSwaps,
 		p.MinSwapAmountMsat,
 		p.ReserveOnchainMsat,
 		p.PeerAllowlist,
 		p.AcceptAllPeers,
 		p.SuspiciousPeerList,
+		p.AssetPolicies,
 	)
 	return str
 }
@@ -459,6 +467,10 @@ func create(r io.Reader) (*Policy, error) {
 	err := flags.NewIniParser(flags.NewParser(policy, flags.Default|flags.IgnoreUnknown)).Parse(r)
 	if err != nil {
 		return nil, ErrCreatePolicy(err.Error())
+	}
+
+	if err := policy.normalizeAssetPolicies(); err != nil {
+		return nil, err
 	}
 
 	return policy, nil

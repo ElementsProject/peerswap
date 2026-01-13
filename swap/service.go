@@ -426,6 +426,11 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	} else {
 		return nil, errors.New("invalid chain")
 	}
+
+	if err := s.swapServices.policy.ValidateAssetSwap(onchainNetwork, assetId, lnAmountSat, assetAmount); err != nil {
+		return nil, err
+	}
+
 	request := &SwapOutRequestMessage{
 		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 		SwapId:          swap.SwapId,
@@ -507,6 +512,11 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 	} else {
 		return nil, errors.New("invalid chain")
 	}
+
+	if err := s.swapServices.policy.ValidateAssetSwap(onchainNetwork, assetId, lnAmountSat, assetAmount); err != nil {
+		return nil, err
+	}
+
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
 	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
