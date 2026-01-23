@@ -1,6 +1,8 @@
 package peersync
 
 import (
+	"encoding/json"
+
 	"github.com/elementsproject/peerswap/premium"
 )
 
@@ -15,6 +17,26 @@ type PeerCapabilitySnapshot struct {
 	BTCSwapOutPremiumRatePPM  int64    `json:"btc_swap_out_premium_rate_ppm,omitempty"`
 	LBTCSwapInPremiumRatePPM  int64    `json:"lbtc_swap_in_premium_rate_ppm,omitempty"`
 	LBTCSwapOutPremiumRatePPM int64    `json:"lbtc_swap_out_premium_rate_ppm,omitempty"`
+	// ChannelAdjacency is an optional hint used for 2-hop discovery. Nodes that
+	// do not understand the field ignore it.
+	ChannelAdjacency *ChannelAdjacency `json:"channel_adjacency,omitempty"`
+}
+
+// UnmarshalJSON keeps backwards-compatibility for legacy field names.
+func (s *PeerCapabilitySnapshot) UnmarshalJSON(data []byte) error {
+	type alias PeerCapabilitySnapshot
+	var tmp struct {
+		alias
+		LegacyNeighborsAd *ChannelAdjacency `json:"neighbors_ad,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*s = PeerCapabilitySnapshot(tmp.alias)
+	if s.ChannelAdjacency == nil && tmp.LegacyNeighborsAd != nil {
+		s.ChannelAdjacency = tmp.LegacyNeighborsAd
+	}
+	return nil
 }
 
 // SnapshotFromCapability builds a snapshot from the given capability.

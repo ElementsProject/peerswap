@@ -23,6 +23,11 @@ func NewInvalidLengthError(paramName string, expected, actual int) error {
 	return fmt.Errorf("Param %s is of invalid length expected: %v, actual %v", paramName, expected, actual)
 }
 
+type TwoHop struct {
+	IntermediaryPubkey string `json:"intermediary_pubkey,omitempty"`
+	IncomingScid       string `json:"incoming_scid,omitempty"`
+}
+
 type SwapInRequestMessage struct {
 	// ProtocolVersion is the version of the PeerSwap peer protocol the sending
 	// node uses.
@@ -43,9 +48,10 @@ type SwapInRequestMessage struct {
 	// with x as separator, e.g. 539268x845x1.
 	Scid string `json:"scid"`
 	// Amount is The amount in Sats that is asked for.
-	Amount       uint64 `json:"amount"`
-	Pubkey       string `json:"pubkey"`
-	PremiumLimit int64  `json:"acceptable_premium"`
+	Amount       uint64  `json:"amount"`
+	Pubkey       string  `json:"pubkey"`
+	PremiumLimit int64   `json:"acceptable_premium"`
+	TwoHop       *TwoHop `json:"twohop,omitempty"`
 }
 
 func (s SwapInRequestMessage) MessageType() messages.MessageType {
@@ -56,6 +62,12 @@ func (s SwapInRequestMessage) Validate(swap *SwapData) error {
 	err := validateHexString("pubkey", s.Pubkey, 33)
 	if err != nil {
 		return err
+	}
+	if s.TwoHop != nil {
+		err = validateHexString("twohop.intermediary_pubkey", s.TwoHop.IntermediaryPubkey, 33)
+		if err != nil {
+			return err
+		}
 	}
 	err = validateAssetAndNetwork(s.Asset, s.Network)
 	if err != nil {
@@ -171,13 +183,20 @@ type SwapInAgreementMessage struct {
 	Pubkey string `json:"pubkey"`
 	// Premium is a compensation in Sats that the swap partner wants to be paid
 	// in order to participate in the swap.
-	Premium int64 `json:"premium"`
+	Premium int64   `json:"premium"`
+	TwoHop  *TwoHop `json:"twohop,omitempty"`
 }
 
 func (s SwapInAgreementMessage) Validate(swap *SwapData) error {
 	err := validateHexString("pubkey", s.Pubkey, 33)
 	if err != nil {
 		return err
+	}
+	if s.TwoHop != nil && s.TwoHop.IncomingScid != "" {
+		err = validateScid(s.TwoHop.IncomingScid)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -219,14 +238,21 @@ type SwapOutRequestMessage struct {
 	Amount uint64 `json:"amount"`
 	// Pubkey is a 33 byte compressed public key used for the spending paths in
 	// the opening_transaction.
-	Pubkey       string `json:"pubkey"`
-	PremiumLimit int64  `json:"acceptable_premium"`
+	Pubkey       string  `json:"pubkey"`
+	PremiumLimit int64   `json:"acceptable_premium"`
+	TwoHop       *TwoHop `json:"twohop,omitempty"`
 }
 
 func (s SwapOutRequestMessage) Validate(swap *SwapData) error {
 	err := validateHexString("pubkey", s.Pubkey, 33)
 	if err != nil {
 		return err
+	}
+	if s.TwoHop != nil {
+		err = validateHexString("twohop.intermediary_pubkey", s.TwoHop.IntermediaryPubkey, 33)
+		if err != nil {
+			return err
+		}
 	}
 	err = validateAssetAndNetwork(s.Asset, s.Network)
 	if err != nil {
@@ -269,13 +295,20 @@ type SwapOutAgreementMessage struct {
 	Payreq string
 	// Premium is a compensation in Sats that the swap partner wants to be paid
 	// in order to participate in the swap.
-	Premium int64 `json:"premium"`
+	Premium int64   `json:"premium"`
+	TwoHop  *TwoHop `json:"twohop,omitempty"`
 }
 
 func (s SwapOutAgreementMessage) Validate(swap *SwapData) error {
 	err := validateHexString("pubkey", s.Pubkey, 33)
 	if err != nil {
 		return err
+	}
+	if s.TwoHop != nil && s.TwoHop.IncomingScid != "" {
+		err = validateScid(s.TwoHop.IncomingScid)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -41,4 +41,3 @@ func (ps *PeerSync) CompatiblePeers() (map[string]*Peer, error) {
 
 	return result, nil
 }
-

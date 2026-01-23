@@ -8,6 +8,7 @@ import (
 	"fmt"
 	log2 "log"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -198,6 +199,7 @@ type PeerChannel struct {
 	PeerConnected    bool              `json:"peer_connected"`
 	State            string            `json:"state"`
 	ShortChannelId   string            `json:"short_channel_id,omitempty"`
+	Private          bool              `json:"private,omitempty"`
 	TotalMsat        glightning.Amount `json:"total_msat,omitempty"`
 	ToUsMsat         glightning.Amount `json:"to_us_msat,omitempty"`
 	ReceivableMsat   glightning.Amount `json:"receivable_msat,omitempty"`
@@ -292,6 +294,55 @@ func (cl *ClightningClient) ReceivableMsat(scid string) (uint64, error) {
 		}
 	}
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
+}
+
+func (cl *ClightningClient) ChannelsToPeer(peerPubkey string) ([]string, error) {
+	var res ListPeerChannelsResponse
+	err := cl.glightning.Request(ListPeerChannelsRequest{Id: peerPubkey}, &res)
+	if err != nil {
+		return nil, err
+	}
+
+	var scids []string
+	for _, ch := range res.Channels {
+		if ch.PeerId != peerPubkey || ch.ShortChannelId == "" {
+			continue
+		}
+		if err := cl.checkChannel(ch); err != nil {
+			continue
+		}
+		scids = append(scids, lightning.Scid(ch.ShortChannelId).ClnStyle())
+	}
+	sort.Strings(scids)
+	return scids, nil
+}
+
+func (cl *ClightningClient) ListChannels(ctx context.Context) ([]peersync.Channel, error) {
+	var res ListPeerChannelsResponse
+	if err := cl.glightning.Request(ListPeerChannelsRequest{}, &res); err != nil {
+		return nil, err
+	}
+
+	channels := make([]peersync.Channel, 0, len(res.Channels))
+	for _, ch := range res.Channels {
+		if ch.PeerId == "" || ch.ShortChannelId == "" {
+			continue
+		}
+		peerID, err := peersync.NewPeerID(ch.PeerId)
+		if err != nil {
+			continue
+		}
+
+		channels = append(channels, peersync.Channel{
+			Peer:           peerID,
+			ChannelID:      0,
+			ShortChannelID: lightning.Scid(ch.ShortChannelId).ClnStyle(),
+			Active:         ch.PeerConnected && ch.State == "CHANNELD_NORMAL",
+			Public:         !ch.Private,
+		})
+	}
+
+	return channels, nil
 }
 
 // checkChannel performs a set of sanity checks id the channel is eligible for
@@ -483,6 +534,66 @@ func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (pr
 				Direction:      0,
 			},
 		},
+		bolt11.PaymentHash,
+		label,
+		bolt11.AmountMsat.MSat(),
+		payreq,
+		bolt11.PaymentSecret,
+		0,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	res, err := cl.glightning.WaitSendPay(bolt11.PaymentHash, 0)
+	if err != nil {
+		return "", err
+	}
+
+	preimage = res.PaymentPreimage
+	return preimage, nil
+}
+
+func (cl *ClightningClient) PayInvoiceVia2HopRoute(payreq string, outgoingScid string, incomingScid string, intermediaryPubkey string) (preimage string, err error) {
+	bolt11, err := cl.glightning.DecodeBolt11(payreq)
+	if err != nil {
+		return "", err
+	}
+
+	if bolt11.AmountMsat.MSat() == 0 {
+		return "", fmt.Errorf("invoice has no amount")
+	}
+
+	outgoingScid = lightning.Scid(outgoingScid).ClnStyle()
+	incomingScid = lightning.Scid(incomingScid).ClnStyle()
+
+	route, err := cl.glightning.GetRoute(
+		bolt11.Payee,
+		bolt11.AmountMsat.MSat(),
+		10.0,
+		uint(bolt11.MinFinalCltvExpiry+1),
+		"",
+		0.0001,
+		nil,
+		2,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if len(route) != 2 {
+		return "", fmt.Errorf("could not find 2-hop route")
+	}
+	if route[0].Id != intermediaryPubkey {
+		return "", fmt.Errorf("route does not use expected intermediary")
+	}
+	if route[0].ShortChannelId != outgoingScid || route[1].ShortChannelId != incomingScid {
+		return "", fmt.Errorf("route does not use expected channels")
+	}
+
+	label := randomString()
+	_, err = cl.glightning.SendPay(
+		route,
 		bolt11.PaymentHash,
 		label,
 		bolt11.AmountMsat.MSat(),

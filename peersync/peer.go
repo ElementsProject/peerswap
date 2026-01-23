@@ -255,23 +255,25 @@ const (
 
 // Peer represents a remote node tracked by peersync.
 type Peer struct {
-	id             PeerID
-	address        string
-	capability     *PeerCapability
-	status         PeerStatus
-	lastPollAt     time.Time
-	lastObservedAt time.Time
+	id               PeerID
+	address          string
+	capability       *PeerCapability
+	channelAdjacency *ChannelAdjacency
+	status           PeerStatus
+	lastPollAt       time.Time
+	lastObservedAt   time.Time
 }
 
 // NewPeer constructs a peer model with an unknown initial status.
 func NewPeer(id PeerID, address string) *Peer {
 	return &Peer{
-		id:             id,
-		address:        address,
-		capability:     nil,
-		status:         StatusUnknown,
-		lastPollAt:     time.Time{},
-		lastObservedAt: time.Time{},
+		id:               id,
+		address:          address,
+		capability:       nil,
+		channelAdjacency: nil,
+		status:           StatusUnknown,
+		lastPollAt:       time.Time{},
+		lastObservedAt:   time.Time{},
 	}
 }
 
@@ -288,6 +290,24 @@ func (p *Peer) Address() string {
 // Capability returns the last observed capability for the peer.
 func (p *Peer) Capability() *PeerCapability {
 	return p.capability
+}
+
+// ChannelAdjacency returns the last received 2-hop discovery hint (if any).
+//
+// See ChannelAdjacency for the exact domain definition and trust model.
+func (p *Peer) ChannelAdjacency() *ChannelAdjacency {
+	if p == nil {
+		return nil
+	}
+	return cloneChannelAdjacency(p.channelAdjacency)
+}
+
+// UpdateChannelAdjacency stores the advertised 2-hop discovery hint.
+func (p *Peer) UpdateChannelAdjacency(ad *ChannelAdjacency) {
+	if p == nil {
+		return
+	}
+	p.channelAdjacency = cloneChannelAdjacency(ad)
 }
 
 // UpdateCapability refreshes the peer capability and marks it active.

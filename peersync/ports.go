@@ -28,4 +28,19 @@ type Lightning interface {
 
 	// ListPeers returns currently connected peer IDs (node pubkeys).
 	ListPeers(ctx context.Context) ([]PeerID, error)
+
+	// ListChannels returns channels known to the local node.
+	// Implementations should include at least peer id, short channel id, and
+	// whether the channel is public/active.
+	ListChannels(ctx context.Context) ([]Channel, error)
+}
+
+// Channel describes a local channel in a transport-friendly way.
+// It is used to build optional metadata such as ChannelAdjacency.
+type Channel struct {
+	Peer           PeerID
+	ChannelID      uint64
+	ShortChannelID string
+	Active         bool
+	Public         bool
 }

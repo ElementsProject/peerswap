@@ -455,6 +455,11 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		Payreq:          feeInvoice,
 		Premium:         premiumValue,
 	}
+	if swap.SwapOutRequest != nil && swap.SwapOutRequest.TwoHop != nil {
+		message.TwoHop = &TwoHop{
+			IncomingScid: swap.GetLocalScid(),
+		}
+	}
 	swap.SwapOutAgreement = message
 
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(message)
@@ -613,13 +618,13 @@ func (s *SendMessageWithRetryAction) Execute(services *SwapServices, swap *SwapD
 		return swap.HandleError(errors.New("swap.NextMessage is nil"))
 	}
 
-    // Send message repeated as we really want the message to be received at some point!
-    // In fast_test builds, lower the retry interval to speed up tests.
-    retryDur := 10 * time.Second
-    if isdev.FastTests() {
-        retryDur = 1 * time.Second
-    }
-    rm := messages.NewRedundantMessenger(services.messenger, retryDur)
+	// Send message repeated as we really want the message to be received at some point!
+	// In fast_test builds, lower the retry interval to speed up tests.
+	retryDur := 10 * time.Second
+	if isdev.FastTests() {
+		retryDur = 1 * time.Second
+	}
+	rm := messages.NewRedundantMessenger(services.messenger, retryDur)
 	err := services.messengerManager.AddSender(swap.GetId().String(), rm)
 	if err != nil {
 		return swap.HandleError(err)
@@ -661,12 +666,14 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 	}
 
 	// Probe the payment to check if it's possible
-	success, failureReason, err := ll.ProbePayment(swap.SwapOutRequest.Scid, requiredBalance)
-	if err != nil {
-		return swap.HandleError(err)
-	}
-	if !success {
-		return swap.HandleError(fmt.Errorf("the prepayment probe was unsuccessful: %s", failureReason))
+	if swap.SwapOutRequest.TwoHop == nil {
+		success, failureReason, err := ll.ProbePayment(swap.GetLocalScid(), requiredBalance)
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		if !success {
+			return swap.HandleError(fmt.Errorf("the prepayment probe was unsuccessful: %s", failureReason))
+		}
 	}
 
 	swap.OpeningTxFee = msatAmt / 1000
@@ -684,7 +691,20 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 		return swap.HandleError(errors.New(fmt.Sprintf("Fee is too damn high. Max expected: %v Received %v", maxExpected, swap.OpeningTxFee)))
 	}
 
-	preimage, err := ll.PayInvoiceViaChannel(swap.SwapOutAgreement.Payreq, swap.GetScid())
+	var preimage string
+	if swap.SwapOutRequest.TwoHop != nil {
+		if swap.SwapOutAgreement == nil || swap.SwapOutAgreement.TwoHop == nil || swap.SwapOutAgreement.TwoHop.IncomingScid == "" {
+			return swap.HandleError(errors.New("missing twohop incoming scid in swap_out_agreement"))
+		}
+		preimage, err = ll.PayInvoiceVia2HopRoute(
+			swap.SwapOutAgreement.Payreq,
+			swap.GetLocalScid(),
+			swap.SwapOutAgreement.TwoHop.IncomingScid,
+			swap.SwapOutRequest.TwoHop.IntermediaryPubkey,
+		)
+	} else {
+		preimage, err = ll.PayInvoiceViaChannel(swap.SwapOutAgreement.Payreq, swap.GetLocalScid())
+	}
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -827,7 +847,26 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 				swap.LastErr = err
 				return swap.HandleError(err)
 			}
-			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
+			if swap.SwapOutRequest != nil && swap.SwapOutRequest.TwoHop != nil {
+				if swap.SwapOutAgreement == nil || swap.SwapOutAgreement.TwoHop == nil || swap.SwapOutAgreement.TwoHop.IncomingScid == "" {
+					return swap.HandleError(errors.New("missing twohop incoming scid in swap_out_agreement"))
+				}
+				preimage, err = lc.PayInvoiceVia2HopRoute(
+					swap.OpeningTxBroadcasted.Payreq,
+					swap.GetLocalScid(),
+					swap.SwapOutAgreement.TwoHop.IncomingScid,
+					swap.SwapOutRequest.TwoHop.IntermediaryPubkey,
+				)
+			} else if swap.SwapInRequest != nil && swap.SwapInRequest.TwoHop != nil {
+				preimage, err = lc.PayInvoiceVia2HopRoute(
+					swap.OpeningTxBroadcasted.Payreq,
+					swap.GetLocalScid(),
+					swap.SwapInRequest.Scid,
+					swap.SwapInRequest.TwoHop.IntermediaryPubkey,
+				)
+			} else {
+				preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetLocalScid())
+			}
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
 				payErr = err

@@ -177,7 +177,7 @@ test-matrix-bitcoin_mixed: test-bins
 
 .PHONY: test-matrix-bitcoin_lndlnd
 test-matrix-bitcoin_lndlnd: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*$$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_Swap(In|Out)Matrix/(bitcoin_lndlnd).*|Test_2Hop_Bitcoin_LND.*)$$' ./test
 
 .PHONY: test-matrix-liquid_clncln
 test-matrix-liquid_clncln: test-bins

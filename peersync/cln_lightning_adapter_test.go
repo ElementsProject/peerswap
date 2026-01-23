@@ -1,4 +1,4 @@
-package peersync
+package peersync_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/peersync"
 	psmocks "github.com/elementsproject/peerswap/peersync/mocks"
 	"go.uber.org/mock/gomock"
 )
@@ -18,11 +19,11 @@ func TestClnLightningAdapter_SendCustomMessage(t *testing.T) {
 
 	client := psmocks.NewMockGlightningClient(ctrl)
 	client.EXPECT().AddMessageHandler(gomock.Any())
-	adapter := NewClnLightningAdapter(client)
+	adapter := peersync.NewClnLightningAdapter(client)
 
 	// Given a peer id and payload
 	peerIDStr := "022222222222222222222222222222222222222222222222222222222222222222"
-	peerID, err := NewPeerID(peerIDStr)
+	peerID, err := peersync.NewPeerID(peerIDStr)
 	if err != nil {
 		t.Fatalf("unexpected error creating peer id: %v", err)
 	}
@@ -45,10 +46,10 @@ func TestClnLightningAdapter_SendCustomMessage_Error(t *testing.T) {
 
 	client := psmocks.NewMockGlightningClient(ctrl)
 	client.EXPECT().AddMessageHandler(gomock.Any())
-	adapter := NewClnLightningAdapter(client)
+	adapter := peersync.NewClnLightningAdapter(client)
 
 	peerIDStr := "03aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	peerID, _ := NewPeerID(peerIDStr)
+	peerID, _ := peersync.NewPeerID(peerIDStr)
 
 	client.
 		EXPECT().
@@ -67,7 +68,7 @@ func TestClnLightningAdapter_SubscribeAndPush(t *testing.T) {
 	client := psmocks.NewMockGlightningClient(ctrl)
 	// ListPeers should not be called here; no expectations are needed.
 	client.EXPECT().AddMessageHandler(gomock.Any())
-	adapter := NewClnLightningAdapter(client)
+	adapter := peersync.NewClnLightningAdapter(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -109,7 +110,7 @@ func TestClnLightningAdapter_ListPeers(t *testing.T) {
 		"invalid",
 	})
 
-	adapter := NewClnLightningAdapter(client)
+	adapter := peersync.NewClnLightningAdapter(client)
 
 	peers, err := adapter.ListPeers(context.Background())
 	if err != nil {
@@ -131,7 +132,7 @@ func TestClnLightningAdapter_ListPeers_Empty(t *testing.T) {
 	client.EXPECT().AddMessageHandler(gomock.Any())
 	client.EXPECT().GetPeers().Return(nil)
 
-	adapter := NewClnLightningAdapter(client)
+	adapter := peersync.NewClnLightningAdapter(client)
 	peers, err := adapter.ListPeers(context.Background())
 	if err != nil {
 		t.Fatalf("ListPeers returned error: %v", err)

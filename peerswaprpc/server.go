@@ -158,7 +158,11 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, err
 	}
 	pk := gi.IdentityPubkey
-	peerId := swapchan.RemotePubkey
+	intermediaryPeerId := swapchan.RemotePubkey
+	peerId := intermediaryPeerId
+	if request.GetPeerPubkey() != "" {
+		peerId = request.GetPeerPubkey()
+	}
 
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
 
@@ -173,7 +177,12 @@ func (p *PeerswapServer) SwapOut(ctx context.Context, request *SwapOutRequest) (
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapOut, err := p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	var swapOut *swap.SwapStateMachine
+	if request.GetPeerPubkey() != "" && request.GetPeerPubkey() != intermediaryPeerId {
+		swapOut, err = p.swaps.SwapOutTwoHop(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm(), intermediaryPeerId)
+	} else {
+		swapOut, err = p.swaps.SwapOut(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +266,11 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, err
 	}
 	pk := gi.IdentityPubkey
-	peerId := swapchan.RemotePubkey
+	intermediaryPeerId := swapchan.RemotePubkey
+	peerId := intermediaryPeerId
+	if request.GetPeerPubkey() != "" {
+		peerId = request.GetPeerPubkey()
+	}
 
 	shortId := lnwire.NewShortChanIDFromInt(swapchan.ChanId)
 
@@ -272,7 +285,12 @@ func (p *PeerswapServer) SwapIn(ctx context.Context, request *SwapInRequest) (*S
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
-	swapIn, err := p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	var swapIn *swap.SwapStateMachine
+	if request.GetPeerPubkey() != "" && request.GetPeerPubkey() != intermediaryPeerId {
+		swapIn, err = p.swaps.SwapInTwoHop(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm(), intermediaryPeerId)
+	} else {
+		swapIn, err = p.swaps.SwapIn(peerId, request.Asset, shortId.String(), pk, request.SwapAmount, request.GetPremiumLimitRatePpm())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +376,7 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 
 			view := format.BuildPeerView(v.PubKey, capability, swaps)
 			peer := NewPeerSwapPeerFromView(view)
+			peer.ChannelAdjacency = ChannelAdjacencyFromPeerState(peerState)
 			peer.Channels = getPeerSwapChannels(v.PubKey, channelRes.Channels)
 			peerSwapPeers = append(peerSwapPeers, peer)
 		}

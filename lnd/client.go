@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -173,6 +175,32 @@ func (l *Client) ReceivableMsat(scid string) (uint64, error) {
 	return 0, fmt.Errorf("could not find a channel with scid: %s", scid)
 }
 
+func (l *Client) ChannelsToPeer(peerPubkey string) ([]string, error) {
+	r, err := l.lndClient.ListChannels(context.Background(), &lnrpc.ListChannelsRequest{
+		ActiveOnly:   true,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var scids []string
+	for _, ch := range r.Channels {
+		if ch.RemotePubkey != peerPubkey {
+			continue
+		}
+		if err := l.checkChannel(ch); err != nil {
+			continue
+		}
+		shortID := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		scids = append(scids, lightning.Scid(shortID.String()).ClnStyle())
+	}
+	sort.Strings(scids)
+	return scids, nil
+}
+
 // checkChannel checks that a channel channel peer is connected and that the
 // channel is active.
 func (l *Client) checkChannel(ch *lnrpc.Channel) error {
@@ -326,6 +354,83 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 	}
 }
 
+func (l *Client) PayInvoiceVia2HopRoute(payreq string, outgoingScid string, incomingScid string, intermediaryPubkey string) (preimage string, err error) {
+	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
+	if err != nil {
+		return "", err
+	}
+
+	outgoingChanID, err := lndScidToChanID(outgoingScid)
+	if err != nil {
+		return "", err
+	}
+	incomingChanID, err := lndScidToChanID(incomingScid)
+	if err != nil {
+		return "", err
+	}
+	lastHopPubkey, err := hex.DecodeString(intermediaryPubkey)
+	if err != nil {
+		return "", err
+	}
+
+	routesRes, err := l.lndClient.QueryRoutes(context.Background(), &lnrpc.QueryRoutesRequest{
+		PubKey:         decoded.GetDestination(),
+		AmtMsat:        decoded.GetNumMsat(),
+		FinalCltvDelta: int32(decoded.GetCltvExpiry() + int64(routing.BlockPadding) + 1),
+		OutgoingChanId: outgoingChanID,
+		LastHopPubkey:  lastHopPubkey,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var selectedRoute *lnrpc.Route
+	for _, r := range routesRes.Routes {
+		if len(r.Hops) != 2 {
+			continue
+		}
+		if r.Hops[0].ChanId != outgoingChanID {
+			continue
+		}
+		if r.Hops[1].ChanId != incomingChanID {
+			continue
+		}
+		selectedRoute = r
+		break
+	}
+	if selectedRoute == nil {
+		return "", fmt.Errorf("could not find pinned 2-hop route (outgoing_scid=%s incoming_scid=%s)", outgoingScid, incomingScid)
+	}
+
+	// Most invoices require a payment_addr (payment secret). QueryRoutes does
+	// not necessarily populate it for us, so we set it on the final hop.
+	if len(decoded.GetPaymentAddr()) > 0 && len(selectedRoute.Hops) > 0 {
+		selectedRoute.Hops[len(selectedRoute.Hops)-1].MppRecord = &lnrpc.MPPRecord{
+			PaymentAddr:  decoded.GetPaymentAddr(),
+			TotalAmtMsat: decoded.GetNumMsat(),
+		}
+	}
+
+	paymentHash, err := hex.DecodeString(decoded.GetPaymentHash())
+	if err != nil {
+		return "", err
+	}
+	res, err := l.routerClient.SendToRouteV2(context.Background(), &routerrpc.SendToRouteRequest{
+		PaymentHash: paymentHash,
+		Route:       selectedRoute,
+	})
+	if err != nil {
+		return "", err
+	}
+	if res.Failure != nil {
+		return "", fmt.Errorf("payment failed: %v", res.Failure)
+	}
+	if len(res.Preimage) == 0 {
+		return "", errors.New("payment succeeded but preimage is missing")
+	}
+	return hex.EncodeToString(res.Preimage), nil
+}
+
 func (l *Client) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
 	return l.PayInvoiceViaChannel(payreq, channelId)
 }
@@ -450,4 +555,28 @@ func (l *Client) probePayment(scid string, amountMsat uint64) (bool, string, err
 
 func LndShortChannelIdToCLShortChannelId(lndCI lnwire.ShortChannelID) string {
 	return fmt.Sprintf("%dx%dx%d", lndCI.BlockHeight, lndCI.TxIndex, lndCI.TxPosition)
+}
+
+func lndScidToChanID(scid string) (uint64, error) {
+	scid = lightning.Scid(scid).LndStyle()
+	parts := strings.Split(scid, ":")
+	if len(parts) != 3 {
+		return 0, fmt.Errorf("invalid scid: %s", scid)
+	}
+	blockHeight, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid scid: %s", scid)
+	}
+	txIndex, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid scid: %s", scid)
+	}
+	txPosition, err := strconv.ParseUint(parts[2], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid scid: %s", scid)
+	}
+	if blockHeight > 0xFFFFFF || txIndex > 0xFFFFFF || txPosition > 0xFFFF {
+		return 0, fmt.Errorf("invalid scid: %s", scid)
+	}
+	return (blockHeight << 40) | (txIndex << 16) | txPosition, nil
 }

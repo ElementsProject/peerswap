@@ -1,4 +1,4 @@
-package peersync
+package peersync_test
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
+	"github.com/elementsproject/peerswap/peersync"
 	psmocks "github.com/elementsproject/peerswap/peersync/mocks"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"go.uber.org/mock/gomock"
@@ -81,10 +82,10 @@ func TestLightningAdapterSendCustomMessage(t *testing.T) {
 	t.Cleanup(ctrl.Finish)
 
 	client := psmocks.NewMockLightningClient(ctrl)
-	adapter := NewLightningAdapter(client)
+	adapter := peersync.NewLightningAdapter(client)
 
 	peerIDValue := "022222222222222222222222222222222222222222222222222222222222222222"
-	peerID, err := NewPeerID(peerIDValue)
+	peerID, err := peersync.NewPeerID(peerIDValue)
 	if err != nil {
 		t.Fatalf("unexpected error creating peer id: %v", err)
 	}
@@ -115,9 +116,9 @@ func TestLightningAdapterSendCustomMessageInvalidPeer(t *testing.T) {
 	t.Cleanup(ctrl.Finish)
 
 	client := psmocks.NewMockLightningClient(ctrl)
-	adapter := NewLightningAdapter(client)
+	adapter := peersync.NewLightningAdapter(client)
 
-	invalidPeer, err := NewPeerID("not-hex")
+	invalidPeer, err := peersync.NewPeerID("not-hex")
 	if err != nil {
 		t.Fatalf("unexpected error creating peer id: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestLightningAdapterSubscribeCustomMessages(t *testing.T) {
 			return stream, nil
 		})
 
-	adapter := NewLightningAdapter(client)
+	adapter := peersync.NewLightningAdapter(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -165,7 +166,7 @@ func TestLightningAdapterSubscribeCustomMessages(t *testing.T) {
 		Data: payload,
 	})
 
-	var msg CustomMessage
+	var msg peersync.CustomMessage
 	select {
 	case msg = <-ch:
 		if msg.From.String() != peerID {
@@ -198,7 +199,7 @@ func TestLightningAdapterListPeers(t *testing.T) {
 			},
 		}, nil)
 
-	adapter := NewLightningAdapter(client)
+	adapter := peersync.NewLightningAdapter(client)
 
 	peers, err := adapter.ListPeers(context.Background())
 	if err != nil {
@@ -223,7 +224,7 @@ func TestLightningAdapterListPeersError(t *testing.T) {
 		ListPeers(gomock.Any(), gomock.AssignableToTypeOf(&lnrpc.ListPeersRequest{})).
 		Return(nil, errors.New("boom"))
 
-	adapter := NewLightningAdapter(client)
+	adapter := peersync.NewLightningAdapter(client)
 
 	if _, err := adapter.ListPeers(context.Background()); err == nil {
 		t.Fatalf("expected error from ListPeers")
