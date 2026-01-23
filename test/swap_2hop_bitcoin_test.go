@@ -50,6 +50,13 @@ func lnd3HopSetup(
 	scidMV, err := m.OpenChannel(v, channelCapacitySat, pushAmtSat, true, true, true)
 	requireNoError(t, err)
 
+	// LND may require additional confirmations before a channel is announced to
+	// the public graph. Since we open two channels sequentially, the second
+	// channel can otherwise remain unannounced long enough for QueryRoutes to
+	// not find the required 2-hop route on slow CI machines.
+	requireNoError(t, bitcoind.GenerateBlocks(BitcoinConfirms))
+	waitForBlockheightSync(t, testframework.TIMEOUT, u, m, v)
+
 	// Fund u/v wallets so both swap directions can run without relying on
 	// channel open residual wallet balances.
 	_, err = u.FundWallet(10*channelCapacitySat, true)
