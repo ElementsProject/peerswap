@@ -65,7 +65,7 @@ func (h *messageHandler) handlePollMessage(ctx context.Context, msg CustomMessag
 		return
 	}
 
-	peerID, capability, err := h.parsePollMessage(msg)
+	peerID, snapshot, capability, err := h.parsePollMessage(msg)
 	if err != nil {
 		log.Printf("failed to parse poll message: %v", err)
 		return
@@ -86,6 +86,9 @@ func (h *messageHandler) handlePollMessage(ctx context.Context, msg CustomMessag
 	}
 
 	peer.UpdateCapability(capability)
+	if snapshot != nil && snapshot.ChannelAdjacency != nil {
+		peer.UpdateChannelAdjacency(snapshot.ChannelAdjacency)
+	}
 
 	if err := h.store.SavePeerState(peer); err != nil {
 		log.Printf("failed to store peer state: %v", err)
@@ -117,19 +120,19 @@ func (h *messageHandler) handleRequestPollMessage(ctx context.Context, msg Custo
 	}
 }
 
-func (h *messageHandler) parsePollMessage(msg CustomMessage) (PeerID, *PeerCapability, error) {
+func (h *messageHandler) parsePollMessage(msg CustomMessage) (PeerID, *PollMessageDTO, *PeerCapability, error) {
 	peerID := msg.From
 	var payload PollMessageDTO
 	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		return peerID, nil, fmt.Errorf("decode poll message: %w", err)
+		return peerID, nil, nil, fmt.Errorf("decode poll message: %w", err)
 	}
 
 	capability, err := payload.ToCapability()
 	if err != nil {
-		return peerID, nil, fmt.Errorf("invalid poll payload: %w", err)
+		return peerID, nil, nil, fmt.Errorf("invalid poll payload: %w", err)
 	}
 
-	return peerID, capability, nil
+	return peerID, &payload, capability, nil
 }
 
 func (h *messageHandler) findPeer(peerID PeerID) (*Peer, error) {

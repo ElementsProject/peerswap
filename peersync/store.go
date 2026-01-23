@@ -257,6 +257,26 @@ type peerRecord struct {
 	BTCSwapOutPremiumRatePPM  int64      `json:"btc_swap_out_premium_rate_ppm,omitempty"`
 	LBTCSwapInPremiumRatePPM  int64      `json:"lbtc_swap_in_premium_rate_ppm,omitempty"`
 	LBTCSwapOutPremiumRatePPM int64      `json:"lbtc_swap_out_premium_rate_ppm,omitempty"`
+	// ChannelAdjacency is optional advisory data used for 2-hop discovery.
+	ChannelAdjacency *ChannelAdjacency `json:"channel_adjacency,omitempty"`
+}
+
+// UnmarshalJSON keeps backwards-compatibility for legacy field names that may
+// exist in persisted peer records.
+func (r *peerRecord) UnmarshalJSON(data []byte) error {
+	type alias peerRecord
+	var tmp struct {
+		alias
+		LegacyNeighborsAd *ChannelAdjacency `json:"neighbors_ad,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*r = peerRecord(tmp.alias)
+	if r.ChannelAdjacency == nil && tmp.LegacyNeighborsAd != nil {
+		r.ChannelAdjacency = tmp.LegacyNeighborsAd
+	}
+	return nil
 }
 
 func (r *peerRecord) snapshot() *PeerCapabilitySnapshot {
@@ -298,6 +318,12 @@ func peerToRecord(peer *Peer) *peerRecord {
 		Status:     peer.Status(),
 		LastPollAt: peer.LastPollAt(),
 		LastSeen:   peer.LastObservedAt(),
+		ChannelAdjacency: func() *ChannelAdjacency {
+			if peer == nil {
+				return nil
+			}
+			return cloneChannelAdjacency(peer.channelAdjacency)
+		}(),
 	}
 
 	if capability := peer.Capability(); capability != nil {
@@ -324,6 +350,8 @@ func (r *peerRecord) toPeer(key string) (*Peer, error) {
 	if capability != nil {
 		peer.capability = capability
 	}
+
+	peer.channelAdjacency = cloneChannelAdjacency(r.ChannelAdjacency)
 
 	return peer, nil
 }

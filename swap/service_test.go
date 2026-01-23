@@ -512,3 +512,99 @@ func getRandom32ByteHexString() string {
 	privkey, _ := btcec.NewPrivateKey()
 	return hex.EncodeToString(privkey.Serialize())
 }
+
+func Test_SwapService_TwoHopSelectsLocalScid_SwapOutReceiver(t *testing.T) {
+	t.Parallel()
+
+	initiator, receiver, _, _, protocolScid := getTestParams()
+	intermediary := getRandom33ByteHexString()
+
+	swapService := getTestSetup(t, receiver)
+	swapService.swapServices.messenger.(*ConnectedMessenger).other = &ConnectedMessenger{
+		thisPeerId: "stub",
+		OnMessage:  func(string, string, []byte) error { return nil },
+	}
+	require.NoError(t, swapService.Start())
+
+	localScidNotEnough := "11x1x1"
+	localScidEnough := "22x2x2"
+
+	lc := swapService.swapServices.lightning.(*dummyLightningClient)
+	lc.channelsToPeer = map[string][]string{
+		intermediary: {localScidNotEnough, localScidEnough},
+	}
+	lc.receivableMsat = map[string]uint64{
+		localScidNotEnough: 0,
+		localScidEnough:    200_000_000,
+	}
+
+	swapID := NewSwapId()
+	msg := &SwapOutRequestMessage{
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swapID,
+		Asset:           "",
+		Network:         "mainnet",
+		Scid:            protocolScid,
+		Amount:          100000,
+		Pubkey:          initiator,
+		PremiumLimit:    999999999,
+		TwoHop: &TwoHop{
+			IntermediaryPubkey: intermediary,
+		},
+	}
+
+	require.NoError(t, swapService.OnSwapOutRequestReceived(swapID, initiator, msg))
+
+	fsm, err := swapService.GetActiveSwap(swapID.String())
+	require.NoError(t, err)
+	assert.Equal(t, localScidEnough, fsm.Data.LocalScid)
+	assert.Equal(t, protocolScid, fsm.Data.GetScid())
+}
+
+func Test_SwapService_TwoHopSelectsLocalScid_SwapInReceiver(t *testing.T) {
+	t.Parallel()
+
+	initiator, receiver, _, _, protocolScid := getTestParams()
+	intermediary := getRandom33ByteHexString()
+
+	swapService := getTestSetup(t, receiver)
+	swapService.swapServices.messenger.(*ConnectedMessenger).other = &ConnectedMessenger{
+		thisPeerId: "stub",
+		OnMessage:  func(string, string, []byte) error { return nil },
+	}
+	require.NoError(t, swapService.Start())
+
+	localScidNotEnough := "11x1x1"
+	localScidEnough := "22x2x2"
+
+	lc := swapService.swapServices.lightning.(*dummyLightningClient)
+	lc.channelsToPeer = map[string][]string{
+		intermediary: {localScidNotEnough, localScidEnough},
+	}
+	lc.spendableMsat = map[string]uint64{
+		localScidNotEnough: 0,
+		localScidEnough:    200_000_000,
+	}
+
+	swapID := NewSwapId()
+	msg := &SwapInRequestMessage{
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		SwapId:          swapID,
+		Asset:           "",
+		Network:         "mainnet",
+		Scid:            protocolScid,
+		Amount:          100000,
+		Pubkey:          initiator,
+		PremiumLimit:    999999999,
+		TwoHop: &TwoHop{
+			IntermediaryPubkey: intermediary,
+		},
+	}
+
+	require.NoError(t, swapService.OnSwapInRequestReceived(swapID, initiator, msg))
+
+	fsm, err := swapService.GetActiveSwap(swapID.String())
+	require.NoError(t, err)
+	assert.Equal(t, localScidEnough, fsm.Data.LocalScid)
+	assert.Equal(t, protocolScid, fsm.Data.GetScid())
+}

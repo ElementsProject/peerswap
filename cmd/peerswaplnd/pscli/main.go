@@ -75,6 +75,11 @@ var (
 		Name:     "peer_pubkey",
 		Required: true,
 	}
+	swapPeerPubkeyFlag = cli.StringFlag{
+		Name:     "peer_pubkey",
+		Usage:    "swap negotiation peer pubkey (optional; set for 2-hop swaps)",
+		Required: false,
+	}
 	PremiumLimitRatePPMFlag = cli.Uint64Flag{
 		Name:     "premium_limit_rate_ppm",
 		Usage:    "premium limit for a swap in parts per million",
@@ -104,6 +109,7 @@ var (
 			channelIdFlag,
 			assetFlag,
 			PremiumLimitRatePPMFlag,
+			swapPeerPubkeyFlag,
 		},
 		Action: swapOut,
 	}
@@ -116,6 +122,7 @@ var (
 			channelIdFlag,
 			assetFlag,
 			PremiumLimitRatePPMFlag,
+			swapPeerPubkeyFlag,
 		},
 		Action: swapIn,
 	}
@@ -291,6 +298,7 @@ func swapIn(ctx *cli.Context) error {
 		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
 		Asset:               ctx.String(assetFlag.Name),
 		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
+		PeerPubkey:          ctx.String(swapPeerPubkeyFlag.Name),
 	})
 	if err != nil {
 		return err
@@ -312,6 +320,7 @@ func swapOut(ctx *cli.Context) error {
 		SwapAmount:          ctx.Uint64(satAmountFlag.Name),
 		Asset:               ctx.String(assetFlag.Name),
 		PremiumLimitRatePpm: ctx.Int64(PremiumLimitRatePPMFlag.Name),
+		PeerPubkey:          ctx.String(swapPeerPubkeyFlag.Name),
 	})
 	if err != nil {
 		return err

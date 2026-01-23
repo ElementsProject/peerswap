@@ -180,6 +180,7 @@ type SwapOut struct {
 	Asset               string            `json:"asset"`
 	PremiumLimitRatePPM int64             `json:"premium_rate_limit_ppm"`
 	Force               bool              `json:"force"`
+	PeerPubkey          string            `json:"peer_pubkey,omitempty"`
 	cl                  *ClightningClient `json:"-"`
 }
 
@@ -227,14 +228,20 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
+	intermediaryPeerId := fundingChannels.Id
+	peerId := intermediaryPeerId
+	if l.PeerPubkey != "" {
+		peerId = l.PeerPubkey
+	}
+
 	// Skip this check when `force` is set.
 	if !l.Force {
-		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(peerId) {
 			return nil, fmt.Errorf("peer does not run peerswap")
 		}
 	}
 
-	if !l.cl.isPeerConnected(fundingChannels.Id) {
+	if !l.cl.isPeerConnected(peerId) {
 		return nil, fmt.Errorf("peer is not connected")
 	}
 
@@ -255,7 +262,12 @@ func (l *SwapOut) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapOut, err := l.cl.swaps.SwapOut(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	var swapOut *swap.SwapStateMachine
+	if l.PeerPubkey != "" && l.PeerPubkey != intermediaryPeerId {
+		swapOut, err = l.cl.swaps.SwapOutTwoHop(peerId, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM, intermediaryPeerId)
+	} else {
+		swapOut, err = l.cl.swaps.SwapOut(peerId, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +314,7 @@ type SwapIn struct {
 	Asset               string            `json:"asset"`
 	PremiumLimitRatePPM int64             `json:"premium_limit_ppm"`
 	Force               bool              `json:"force"`
+	PeerPubkey          string            `json:"peer_pubkey,omitempty"`
 	cl                  *ClightningClient `json:"-"`
 }
 
@@ -349,14 +362,20 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 		return nil, errors.New("fundingChannels is not connected")
 	}
 
+	intermediaryPeerId := fundingChannels.Id
+	peerId := intermediaryPeerId
+	if l.PeerPubkey != "" {
+		peerId = l.PeerPubkey
+	}
+
 	// Skip this check when `force` is set.
 	if !l.Force {
-		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(fundingChannels.Id) {
+		if l.cl.peerSync == nil || !l.cl.peerSync.HasCompatiblePeer(peerId) {
 			return nil, fmt.Errorf("peer does not run peerswap")
 		}
 	}
 
-	if !l.cl.isPeerConnected(fundingChannels.Id) {
+	if !l.cl.isPeerConnected(peerId) {
 		return nil, fmt.Errorf("peer is not connected")
 	}
 	switch l.Asset {
@@ -373,7 +392,12 @@ func (l *SwapIn) Call() (jrpc2.Result, error) {
 	}
 
 	pk := l.cl.GetNodeId()
-	swapIn, err := l.cl.swaps.SwapIn(fundingChannels.Id, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	var swapIn *swap.SwapStateMachine
+	if l.PeerPubkey != "" && l.PeerPubkey != intermediaryPeerId {
+		swapIn, err = l.cl.swaps.SwapInTwoHop(peerId, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM, intermediaryPeerId)
+	} else {
+		swapIn, err = l.cl.swaps.SwapIn(peerId, l.Asset, l.ShortChannelId, pk, l.SatAmt, l.PremiumLimitRatePPM)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -586,6 +610,7 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 
 			view := format.BuildPeerView(peer.Id, capability, swaps)
 			peerSwapPeer := peerswaprpc.NewPeerSwapPeerFromView(view)
+			peerSwapPeer.ChannelAdjacency = peerswaprpc.ChannelAdjacencyFromPeerState(peerState)
 			channels, err := l.cl.glightning.ListChannelsBySource(peer.Id)
 			if err != nil {
 				return nil, err

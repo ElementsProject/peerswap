@@ -45,6 +45,7 @@ type LightningClient interface {
 	PayInvoice(payreq string) (preImage string, err error)
 	GetPayreq(msatAmount uint64, preimage string, swapId string, memo string, invoiceType InvoiceType, expirySeconds, expiryCltv uint64) (string, error)
 	PayInvoiceViaChannel(payreq string, channel string) (preimage string, err error)
+	PayInvoiceVia2HopRoute(payreq string, outgoingScid string, incomingScid string, intermediaryPubkey string) (preimage string, err error)
 	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
 	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType)
 	RebalancePayment(payreq string, channel string) (preimage string, err error)
@@ -52,6 +53,7 @@ type LightningClient interface {
 	Implementation() string
 	SpendableMsat(scid string) (uint64, error)
 	ReceivableMsat(scid string) (uint64, error)
+	ChannelsToPeer(peerPubkey string) ([]string, error)
 	ProbePayment(scid string, amountMsat uint64) (bool, string, error)
 }
 

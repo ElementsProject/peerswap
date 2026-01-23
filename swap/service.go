@@ -132,7 +132,7 @@ func (s *SwapService) RecoverSwaps() error {
 			}
 			swap.stateChange = sync.NewCond(&swap.stateMutex)
 
-			err := s.lockSwap(swap.SwapId.String(), swap.Data.GetScid(), swap)
+			err := s.lockSwap(swap.SwapId.String(), swap.Data.GetLocalScid(), swap)
 			if err != nil {
 				log.Infof("[%s]: error recovering swap: %v", swap.SwapId.String(), err)
 				return
@@ -375,6 +375,19 @@ func (s *SwapService) OnCsvPassed(swapId string) error {
 // todo move wallet and chain / channel validation logic here
 // SwapOut starts a new swap out process
 func (s *SwapService) SwapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePpm int64) (*SwapStateMachine, error) {
+	return s.swapOut(peer, chain, channelId, initiator, amtSat, premiumLimitRatePpm, nil)
+}
+
+// SwapOutTwoHop starts a new swap out with a 2-hop payment route. The swap
+// negotiation messages are sent to `peer`, while `channelId` denotes the local
+// channel to the intermediary identified by `intermediaryPubkey`.
+func (s *SwapService) SwapOutTwoHop(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePpm int64, intermediaryPubkey string) (*SwapStateMachine, error) {
+	return s.swapOut(peer, chain, channelId, initiator, amtSat, premiumLimitRatePpm, &TwoHop{
+		IntermediaryPubkey: intermediaryPubkey,
+	})
+}
+
+func (s *SwapService) swapOut(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePpm int64, twoHop *TwoHop) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -401,6 +414,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 	}
 
 	swap := newSwapOutSenderFSM(s.swapServices, initiator, peer)
+	swap.Data.LocalScid = channelId
 	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
 		return nil, err
@@ -424,6 +438,7 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 		PremiumLimit:    premium.NewPPM(premiumLimitRatePpm).Compute(amtSat),
+		TwoHop:          twoHop,
 	}
 
 	done, err := swap.SendEvent(Event_OnSwapOutStarted, request)
@@ -440,6 +455,19 @@ func (s *SwapService) SwapOut(peer string, chain string, channelId string, initi
 // todo check prerequisites
 // SwapIn starts a new swap in process
 func (s *SwapService) SwapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePPM int64) (*SwapStateMachine, error) {
+	return s.swapIn(peer, chain, channelId, initiator, amtSat, premiumLimitRatePPM, nil)
+}
+
+// SwapInTwoHop starts a new swap in with a 2-hop payment route. The swap
+// negotiation messages are sent to `peer`, while `channelId` denotes the local
+// channel to the intermediary identified by `intermediaryPubkey`.
+func (s *SwapService) SwapInTwoHop(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePPM int64, intermediaryPubkey string) (*SwapStateMachine, error) {
+	return s.swapIn(peer, chain, channelId, initiator, amtSat, premiumLimitRatePPM, &TwoHop{
+		IntermediaryPubkey: intermediaryPubkey,
+	})
+}
+
+func (s *SwapService) swapIn(peer string, chain string, channelId string, initiator string, amtSat uint64, premiumLimitRatePPM int64, twoHop *TwoHop) (*SwapStateMachine, error) {
 	if !s.swapServices.policy.NewSwapsAllowed() {
 		return nil, fmt.Errorf("swaps are disabled")
 	}
@@ -480,6 +508,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		return nil, errors.New("invalid chain")
 	}
 	swap := newSwapInSenderFSM(s.swapServices, initiator, peer)
+	swap.Data.LocalScid = channelId
 	err = s.lockSwap(swap.SwapId.String(), channelId, swap)
 	if err != nil {
 		return nil, err
@@ -494,6 +523,7 @@ func (s *SwapService) SwapIn(peer string, chain string, channelId string, initia
 		Amount:          amtSat,
 		Pubkey:          hex.EncodeToString(swap.Data.GetPrivkey().PubKey().SerializeCompressed()),
 		PremiumLimit:    premium.NewPPM(premiumLimitRatePPM).Compute(amtSat),
+		TwoHop:          twoHop,
 	}
 
 	done, err := swap.SendEvent(Event_SwapInSender_OnSwapInRequested, request)
@@ -585,7 +615,43 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	sp, err := s.swapServices.lightning.SpendableMsat(message.Scid)
+	localScid := message.Scid
+	if message.TwoHop != nil {
+		channels, err := s.swapServices.lightning.ChannelsToPeer(message.TwoHop.IntermediaryPubkey)
+		if err != nil {
+			msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: msg,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
+		var found bool
+		for _, scid := range channels {
+			sp, err := s.swapServices.lightning.SpendableMsat(scid)
+			if err != nil {
+				continue
+			}
+			if sp >= message.Amount*1000 {
+				localScid = scid
+				found = true
+				break
+			}
+		}
+		if !found {
+			err = fmt.Errorf("no suitable channel to intermediary_pubkey: %s", message.TwoHop.IntermediaryPubkey)
+			msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: msg,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
+	}
+
+	sp, err := s.swapServices.lightning.SpendableMsat(localScid)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -609,30 +675,33 @@ func (s *SwapService) OnSwapInRequestReceived(swapId *SwapId, peerId string, mes
 		return err
 	}
 
-	success, failureReason, err := s.swapServices.lightning.ProbePayment(message.Scid, message.Amount*1000)
-	if err != nil {
-		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
-		// We want to tell our peer why we can not do this swap.
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: msg,
-		})
-		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-		return err
-	}
-	if !success {
-		// We want to tell our peer why we can not do this swap.
-		msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
-			SwapId:  swapId,
-			Message: "The prepayment probe was unsuccessful." + failureReason,
-		})
-		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
-		return err
+	if message.TwoHop == nil {
+		success, failureReason, err := s.swapServices.lightning.ProbePayment(message.Scid, message.Amount*1000)
+		if err != nil {
+			msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+			// We want to tell our peer why we can not do this swap.
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: msg,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
+		if !success {
+			// We want to tell our peer why we can not do this swap.
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: "The prepayment probe was unsuccessful." + failureReason,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
 	}
 
 	swap := newSwapInReceiverFSM(swapId, s.swapServices, peerId)
+	swap.Data.LocalScid = localScid
 
-	err = s.lockSwap(swap.SwapId.String(), message.Scid, swap)
+	err = s.lockSwap(swap.SwapId.String(), localScid, swap)
 	if err != nil {
 		// If we already have an active swap on the same channel or can not lock
 		// in a new swap we want to tell it our peer.
@@ -682,7 +751,44 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 		s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
 		return err
 	}
-	rs, err := s.swapServices.lightning.ReceivableMsat(message.Scid)
+
+	localScid := message.Scid
+	if message.TwoHop != nil {
+		channels, err := s.swapServices.lightning.ChannelsToPeer(message.TwoHop.IntermediaryPubkey)
+		if err != nil {
+			msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: msg,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
+		var found bool
+		for _, scid := range channels {
+			rs, err := s.swapServices.lightning.ReceivableMsat(scid)
+			if err != nil {
+				continue
+			}
+			if rs >= message.Amount*1000 {
+				localScid = scid
+				found = true
+				break
+			}
+		}
+		if !found {
+			err = fmt.Errorf("no suitable channel to intermediary_pubkey: %s", message.TwoHop.IntermediaryPubkey)
+			msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
+			msgBytes, msgType, err := MarshalPeerswapMessage(&CancelMessage{
+				SwapId:  swapId,
+				Message: msg,
+			})
+			s.swapServices.messenger.SendMessage(peerId, msgBytes, msgType)
+			return err
+		}
+	}
+
+	rs, err := s.swapServices.lightning.ReceivableMsat(localScid)
 	if err != nil {
 		msg := fmt.Sprintf("from the %s peer: %s", s.swapServices.lightning.Implementation(), err.Error())
 		// We want to tell our peer why we can not do this swap.
@@ -707,7 +813,8 @@ func (s *SwapService) OnSwapOutRequestReceived(swapId *SwapId, peerId string, me
 	}
 
 	swap := newSwapOutReceiverFSM(swapId, s.swapServices, peerId)
-	err = s.lockSwap(swap.SwapId.String(), message.Scid, swap)
+	swap.Data.LocalScid = localScid
+	err = s.lockSwap(swap.SwapId.String(), localScid, swap)
 	if err != nil {
 		// If we already have an active swap on the same channel or can not lock
 		// in a new swap we want to tell it our peer.
@@ -963,7 +1070,7 @@ func (s *SwapService) lockSwap(swapId, channelId string, fsm *SwapStateMachine) 
 
 	// Check if we already have an active swap on the same channel
 	for id, swap := range s.activeSwaps {
-		if swap.Data.GetScid() == channelId {
+		if swap.Data.GetLocalScid() == channelId {
 			return ActiveSwapError{channelId: channelId, swapId: id}
 		}
 	}

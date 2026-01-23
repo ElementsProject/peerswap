@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/messages"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,6 +34,11 @@ type LightningClient interface {
 		in *lnrpc.ListPeersRequest,
 		opts ...grpc.CallOption,
 	) (*lnrpc.ListPeersResponse, error)
+	ListChannels(
+		ctx context.Context,
+		in *lnrpc.ListChannelsRequest,
+		opts ...grpc.CallOption,
+	) (*lnrpc.ListChannelsResponse, error)
 	SubscribeCustomMessages(
 		ctx context.Context,
 		in *lnrpc.SubscribeCustomMessagesRequest,
@@ -215,4 +222,44 @@ func (a *LightningAdapter) ListPeers(ctx context.Context) ([]PeerID, error) {
 		result = append(result, id)
 	}
 	return result, nil
+}
+
+func (a *LightningAdapter) ListChannels(ctx context.Context) ([]Channel, error) {
+	if a.client == nil {
+		return nil, errors.New("peersync adapter: client not configured")
+	}
+
+	// We need both active and public channels to build optional 2-hop discovery
+	// hints such as ChannelAdjacency.
+	// We fetch all channels and filter in the caller so that future extensions
+	// can adjust filtering without changing this adapter signature.
+	resp, err := a.client.ListChannels(ctx, &lnrpc.ListChannelsRequest{
+		ActiveOnly:   false,
+		InactiveOnly: false,
+		PublicOnly:   false,
+		PrivateOnly:  false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	channels := make([]Channel, 0, len(resp.Channels))
+	for _, ch := range resp.Channels {
+		peer, err := NewPeerID(ch.RemotePubkey)
+		if err != nil {
+			continue
+		}
+
+		shortID := lnwire.NewShortChanIDFromInt(ch.ChanId)
+		shortChannelID := lightning.Scid(shortID.String()).ClnStyle()
+
+		channels = append(channels, Channel{
+			Peer:           peer,
+			ChannelID:      ch.ChanId,
+			ShortChannelID: shortChannelID,
+			Active:         ch.Active,
+			Public:         !ch.Private,
+		})
+	}
+	return channels, nil
 }

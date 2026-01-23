@@ -72,6 +72,9 @@ message SwapOutRequest {
   string asset = 3;
   bool force = 4;
   int64 premium_limit_rate_ppm = 5;
+  // Optional swap peer pubkey. If set, the swap negotiation messages are sent
+  // to this peer instead of the channel peer, enabling 2-hop swaps.
+  string peer_pubkey = 6;
 }
 
 message SwapOutResponse {
@@ -84,6 +87,9 @@ message SwapInRequest {
   string asset = 3;
   bool force = 4;
   int64 premium_limit_rate_ppm = 5;
+  // Optional swap peer pubkey. If set, the swap negotiation messages are sent
+  // to this peer instead of the channel peer, enabling 2-hop swaps.
+  string peer_pubkey = 6;
 }
 
 message SwapResponse {
@@ -165,6 +171,16 @@ message PeerSwapPeer {
   SwapStats as_receiver = 6;
   uint64 paid_fee = 7;
   PeerPremium peer_premium = 8;
+  // ChannelAdjacency is optional, advisory data advertised by the peer to help
+  // 2-hop discovery (u→m→v).
+  //
+  // Domain definition:
+  // - This describes the *sender's* adjacency list: LN channels from the sender
+  //   to immediate neighbor nodes.
+  // - This data is a hint only. It may be stale or incorrect, and MUST NOT be
+  //   treated as proof that a swap will succeed. The actual swap still relies
+  //   on explicit 2-hop discovery during negotiation.
+  ChannelAdjacency channel_adjacency = 9;
 }
 
 message PeerSwapPeerChannel {
@@ -173,6 +189,53 @@ message PeerSwapPeerChannel {
   uint64 remote_balance = 3;
   bool active = 5;
   string short_channel_id = 6;
+}
+
+message ChannelAdjacency {
+  // Schema version of this nested message. This is NOT the PeerSwap protocol
+  // version from the outer poll message.
+  int32 schema_version = 1;
+
+  // Indicates whether only public channels were included.
+  // A "public" channel is one that is announced to the public LN graph.
+  bool public_channels_only = 2;
+
+  // Maximum number of neighbor nodes included in `neighbors`.
+  // If the sender has more neighbors, `neighbors` is truncated.
+  int32 max_neighbors = 3;
+
+  // Neighbor nodes adjacent to the sender (remote node pubkeys) and their
+  // connecting channels.
+  repeated ChannelAdjacencyNeighbor neighbors = 4;
+
+  // True if the neighbor list was truncated due to `max_neighbors`.
+  bool truncated = 5;
+}
+
+message ChannelAdjacencyNeighbor {
+  // Node pubkey of the adjacent neighbor, as a 33-byte compressed secp256k1
+  // public key, hex-encoded (66 hex characters).
+  string node_id = 1;
+
+  // One or more channels connecting the sender to `node_id`.
+  repeated ChannelAdjacencyChannel channels = 2;
+}
+
+message ChannelAdjacencyChannel {
+  // Optional numeric channel id, if available in the backend.
+  //
+  // For LND, this corresponds to `lnrpc.Channel.chan_id` (a packed BOLT-07
+  // short_channel_id).
+  // For CLN, this is not available and is set to 0.
+  uint64 channel_id = 1;
+
+  // BOLT-07 short_channel_id formatted as "blockxtransactionxoutput",
+  // for example "1x2x3".
+  string short_channel_id = 2;
+
+  // True if the channel is currently usable for forwarding (from the sender's
+  // local perspective).
+  bool active = 3;
 }
 
 message SwapStats {

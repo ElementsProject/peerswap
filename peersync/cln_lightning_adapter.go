@@ -19,6 +19,8 @@ type GlightningClient interface {
 	// AddMessageHandler registers a callback for inbound custom messages.
 	// The callback receives (peerID, msgTypeHex, payloadBytes).
 	AddMessageHandler(func(peerID, msgType string, payload []byte) error)
+	// ListChannels returns the node's channels in peersync-compatible form.
+	ListChannels(ctx context.Context) ([]Channel, error)
 }
 
 // ClnLightningAdapter bridges a GlightningClient to the peersync Lightning interface.
@@ -102,4 +104,11 @@ func (a *ClnLightningAdapter) ListPeers(ctx context.Context) ([]PeerID, error) {
 		res = append(res, id)
 	}
 	return res, nil
+}
+
+func (a *ClnLightningAdapter) ListChannels(ctx context.Context) ([]Channel, error) {
+	if a.client == nil {
+		return nil, errors.New("peersync cln adapter: client not configured")
+	}
+	return a.client.ListChannels(ctx)
 }

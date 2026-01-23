@@ -219,6 +219,9 @@ func (ps *PeerSync) sendCapability(ctx context.Context, peer PeerID, msgType mes
 
 	capability := ps.localCapabilityForPeer(peer)
 	msg := ps.capabilityToDTO(capability, peer)
+	if msgType == messages.MESSAGETYPE_POLL {
+		ps.attachChannelAdjacency(ctx, msg)
+	}
 
 	payload, err := json.Marshal(msg)
 	if err != nil {
@@ -229,6 +232,24 @@ func (ps *PeerSync) sendCapability(ctx context.Context, peer PeerID, msgType mes
 	defer cancel()
 
 	return ps.lightning.SendCustomMessage(cctx, peer, msgType, payload)
+}
+
+func (ps *PeerSync) attachChannelAdjacency(ctx context.Context, msg *PollMessageDTO) {
+	if ps == nil || msg == nil || ps.lightning == nil {
+		return
+	}
+
+	channels, err := ps.lightning.ListChannels(ctx)
+	if err != nil {
+		log.Printf("peersync: failed to list channels for channel_adjacency: %v", err)
+		return
+	}
+
+	ad := buildChannelAdjacency(channels)
+	if ad == nil {
+		return
+	}
+	msg.ChannelAdjacency = ad
 }
 
 // Stop terminates the underlying receiver.

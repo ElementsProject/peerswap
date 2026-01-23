@@ -262,6 +262,18 @@ type dummyLightningClient struct {
 
 	spendableMsatCalled  int
 	receivableMsatCalled int
+
+	channelsToPeer map[string][]string
+	spendableMsat  map[string]uint64
+	receivableMsat map[string]uint64
+
+	payInvoiceVia2HopRouteCalled int
+	payInvoiceVia2HopRouteParams struct {
+		payreq             string
+		outgoingScid       string
+		incomingScid       string
+		intermediaryPubkey string
+	}
 }
 
 func (d *dummyLightningClient) Implementation() string {
@@ -270,12 +282,29 @@ func (d *dummyLightningClient) Implementation() string {
 
 func (d *dummyLightningClient) SpendableMsat(scid string) (uint64, error) {
 	d.spendableMsatCalled++
+	if d.spendableMsat != nil {
+		if msat, ok := d.spendableMsat[scid]; ok {
+			return msat, nil
+		}
+	}
 	return math.MaxUint64, nil
 }
 
 func (d *dummyLightningClient) ReceivableMsat(scid string) (uint64, error) {
 	d.receivableMsatCalled++
+	if d.receivableMsat != nil {
+		if msat, ok := d.receivableMsat[scid]; ok {
+			return msat, nil
+		}
+	}
 	return math.MaxUint64, nil
+}
+
+func (d *dummyLightningClient) ChannelsToPeer(peerPubkey string) ([]string, error) {
+	if d.channelsToPeer == nil {
+		return nil, nil
+	}
+	return d.channelsToPeer[peerPubkey], nil
 }
 
 func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {
@@ -346,6 +375,26 @@ func (d *dummyLightningClient) PayInvoice(payreq string) (preImage string, err e
 }
 
 func (d *dummyLightningClient) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
+	if d.failpayment {
+		return "", errors.New("payment failed")
+	}
+	if payreq == "err" {
+		return "", errors.New("error paying invoice")
+	}
+	pi, err := lightning.GetPreimage()
+	if err != nil {
+		return "", err
+	}
+	return pi.String(), nil
+}
+
+func (d *dummyLightningClient) PayInvoiceVia2HopRoute(payreq string, outgoingScid string, incomingScid string, intermediaryPubkey string) (preimage string, err error) {
+	d.payInvoiceVia2HopRouteCalled++
+	d.payInvoiceVia2HopRouteParams.payreq = payreq
+	d.payInvoiceVia2HopRouteParams.outgoingScid = outgoingScid
+	d.payInvoiceVia2HopRouteParams.incomingScid = incomingScid
+	d.payInvoiceVia2HopRouteParams.intermediaryPubkey = intermediaryPubkey
+
 	if d.failpayment {
 		return "", errors.New("payment failed")
 	}

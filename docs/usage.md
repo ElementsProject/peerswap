@@ -78,7 +78,7 @@ lightning-cli peerswap-swap-out [short channel id] [amount in sats] [asset: btc 
 
 For LND:
 ```bash
-pscli swapout --channel-id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
+pscli swapout --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
 ```
 
 ### Swap-In
@@ -93,6 +93,33 @@ lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc o
 For LND:
 ```bash
 pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
+```
+
+### 2-hop swaps (u→m→v)
+
+PeerSwap can execute a swap even if the swap endpoints (`u` and `v`) do not share a direct channel, as long as there is exactly one intermediary node `m` with public channels `u–m` and `m–v`.
+
+Requirements (high-level):
+
+- `u` has a channel to the intermediary `m` (this is the channel you pass to the command).
+- `m` has a public channel to `v` (for routing).
+- `u` and `v` are connected as peers (TCP / Lightning peer connection), so they can exchange PeerSwap custom messages.
+- `v` runs PeerSwap (the intermediary `m` does not need to).
+
+If an intermediary `m` also runs PeerSwap, it may advertise `channel_adjacency` in `listpeers`, which can be used as a hint for picking a reachable `v` behind `m`.
+
+To start a 2-hop swap, pass the channel to `m` as usual, and additionally set `peer_pubkey` to the *swap negotiation peer* `v`.
+
+For CLN (named parameters recommended for optional fields):
+```bash
+lightning-cli peerswap-swap-out short_channel_id=<u-m scid> sat_amt=<sats> asset=btc premium_rate_limit_ppm=<ppm> peer_pubkey=<v pubkey>
+lightning-cli peerswap-swap-in  short_channel_id=<u-m scid> sat_amt=<sats> asset=btc premium_rate_limit_ppm=<ppm> peer_pubkey=<v pubkey>
+```
+
+For LND:
+```bash
+pscli swapout --channel_id <u-m chan_id> --sat_amt <sats> --asset btc --premium_limit_rate_ppm <ppm> --peer_pubkey <v pubkey>
+pscli swapin  --channel_id <u-m chan_id> --sat_amt <sats> --asset btc --premium_limit_rate_ppm <ppm> --peer_pubkey <v pubkey>
 ```
 
 ## Premium
@@ -173,34 +200,55 @@ pscli deletepeerpremiumrate --node_id [node_id] --asset [BTC|LBTC] --operation [
 
 `listpeers` - A command that returns peers that support the PeerSwap protocol. It also gives statistics about received and sent swaps to a peer.
 
+Note: peers may optionally advertise `channel_adjacency` as part of their regular poll messages. This can be used as an *advisory* hint for 2-hop discovery (e.g. find candidate swap peers behind an intermediary). The data is not trusted and may be stale; the actual swap still uses the 2-hop discovery step during negotiation. In `channel_adjacency`, `short_channel_id` is emitted in `"x"`-style (e.g. `"1x2x3"`). (Legacy name: `neighbors_ad`.)
+
 Example output:
 ```bash
 [
    {
-      "nodeid": "...",
+      "node_id": "<peer pubkey>",
+      "swaps_allowed": true,
+      "supported_assets": ["BTC", "LBTC"],
+      "channel_adjacency": {
+         "schema_version": 1,
+         "public_channels_only": true,
+         "max_neighbors": 20,
+         "truncated": false,
+         "neighbors": [
+            {
+               "node_id": "<neighbor pubkey>",
+               "channels": [
+                  {
+                     "channel_id": 1234567890,
+                     "short_channel_id": "1x2x3",
+                     "active": true
+                  }
+               ]
+            }
+         ]
+      },
       "channels": [
          {
-            "short_channel_id": "...",
+            "channel_id": 1234567890,
+            "short_channel_id": "1:2:3",
             "local_balance": 7397932,
             "remote_balance": 2602068,
-            "balance": 0.7397932
+            "active": true
          }
       ],
-      "sent": {
-         "total_swaps_out": 2,
-         "total_swaps_in": 1,
-         "total_sats_swapped_out": 5300000,
-         "total_sats_swapped_in": 302938
+      "as_sender": {
+         "swaps_out": 2,
+         "swaps_in": 1,
+         "sats_out": 5300000,
+         "sats_in": 302938
       },
-      "received": {
-         "total_swaps_out": 1,
-         "total_swaps_in": 0,
-         "total_sats_swapped_out": 2400000,
-         "total_sats_swapped_in": 0
+      "as_receiver": {
+         "swaps_out": 1,
+         "swaps_in": 0,
+         "sats_out": 2400000,
+         "sats_in": 0
       },
-      "total_fee_paid": 6082,
-      "swap_in_premium_rate": "100",
-      "swap_out_premium_rate": "100"
+      "paid_fee": 6082
    }
 ]
 ```

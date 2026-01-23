@@ -61,6 +61,26 @@ func (mr *MockLightningClientMockRecorder) ListPeers(arg0, arg1 any, arg2 ...any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPeers", reflect.TypeOf((*MockLightningClient)(nil).ListPeers), varargs...)
 }
 
+// ListChannels mocks base method.
+func (m *MockLightningClient) ListChannels(arg0 context.Context, arg1 *lnrpc.ListChannelsRequest, arg2 ...grpc.CallOption) (*lnrpc.ListChannelsResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListChannels", varargs...)
+	ret0, _ := ret[0].(*lnrpc.ListChannelsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListChannels indicates an expected call of ListChannels.
+func (mr *MockLightningClientMockRecorder) ListChannels(arg0, arg1 any, arg2 ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListChannels", reflect.TypeOf((*MockLightningClient)(nil).ListChannels), varargs...)
+}
+
 // SendCustomMessage mocks base method.
 func (m *MockLightningClient) SendCustomMessage(arg0 context.Context, arg1 *lnrpc.SendCustomMessageRequest, arg2 ...grpc.CallOption) (*lnrpc.SendCustomMessageResponse, error) {
 	m.ctrl.T.Helper()

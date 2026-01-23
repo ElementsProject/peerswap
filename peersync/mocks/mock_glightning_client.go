@@ -10,70 +10,87 @@
 package mocks
 
 import (
-    reflect "reflect"
+	context "context"
+	reflect "reflect"
 
-    gomock "go.uber.org/mock/gomock"
+	peersync "github.com/elementsproject/peerswap/peersync"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockGlightningClient is a mock of GlightningClient interface.
 type MockGlightningClient struct {
-    ctrl     *gomock.Controller
-    recorder *MockGlightningClientMockRecorder
+	ctrl     *gomock.Controller
+	recorder *MockGlightningClientMockRecorder
 }
 
 // MockGlightningClientMockRecorder is the mock recorder for MockGlightningClient.
 type MockGlightningClientMockRecorder struct {
-    mock *MockGlightningClient
+	mock *MockGlightningClient
 }
 
 // NewMockGlightningClient creates a new mock instance.
 func NewMockGlightningClient(ctrl *gomock.Controller) *MockGlightningClient {
-    mock := &MockGlightningClient{ctrl: ctrl}
-    mock.recorder = &MockGlightningClientMockRecorder{mock}
-    return mock
+	mock := &MockGlightningClient{ctrl: ctrl}
+	mock.recorder = &MockGlightningClientMockRecorder{mock}
+	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockGlightningClient) EXPECT() *MockGlightningClientMockRecorder {
-    return m.recorder
+	return m.recorder
 }
 
 // AddMessageHandler mocks base method.
 func (m *MockGlightningClient) AddMessageHandler(arg0 func(string, string, []byte) error) {
-    m.ctrl.T.Helper()
-    m.ctrl.Call(m, "AddMessageHandler", arg0)
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddMessageHandler", arg0)
 }
 
 // AddMessageHandler indicates an expected call of AddMessageHandler.
 func (mr *MockGlightningClientMockRecorder) AddMessageHandler(arg0 any) *gomock.Call {
-    mr.mock.ctrl.T.Helper()
-    return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageHandler", reflect.TypeOf((*MockGlightningClient)(nil).AddMessageHandler), arg0)
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageHandler", reflect.TypeOf((*MockGlightningClient)(nil).AddMessageHandler), arg0)
 }
 
 // GetPeers mocks base method.
 func (m *MockGlightningClient) GetPeers() []string {
-    m.ctrl.T.Helper()
-    ret := m.ctrl.Call(m, "GetPeers")
-    ret0, _ := ret[0].([]string)
-    return ret0
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPeers")
+	ret0, _ := ret[0].([]string)
+	return ret0
 }
 
 // GetPeers indicates an expected call of GetPeers.
 func (mr *MockGlightningClientMockRecorder) GetPeers() *gomock.Call {
-    mr.mock.ctrl.T.Helper()
-    return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockGlightningClient)(nil).GetPeers))
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockGlightningClient)(nil).GetPeers))
+}
+
+// ListChannels mocks base method.
+func (m *MockGlightningClient) ListChannels(arg0 context.Context) ([]peersync.Channel, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListChannels", arg0)
+	ret0, _ := ret[0].([]peersync.Channel)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListChannels indicates an expected call of ListChannels.
+func (mr *MockGlightningClientMockRecorder) ListChannels(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListChannels", reflect.TypeOf((*MockGlightningClient)(nil).ListChannels), arg0)
 }
 
 // SendMessage mocks base method.
 func (m *MockGlightningClient) SendMessage(arg0 string, arg1 []byte, arg2 int) error {
-    m.ctrl.T.Helper()
-    ret := m.ctrl.Call(m, "SendMessage", arg0, arg1, arg2)
-    ret0, _ := ret[0].(error)
-    return ret0
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendMessage", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // SendMessage indicates an expected call of SendMessage.
 func (mr *MockGlightningClientMockRecorder) SendMessage(arg0, arg1, arg2 any) *gomock.Call {
-    mr.mock.ctrl.T.Helper()
-    return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockGlightningClient)(nil).SendMessage), arg0, arg1, arg2)
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockGlightningClient)(nil).SendMessage), arg0, arg1, arg2)
 }

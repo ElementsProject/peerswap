@@ -104,6 +104,11 @@ type SwapData struct {
 	// cancel message
 	CancelMessage string `json:"cancel_message"`
 
+	// LocalScid is the local channel used for this swap. For 2-hop swaps, the
+	// protocol Scid can refer to a channel that does not exist locally, so we
+	// persist the local channel scid separately.
+	LocalScid string `json:"local_scid,omitempty"`
+
 	PeerNodeId          string    `json:"peer_node_id"`
 	InitiatorNodeId     string    `json:"initiator_node_id"`
 	CreatedAt           int64     `json:"created_at"`
@@ -183,6 +188,13 @@ func (s *SwapData) GetScid() string {
 		return s.SwapOutRequest.Scid
 	}
 	return ""
+}
+
+func (s *SwapData) GetLocalScid() string {
+	if s.LocalScid != "" {
+		return s.LocalScid
+	}
+	return s.GetScid()
 }
 
 func (s *SwapData) GetScidInBoltFormat() string {

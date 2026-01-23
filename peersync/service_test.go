@@ -55,6 +55,8 @@ func (l *stubLightning) Stop() error { return l.stopErr }
 
 func (l *stubLightning) ListPeers(ctx context.Context) ([]PeerID, error) { return l.peers, nil }
 
+func (l *stubLightning) ListChannels(ctx context.Context) ([]Channel, error) { return nil, nil }
+
 func (l *stubLightning) recordSend(call sentCall) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -200,6 +202,19 @@ func TestHandlePollMessage(t *testing.T) {
 		BTCSwapOutPremiumRatePPM:  200,
 		LBTCSwapInPremiumRatePPM:  300,
 		LBTCSwapOutPremiumRatePPM: 400,
+		ChannelAdjacency: &ChannelAdjacency{
+			SchemaVersion:      1,
+			PublicChannelsOnly: true,
+			MaxNeighbors:       20,
+			Neighbors: []ChannelAdjacencyNeighbor{
+				{
+					NodeID: "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Channels: []ChannelAdjacencyChannel{
+						{ShortChannelID: "1x2x3", Active: true},
+					},
+				},
+			},
+		},
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -218,6 +233,68 @@ func TestHandlePollMessage(t *testing.T) {
 	}
 	if stored.Capability().Version().Value() != NewVersion(2).Value() {
 		t.Fatalf("unexpected capability version")
+	}
+
+	ad := stored.ChannelAdjacency()
+	if ad == nil || len(ad.Neighbors) != 1 || ad.Neighbors[0].NodeID == "" {
+		t.Fatalf("expected channel_adjacency to be persisted on peer state")
+	}
+	if ad.PublicChannelsOnly != true || ad.SchemaVersion != 1 {
+		t.Fatalf("unexpected channel_adjacency metadata")
+	}
+}
+
+func TestHandlePollMessage_LegacyNeighborsAd(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	ctx := context.Background()
+
+	peerID, err := NewPeerID("peer-remote")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-remote")
+	peer.SetStatus(StatusActive)
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+
+	legacy := `{
+  "version": 2,
+  "assets": ["BTC"],
+  "peer_allowed": true,
+  "btc_swap_in_premium_rate_ppm": 100,
+  "btc_swap_out_premium_rate_ppm": 200,
+  "lbtc_swap_in_premium_rate_ppm": 300,
+  "lbtc_swap_out_premium_rate_ppm": 400,
+  "neighbors_ad": {
+    "v": 1,
+    "public_only": true,
+    "limit": 20,
+    "entries": [
+      {
+        "node_id": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "channels": [
+          { "short_channel_id": "1x2x3", "active": true }
+        ]
+      }
+    ]
+  }
+}`
+
+	syncer.handler.handlePollMessage(ctx, CustomMessage{From: peerID, Type: messages.MESSAGETYPE_POLL, Payload: []byte(legacy)})
+
+	stored, err := deps.store.GetPeerState(peerID)
+	if err != nil {
+		t.Fatalf("failed to load peer state: %v", err)
+	}
+
+	ad := stored.ChannelAdjacency()
+	if ad == nil || len(ad.Neighbors) != 1 || ad.Neighbors[0].NodeID == "" {
+		t.Fatalf("expected legacy neighbors_ad to be persisted as channel_adjacency")
+	}
+	if ad.SchemaVersion != 1 || ad.PublicChannelsOnly != true || ad.MaxNeighbors != 20 || ad.Truncated != false {
+		t.Fatalf("unexpected legacy channel_adjacency mapping")
 	}
 }
 
