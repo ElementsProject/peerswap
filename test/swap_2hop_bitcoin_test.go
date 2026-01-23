@@ -200,17 +200,28 @@ func waitForLndPaymentByPayreq(
 
 	require := requireNew(t)
 
+	decoded, err := node.Rpc.DecodePayReq(context.Background(), &lnrpc.PayReqString{PayReq: payreq})
+	require.NoError(err)
+	paymentHash := decoded.GetPaymentHash()
+	expectedValueSat := decoded.GetNumSatoshis()
+
 	var payment *lnrpc.Payment
-	err := testframework.WaitFor(func() bool {
+	err = testframework.WaitFor(func() bool {
 		resp, err := node.Rpc.ListPayments(context.Background(), &lnrpc.ListPaymentsRequest{})
 		require.NoError(err)
 
 		for _, candidate := range resp.Payments {
-			if candidate.PaymentRequest != payreq {
+			// 2-hop payments use SendToRouteV2, which does not reliably persist
+			// the original payment request. Matching on payment hash works for
+			// both SendPaymentV2 and SendToRouteV2.
+			if candidate.PaymentHash != paymentHash {
 				continue
 			}
 			payment = candidate
-			return payment.Status == lnrpc.Payment_SUCCEEDED
+			if payment.Status != lnrpc.Payment_SUCCEEDED {
+				return false
+			}
+			return payment.ValueSat == expectedValueSat
 		}
 		return false
 	}, testframework.TIMEOUT)
@@ -444,9 +455,17 @@ func preimageClaim2HopTest(
 		expectedClaimMemoPrefix,
 		claimInvoice.Memo,
 	)
-	latestPayreq, err := claimInvoicePayer.GetLatestPayReqOfPayment()
+	// `SendToRouteV2` payments do not always retain the original payment request,
+	// so assert via payment hash instead of comparing payreq strings.
+	decodedClaimInvoice, err := claimInvoicePayer.Rpc.DecodePayReq(context.Background(), &lnrpc.PayReqString{PayReq: claimInvoice.PaymentRequest})
 	require.NoError(err)
-	require.Equal(claimInvoice.PaymentRequest, latestPayreq)
+	require.Equal(decodedClaimInvoice.GetPaymentHash(), claimPayment.PaymentHash)
+
+	latestPayments, err := claimInvoicePayer.Rpc.ListPayments(context.Background(), &lnrpc.ListPaymentsRequest{})
+	require.NoError(err)
+	require.True(latestPayments.Payments != nil)
+	require.True(len(latestPayments.Payments) > 0)
+	require.Equal(claimPayment.PaymentHash, latestPayments.Payments[len(latestPayments.Payments)-1].PaymentHash)
 }
 
 func Test_2Hop_Bitcoin_LND(t *testing.T) {
