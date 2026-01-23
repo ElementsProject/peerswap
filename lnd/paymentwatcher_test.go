@@ -96,7 +96,8 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 		t.Fatalf("Could not create tx watcher: %v", err)
 	}
 
-	payreq, err := payee.AddInvoice(100000, "testpaymentwatcher_payinvoice", "")
+	invoiceAmtSat := uint64(100000)
+	payreq, err := payee.AddInvoice(invoiceAmtSat, "testpaymentwatcher_payinvoice", "")
 	if err != nil {
 		t.Fatalf("Could not add invoice: %v", err)
 	}
@@ -126,6 +127,29 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 
 	// We have to reconnect in order to pay the invoice.
 	payer.Connect(payee, true)
+
+	// Ensure the channel is fully re-established before paying.
+	scid, err := payer.GetScid(payee)
+	if err != nil {
+		t.Fatalf("GetScid() %v", err)
+	}
+	err = testframework.WaitForWithErr(func() (bool, error) {
+		active, err := payer.IsChannelActive(scid)
+		return active, err
+	}, testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("channel did not become active: %v", err)
+	}
+	err = testframework.WaitForWithErr(func() (bool, error) {
+		bal, err := payer.GetChannelBalanceSat(scid)
+		if err != nil {
+			return false, err
+		}
+		return bal >= invoiceAmtSat, nil
+	}, testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("payer has insufficient channel balance: %v", err)
+	}
 
 	// Now we pay the invoice and check if the watcher is still active. If the
 	// watcher is still active, the callback should be called.
@@ -165,7 +189,8 @@ func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 		t.Fatalf("Could not create tx watcher: %v", err)
 	}
 
-	payreq, err := payee.AddInvoice(100000, "testpaymentwatcher_payinvoice", "")
+	invoiceAmtSat := uint64(100000)
+	payreq, err := payee.AddInvoice(invoiceAmtSat, "testpaymentwatcher_payinvoice", "")
 	if err != nil {
 		t.Fatalf("Could not add invoice: %v", err)
 	}
@@ -198,6 +223,29 @@ func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 
 	// We have to reconnect in order to pay the invoice.
 	payer.Connect(payee, true)
+
+	// Ensure the channel is fully re-established before paying.
+	scid, err := payer.GetScid(payee)
+	if err != nil {
+		t.Fatalf("GetScid() %v", err)
+	}
+	err = testframework.WaitForWithErr(func() (bool, error) {
+		active, err := payer.IsChannelActive(scid)
+		return active, err
+	}, testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("channel did not become active: %v", err)
+	}
+	err = testframework.WaitForWithErr(func() (bool, error) {
+		bal, err := payer.GetChannelBalanceSat(scid)
+		if err != nil {
+			return false, err
+		}
+		return bal >= invoiceAmtSat, nil
+	}, testframework.TIMEOUT)
+	if err != nil {
+		t.Fatalf("payer has insufficient channel balance: %v", err)
+	}
 
 	// Now we pay the invoice and check if the watcher is still active. If the
 	// watcher is still active, the callback should be called.
