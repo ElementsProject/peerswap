@@ -2,6 +2,7 @@ package swap
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 	t.Parallel()
 
+	protocolVersion := strconv.Itoa(PEERSWAP_PROTOCOL_VERSION)
 	swapID := strings.Repeat("00", 32)
 	pubkey := "02" + strings.Repeat("00", 32)
 	intermediaryPubkey := "03" + strings.Repeat("11", 32)
@@ -20,7 +22,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"asset": "",
 			"network": "regtest",
@@ -40,7 +42,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"asset": "",
 			"network": "regtest",
@@ -64,7 +66,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"asset": "",
 			"network": "regtest",
@@ -84,7 +86,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"asset": "",
 			"network": "regtest",
@@ -108,7 +110,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"pubkey": "` + pubkey + `",
 			"premium": 10,
@@ -128,7 +130,7 @@ func TestPeerswapMessages_TwoHopJSONIsOptional(t *testing.T) {
 		t.Parallel()
 
 		raw := `{
-			"protocol_version": 5,
+			"protocol_version": ` + protocolVersion + `,
 			"swap_id": "` + swapID + `",
 			"pubkey": "` + pubkey + `",
 			"Payreq": "lnbc1...",
@@ -167,7 +169,7 @@ func TestPeerswapMessages_TwoHopValidation(t *testing.T) {
 		t.Parallel()
 
 		msg := SwapOutRequestMessage{
-			ProtocolVersion: 5,
+			ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 			SwapId:          swapID,
 			Asset:           "",
 			Network:         "regtest",
@@ -185,7 +187,7 @@ func TestPeerswapMessages_TwoHopValidation(t *testing.T) {
 		t.Parallel()
 
 		msg := SwapOutAgreementMessage{
-			ProtocolVersion: 5,
+			ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
 			SwapId:          swapID,
 			Pubkey:          pubkey,
 			TwoHop: &TwoHop{

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	PEERSWAP_PROTOCOL_VERSION = 5
+	PEERSWAP_PROTOCOL_VERSION = 6
 )
 
 var (
