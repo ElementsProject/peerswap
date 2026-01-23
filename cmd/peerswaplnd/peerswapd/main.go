@@ -602,10 +602,10 @@ func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, error) {
 	core_log.SetFlags(core_log.LstdFlags | core_log.LUTC)
 	core_log.SetOutput(&lumberjack.Logger{
 		Filename:   logFile,
-		MaxSize:    10, // megabytes
-		MaxBackups: 5,
-		MaxAge:     28, // days
-		Compress:   true,
+		MaxSize:    cfg.LogRotation.MaxSize,
+		MaxBackups: cfg.LogRotation.MaxBackups,
+		MaxAge:     cfg.LogRotation.MaxAge,
+		Compress:   cfg.LogRotation.Compress,
 	})
 
 	return &LndLogger{loglevel: cfg.LogLevel}, nil

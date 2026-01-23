@@ -44,6 +44,8 @@ type PeerSwapConfig struct {
 	DataDir    string   `long:"datadir" description:"peerswap datadir"`
 	LogLevel   LogLevel `long:"loglevel" description:"loglevel (1=Info, 2=Debug)"`
 
+	LogRotation LogRotationConfig `group:"Log rotation" namespace:"logrotation"`
+
 	LndConfig      *LndConfig     `group:"Lnd Grpc config" namespace:"lnd"`
 	ElementsConfig *OnchainConfig `group:"Elements Rpc Config" namespace:"elementsd"`
 	LWKConfig      *lwk.Conf
@@ -139,6 +141,15 @@ type LndConfig struct {
 	MacaroonPath string `long:"macaroonpath" description:"path to the macaroon (admin.macaroon or custom baked one)"`
 }
 
+type LogRotationConfig struct {
+	// In megabytes
+	MaxSize    int `long:"maxsize" description:"maximum size in megabytes of the log file before rotation."`
+	MaxBackups int `long:"maxbackups" description:"maximum number of old log files to retain."`
+	// In days
+	MaxAge   int  `long:"maxage" description:"maximum number of days to retain old log files."`
+	Compress bool `long:"compress" description:"whether to compress log files using gzip"`
+}
+
 func DefaultConfig() *PeerSwapConfig {
 	return &PeerSwapConfig{
 		Host:       DefaultPeerswapHost,
@@ -154,6 +165,7 @@ func DefaultConfig() *PeerSwapConfig {
 		BitcoinEnabled: DefaultBitcoinEnabled,
 		ElementsConfig: defaultLiquidConfig(),
 		LogLevel:       DefaultLogLevel,
+		LogRotation:    defaultLogRotationConfig(),
 	}
 }
 
@@ -167,6 +179,15 @@ func defaultLiquidConfig() *OnchainConfig {
 		RpcPort:           0,
 		RpcWallet:         DefaultLiquidwallet,
 		LiquidSwaps:       true,
+	}
+}
+
+func defaultLogRotationConfig() LogRotationConfig {
+	return LogRotationConfig{
+		MaxSize:    10,
+		MaxBackups: 5,
+		MaxAge:     28,
+		Compress:   true,
 	}
 }
 
