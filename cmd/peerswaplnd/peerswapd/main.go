@@ -608,10 +608,10 @@ func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, error) {
 
 	w := io.MultiWriter(os.Stdout, &lumberjack.Logger{
 		Filename:   logFile,
-		MaxSize:    10, // megabytes
-		MaxBackups: 5,
-		MaxAge:     28, // days
-		Compress:   true,
+		MaxSize:    cfg.LogRotation.MaxSize,
+		MaxBackups: cfg.LogRotation.MaxBackups,
+		MaxAge:     cfg.LogRotation.MaxAge,
+		Compress:   cfg.LogRotation.Compress,
 	})
 	core_log.SetOutput(w)
 

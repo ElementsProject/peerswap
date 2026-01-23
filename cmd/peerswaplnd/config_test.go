@@ -11,6 +11,77 @@ import (
 	"github.com/vulpemventures/go-elements/network"
 )
 
+func TestLogRotationConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		cfg     peerswaplnd.LogRotationConfig
+		wantErr bool
+	}{
+		{
+			name: "valid values",
+			cfg: peerswaplnd.LogRotationConfig{
+				MaxSize:    10,
+				MaxBackups: 5,
+				MaxAge:     28,
+				Compress:   true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "maxsize zero",
+			cfg: peerswaplnd.LogRotationConfig{
+				MaxSize:    0,
+				MaxBackups: 5,
+				MaxAge:     28,
+			},
+			wantErr: true,
+		},
+		{
+			name: "maxsize negative",
+			cfg: peerswaplnd.LogRotationConfig{
+				MaxSize:    -1,
+				MaxBackups: 5,
+				MaxAge:     28,
+			},
+			wantErr: true,
+		},
+		{
+			name: "maxbackups negative",
+			cfg: peerswaplnd.LogRotationConfig{
+				MaxSize:    10,
+				MaxBackups: -1,
+				MaxAge:     28,
+			},
+			wantErr: true,
+		},
+		{
+			name: "maxage negative",
+			cfg: peerswaplnd.LogRotationConfig{
+				MaxSize:    10,
+				MaxBackups: 5,
+				MaxAge:     -1,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tt.cfg.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestLWKFromIniFileConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("valid ini config", func(t *testing.T) {
