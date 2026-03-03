@@ -41,10 +41,7 @@ func pagingBounds(total int, pageSize uint32, pageToken string, unpagedIfEmpty b
 		start = total
 	}
 
-	end = start + size
-	if end > total {
-		end = total
-	}
+	end = min(start+size, total)
 
 	if end < total {
 		nextPageToken = strconv.Itoa(end)
