@@ -1161,6 +1161,9 @@ func (c *UpdatePremiumRate) Call() (jrpc2.Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating premium rate: %v", err)
 	}
+	if err := c.cl.ps.ValidateRate(c.PeerID, rate); err != nil {
+		log.Infof("Premium rate warning: %v", err)
+	}
 	err = c.cl.ps.SetRate(context.Background(), c.PeerID, rate)
 	if err != nil {
 		return nil, fmt.Errorf("error setting premium rate: %v", err)
@@ -1264,6 +1267,9 @@ func (c *UpdateGlobalPremiumRate) Call() (jrpc2.Result, error) {
 		toPremiumOperationType(c.Operation), premium.NewPPM(c.PremiumRatePPM))
 	if err != nil {
 		return nil, fmt.Errorf("error creating premium rate: %v", err)
+	}
+	if err := c.cl.ps.ValidateDefaultRate(rate); err != nil {
+		log.Infof("Premium rate warning: %v", err)
 	}
 	err = c.cl.ps.SetDefaultRate(context.Background(), rate)
 	if err != nil {

@@ -625,6 +625,9 @@ func (p *PeerswapServer) UpdateGlobalPremiumRate(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("could not create rate: %v", err)
 	}
+	if err := p.ps.ValidateDefaultRate(rate); err != nil {
+		log.Infof("Premium rate warning: %v", err)
+	}
 	err = p.ps.SetDefaultRate(ctx, rate)
 	if err != nil {
 		return nil, fmt.Errorf("could not set default rate: %v", err)
@@ -666,6 +669,9 @@ func (p *PeerswapServer) UpdatePremiumRate(ctx context.Context,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not create rate: %v", err)
+	}
+	if err := p.ps.ValidateRate(request.GetNodeId(), rate); err != nil {
+		log.Infof("Premium rate warning: %v", err)
 	}
 	err = p.ps.SetRate(ctx, request.GetNodeId(), rate)
 	if err != nil {
