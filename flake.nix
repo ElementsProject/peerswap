@@ -15,22 +15,10 @@
     };
     blockstream-electrs = {
       url = "github:Blockstream/electrs";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-        rust-overlay.follows = "rust-overlay";
-        crane.follows = "crane";
-      };
     };
 
     lwk-flake = {
       url = "github:blockstream/lwk/9ddd20a806625bb40cd063ad61d80d106809a9fd";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-        crane.follows = "crane";
-        rust-overlay.follows = "rust-overlay";
-      };
     };
   };
 

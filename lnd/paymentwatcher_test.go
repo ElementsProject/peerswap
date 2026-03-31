@@ -125,7 +125,14 @@ func TestPaymentWatcher_WatchPayment_Reconnect(t *testing.T) {
 	assert.False(t, gotCallback)
 
 	// We have to reconnect in order to pay the invoice.
-	payer.Connect(payee, true)
+	err = payer.Connect(payee, true)
+	if err != nil {
+		t.Fatalf("Failed Connect(): %v", err)
+	}
+	err = waitForLndPaymentRoute(payer, payee)
+	if err != nil {
+		t.Fatalf("Failed waiting for route: %v", err)
+	}
 
 	// Now we pay the invoice and check if the watcher is still active. If the
 	// watcher is still active, the callback should be called.
@@ -197,7 +204,14 @@ func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 	assert.False(t, gotCallback)
 
 	// We have to reconnect in order to pay the invoice.
-	payer.Connect(payee, true)
+	err = payer.Connect(payee, true)
+	if err != nil {
+		t.Fatalf("Failed Connect(): %v", err)
+	}
+	err = waitForLndPaymentRoute(payer, payee)
+	if err != nil {
+		t.Fatalf("Failed waiting for route: %v", err)
+	}
 
 	// Now we pay the invoice and check if the watcher is still active. If the
 	// watcher is still active, the callback should be called.
@@ -211,6 +225,29 @@ func TestPaymentWatcher_WatchPayment_Reconnect_OnGracefulStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
 	}
+}
+
+func waitForLndPaymentRoute(payer, payee *testframework.LndNode) error {
+	scid, err := payer.GetScid(payee)
+	if err != nil {
+		return fmt.Errorf("GetScid() %w", err)
+	}
+
+	return testframework.WaitForWithErr(func() (bool, error) {
+		payerActive, err := payer.IsChannelActive(scid)
+		if err != nil {
+			return false, fmt.Errorf("payer.IsChannelActive() %w", err)
+		}
+		payeeActive, err := payee.IsChannelActive(scid)
+		if err != nil {
+			return false, fmt.Errorf("payee.IsChannelActive() %w", err)
+		}
+		hasRoute, err := payer.HasRoute(payee.Id(), scid)
+		if err != nil {
+			return false, nil
+		}
+		return payerActive && payeeActive && hasRoute, nil
+	}, testframework.TIMEOUT)
 }
 
 func paymentwatcherNodeSetup(t *testing.T, dir string) (
