@@ -46,6 +46,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const (
@@ -92,11 +93,10 @@ func run() error {
 		return err
 	}
 
-	logger, closeFunc, err := NewLndLogger(cfg)
+	logger, err := NewLndLogger(cfg)
 	if err != nil {
 		return err
 	}
-	defer closeFunc()
 	log.SetLogger(logger)
 
 	// make datadir
@@ -597,23 +597,32 @@ type LndLogger struct {
 	loglevel peerswaplnd.LogLevel
 }
 
-func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, func() error, error) {
-	logFile, err := os.OpenFile(filepath.Join(cfg.DataDir, "log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func NewLndLogger(cfg *peerswaplnd.PeerSwapConfig) (*LndLogger, error) {
+	err := os.MkdirAll(cfg.DataDir, 0755)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	w := io.MultiWriter(os.Stdout, logFile)
+	logFile := filepath.Join(cfg.DataDir, "log")
+
 	core_log.SetFlags(core_log.LstdFlags | core_log.LUTC)
+
+	w := io.MultiWriter(os.Stdout, &lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    cfg.LogRotation.MaxSize,
+		MaxBackups: cfg.LogRotation.MaxBackups,
+		MaxAge:     cfg.LogRotation.MaxAge,
+		Compress:   cfg.LogRotation.Compress,
+	})
 	core_log.SetOutput(w)
 
-	return &LndLogger{loglevel: cfg.LogLevel}, logFile.Close, nil
+	return &LndLogger{loglevel: cfg.LogLevel}, nil
 }
 
-func (l *LndLogger) Infof(format string, v ...interface{}) {
+func (l *LndLogger) Infof(format string, v ...any) {
 	core_log.Printf("[INFO] "+format, v...)
 }
 
-func (l *LndLogger) Debugf(format string, v ...interface{}) {
+func (l *LndLogger) Debugf(format string, v ...any) {
 	if l.loglevel == peerswaplnd.LOGLEVEL_DEBUG {
 		core_log.Printf("[DEBUG] "+format, v...)
 	}
