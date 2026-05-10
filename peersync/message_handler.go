@@ -65,43 +65,21 @@ func (h *messageHandler) handlePollMessage(ctx context.Context, msg CustomMessag
 		return
 	}
 
-	peerID, capability, err := h.parsePollMessage(msg)
+	peerID, err := h.storeCapabilityMessage(msg)
 	if err != nil {
-		log.Printf("failed to parse poll message: %v", err)
+		log.Printf("failed to store poll message: %v", err)
 		return
-	}
-
-	if h.guard != nil && h.guard.Suspicious(peerID) {
-		return
-	}
-
-	peer, err := h.findPeer(peerID)
-	if err != nil {
-		log.Printf("unknown peer %s: %v", peerID.String(), err)
-		return
-	}
-
-	if existing := peer.Capability(); existing != nil {
-		capability = h.logic.MergeCapabilities(existing, capability)
-	}
-
-	peer.UpdateCapability(capability)
-
-	if err := h.store.SavePeerState(peer); err != nil {
-		log.Printf("failed to store peer state: %v", err)
 	}
 
 	pslog.Infof("Received poll from peer %s", peerID.String())
 }
 
 func (h *messageHandler) handleRequestPollMessage(ctx context.Context, msg CustomMessage) {
-	var payload RequestPollMessageDTO
-	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		log.Printf("failed to decode request poll message: %v", err)
+	fromPeerID, err := h.storeCapabilityMessage(msg)
+	if err != nil {
+		log.Printf("failed to store request poll message: %v", err)
 		return
 	}
-
-	fromPeerID := msg.From
 
 	if h.guard != nil && h.guard.Suspicious(fromPeerID) {
 		return
@@ -117,19 +95,47 @@ func (h *messageHandler) handleRequestPollMessage(ctx context.Context, msg Custo
 	}
 }
 
-func (h *messageHandler) parsePollMessage(msg CustomMessage) (PeerID, *PeerCapability, error) {
+func (h *messageHandler) storeCapabilityMessage(msg CustomMessage) (PeerID, error) {
 	peerID := msg.From
-	var payload PollMessageDTO
+	capability, err := h.parseCapabilityMessage(msg)
+	if err != nil {
+		return peerID, err
+	}
+
+	if h.guard != nil && h.guard.Suspicious(peerID) {
+		return peerID, nil
+	}
+
+	peer, err := h.findPeer(peerID)
+	if err != nil {
+		return peerID, fmt.Errorf("unknown peer %s: %w", peerID.String(), err)
+	}
+
+	if existing := peer.Capability(); existing != nil {
+		capability = h.logic.MergeCapabilities(existing, capability)
+	}
+
+	peer.UpdateCapability(capability)
+
+	if err := h.store.SavePeerState(peer); err != nil {
+		return peerID, fmt.Errorf("failed to store peer state: %w", err)
+	}
+
+	return peerID, nil
+}
+
+func (h *messageHandler) parseCapabilityMessage(msg CustomMessage) (*PeerCapability, error) {
+	var payload PeerCapabilitySnapshot
 	if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-		return peerID, nil, fmt.Errorf("decode poll message: %w", err)
+		return nil, fmt.Errorf("decode capability message: %w", err)
 	}
 
 	capability, err := payload.ToCapability()
 	if err != nil {
-		return peerID, nil, fmt.Errorf("invalid poll payload: %w", err)
+		return nil, fmt.Errorf("invalid capability payload: %w", err)
 	}
 
-	return peerID, capability, nil
+	return capability, nil
 }
 
 func (h *messageHandler) findPeer(peerID PeerID) (*Peer, error) {

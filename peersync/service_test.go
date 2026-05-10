@@ -178,6 +178,50 @@ func TestPollAllPeers(t *testing.T) {
 	}
 }
 
+func TestPollAllPeersRequestsUnknownConnectedPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected one request poll, got %d", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_REQUEST_POLL {
+		t.Fatalf("unexpected send: %+v", sent[0])
+	}
+}
+
+func TestCleanupKeepsExpiredConnectedPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-connected")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-2 * syncer.cleanupTimeout))
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	if err := syncer.poller.cleanupExpired(context.Background()); err != nil {
+		t.Fatalf("cleanup failed: %v", err)
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); err != nil {
+		t.Fatalf("expected connected peer to remain in store, got %v", err)
+	}
+}
+
 func TestHandlePollMessage(t *testing.T) {
 	syncer, deps := newTestPeerSync(t)
 
@@ -230,7 +274,15 @@ func TestHandleRequestPollMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	request := RequestPollMessageDTO{}
+	request := RequestPollMessageDTO{
+		Version:                   2,
+		Assets:                    []string{"BTC"},
+		PeerAllowed:               true,
+		BTCSwapInPremiumRatePPM:   100,
+		BTCSwapOutPremiumRatePPM:  200,
+		LBTCSwapInPremiumRatePPM:  300,
+		LBTCSwapOutPremiumRatePPM: 400,
+	}
 	data, err := json.Marshal(request)
 	if err != nil {
 		t.Fatalf("failed to marshal request: %v", err)
@@ -247,5 +299,16 @@ func TestHandleRequestPollMessage(t *testing.T) {
 
 	if deps.lightning.SentCount() != 1 {
 		t.Fatalf("expected response poll to be sent")
+	}
+
+	stored, err := deps.store.GetPeerState(peerID)
+	if err != nil {
+		t.Fatalf("expected request poll to store peer state: %v", err)
+	}
+	if stored.Capability() == nil {
+		t.Fatalf("expected capability to be stored")
+	}
+	if stored.Capability().Version().Value() != request.Version {
+		t.Fatalf("unexpected stored version: got %d want %d", stored.Capability().Version().Value(), request.Version)
 	}
 }

@@ -9,11 +9,12 @@ import (
 )
 
 type poller struct {
-	logic   *SyncLogic
-	store   *Store
-	guard   PeerGuard
-	send    capabilitySender
-	timeout time.Duration
+	logic     *SyncLogic
+	store     *Store
+	lightning Lightning
+	guard     PeerGuard
+	send      capabilitySender
+	timeout   time.Duration
 
 	pollTickerInterval    time.Duration
 	cleanupTickerInterval time.Duration
@@ -22,6 +23,7 @@ type poller struct {
 func newPoller(
 	logic *SyncLogic,
 	store *Store,
+	lightning Lightning,
 	guard PeerGuard,
 	send capabilitySender,
 	pollTickerInterval time.Duration,
@@ -31,6 +33,7 @@ func newPoller(
 	return &poller{
 		logic:                 logic,
 		store:                 store,
+		lightning:             lightning,
 		guard:                 guard,
 		send:                  send,
 		timeout:               cleanupTimeout,
@@ -79,11 +82,23 @@ func (p *poller) runCleanupLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if _, err := p.store.CleanupExpired(p.timeout); err != nil {
+			if err := p.cleanupExpired(ctx); err != nil {
 				log.Printf("cleanup expired peers failed: %v", err)
 			}
 		}
 	}
+}
+
+func (p *poller) cleanupExpired(ctx context.Context) error {
+	connected, err := p.connectedPeers(ctx)
+	if err != nil {
+		log.Printf("failed to list connected peers for cleanup: %v", err)
+		_, cleanupErr := p.store.CleanupExpired(p.timeout)
+		return cleanupErr
+	}
+
+	_, err = p.store.CleanupExpiredExcept(p.timeout, connected)
+	return err
 }
 
 func (p *poller) PollAllPeers(ctx context.Context) {
@@ -114,10 +129,13 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 		return
 	}
 
+	knownPeers := make(map[string]*Peer, len(peers))
+
 	for _, peer := range peers {
 		if peer == nil {
 			continue
 		}
+		knownPeers[peer.ID().String()] = peer
 		if !force && !p.logic.ShouldPoll(peer) {
 			continue
 		}
@@ -136,4 +154,42 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 			log.Printf("failed to persist peer state for %s: %v", peer.ID().String(), err)
 		}
 	}
+
+	p.requestUnknownConnectedPeers(ctx, knownPeers)
+}
+
+func (p *poller) requestUnknownConnectedPeers(ctx context.Context, knownPeers map[string]*Peer) {
+	connected, err := p.connectedPeers(ctx)
+	if err != nil {
+		log.Printf("failed to list connected peers for poll: %v", err)
+		return
+	}
+
+	for peerID := range connected {
+		if _, ok := knownPeers[peerID.String()]; ok {
+			continue
+		}
+		if p.guard != nil && p.guard.Suspicious(peerID) {
+			continue
+		}
+		if err := p.send(ctx, peerID, messages.MESSAGETYPE_REQUEST_POLL); err != nil {
+			log.Printf("failed to request poll from %s: %v", peerID.String(), err)
+		}
+	}
+}
+
+func (p *poller) connectedPeers(ctx context.Context) (map[PeerID]struct{}, error) {
+	connected := make(map[PeerID]struct{})
+	if p.lightning == nil {
+		return connected, nil
+	}
+
+	peers, err := p.lightning.ListPeers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, peerID := range peers {
+		connected[peerID] = struct{}{}
+	}
+	return connected, nil
 }
