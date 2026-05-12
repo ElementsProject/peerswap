@@ -17,13 +17,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         id: setup-go
         with:
           go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
 
       - name: Download Go modules
         shell: bash
@@ -41,7 +42,7 @@ jobs:
     concurrency:
       group: integration-${{ github.ref }}-${{ matrix.vector }}
       cancel-in-progress: true
-    needs: [build-test-bins]
+    needs: [build-test-bins, prepare-nix-devshell]
     strategy:
       fail-fast: false
       matrix:
@@ -60,42 +61,37 @@ jobs:
           ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
+        id: setup-go
         with:
           go-version-file: "go.mod"
-
-      - name: Cache Go modules
-        id: go-cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache-dependency-path: "go.sum"
 
       - name: Download Go modules
-        if: ${{ steps.go-cache.outputs.cache-hit != 'true' }}
+        if: ${{ steps.setup-go.outputs.cache-hit != 'true' }}
         run: go mod download
 
       # Test binaries are prebuilt and downloaded as artifact
       - name: Download test binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: test-bins
           path: out/test-builds
 
       - uses: cachix/install-nix-action@v31
-      - uses: cachix/cachix-action@v16
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: cachix/cachix-action@v17
         with:
           name: peerswap
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          skipPush: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
           useDaemon: true
       # Switch to nix-shell for integration tests instead of nix develop.
       # The 'nix develop' command can be unstable in some CI environments,
@@ -109,39 +105,52 @@ jobs:
         run: |
           nix-shell --run "RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=10 PEERSWAP_TEST_FILTER=$PEERSWAP_TEST_FILTER INTEGRATION_TEST_PARALLEL=$INTEGRATION_TEST_PARALLEL make test-matrix-${{ matrix.vector }}"
 
+  prepare-nix-devshell:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ github.token }}
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: cachix/cachix-action@v17
+        with:
+          name: peerswap
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          skipPush: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          useDaemon: true
+
+      - name: Prepare nix shell
+        run: nix-shell --run "true"
+
   build-test-bins:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
+        id: setup-go
         with:
           go-version-file: "go.mod"
-
-      - name: Cache Go modules
-        id: go-cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache-dependency-path: "go.sum"
 
       - name: Download Go modules
-        if: ${{ steps.go-cache.outputs.cache-hit != 'true' }}
+        if: ${{ steps.setup-go.outputs.cache-hit != 'true' }}
         run: go mod download
 
       - name: Build test binaries
         run: make test-bins
 
       - name: Upload test binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-bins
           path: out/test-builds
