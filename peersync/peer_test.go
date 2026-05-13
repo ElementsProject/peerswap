@@ -275,8 +275,21 @@ func TestAssetValidation(t *testing.T) {
 		t.Fatalf("expected asset LBTC string to be LBTC, got %s", b.String())
 	}
 
-	if _, err = NewAsset("lower"); err == nil {
-		t.Fatalf("expected error for lowercase asset")
+	// v5.0.0 peers send lowercase symbols — must be accepted
+	c, err := NewAsset("btc")
+	if err != nil {
+		t.Fatalf("expected no error for lowercase btc, got %v", err)
+	}
+	if c != AssetBTC {
+		t.Fatalf("expected lowercase btc to resolve to AssetBTC")
+	}
+
+	d, err := NewAsset("lbtc")
+	if err != nil {
+		t.Fatalf("expected no error for lowercase lbtc, got %v", err)
+	}
+	if d != AssetLBTC {
+		t.Fatalf("expected lowercase lbtc to resolve to AssetLBTC")
 	}
 
 	if _, err = NewAsset("TOO-LONG-ASSET"); err == nil {

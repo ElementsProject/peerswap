@@ -4,6 +4,7 @@ package peersync
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/elementsproject/peerswap/premium"
@@ -34,7 +35,8 @@ var (
 
 // NewAsset converts a ticker into the corresponding enum value.
 func NewAsset(value string) (Asset, error) {
-	if asset, ok := stringToAsset[value]; ok {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if asset, ok := stringToAsset[normalized]; ok {
 		return asset, nil
 	}
 	return AssetUnknown, fmt.Errorf("unsupported asset: %s", value)
