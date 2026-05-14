@@ -277,15 +277,20 @@ func (n *LndNode) connectPeerWithRetry(pubkey, host string, port int) error {
 }
 
 func isLndConnectPeerStartupError(err error) bool {
-	if status.Code(err) == codes.Unavailable {
-		return true
-	}
-
-	if status.Code(err) != codes.Unknown {
+	st, ok := status.FromError(err)
+	if !ok {
 		return false
 	}
 
-	msg := status.Convert(err).Message()
+	if st.Code() == codes.Unavailable {
+		return true
+	}
+
+	if st.Code() != codes.Unknown {
+		return false
+	}
+
+	msg := st.Message()
 	return strings.Contains(msg, "server is still in the process of starting") ||
 		strings.Contains(msg, "server is in the process of starting")
 }
