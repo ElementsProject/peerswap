@@ -254,7 +254,7 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
 	require.NoError(params.takerPeerswap.WaitForLog(
-		"Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation",
+		"Swap claimed cooperatively",
 		testframework.TIMEOUT,
 	))
 
@@ -366,7 +366,7 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	waitForBlockheightSync(t, testframework.TIMEOUT, params.takerNode)
 	require.NoError(params.takerPeerswap.WaitForLog("Recovering from", testframework.TIMEOUT))
 	require.NoError(params.takerPeerswap.WaitForLog(
-		"Event_ActionFailed on State_SwapOutSender_AwaitTxConfirmation",
+		"Swap claimed cooperatively",
 		testframework.TIMEOUT,
 	))
 
