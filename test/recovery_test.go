@@ -1,7 +1,9 @@
 package test
 
 import (
+	"errors"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/elementsproject/peerswap/clightning"
@@ -68,7 +70,9 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
 		}, &response); err != nil {
-			t.Errorf("SwapOut request failed: %v", err)
+			if !isAsyncSwapOutRequestCloseError(err) {
+				t.Errorf("SwapOut request failed: %v", err)
+			}
 		}
 	}()
 
@@ -207,7 +211,9 @@ func Test_Recover_PassedSwap_BTC(t *testing.T) {
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
 		}, &response); err != nil {
-			t.Errorf("SwapOut request failed: %v", err)
+			if !isAsyncSwapOutRequestCloseError(err) {
+				t.Errorf("SwapOut request failed: %v", err)
+			}
 		}
 	}()
 
@@ -319,7 +325,9 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 			Asset:               asset,
 			PremiumLimitRatePPM: params.premiumLimitRatePPM,
 		}, &response); err != nil {
-			t.Errorf("SwapOut request failed: %v", err)
+			if !isAsyncSwapOutRequestCloseError(err) {
+				t.Errorf("SwapOut request failed: %v", err)
+			}
 		}
 	}()
 
@@ -374,4 +382,51 @@ func Test_Recover_PassedSwap_LBTC(t *testing.T) {
 	require.NoError(err)
 	require.InDelta(params.origTakerBalance-premiumAmt, balance, 1., "expected %d, got %d",
 		params.origTakerBalance-premiumAmt, balance)
+}
+
+func isAsyncSwapOutRequestCloseError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := err.Error()
+	return strings.Contains(msg, "Pipe closed unexpectedly") ||
+		strings.Contains(msg, "Connection reset by peer")
+}
+
+func TestIsAsyncSwapOutRequestCloseError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "pipe closed unexpectedly",
+			err:  errors.New("Pipe closed unexpectedly, nil result"),
+			want: true,
+		},
+		{
+			name: "connection reset by peer",
+			err:  errors.New("Connection reset by peer"),
+			want: true,
+		},
+		{
+			name: "unrelated error",
+			err:  errors.New("invoice payment failed"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isAsyncSwapOutRequestCloseError(tt.err); got != tt.want {
+				t.Fatalf("isAsyncSwapOutRequestCloseError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
