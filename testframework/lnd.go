@@ -264,6 +264,9 @@ func (n *LndNode) connectPeerWithRetry(pubkey, host string, port int) error {
 		if err == nil {
 			return nil
 		}
+		if isLndConnectPeerAlreadyConnectedError(err) {
+			return nil
+		}
 		if !isLndConnectPeerStartupError(err) {
 			return fmt.Errorf("ConnectPeer() %w", err)
 		}
@@ -274,6 +277,16 @@ func (n *LndNode) connectPeerWithRetry(pubkey, host string, port int) error {
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
+}
+
+func isLndConnectPeerAlreadyConnectedError(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	return st.Code() == codes.Unknown &&
+		strings.Contains(st.Message(), "already connected to peer")
 }
 
 func isLndConnectPeerStartupError(err error) bool {
