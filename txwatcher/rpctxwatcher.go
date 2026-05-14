@@ -333,6 +333,11 @@ func (l *BlockchainRpcTxWatcher) observationLoop(
 				// Tx was found in mempool but is unconfirmed. Wait for the next
 				// block.
 				continue
+			} else if errors.Is(err, ErrOutOfSync) {
+				// The node can briefly report a txout best block that differs
+				// from the latest block hash during block updates. Retry on the
+				// next observation instead of canceling the swap.
+				continue
 			} else if err != nil {
 				// Something serious happened better cancel the swap.
 				l.callbackAndLog(swapId, "", err)
