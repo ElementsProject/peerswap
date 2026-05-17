@@ -574,15 +574,24 @@ func (l *ListPeers) Call() (jrpc2.Result, error) {
 		}
 	}
 
+	// Batch-load all swaps once and partition by peer to avoid O(n×m) scaling.
+	allSwaps, err := l.cl.swaps.ListSwaps()
+	if err != nil {
+		return nil, err
+	}
+	swapsByPeer := make(map[string][]*swap.SwapStateMachine)
+	for _, s := range allSwaps {
+		if s.Data != nil {
+			swapsByPeer[s.Data.PeerNodeId] = append(swapsByPeer[s.Data.PeerNodeId], s)
+		}
+	}
+
 	peerSwappers := []*peerswaprpc.PeerSwapPeer{}
 	for _, peer := range peers {
 		peerState, ok := compatible[peer.Id]
 		if ok {
 			capability := peerState.Capability()
-			swaps, err := l.cl.swaps.ListSwapsByPeer(peer.Id)
-			if err != nil {
-				return nil, err
-			}
+			swaps := swapsByPeer[peer.Id]
 
 			view := format.BuildPeerView(peer.Id, capability, swaps)
 			peerSwapPeer := peerswaprpc.NewPeerSwapPeerFromView(view)
