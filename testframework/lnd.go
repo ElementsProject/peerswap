@@ -11,12 +11,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/routing/route"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func getLndConfig() map[string]string {
@@ -226,32 +229,83 @@ func (n *LndNode) Connect(peer LightningNode, waitForConnection bool) error {
 		return fmt.Errorf("SplitLnAddr() %w", err)
 	}
 
-	_, err = n.Rpc.ConnectPeer(context.Background(),
-		&lnrpc.ConnectPeerRequest{Addr: &lnrpc.LightningAddress{
-			Pubkey: pk,
-			Host:   fmt.Sprintf("%s:%d", host, port),
-		}})
-	if err != nil {
-		return fmt.Errorf("ConnectPeer() %w", err)
+	if err := n.connectPeerWithRetry(pk, host, port); err != nil {
+		return err
 	}
 
 	if waitForConnection {
-		if waitForConnection {
-			return WaitForWithErr(func() (bool, error) {
-				localIsConnected, err := n.IsConnected(peer)
-				if err != nil {
-					return false, fmt.Errorf("IsConnected() %w", err)
-				}
-				peerIsConnected, err := peer.IsConnected(n)
-				if err != nil {
-					return false, fmt.Errorf("IsConnected() %w", err)
-				}
-				return localIsConnected && peerIsConnected, nil
-			}, TIMEOUT)
-		}
+		return WaitForWithErr(func() (bool, error) {
+			localIsConnected, err := n.IsConnected(peer)
+			if err != nil {
+				return false, fmt.Errorf("IsConnected() %w", err)
+			}
+			peerIsConnected, err := peer.IsConnected(n)
+			if err != nil {
+				return false, fmt.Errorf("IsConnected() %w", err)
+			}
+			return localIsConnected && peerIsConnected, nil
+		}, TIMEOUT)
 	}
 
 	return nil
+}
+
+func (n *LndNode) connectPeerWithRetry(pubkey, host string, port int) error {
+	addr := &lnrpc.LightningAddress{
+		Pubkey: pubkey,
+		Host:   fmt.Sprintf("%s:%d", host, port),
+	}
+
+	timer := time.NewTimer(TIMEOUT)
+	defer timer.Stop()
+
+	for {
+		_, err := n.Rpc.ConnectPeer(context.Background(), &lnrpc.ConnectPeerRequest{Addr: addr})
+		if err == nil {
+			return nil
+		}
+		if isLndConnectPeerAlreadyConnectedError(err) {
+			return nil
+		}
+		if !isLndConnectPeerStartupError(err) {
+			return fmt.Errorf("ConnectPeer() %w", err)
+		}
+
+		select {
+		case <-timer.C:
+			return fmt.Errorf("ConnectPeer() %w", err)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func isLndConnectPeerAlreadyConnectedError(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	return st.Code() == codes.Unknown &&
+		strings.Contains(st.Message(), "already connected to peer")
+}
+
+func isLndConnectPeerStartupError(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	if st.Code() == codes.Unavailable {
+		return true
+	}
+
+	if st.Code() != codes.Unknown {
+		return false
+	}
+
+	msg := st.Message()
+	return strings.Contains(msg, "server is still in the process of starting") ||
+		strings.Contains(msg, "server is in the process of starting")
 }
 
 func (n *LndNode) FundWallet(sats uint64, mineBlock bool) (string, error) {

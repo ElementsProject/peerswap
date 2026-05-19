@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -30,10 +31,63 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 
 	db.SetBlockHeight(1)
 	db.SetNextTxOutResp(&TxOutResp{
+		BestBlockHash: "blockhash",
 		Confirmations: 2,
 	})
 	txConfirmedId := <-txWatcherChan
 	assert.Equal(t, swapId, txConfirmedId)
+}
+
+func Test_RpcTxWatcherOutOfSyncWaitsForNextBlock(t *testing.T) {
+	swapId := "foo"
+	txId := "bar"
+	txOutCalls := make(chan struct{}, 1)
+
+	db := &DummyBlockchain{
+		nextBlockheight: 1,
+		nextTxOutResp: &TxOutResp{
+			BestBlockHash: "stale-blockhash",
+			Confirmations: 1,
+		},
+		txOutCalls: txOutCalls,
+	}
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1, 100)
+
+	callbackErr := make(chan error, 1)
+	txWatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
+		callbackErr <- err
+		return nil
+	})
+
+	newBlock := make(chan uint32)
+	go txWatcher.observationLoop(context.Background(), swapId, txId, 0, 0, 100, newBlock)
+
+	newBlock <- 1
+	select {
+	case <-txOutCalls:
+	case <-time.After(time.Second):
+		t.Fatal("expected txout lookup")
+	}
+
+	select {
+	case err := <-callbackErr:
+		t.Fatalf("unexpected callback after out-of-sync lookup: %v", err)
+	default:
+	}
+
+	db.SetBlockHeight(2)
+	db.SetNextTxOutResp(&TxOutResp{
+		BestBlockHash: "blockhash",
+		Confirmations: 1,
+	})
+
+	newBlock <- 2
+	select {
+	case err := <-callbackErr:
+		assert.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("expected confirmation callback")
+	}
 }
 
 func Test_RpcTxWatcherCsv(t *testing.T) {
@@ -76,6 +130,7 @@ type DummyBlockchain struct {
 	sync.RWMutex
 	nextBlockheight uint64
 	nextTxOutResp   *TxOutResp
+	txOutCalls      chan struct{}
 }
 
 func (d *DummyBlockchain) GetBlockHeightByHash(blockhash string) (uint32, error) {
@@ -111,5 +166,11 @@ func (d *DummyBlockchain) GetBlockHeight() (uint64, error) {
 func (d *DummyBlockchain) GetTxOut(txid string, vout uint32) (*TxOutResp, error) {
 	d.RLock()
 	defer d.RUnlock()
+	if d.txOutCalls != nil {
+		select {
+		case d.txOutCalls <- struct{}{}:
+		default:
+		}
+	}
 	return d.nextTxOutResp, nil
 }
