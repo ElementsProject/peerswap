@@ -376,15 +376,24 @@ func (p *PeerswapServer) ListPeers(ctx context.Context, request *ListPeersReques
 
 	pagePubKeys := eligiblePubKeys[start:end]
 
+	// Batch-load all swaps once and partition by peer to avoid O(n×m) scaling.
+	allSwaps, err := p.swaps.ListSwaps()
+	if err != nil {
+		return nil, err
+	}
+	swapsByPeer := make(map[string][]*swap.SwapStateMachine)
+	for _, s := range allSwaps {
+		if s.Data != nil {
+			swapsByPeer[s.Data.PeerNodeId] = append(swapsByPeer[s.Data.PeerNodeId], s)
+		}
+	}
+
 	peerSwapPeers := make([]*PeerSwapPeer, 0, len(pagePubKeys))
 	for _, pubKey := range pagePubKeys {
 		peerState := compatiblePeers[pubKey]
 		capability := peerState.Capability()
 
-		swaps, err := p.swaps.ListSwapsByPeer(pubKey)
-		if err != nil {
-			return nil, err
-		}
+		swaps := swapsByPeer[pubKey]
 
 		view := format.BuildPeerView(pubKey, capability, swaps)
 		peer := NewPeerSwapPeerFromView(view)
