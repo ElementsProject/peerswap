@@ -101,7 +101,7 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 		return "", "", 0, err
 	}
 	fundedTx, err := r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
-		FeeRate: fmt.Sprintf("%f", feerate),
+		FeeRate: fmt.Sprintf("%.8f", feerate),
 	}, nil)
 
 	if err != nil {
@@ -232,7 +232,7 @@ func (r *ElementsRpcWallet) SetLabel(txID, address, label string) error {
 // satsToAmountString returns the amount in btc from sats
 func satsToAmountString(sats uint64) string {
 	bitcoinAmt := float64(sats) / 100000000
-	return fmt.Sprintf("%f", bitcoinAmt)
+	return fmt.Sprintf("%.8f", bitcoinAmt)
 }
 
 func (r *ElementsRpcWallet) Ping() (bool, error) {

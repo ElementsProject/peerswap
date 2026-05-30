@@ -1342,7 +1342,7 @@ func (t *TestSetup) FaucetWallet(wallet wallet.Wallet, amount float64) error {
 
 func (t *TestSetup) Faucet(address string, amount float64) error {
 
-	_, err := t.Elcli.SendToAddress(address, fmt.Sprintf("%f", amount))
+	_, err := t.Elcli.SendToAddress(address, fmt.Sprintf("%.8f", amount))
 	if err != nil {
 		return err
 	}
