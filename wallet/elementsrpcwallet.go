@@ -100,8 +100,10 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 	if err != nil {
 		return "", "", 0, err
 	}
+	// Round BTC/kB to nearest sat/kB so the string format is exact
+	satPerKb := uint64(math.Round(feerate * satsPerBTC))
 	fundedTx, err := r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
-		FeeRate: fmt.Sprintf("%f", feerate),
+		FeeRate: SatsToBTCString(satPerKb),
 	}, nil)
 
 	if err != nil {
@@ -171,7 +173,7 @@ func (r *ElementsRpcWallet) GetAddress() (string, error) {
 
 // SendToAddress sends an amount to an address
 func (r *ElementsRpcWallet) SendToAddress(address string, amount uint64) (string, error) {
-	txId, err := r.rpcClient.SendToAddress(address, satsToAmountString(amount))
+	txId, err := r.rpcClient.SendToAddress(address, SatsToBTCString(amount))
 	if err != nil {
 		return "", err
 	}
@@ -213,6 +215,7 @@ const (
 	// 1 kb = 1000 bytes
 	kb              = 1000
 	btcToSatoshiExp = 8
+	satsPerBTC      = 100_000_000
 )
 
 func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
@@ -229,10 +232,10 @@ func (r *ElementsRpcWallet) SetLabel(txID, address, label string) error {
 	return r.rpcClient.SetLabel(address, label)
 }
 
-// satsToAmountString returns the amount in btc from sats
-func satsToAmountString(sats uint64) string {
-	bitcoinAmt := float64(sats) / 100000000
-	return fmt.Sprintf("%f", bitcoinAmt)
+// SatsToBTCString formats sats as a BTC decimal string using integer
+// arithmetic to avoid the float precision loss of %f or %.8f
+func SatsToBTCString(sats uint64) string {
+	return fmt.Sprintf("%d.%08d", sats/satsPerBTC, sats%satsPerBTC)
 }
 
 func (r *ElementsRpcWallet) Ping() (bool, error) {

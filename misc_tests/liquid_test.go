@@ -433,7 +433,7 @@ func Test_RpcWalletPreimage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testSetup.FaucetCli(testSetup.walletCli, 1)
+	err = testSetup.FaucetCli(testSetup.walletCli, 100_000_000)
 	if err != nil {
 		t.Fatalf("err funding wallet %v", err)
 	}
@@ -510,7 +510,7 @@ func Test_RpcWalletCsv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testSetup.FaucetCli(testSetup.walletCli, 1)
+	err = testSetup.FaucetCli(testSetup.walletCli, 100_000_000)
 	if err != nil {
 		t.Fatalf("err funding wallet %v", err)
 	}
@@ -587,7 +587,7 @@ func Test_RpcWalletCoop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testSetup.FaucetCli(testSetup.walletCli, 1)
+	err = testSetup.FaucetCli(testSetup.walletCli, 100_000_000)
 	if err != nil {
 		t.Fatalf("err funding wallet %v", err)
 	}
@@ -1325,24 +1325,23 @@ func NewTestSetup() (*TestSetup, error) {
 	return &TestSetup{Elcli: normalCli, walletCli: walletCli, onchain: onchain, wallet: liquidWallet}, nil
 }
 
-func (t *TestSetup) FaucetCli(walletCli *gelements.Elements, amount float64) error {
+func (t *TestSetup) FaucetCli(walletCli *gelements.Elements, sats uint64) error {
 	addr, err := walletCli.GetNewAddress(0)
 	if err != nil {
 		return err
 	}
-	return t.Faucet(addr, amount)
+	return t.Faucet(addr, sats)
 }
-func (t *TestSetup) FaucetWallet(wallet wallet.Wallet, amount float64) error {
-	addr, err := wallet.GetAddress()
+func (t *TestSetup) FaucetWallet(w wallet.Wallet, sats uint64) error {
+	addr, err := w.GetAddress()
 	if err != nil {
 		return err
 	}
-	return t.Faucet(addr, amount)
+	return t.Faucet(addr, sats)
 }
 
-func (t *TestSetup) Faucet(address string, amount float64) error {
-
-	_, err := t.Elcli.SendToAddress(address, fmt.Sprintf("%f", amount))
+func (t *TestSetup) Faucet(address string, sats uint64) error {
+	_, err := t.Elcli.SendToAddress(address, wallet.SatsToBTCString(sats))
 	if err != nil {
 		return err
 	}
@@ -1811,7 +1810,7 @@ func rand32ByteArray() []byte {
 //		t.Fatal(err)
 //	}
 //
-//	err = testSetup.FaucetCli(testSetup.walletCli, 1)
+//	err = testSetup.FaucetCli(testSetup.walletCli, 100_000_000)
 //	if err != nil {
 //		t.Fatalf("err funding wallet %v", err)
 //	}
