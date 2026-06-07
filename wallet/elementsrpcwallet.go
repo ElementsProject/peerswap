@@ -213,6 +213,7 @@ const (
 	// 1 kb = 1000 bytes
 	kb              = 1000
 	btcToSatoshiExp = 8
+	satsPerBitcoin  = 100000000
 )
 
 func (r *ElementsRpcWallet) GetFee(txSize int64) (uint64, error) {
@@ -231,8 +232,7 @@ func (r *ElementsRpcWallet) SetLabel(txID, address, label string) error {
 
 // satsToAmountString returns the amount in btc from sats
 func satsToAmountString(sats uint64) string {
-	bitcoinAmt := float64(sats) / 100000000
-	return fmt.Sprintf("%f", bitcoinAmt)
+	return fmt.Sprintf("%d.%08d", sats/satsPerBitcoin, sats%satsPerBitcoin)
 }
 
 func (r *ElementsRpcWallet) Ping() (bool, error) {
