@@ -49,7 +49,7 @@ func Test_RpcWallet(t *testing.T) {
 		t.Fatalf("error getting address %v", err)
 	}
 
-	err = testSetup.Faucet(addr, 0.1)
+	err = testSetup.Faucet(addr, 10_000_000)
 	if err != nil {
 		t.Fatalf("error funding wallet %v", err)
 	}
@@ -93,9 +93,8 @@ func NewTestSetup() (*TestSetup, error) {
 	return &TestSetup{Elcli: walletCli}, nil
 }
 
-func (t *TestSetup) Faucet(address string, amount float64) error {
-
-	_, err := t.Elcli.SendToAddress(address, fmt.Sprintf("%f", amount))
+func (t *TestSetup) Faucet(address string, sats uint64) error {
+	_, err := t.Elcli.SendToAddress(address, SatsToBTCString(sats))
 	if err != nil {
 		return err
 	}
