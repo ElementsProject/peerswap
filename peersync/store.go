@@ -159,6 +159,11 @@ func (s *Store) RemovePeerState(id PeerID) error {
 
 // CleanupExpired removes peers whose last observation exceeds the timeout.
 func (s *Store) CleanupExpired(timeout time.Duration) (int, error) {
+	return s.CleanupExpiredExcept(timeout, nil)
+}
+
+// CleanupExpiredExcept removes expired peers unless their IDs are in keepPeers.
+func (s *Store) CleanupExpiredExcept(timeout time.Duration, keepPeers map[PeerID]struct{}) (int, error) {
 	if timeout <= 0 {
 		return 0, errors.New("timeout must be positive")
 	}
@@ -172,6 +177,9 @@ func (s *Store) CleanupExpired(timeout time.Duration) (int, error) {
 
 		cursor := bucket.Cursor()
 		for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
+			if shouldKeepPeer(key, keepPeers) {
+				continue
+			}
 			removedPeer, err := s.processPeerRecord(bucket, cursor, key, value, timeout)
 			if err != nil {
 				return err
@@ -192,6 +200,19 @@ func (s *Store) CleanupExpired(timeout time.Duration) (int, error) {
 	}
 
 	return removed, nil
+}
+
+func shouldKeepPeer(key []byte, keepPeers map[PeerID]struct{}) bool {
+	if len(keepPeers) == 0 {
+		return false
+	}
+
+	peerID, err := NewPeerID(string(key))
+	if err != nil {
+		return false
+	}
+	_, ok := keepPeers[peerID]
+	return ok
 }
 
 func (s *Store) processPeerRecord(

@@ -104,6 +104,7 @@ func NewPeerSync(
 	ps.poller = newPoller(
 		ps.logic,
 		ps.store,
+		ps.lightning,
 		ps.guard,
 		ps.sendCapability,
 		ps.pollTickerInterval,
