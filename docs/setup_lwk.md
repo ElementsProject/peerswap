@@ -5,6 +5,9 @@ To set up `lwk` for PeerSwap, follow the steps here.
 lwk is currently under development and changes are being made.  
 **peerswap has been tested only with [cli_0.5.1](https://github.com/Blockstream/lwk/releases/tag/cli_0.5.1)**.
 
+> [!IMPORTANT]
+> Liquid mainnet L-BTC swaps require the LWK/Electrum backend to follow the post-[ELIP 203](https://raw.githubusercontent.com/ElementsProject/ELIPs/main/elip-0203.mediawiki) chain tip. If you run your own backend, make sure it is backed by an Elements node that supports the active Liquid mainnet hard fork.
+
 ## wallet
 peerswap assumes a wallet with blinding-key set in singlesig to lwk.
 
@@ -31,7 +34,7 @@ lwk_cli server start
 ```
 
 ## electrum
-peerswap uses [esplora-electrs](https://github.com/Blockstream/electrs) to communicate with the luqiud chain.  
+peerswap uses [esplora-electrs](https://github.com/Blockstream/electrs) to communicate with the Liquid chain.
 By default, peerswap connects to `blockstream.info:995` used by lwk, so no configuration is needed.
 
 If you want to use your own chain, follow the instructions in [esplora-electrs](https://github.com/Blockstream/electrs) to start Electrum JSON-RPC server.
