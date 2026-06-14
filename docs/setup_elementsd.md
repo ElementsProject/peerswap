@@ -17,7 +17,7 @@ If you would rather just download the binary instead, skip to the next section.
 
 Download the `elementsd` binary release [here](https://github.com/ElementsProject/elements/releases). 
 > [!IMPORTANT]
-> The minimum required version for peerswap is now updated to Elements 23.2.5. Please ensure you are using this version or later to maintain compatibility and functionality. You can find the release details here: [Elements 23.2.5](https://github.com/ElementsProject/elements/releases/tag/elements-23.2.5).
+> Liquid mainnet L-BTC swaps require Elements 23.3.1 or newer. Elements 23.3.3 is the recommended stable release. The [ELIP 203](https://raw.githubusercontent.com/ElementsProject/ELIPs/main/elip-0203.mediawiki) Liquid mainnet hard fork is active, and older `elementsd` versions cannot follow the post-fork chain. You can find current binaries on the [Elements releases](https://github.com/ElementsProject/elements/releases) page.
 
 Extract the archive
 
@@ -26,6 +26,19 @@ Extract the archive
 Copy the binaries to your PATH
 
 `cp elements*/elementsd elements*/elements-cli /usr/local/bin`
+
+Confirm the installed version:
+
+`elements-cli --version`
+
+For Liquid mainnet, confirm that your node follows the post-fork chain tip:
+
+`elements-cli -chain=liquidv1 getblockchaininfo`
+
+Check that `blocks` is close to `headers` and that `verificationprogress` shows the node is synced. If `blocks` stops advancing on Liquid mainnet, upgrade `elementsd` before using L-BTC swaps.
+
+> **Note**
+> [ELIP 201](https://raw.githubusercontent.com/ElementsProject/ELIPs/main/elip-0201.mediawiki) is not the Liquid hard fork that requires the `elementsd` upgrade. The consensus-affecting hard fork is ELIP 203.
 
 
 ## Configuring
@@ -83,4 +96,3 @@ To create a new Liquid receiving address:
 To send L-BTC to a Liquid address:
 
 `elements-cli -rpcwallet=peerswap sendtoaddress [address] [amount in decimal form, e.g. 0.1 for 0.10000000 L-BTC]`
-
