@@ -5,7 +5,7 @@ This document explains how to set up and maintain the Nix development environmen
 ## Overview
 
 PeerSwap uses Nix flakes for reproducible development environments and Cachix for fast binary caching. This setup provides:
-- Deterministic build environments across all platforms
+- Deterministic build environments on supported package platforms
 - Fast CI/CD builds through binary caching
 - Consistent developer experience
 
@@ -45,6 +45,44 @@ direnv allow
 # Without direnv (manual)
 nix develop
 ```
+
+> **Note**
+> The full daemon integration environment is Linux-oriented because it includes
+> Bitcoin Core, Elements, Core Lightning, LND, and related daemon dependencies.
+> On macOS, the full shell may fail to evaluate unsupported Linux-only packages.
+> Run end-to-end tests on Linux, matching CI.
+
+### Integration and E2E Tests
+
+The CI integration jobs run inside `nix-shell` on Linux. Use the same entry
+point locally on a Linux machine or CI-equivalent runner:
+
+```bash
+nix-shell --run "elementsd --version"
+nix-shell --run "make test-bins"
+```
+
+Run individual matrix targets with the same environment used in CI:
+
+```bash
+nix-shell --run "RUN_INTEGRATION_TESTS=1 PAYMENT_RETRY_TIME=10 PEERSWAP_TEST_FILTER=peerswap INTEGRATION_TEST_PARALLEL=6 make test-matrix-liquid_clncln"
+```
+
+Available matrix targets are:
+
+```text
+bitcoin_clncln
+bitcoin_mixed
+bitcoin_lndlnd
+liquid_clncln
+liquid_mixed
+liquid_lndlnd
+misc_1
+misc_2
+misc_3
+lnd
+```
+
 ### Binary Cache (Cachix)
 
 The project automatically uses the `peerswap` Cachix cache for faster builds. If you don't have Cachix installed:
