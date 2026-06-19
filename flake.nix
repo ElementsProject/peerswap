@@ -1,7 +1,7 @@
 {
   inputs = {
     # Base packages for devShell.
-    # nixpkgs is pinned via `flake.lock` (currently rev f997fa0f94fb1ce55bccb97f60d41412ae8fde4c).
+    # nixpkgs is pinned via `flake.lock` (currently rev 3e41b24abd260e8f71dbe2f5737d24122f972158).
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
@@ -70,7 +70,7 @@
             # Lightning implementations (used by integration tests / local setups).
             # Version checks:
             # - `lightningd --version` (Core Lightning / clightning 26.04.1)
-            # - `lnd --version` (lnd 0.20.1-beta)
+            # - `lnd --version` (lnd 0.21.0-beta)
             clightning
             lnd
 
