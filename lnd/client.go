@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
+	"math"
 	"sync"
 	"time"
 
@@ -223,11 +223,31 @@ func (l *Client) DecodePayreq(payreq string) (paymentHash string, amountMsat uin
 }
 
 func (l *Client) PayInvoice(payreq string) (preImage string, err error) {
-	payres, err := l.lndClient.SendPaymentSync(l.ctx, &lnrpc.SendRequest{PaymentRequest: payreq})
+	_, amountMsat, _, err := l.DecodePayreq(payreq)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
-	return hex.EncodeToString(payres.PaymentPreimage), nil
+	return l.sendPaymentV2(&routerrpc.SendPaymentRequest{
+		PaymentRequest: payreq,
+		TimeoutSeconds: 30,
+		FeeLimitMsat:   defaultPaymentFeeLimitMsat(amountMsat),
+	}, "PayInvoice")
+}
+
+func defaultPaymentFeeLimitMsat(amountMsat uint64) int64 {
+	const smallPaymentMsat = 1_000 * 1_000
+
+	if amountMsat <= smallPaymentMsat {
+		return uint64ToInt64(amountMsat)
+	}
+	return uint64ToInt64(amountMsat / 20)
+}
+
+func uint64ToInt64(value uint64) int64 {
+	if value > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(value)
 }
 
 func (l *Client) CheckChannel(shortChannelId string, amountSat uint64) (*lnrpc.Channel, error) {
@@ -278,8 +298,7 @@ func (l *Client) AddPaymentCallback(f func(swapId string, invoiceType swap.Invoi
 }
 
 // PayInvoiceViaChannel ensures that the invoice is paid via the direct channel
-// to the peer. It takes the desired channel as the enforced route and uses the
-// `SendToRouteSync` api for a direct payment via this route.
+// to the peer. It takes the desired channel as the enforced first hop route.
 func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
@@ -294,14 +313,17 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 		return "", fmt.Errorf(`destination pubkey in invoice does not match remote pubkey of channel. 
 		destination pubkey in invoice: %s, remote pubkey of channel: %s `, decoded.GetDestination(), channel.RemotePubkey)
 	}
-	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, &routerrpc.SendPaymentRequest{
+	return l.sendPaymentV2(&routerrpc.SendPaymentRequest{
 		PaymentRequest:  payreq,
 		TimeoutSeconds:  30,
 		CltvLimit:       int32(decoded.GetCltvExpiry() + int64(routing.BlockPadding) + 1),
 		OutgoingChanIds: []uint64{channel.ChanId},
 		MaxParts:        1,
-	})
+	}, "PayInvoiceViaChannel")
+}
 
+func (l *Client) sendPaymentV2(req *routerrpc.SendPaymentRequest, operation string) (string, error) {
+	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, req)
 	if err != nil {
 		return "", err
 	}
@@ -312,15 +334,15 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 		}
 		switch res.Status {
 		case lnrpc.Payment_UNKNOWN:
-			log.Debugf("PayInvoiceViaChannel: payment is unknown")
+			log.Debugf("%s: payment is unknown", operation)
 		case lnrpc.Payment_SUCCEEDED:
 			return res.PaymentPreimage, nil
 		case lnrpc.Payment_IN_FLIGHT:
-			log.Debugf("PayInvoiceViaChannel: payment still in flight")
+			log.Debugf("%s: payment still in flight", operation)
 		case lnrpc.Payment_FAILED:
 			return "", fmt.Errorf("payment failure %s", res.FailureReason)
 		default:
-			log.Debugf("PayInvoiceViaChannel: got unexpected payment status %d", res.Status)
+			log.Debugf("%s: got unexpected payment status %d", operation, res.Status)
 		}
 		time.Sleep(time.Second)
 	}
@@ -434,16 +456,21 @@ func (l *Client) probePayment(scid string, amountMsat uint64) (bool, string, err
 		return false, "", fmt.Errorf("DecodeString() %w", err)
 	}
 
-	res2, err := l.lndClient.SendToRouteSync(context.Background(), &lnrpc.SendToRouteRequest{
+	attempt, err := l.routerClient.SendToRouteV2(context.Background(), &routerrpc.SendToRouteRequest{
 		PaymentHash: pHash,
 		Route:       route.GetRoute(),
 	})
 	if err != nil {
-		return false, "", fmt.Errorf("SendToRouteSync() %w", err)
+		return false, "", fmt.Errorf("SendToRouteV2() %w", err)
 	}
-	if !strings.Contains(res2.PaymentError, "IncorrectOrUnknownPaymentDetails") {
-		log.Debugf("send pay would be failed. reason:%w", res2.PaymentError)
-		return false, res2.PaymentError, nil
+	failure := attempt.GetFailure()
+	if failure == nil {
+		return false, "probe payment unexpectedly settled", nil
+	}
+	if failure.GetCode() != lnrpc.Failure_INCORRECT_OR_UNKNOWN_PAYMENT_DETAILS {
+		failureReason := failure.GetCode().String()
+		log.Debugf("send pay would fail. reason: %s", failureReason)
+		return false, failureReason, nil
 	}
 	return true, "", nil
 }
