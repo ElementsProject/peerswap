@@ -70,6 +70,9 @@ To run Elements for L-BTC swaps, see the [Elements setup guide](./docs/setup_ele
 
 To run LWK for L-BTC swaps, see the [LWK setup guide](./docs/setup_lwk.md).
 
+> **Important**
+> Liquid mainnet L-BTC swaps require a backend that follows the post-[ELIP 203](https://raw.githubusercontent.com/ElementsProject/ELIPs/main/elip-0203.mediawiki) chain tip. When using Elements RPC, run Elements 23.3.1 or newer; Elements 23.3.3 is recommended.
+
 > **Note**
 > Most of the benefits of PeerSwap come from using L-BTC. Swaps using L-BTC are more private, faster, and avoid the mainchain blockchain during high fee environments that can make swaps uneconomical.
 

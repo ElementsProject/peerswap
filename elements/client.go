@@ -1,11 +1,21 @@
 package elements
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/elementsproject/glightning/gelements"
 	"github.com/elementsproject/peerswap/log"
+)
+
+const (
+	liquidMainnetChain = "liquidv1"
+
+	minLiquidMainnetElementsVersion           = 230301
+	minLiquidMainnetElementsVersionString     = "23.3.1"
+	recommendedLiquidMainnetElementsVersion   = "23.3.3"
+	unsupportedLiquidMainnetElementsErrorText = "unsupported elementsd version for Liquid mainnet"
 )
 
 type ElementsClientBuilder struct {
@@ -34,10 +44,17 @@ func NewClient(rpcUser, rpcPassword, rpcHost, RpcPasswordFile string, rpcPort ui
 	}
 
 	backoff = 1
+	versionChecked := false
 	for {
 		info, err := c.GetChainInfo()
 		if err != nil {
 			return nil, err
+		}
+		if !versionChecked {
+			if err := checkLiquidMainnetElementsVersion(c, info.Chain); err != nil {
+				return nil, err
+			}
+			versionChecked = true
 		}
 		if info.VerificationProgress < 1. {
 			// Waiting for block verification to catch up.
@@ -48,4 +65,36 @@ func NewClient(rpcUser, rpcPassword, rpcHost, RpcPasswordFile string, rpcPort ui
 		}
 		return c, nil
 	}
+}
+
+func checkLiquidMainnetElementsVersion(c *gelements.Elements, chain string) error {
+	if chain != liquidMainnetChain {
+		return nil
+	}
+	info, err := c.GetNetworkInfo()
+	if err != nil {
+		return err
+	}
+	return validateLiquidMainnetElementsVersion(chain, info.Version, info.Subversion)
+}
+
+func validateLiquidMainnetElementsVersion(chain string, version int, subversion string) error {
+	if chain != liquidMainnetChain || version >= minLiquidMainnetElementsVersion {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"%s: Liquid mainnet requires elementsd %s or newer after ELIP 203; "+
+			"detected version %s (%s). Upgrade to Elements %s or newer, preferably %s",
+		unsupportedLiquidMainnetElementsErrorText,
+		minLiquidMainnetElementsVersionString,
+		formatElementsVersion(version),
+		subversion,
+		minLiquidMainnetElementsVersionString,
+		recommendedLiquidMainnetElementsVersion,
+	)
+}
+
+func formatElementsVersion(version int) string {
+	return fmt.Sprintf("%d.%d.%d", version/10000, version/100%100, version%100)
 }

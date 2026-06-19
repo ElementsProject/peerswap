@@ -62,15 +62,15 @@
 
             # Bitcoin/Elements daemons (used by integration tests / local networks).
             # Version checks:
-            # - `bitcoind --version` (bitcoind 30.0)
-            # - `elementsd --version` (elementsd 23.2.4)
+            # - `bitcoind --version` (bitcoind 31.0)
+            # - `elementsd --version` (elementsd 23.3.3)
             bitcoind
             elementsd
 
             # Lightning implementations (used by integration tests / local setups).
             # Version checks:
-            # - `lightningd --version` (Core Lightning / clightning 25.09.2)
-            # - `lnd --version` (lnd 0.19.3-beta)
+            # - `lightningd --version` (Core Lightning / clightning 26.04.1)
+            # - `lnd --version` (lnd 0.20.1-beta)
             clightning
             lnd
 
