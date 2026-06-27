@@ -572,14 +572,31 @@ func (n *LndNode) AddInvoice(amt uint64, desc, _ string) (payreq string, err err
 }
 
 func (n *LndNode) PayInvoice(payreq string) error {
-	pstream, err := n.Rpc.SendPaymentSync(context.Background(), &lnrpc.SendRequest{PaymentRequest: payreq})
+	pstream, err := n.RpcV2.SendPaymentV2(context.Background(), &routerrpc.SendPaymentRequest{
+		PaymentRequest:    payreq,
+		TimeoutSeconds:    30,
+		FeeLimitMsat:      math.MaxInt64,
+		NoInflightUpdates: true,
+	})
 	if err != nil {
 		return err
 	}
-	if len(pstream.PaymentError) > 0 {
-		return fmt.Errorf("got payment error %s", pstream.PaymentError)
+	for {
+		payment, err := pstream.Recv()
+		if err != nil {
+			return err
+		}
+		switch payment.GetStatus() {
+		case lnrpc.Payment_SUCCEEDED:
+			return nil
+		case lnrpc.Payment_FAILED:
+			return fmt.Errorf("got payment error %s", payment.GetFailureReason())
+		case lnrpc.Payment_UNKNOWN, lnrpc.Payment_IN_FLIGHT:
+			time.Sleep(time.Second)
+		default:
+			return fmt.Errorf("got unexpected payment status %s", payment.GetStatus())
+		}
 	}
-	return nil
 }
 
 func (n *LndNode) SendPay(bolt11, _ string) error {
