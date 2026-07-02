@@ -124,7 +124,7 @@ func getSwapOutSenderStates() States {
 			},
 		},
 		State_SwapCanceled: {
-			Action: &CancelAction{},
+			Action: &AddSuspiciousPeerOnPrepaymentLossAction{next: &CancelAction{}},
 		},
 		State_ClaimedPreimage: {
 			Action: &NoOpDoneAction{},

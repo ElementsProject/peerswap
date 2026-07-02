@@ -936,3 +936,23 @@ func (c *AddSuspiciousPeerAction) Execute(services *SwapServices, swap *SwapData
 	log.Infof("added peer %s to suspicious peer list", swap.PeerNodeId)
 	return c.next.Execute(services, swap)
 }
+
+// AddSuspiciousPeerOnPrepaymentLossAction adds the peer to the suspicious
+// peer list iff the swap-out sender paid the prepayment (fee invoice) and
+// the peer then canceled before broadcasting the opening transaction, i.e.
+// the prepayment is lost (issue #324). All other cancel paths pass through
+// untouched.
+type AddSuspiciousPeerOnPrepaymentLossAction struct {
+	next Action
+}
+
+func (c *AddSuspiciousPeerOnPrepaymentLossAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.FeePreimage != "" && swap.OpeningTxBroadcasted == nil && swap.Cancel != nil {
+		if err := services.policy.AddToSuspiciousPeerList(swap.PeerNodeId); err != nil {
+			log.Infof("error adding peer %s to suspicious peer list: %v", swap.PeerNodeId, err)
+		} else {
+			log.Infof("added peer %s to suspicious peer list: peer canceled swap-out after the prepayment was paid", swap.PeerNodeId)
+		}
+	}
+	return c.next.Execute(services, swap)
+}
