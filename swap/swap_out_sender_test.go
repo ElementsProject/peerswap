@@ -416,6 +416,10 @@ type dummyChain struct {
 
 	calledGetCSVHeight int64
 	returnGetCSVHeight uint32
+
+	precheckOpeningTxCalled int64
+	precheckOpeningTxParams *OpeningParams
+	precheckOpeningTxErr    error
 }
 
 func (d *dummyChain) StartWatchingTxs() error {
@@ -491,6 +495,12 @@ func (d *dummyChain) GetFlatOpeningTXFee() (uint64, error) {
 
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address, txid string, fee uint64, vout uint32, err error) {
 	return "txhex", "address", getRandom32ByteHexString(), 0, 0, nil
+}
+
+func (d *dummyChain) PrecheckOpeningTransaction(swapParams *OpeningParams) error {
+	d.precheckOpeningTxCalled++
+	d.precheckOpeningTxParams = swapParams
+	return d.precheckOpeningTxErr
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {
