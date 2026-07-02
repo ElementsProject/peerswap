@@ -8,6 +8,7 @@ import (
 
 	"github.com/elementsproject/glightning/glightning"
 	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/elementsproject/peerswap/version"
@@ -58,6 +59,31 @@ func (cl *ClightningClient) CreateOpeningTransaction(swapParams *swap.OpeningPar
 		return "", "", "", 0, 0, errors.New(fmt.Sprintf("tx was not prepared %v", err))
 	}
 	return sendRes.SignedTx, addr, sendRes.TxId, fee, vout, nil
+}
+
+// PrecheckOpeningTransaction prepares (but never broadcasts) a throwaway
+// opening transaction to verify that the wallet can fund it right now. The
+// input reservation taken by txprepare is released via txdiscard; if the
+// discard fails the reservation expires on its own.
+func (cl *ClightningClient) PrecheckOpeningTransaction(swapParams *swap.OpeningParams) error {
+	addr, err := cl.bitcoinChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
+	if err != nil {
+		return err
+	}
+	outputs := []*glightning.Outputs{
+		{
+			Address: addr,
+			Satoshi: swapParams.Amount,
+		},
+	}
+	prepRes, err := cl.glightning.PrepareTx(outputs, &glightning.FeeRate{Directive: glightning.Urgent}, nil)
+	if err != nil {
+		return err
+	}
+	if _, err := cl.glightning.DiscardTx(prepRes.TxId); err != nil {
+		log.Infof("precheck: txdiscard for %s failed: %v", prepRes.TxId, err)
+	}
+	return nil
 }
 
 func (cl *ClightningClient) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (txId, txHex, address string, err error) {
