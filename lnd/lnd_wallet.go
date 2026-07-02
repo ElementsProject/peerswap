@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/elementsproject/peerswap/lightning"
+	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -77,6 +78,47 @@ func (l *Client) CreateOpeningTransaction(swapParams *swap.OpeningParams) (rawTx
 		return "", "", "", 0, 0, err
 	}
 	return rawTxHex, addr, openingTx.TxHash().String(), fee, vout, nil
+}
+
+// PrecheckOpeningTransaction funds and signs (but never broadcasts) a
+// throwaway opening transaction to verify that the wallet can construct it
+// right now. Utxos leased by FundPsbt are released before returning; if a
+// release fails the lease expires on its own after the lnd default lock
+// duration.
+func (l *Client) PrecheckOpeningTransaction(swapParams *swap.OpeningParams) error {
+	addr, err := l.bitcoinOnChain.CreateOpeningAddress(swapParams, onchain.BitcoinCsv)
+	if err != nil {
+		return err
+	}
+
+	fundPsbtTemplate := &walletrpc.TxTemplate{
+		Outputs: map[string]uint64{
+			addr: swapParams.Amount,
+		},
+	}
+	fundRes, err := l.walletClient.FundPsbt(l.ctx, &walletrpc.FundPsbtRequest{
+		Template: &walletrpc.FundPsbtRequest_Raw{Raw: fundPsbtTemplate},
+		Fees:     &walletrpc.FundPsbtRequest_TargetConf{TargetConf: 3},
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		for _, lease := range fundRes.LockedUtxos {
+			_, rerr := l.walletClient.ReleaseOutput(l.ctx, &walletrpc.ReleaseOutputRequest{
+				Id:       lease.Id,
+				Outpoint: lease.Outpoint,
+			})
+			if rerr != nil {
+				log.Infof("precheck: could not release utxo lease: %v", rerr)
+			}
+		}
+	}()
+
+	_, err = l.walletClient.FinalizePsbt(l.ctx, &walletrpc.FinalizePsbtRequest{
+		FundedPsbt: fundRes.FundedPsbt,
+	})
+	return err
 }
 
 func (l *Client) CreatePreimageSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams) (string, string, string, error) {
