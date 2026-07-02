@@ -58,16 +58,7 @@ func (l *LiquidOnChain) GetOnchainBalance() (uint64, error) {
 }
 
 func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (txHex, address, txid string, fee uint64, vout uint32, err error) {
-	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
-	if err != nil {
-		return "", "", "", 0, 0, err
-	}
-	scriptPubKey := []byte{0x00, 0x20}
-	witnessProgram := sha256.Sum256(redeemScript)
-	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
-
-	redeemPayment, _ := payment.FromScript(scriptPubKey, l.network, swapParams.BlindingKey.PubKey())
-	blindedScriptAddr, err := redeemPayment.ConfidentialWitnessScriptHash()
+	blindedScriptAddr, err := l.deriveOpeningAddress(swapParams)
 	if err != nil {
 		return "", "", "", 0, 0, err
 	}
@@ -77,6 +68,33 @@ func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams)
 		return "", "", "", 0, 0, err
 	}
 	return txHex, blindedScriptAddr, txId, fee, vout, nil
+}
+
+// PrecheckOpeningTransaction funds and signs (but never broadcasts) a
+// throwaway opening transaction to verify that the wallet can construct it
+// right now.
+func (l *LiquidOnChain) PrecheckOpeningTransaction(swapParams *swap.OpeningParams) error {
+	blindedScriptAddr, err := l.deriveOpeningAddress(swapParams)
+	if err != nil {
+		return err
+	}
+	swapParams.OpeningAddress = blindedScriptAddr
+	return l.liquidWallet.PrecheckTransaction(swapParams, l.asset)
+}
+
+// deriveOpeningAddress computes the confidential p2wsh address of the
+// opening output for the given swap params.
+func (l *LiquidOnChain) deriveOpeningAddress(swapParams *swap.OpeningParams) (string, error) {
+	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
+	if err != nil {
+		return "", err
+	}
+	scriptPubKey := []byte{0x00, 0x20}
+	witnessProgram := sha256.Sum256(redeemScript)
+	scriptPubKey = append(scriptPubKey, witnessProgram[:]...)
+
+	redeemPayment, _ := payment.FromScript(scriptPubKey, l.network, swapParams.BlindingKey.PubKey())
+	return redeemPayment.ConfidentialWitnessScriptHash()
 }
 
 // feeAmountPlaceholder is a placeholder for the fee amount
