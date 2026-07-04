@@ -340,3 +340,44 @@ func TestHandleRequestPollMessage(t *testing.T) {
 		t.Fatalf("unexpected stored version: got %d want %d", stored.Capability().Version().Value(), request.Version)
 	}
 }
+
+func TestHandleRequestPollMessageRespondsOnInvalidPayload(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	ctx := context.Background()
+
+	peerID, err := NewPeerID("peer-future")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	request := RequestPollMessageDTO{
+		Version:     99,
+		Assets:      []string{"FUTURECOIN"},
+		PeerAllowed: true,
+	}
+	data, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	syncer.handler.handleRequestPollMessage(
+		ctx,
+		CustomMessage{
+			From:    peerID,
+			Type:    messages.MESSAGETYPE_REQUEST_POLL,
+			Payload: data,
+		},
+	)
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected response poll despite invalid payload, got %d sends", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_POLL {
+		t.Fatalf("unexpected send: %+v", sent[0])
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); !errors.Is(err, ErrPeerNotFound) {
+		t.Fatalf("expected invalid payload not to be stored, got %v", err)
+	}
+}

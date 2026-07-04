@@ -75,14 +75,17 @@ func (h *messageHandler) handlePollMessage(ctx context.Context, msg CustomMessag
 }
 
 func (h *messageHandler) handleRequestPollMessage(ctx context.Context, msg CustomMessage) {
-	fromPeerID, err := h.storeCapabilityMessage(msg)
-	if err != nil {
-		log.Printf("failed to store request poll message: %v", err)
-		return
-	}
+	fromPeerID := msg.From
 
 	if h.guard != nil && h.guard.Suspicious(fromPeerID) {
 		return
+	}
+
+	// Storing the requester's capability is best effort: the response is
+	// what keeps this node visible to the peer, so it must go out even
+	// when the payload cannot be parsed or persisted.
+	if _, err := h.storeCapabilityMessage(msg); err != nil {
+		log.Printf("failed to store request poll message: %v", err)
 	}
 
 	if h.send == nil {
