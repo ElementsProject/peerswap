@@ -3,6 +3,7 @@ package peersync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -21,10 +22,11 @@ type (
 	stubLightning struct {
 		mu sync.Mutex
 
-		peers    []PeerID
-		ch       chan CustomMessage
-		startErr error
-		stopErr  error
+		peers        []PeerID
+		listPeersErr error
+		ch           chan CustomMessage
+		startErr     error
+		stopErr      error
 
 		sends   []sentCall
 		sendErr error
@@ -53,7 +55,9 @@ func (l *stubLightning) SubscribeCustomMessages(ctx context.Context) (<-chan Cus
 
 func (l *stubLightning) Stop() error { return l.stopErr }
 
-func (l *stubLightning) ListPeers(ctx context.Context) ([]PeerID, error) { return l.peers, nil }
+func (l *stubLightning) ListPeers(ctx context.Context) ([]PeerID, error) {
+	return l.peers, l.listPeersErr
+}
 
 func (l *stubLightning) recordSend(call sentCall) {
 	l.mu.Lock()
@@ -219,6 +223,30 @@ func TestCleanupKeepsExpiredConnectedPeers(t *testing.T) {
 
 	if _, err := deps.store.GetPeerState(peerID); err != nil {
 		t.Fatalf("expected connected peer to remain in store, got %v", err)
+	}
+}
+
+func TestCleanupSkipsSweepWhenListPeersFails(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-expired")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-expired")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-2 * syncer.cleanupTimeout))
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+	deps.lightning.listPeersErr = errors.New("rpc unavailable")
+
+	if err := syncer.poller.cleanupExpired(context.Background()); err == nil {
+		t.Fatalf("expected cleanup to report the ListPeers failure")
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); err != nil {
+		t.Fatalf("expected peer to survive skipped sweep, got %v", err)
 	}
 }
 

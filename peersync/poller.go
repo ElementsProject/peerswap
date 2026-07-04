@@ -2,6 +2,7 @@ package peersync
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -92,9 +93,7 @@ func (p *poller) runCleanupLoop(ctx context.Context) {
 func (p *poller) cleanupExpired(ctx context.Context) error {
 	connected, err := p.connectedPeers(ctx)
 	if err != nil {
-		log.Printf("failed to list connected peers for cleanup: %v", err)
-		_, cleanupErr := p.store.CleanupExpired(p.timeout)
-		return cleanupErr
+		return fmt.Errorf("skipping cleanup sweep, list connected peers: %w", err)
 	}
 
 	_, err = p.store.CleanupExpiredExcept(p.timeout, connected)
