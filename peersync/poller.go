@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/elementsproject/peerswap/messages"
@@ -19,6 +20,10 @@ type poller struct {
 
 	pollTickerInterval    time.Duration
 	cleanupTickerInterval time.Duration
+	requestInterval       time.Duration
+
+	mu              sync.Mutex
+	lastRequestedAt map[PeerID]time.Time
 }
 
 func newPoller(
@@ -30,6 +35,7 @@ func newPoller(
 	pollTickerInterval time.Duration,
 	cleanupTickerInterval time.Duration,
 	cleanupTimeout time.Duration,
+	requestInterval time.Duration,
 ) *poller {
 	return &poller{
 		logic:                 logic,
@@ -40,6 +46,8 @@ func newPoller(
 		timeout:               cleanupTimeout,
 		pollTickerInterval:    pollTickerInterval,
 		cleanupTickerInterval: cleanupTickerInterval,
+		requestInterval:       requestInterval,
+		lastRequestedAt:       make(map[PeerID]time.Time),
 	}
 }
 
@@ -128,13 +136,13 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 		return
 	}
 
-	knownPeers := make(map[string]*Peer, len(peers))
+	knownPeers := make(map[PeerID]struct{}, len(peers))
 
 	for _, peer := range peers {
 		if peer == nil {
 			continue
 		}
-		knownPeers[peer.ID().String()] = peer
+		knownPeers[peer.ID()] = struct{}{}
 		if !force && !p.logic.ShouldPoll(peer) {
 			continue
 		}
@@ -154,25 +162,59 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 		}
 	}
 
-	p.requestUnknownConnectedPeers(ctx, knownPeers)
+	p.requestUnknownConnectedPeers(ctx, knownPeers, force)
 }
 
-func (p *poller) requestUnknownConnectedPeers(ctx context.Context, knownPeers map[string]*Peer) {
+func (p *poller) requestUnknownConnectedPeers(ctx context.Context, knownPeers map[PeerID]struct{}, force bool) {
 	connected, err := p.connectedPeers(ctx)
 	if err != nil {
 		log.Printf("failed to list connected peers for poll: %v", err)
 		return
 	}
 
+	p.pruneRequestTimes(connected)
+
+	now := time.Now()
 	for peerID := range connected {
-		if _, ok := knownPeers[peerID.String()]; ok {
+		if _, ok := knownPeers[peerID]; ok {
 			continue
 		}
 		if p.guard != nil && p.guard.Suspicious(peerID) {
 			continue
 		}
+		if !p.allowRequest(peerID, now, force) {
+			continue
+		}
 		if err := p.send(ctx, peerID, messages.MESSAGETYPE_REQUEST_POLL); err != nil {
 			log.Printf("failed to request poll from %s: %v", peerID.String(), err)
+		}
+	}
+}
+
+// allowRequest records the request attempt and reports whether a poll
+// request may be sent to the peer. Attempts are recorded even when the
+// send later fails so that unresponsive peers are contacted at most once
+// per request interval.
+func (p *poller) allowRequest(peerID PeerID, now time.Time, force bool) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if last, ok := p.lastRequestedAt[peerID]; ok && !force && now.Sub(last) < p.requestInterval {
+		return false
+	}
+	p.lastRequestedAt[peerID] = now
+	return true
+}
+
+// pruneRequestTimes drops request timestamps of peers that are no longer
+// connected, so a peer that reconnects is requested again immediately.
+func (p *poller) pruneRequestTimes(connected map[PeerID]struct{}) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for id := range p.lastRequestedAt {
+		if _, ok := connected[id]; !ok {
+			delete(p.lastRequestedAt, id)
 		}
 	}
 }

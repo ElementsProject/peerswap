@@ -202,6 +202,68 @@ func TestPollAllPeersRequestsUnknownConnectedPeers(t *testing.T) {
 	}
 }
 
+func TestRequestUnknownPeersIsRateLimited(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+	syncer.PollAllPeers(context.Background())
+
+	if deps.lightning.SentCount() != 1 {
+		t.Fatalf("expected repeated polls to send one request, got %d", deps.lightning.SentCount())
+	}
+}
+
+func TestForcePollBypassesRequestRateLimit(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+	syncer.ForcePollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("expected force poll to bypass rate limit, got %d sends", len(sent))
+	}
+	for _, call := range sent {
+		if call.to != peerID || call.msgType != messages.MESSAGETYPE_REQUEST_POLL {
+			t.Fatalf("unexpected send: %+v", call)
+		}
+	}
+}
+
+func TestRequestRateLimitClearsOnDisconnect(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+
+	deps.lightning.peers = nil
+	syncer.PollAllPeers(context.Background())
+
+	deps.lightning.peers = []PeerID{peerID}
+	syncer.PollAllPeers(context.Background())
+
+	if deps.lightning.SentCount() != 2 {
+		t.Fatalf("expected reconnect to reset rate limit, got %d sends", deps.lightning.SentCount())
+	}
+}
+
 func TestCleanupKeepsExpiredConnectedPeers(t *testing.T) {
 	syncer, deps := newTestPeerSync(t)
 
