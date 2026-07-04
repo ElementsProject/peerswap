@@ -137,6 +137,7 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 	}
 
 	knownPeers := make(map[PeerID]struct{}, len(peers))
+	now := time.Now()
 
 	for _, peer := range peers {
 		if peer == nil {
@@ -151,7 +152,12 @@ func (p *poller) pollPeers(ctx context.Context, force bool) {
 			continue
 		}
 
-		if err := p.send(ctx, peer.ID(), messages.MESSAGETYPE_POLL); err != nil {
+		msgType := messages.MESSAGETYPE_POLL
+		if p.capabilityIsStale(peer, now) {
+			msgType = messages.MESSAGETYPE_REQUEST_POLL
+		}
+
+		if err := p.send(ctx, peer.ID(), msgType); err != nil {
 			log.Printf("failed to poll %s: %v", peer.ID().String(), err)
 			continue
 		}
@@ -189,6 +195,18 @@ func (p *poller) requestUnknownConnectedPeers(ctx context.Context, knownPeers ma
 			log.Printf("failed to request poll from %s: %v", peerID.String(), err)
 		}
 	}
+}
+
+// capabilityIsStale reports whether the peer's capability has not been
+// refreshed by an inbound poll for more than half the cleanup timeout.
+// Stale peers are sent a request poll instead of a plain poll so that
+// peers that only answer requests keep their stored capability current.
+func (p *poller) capabilityIsStale(peer *Peer, now time.Time) bool {
+	last := peer.LastObservedAt()
+	if last.IsZero() {
+		return false
+	}
+	return now.Sub(last) > p.timeout/2
 }
 
 // allowRequest records the request attempt and reports whether a poll

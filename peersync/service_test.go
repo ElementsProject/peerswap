@@ -172,6 +172,9 @@ func TestPollAllPeers(t *testing.T) {
 	if deps.lightning.SentCount() != 1 {
 		t.Fatalf("expected poll call, got %d", deps.lightning.SentCount())
 	}
+	if sent := deps.lightning.SentMessages(); sent[0].msgType != messages.MESSAGETYPE_POLL {
+		t.Fatalf("expected plain poll, got %v", sent[0].msgType)
+	}
 
 	saved, err := deps.store.GetPeerState(peerID)
 	if err != nil {
@@ -179,6 +182,33 @@ func TestPollAllPeers(t *testing.T) {
 	}
 	if saved.LastPollAt().IsZero() || !saved.LastPollAt().After(peer.LastPollAt()) {
 		t.Fatalf("expected peer state to be saved with updated timestamp")
+	}
+}
+
+func TestPollAllPeersRequestsStaleKnownPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-stale")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-stale")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-(syncer.cleanupTimeout/2 + time.Minute)))
+	peer.SetLastPollAt(time.Now().Add(-time.Hour))
+	peer.SetStatus(StatusActive)
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+
+	syncer.PollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected one poll call, got %d", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_REQUEST_POLL {
+		t.Fatalf("expected request poll for stale peer, got %+v", sent[0])
 	}
 }
 
