@@ -194,7 +194,7 @@ test-matrix-liquid_lndlnd: test-bins
 # Consolidated misc tests including CLN/LND-specific invariants and setup checks
 .PHONY: test-matrix-misc
 test-matrix-misc: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_OnlyOneActiveSwapPerChannelCln|Test_OnlyOneActiveSwapPerChannelLnd|Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC|Test_ClnConfig|Test_ClnPluginConfigFile|Test_ClnPluginConfigFile_DoesNotExist|Test_ClnPluginConfig_ElementsAuthCookie|Test_ClnPluginConfig_DisableLiquid|Test_CLNLiquidSetup|Test_ClnCln_ExcessiveAmount|Test_ClnCln_StuckChannels|Test_LndLnd_ExcessiveAmount|Test_Wumbo|Test_Cln_HtlcMaximum|Test_Cln_Premium|Test_Cln_shutdown|Test_ClnCln_Poll|Test_ClnCln_SwapOutPrecheck|Test_LndLnd_SwapOutPrecheck)$$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_OnlyOneActiveSwapPerChannelCln|Test_OnlyOneActiveSwapPerChannelLnd|Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC|Test_ClnConfig|Test_ClnPluginConfigFile|Test_ClnPluginConfigFile_DoesNotExist|Test_ClnPluginConfig_ElementsAuthCookie|Test_ClnPluginConfig_DisableLiquid|Test_CLNLiquidSetup|Test_ClnCln_ExcessiveAmount|Test_ClnCln_StuckChannels|Test_LndLnd_ExcessiveAmount|Test_Wumbo|Test_Cln_HtlcMaximum|Test_Cln_Premium|Test_Cln_shutdown|Test_ClnCln_Poll|Test_ClnCln_SwapOutPrecheck|Test_LndLnd_SwapOutPrecheck|Test_ClnCln_ElementsSwapOutPrecheckLockedWallet)$$' ./test
 
 # Sharded misc tests to reduce single-job runtime in CI
 .PHONY: test-matrix-misc_1
@@ -203,7 +203,7 @@ test-matrix-misc_1: test-bins
 
 .PHONY: test-matrix-misc_2
 test-matrix-misc_2: test-bins
-	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC|Test_ClnCln_SwapOutPrecheck|Test_LndLnd_SwapOutPrecheck)$$' ./test
+	${INTEGRATION_TEST_ENV} go test ${INTEGRATION_TEST_OPTS} -run '^(Test_GrpcReconnectStream|Test_GrpcRetryRequest|Test_RestoreFromPassedCSV|Test_Recover_PassedSwap_BTC|Test_Recover_PassedSwap_LBTC|Test_ClnCln_SwapOutPrecheck|Test_LndLnd_SwapOutPrecheck|Test_ClnCln_ElementsSwapOutPrecheckLockedWallet)$$' ./test
 
 .PHONY: test-matrix-misc_3
 test-matrix-misc_3: test-bins

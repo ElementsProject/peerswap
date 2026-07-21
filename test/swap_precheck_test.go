@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 
@@ -113,6 +114,54 @@ func Test_LndLnd_SwapOutPrecheck(t *testing.T) {
 		Asset:               "btc",
 		PremiumLimitRatePpm: params.premiumLimitRatePPM,
 	})
+	assertError(t, err)
+
+	requireNoError(t, params.makerPeerswap.WaitForLog(
+		"Swap canceled. Reason: opening transaction precheck failed",
+		testframework.TIMEOUT))
+	requireNoError(t, params.takerPeerswap.WaitForLog(
+		"Swap canceled. Reason: opening transaction precheck failed",
+		testframework.TIMEOUT))
+
+	assertNoPrepayment(t, params.takerPeerswap)
+}
+
+// Test_ClnCln_ElementsSwapOutPrecheckLockedWallet checks that the original
+// Elements wallet-lock failure from issue #324 is detected before the taker
+// pays the fee invoice.
+func Test_ClnCln_ElementsSwapOutPrecheckLockedWallet(t *testing.T) {
+	IsIntegrationTest(t)
+	t.Parallel()
+
+	bitcoind, liquidd, lightningds, scid := clnclnElementsSetup(t, uint64(math.Pow10(9)))
+	DumpOnFailure(t,
+		WithBitcoin(bitcoind),
+		WithLiquid(liquidd),
+		WithCLightningNodes(lightningds, nil),
+	)
+
+	params := clnLiquidParams(t, liquidd, lightningds, scid, swap.SWAPTYPE_OUT)
+
+	// The second node is the swap-out maker and uses the Elements wallet
+	// named swap2. Encrypting and explicitly locking it reproduces the
+	// signing failure from the original report while leaving its balance
+	// visible to the preliminary balance check.
+	liquidd.UpdateServiceUrl(fmt.Sprintf(
+		"http://127.0.0.1:%d/wallet/swap2",
+		liquidd.RpcPort,
+	))
+	_, err := liquidd.Rpc.Call("encryptwallet", "peerswap-test-passphrase")
+	requireNoError(t, err)
+	_, err = liquidd.Rpc.Call("walletlock")
+	requireNoError(t, err)
+
+	var response map[string]interface{}
+	err = lightningds[0].Rpc.Request(&clightning.SwapOut{
+		SatAmt:              params.swapAmt,
+		ShortChannelId:      params.scid,
+		Asset:               "lbtc",
+		PremiumLimitRatePPM: params.premiumLimitRatePPM,
+	}, &response)
 	assertError(t, err)
 
 	requireNoError(t, params.makerPeerswap.WaitForLog(
