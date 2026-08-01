@@ -72,6 +72,7 @@ type PeerSync struct {
 	pollTickerInterval    time.Duration
 	cleanupTickerInterval time.Duration
 	cleanupTimeout        time.Duration
+	requestPollInterval   time.Duration
 }
 
 type capabilitySender func(ctx context.Context, peer PeerID, msgType messages.MessageType) error
@@ -99,16 +100,19 @@ func NewPeerSync(
 		pollTickerInterval:    10 * time.Second,
 		cleanupTickerInterval: 1 * time.Minute,
 		cleanupTimeout:        30 * time.Minute,
+		requestPollInterval:   10 * time.Minute,
 	}
 
 	ps.poller = newPoller(
 		ps.logic,
 		ps.store,
+		ps.lightning,
 		ps.guard,
 		ps.sendCapability,
 		ps.pollTickerInterval,
 		ps.cleanupTickerInterval,
 		ps.cleanupTimeout,
+		ps.requestPollInterval,
 	)
 	ps.handler = newMessageHandler(ps.store, ps.logic, ps.guard, ps.sendCapability)
 

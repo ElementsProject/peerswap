@@ -3,6 +3,7 @@ package peersync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -21,10 +22,11 @@ type (
 	stubLightning struct {
 		mu sync.Mutex
 
-		peers    []PeerID
-		ch       chan CustomMessage
-		startErr error
-		stopErr  error
+		peers        []PeerID
+		listPeersErr error
+		ch           chan CustomMessage
+		startErr     error
+		stopErr      error
 
 		sends   []sentCall
 		sendErr error
@@ -53,7 +55,9 @@ func (l *stubLightning) SubscribeCustomMessages(ctx context.Context) (<-chan Cus
 
 func (l *stubLightning) Stop() error { return l.stopErr }
 
-func (l *stubLightning) ListPeers(ctx context.Context) ([]PeerID, error) { return l.peers, nil }
+func (l *stubLightning) ListPeers(ctx context.Context) ([]PeerID, error) {
+	return l.peers, l.listPeersErr
+}
 
 func (l *stubLightning) recordSend(call sentCall) {
 	l.mu.Lock()
@@ -168,6 +172,9 @@ func TestPollAllPeers(t *testing.T) {
 	if deps.lightning.SentCount() != 1 {
 		t.Fatalf("expected poll call, got %d", deps.lightning.SentCount())
 	}
+	if sent := deps.lightning.SentMessages(); sent[0].msgType != messages.MESSAGETYPE_POLL {
+		t.Fatalf("expected plain poll, got %v", sent[0].msgType)
+	}
 
 	saved, err := deps.store.GetPeerState(peerID)
 	if err != nil {
@@ -175,6 +182,163 @@ func TestPollAllPeers(t *testing.T) {
 	}
 	if saved.LastPollAt().IsZero() || !saved.LastPollAt().After(peer.LastPollAt()) {
 		t.Fatalf("expected peer state to be saved with updated timestamp")
+	}
+}
+
+func TestPollAllPeersRequestsStaleKnownPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-stale")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-stale")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-(syncer.cleanupTimeout/2 + time.Minute)))
+	peer.SetLastPollAt(time.Now().Add(-time.Hour))
+	peer.SetStatus(StatusActive)
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+
+	syncer.PollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected one poll call, got %d", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_REQUEST_POLL {
+		t.Fatalf("expected request poll for stale peer, got %+v", sent[0])
+	}
+}
+
+func TestPollAllPeersRequestsUnknownConnectedPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected one request poll, got %d", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_REQUEST_POLL {
+		t.Fatalf("unexpected send: %+v", sent[0])
+	}
+}
+
+func TestRequestUnknownPeersIsRateLimited(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+	syncer.PollAllPeers(context.Background())
+
+	if deps.lightning.SentCount() != 1 {
+		t.Fatalf("expected repeated polls to send one request, got %d", deps.lightning.SentCount())
+	}
+}
+
+func TestForcePollBypassesRequestRateLimit(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+	syncer.ForcePollAllPeers(context.Background())
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("expected force poll to bypass rate limit, got %d sends", len(sent))
+	}
+	for _, call := range sent {
+		if call.to != peerID || call.msgType != messages.MESSAGETYPE_REQUEST_POLL {
+			t.Fatalf("unexpected send: %+v", call)
+		}
+	}
+}
+
+func TestRequestRateLimitClearsOnDisconnect(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	syncer.PollAllPeers(context.Background())
+
+	deps.lightning.peers = nil
+	syncer.PollAllPeers(context.Background())
+
+	deps.lightning.peers = []PeerID{peerID}
+	syncer.PollAllPeers(context.Background())
+
+	if deps.lightning.SentCount() != 2 {
+		t.Fatalf("expected reconnect to reset rate limit, got %d sends", deps.lightning.SentCount())
+	}
+}
+
+func TestCleanupKeepsExpiredConnectedPeers(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-connected")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-connected")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-2 * syncer.cleanupTimeout))
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+	deps.lightning.peers = []PeerID{peerID}
+
+	if err := syncer.poller.cleanupExpired(context.Background()); err != nil {
+		t.Fatalf("cleanup failed: %v", err)
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); err != nil {
+		t.Fatalf("expected connected peer to remain in store, got %v", err)
+	}
+}
+
+func TestCleanupSkipsSweepWhenListPeersFails(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	peerID, err := NewPeerID("peer-expired")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	peer := NewPeer(peerID, "addr-expired")
+	peer.UpdateCapability(NewPeerCapability(syncer.version, []Asset{AssetBTC}, true, nil, nil, nil, nil))
+	peer.SetLastObservedAt(time.Now().Add(-2 * syncer.cleanupTimeout))
+	if err := deps.store.SavePeerState(peer); err != nil {
+		t.Fatalf("failed to seed peer state: %v", err)
+	}
+	deps.lightning.listPeersErr = errors.New("rpc unavailable")
+
+	if err := syncer.poller.cleanupExpired(context.Background()); err == nil {
+		t.Fatalf("expected cleanup to report the ListPeers failure")
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); err != nil {
+		t.Fatalf("expected peer to survive skipped sweep, got %v", err)
 	}
 }
 
@@ -230,7 +394,15 @@ func TestHandleRequestPollMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	request := RequestPollMessageDTO{}
+	request := RequestPollMessageDTO{
+		Version:                   2,
+		Assets:                    []string{"BTC"},
+		PeerAllowed:               true,
+		BTCSwapInPremiumRatePPM:   100,
+		BTCSwapOutPremiumRatePPM:  200,
+		LBTCSwapInPremiumRatePPM:  300,
+		LBTCSwapOutPremiumRatePPM: 400,
+	}
 	data, err := json.Marshal(request)
 	if err != nil {
 		t.Fatalf("failed to marshal request: %v", err)
@@ -247,5 +419,57 @@ func TestHandleRequestPollMessage(t *testing.T) {
 
 	if deps.lightning.SentCount() != 1 {
 		t.Fatalf("expected response poll to be sent")
+	}
+
+	stored, err := deps.store.GetPeerState(peerID)
+	if err != nil {
+		t.Fatalf("expected request poll to store peer state: %v", err)
+	}
+	if stored.Capability() == nil {
+		t.Fatalf("expected capability to be stored")
+	}
+	if stored.Capability().Version().Value() != request.Version {
+		t.Fatalf("unexpected stored version: got %d want %d", stored.Capability().Version().Value(), request.Version)
+	}
+}
+
+func TestHandleRequestPollMessageRespondsOnInvalidPayload(t *testing.T) {
+	syncer, deps := newTestPeerSync(t)
+
+	ctx := context.Background()
+
+	peerID, err := NewPeerID("peer-future")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	request := RequestPollMessageDTO{
+		Version:     99,
+		Assets:      []string{"FUTURECOIN"},
+		PeerAllowed: true,
+	}
+	data, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	syncer.handler.handleRequestPollMessage(
+		ctx,
+		CustomMessage{
+			From:    peerID,
+			Type:    messages.MESSAGETYPE_REQUEST_POLL,
+			Payload: data,
+		},
+	)
+
+	sent := deps.lightning.SentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("expected response poll despite invalid payload, got %d sends", len(sent))
+	}
+	if sent[0].to != peerID || sent[0].msgType != messages.MESSAGETYPE_POLL {
+		t.Fatalf("unexpected send: %+v", sent[0])
+	}
+
+	if _, err := deps.store.GetPeerState(peerID); !errors.Is(err, ErrPeerNotFound) {
+		t.Fatalf("expected invalid payload not to be stored, got %v", err)
 	}
 }

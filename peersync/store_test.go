@@ -108,6 +108,51 @@ func TestStoreCleanupExpired(t *testing.T) {
 	}
 }
 
+func TestStoreCleanupExpiredExceptKeepsListedPeer(t *testing.T) {
+	store := newTestStore(t)
+
+	timeout := 10 * time.Minute
+
+	keptID, err := NewPeerID("kept-peer")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	keptPeer := NewPeer(keptID, "addr-kept")
+	keptPeer.SetStatus(StatusActive)
+	keptPeer.SetLastObservedAt(time.Now().Add(-2 * timeout))
+	if err := store.SavePeerState(keptPeer); err != nil {
+		t.Fatalf("failed to store kept peer: %v", err)
+	}
+
+	removedID, err := NewPeerID("removed-peer")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	removedPeer := NewPeer(removedID, "addr-removed")
+	removedPeer.SetStatus(StatusActive)
+	removedPeer.SetLastObservedAt(time.Now().Add(-2 * timeout))
+	if err := store.SavePeerState(removedPeer); err != nil {
+		t.Fatalf("failed to store removed peer: %v", err)
+	}
+
+	count, err := store.CleanupExpiredExcept(timeout, map[PeerID]struct{}{keptID: {}})
+	if err != nil {
+		t.Fatalf("cleanup failed: %v", err)
+	}
+
+	if count != 1 {
+		t.Fatalf("expected 1 expired peer removed, got %d", count)
+	}
+
+	if _, err := store.GetPeerState(removedID); !errors.Is(err, ErrPeerNotFound) {
+		t.Fatalf("expected ErrPeerNotFound, got %v", err)
+	}
+
+	if _, err := store.GetPeerState(keptID); err != nil {
+		t.Fatalf("expected kept peer to remain in store, got %v", err)
+	}
+}
+
 type legacyPollInfo struct {
 	ProtocolVersion           uint64   `json:"version"`
 	Assets                    []string `json:"assets"`
