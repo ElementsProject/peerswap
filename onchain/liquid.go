@@ -273,21 +273,11 @@ func (l *LiquidOnChain) createSpendingTransaction(openingTxHex string, swapAmoun
 		return nil, [32]byte{}, err
 	}
 
-	// unblind output
-	ubRes, err := confidential.UnblindOutputWithKey(firstTx.Outputs[vout], blindingKey.Serialize())
+	ubRes, err := l.validateOpeningOutput(
+		firstTx.Outputs[vout], swapAmount, blindingKey,
+	)
 	if err != nil {
-		log.Infof("error unblinding output %v", err)
 		return nil, [32]byte{}, err
-	}
-
-	if bytes.Equal(ubRes.Asset, l.asset) {
-		err = errors.New(fmt.Sprintf("invalid asset id got: %x, expected %x", ubRes.Asset, l.asset))
-		return nil, [32]byte{}, err
-	}
-
-	//check output amounts
-	if ubRes.Value != swapAmount {
-		return nil, [32]byte{}, errors.New(fmt.Sprintf("Tx value is not equal to the swap contract expected: %v, tx: %v", swapAmount, ubRes.Value))
 	}
 
 	outputValue := ubRes.Value - preparedFee
@@ -462,25 +452,64 @@ func (l *LiquidOnChain) ValidateTx(openingParams *swap.OpeningParams, txHex stri
 		return false, err
 	}
 
-	// unblind output
-	ubRes, err := confidential.UnblindOutputWithKey(openingTx.Outputs[vout], openingParams.BlindingKey.Serialize())
+	_, err = l.validateOpeningOutput(
+		openingTx.Outputs[vout], openingParams.Amount,
+		openingParams.BlindingKey,
+	)
 	if err != nil {
 		return false, err
 	}
 
-	// todo muss ins protocol
-	if bytes.Equal(ubRes.Asset, l.asset) {
-		err = errors.New(fmt.Sprintf("invalid asset id got: %x, expected %x", ubRes.Asset, l.asset))
-		return false, err
-	}
-
-	//check output amounts
-	if ubRes.Value != openingParams.Amount {
-		return false, errors.New(fmt.Sprintf("Tx value is not equal to the swap contract expected: %v, tx: %v", openingParams.Amount, ubRes.Value))
-	}
-
-	//todo check script
+	// TODO: Check the output script.
 	return true, nil
+}
+
+func (l *LiquidOnChain) validateOpeningOutput(
+	output *transaction.TxOutput,
+	expectedAmount uint64,
+	blindingKey *btcec.PrivateKey,
+) (*confidential.UnblindOutputResult, error) {
+	unblinded, err := confidential.UnblindOutputWithKey(
+		output, blindingKey.Serialize(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unblind opening output: %w", err)
+	}
+
+	if len(l.asset) != 33 {
+		return nil, fmt.Errorf(
+			"invalid policy asset serialization length: %d", len(l.asset),
+		)
+	}
+	policyAsset := l.asset[1:]
+	if !bytes.Equal(unblinded.Asset, policyAsset) {
+		return nil, fmt.Errorf(
+			"invalid asset id got: %x, expected %x",
+			unblinded.Asset, policyAsset,
+		)
+	}
+
+	assetCommitment, err := confidential.AssetCommitment(
+		unblinded.Asset, unblinded.AssetBlindingFactor,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconstruct asset commitment: %w", err)
+	}
+	if !bytes.Equal(assetCommitment, output.Asset) {
+		return nil, fmt.Errorf(
+			"invalid asset commitment got: %x, expected %x",
+			output.Asset, assetCommitment,
+		)
+	}
+
+	if unblinded.Value != expectedAmount {
+		return nil, fmt.Errorf(
+			"tx value is not equal to the swap contract expected: %v, tx: %v",
+			expectedAmount, unblinded.Value,
+		)
+	}
+
+	return unblinded, nil
 }
 
 func (l *LiquidOnChain) VoutFromTxHex(txHex string, redeemScript []byte) (uint32, error) {
