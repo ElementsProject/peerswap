@@ -28,9 +28,9 @@ const (
 	// TODO: Basically, the inherited ctx should be used
 	// and there is no need to specify a timeout here.
 	// Set up here because ctx is not inherited throughout the current codebase.
-	defaultContextTimeout             = time.Second * 20
-	minimumFee            SatPerVByte = 0.1
-	supportedCLIVersion               = "0.8.0"
+	defaultContextTimeout                 = time.Second * 20
+	minimumFee                SatPerVByte = 0.1
+	supportedRPCVersionPrefix             = "0.18."
 )
 
 func SatPerVByteFromFeeBTCPerKb(feeBTCPerKb float64) SatPerVByte {
@@ -85,7 +85,7 @@ func (c *LWKRpcWallet) GetElectrumClient() electrum.RPC {
 }
 
 func (r *LWKRpcWallet) IsSupportedVersion() bool {
-	return r.lwkVersion == supportedCLIVersion
+	return strings.HasPrefix(r.lwkVersion, supportedRPCVersionPrefix)
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it
@@ -98,7 +98,7 @@ func (r *LWKRpcWallet) setupWallet(ctx context.Context) error {
 	}
 	r.lwkVersion = vres.Version
 	if !r.IsSupportedVersion() {
-		return errors.New("unsupported lwk version. expected: " + supportedCLIVersion + " got: " + r.lwkVersion)
+		return errors.New("unsupported lwk version. expected: 0.18.x got: " + r.lwkVersion)
 	}
 
 	res, err := r.lwkClient.walletDetails(timeoutCtx, &walletDetailsRequest{
@@ -169,9 +169,8 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 				Satoshi: swapParams.Amount,
 			},
 		},
-		WalletName:       r.c.GetWalletName(),
-		FeeRate:          &feerate,
-		EnableCtDiscount: true,
+		WalletName: r.c.GetWalletName(),
+		FeeRate:    &feerate,
 	})
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to fund transaction: %w", err)
@@ -234,7 +233,6 @@ func (r *LWKRpcWallet) SendToAddress(address string, amount Satoshi) (string, er
 				Satoshi: amount,
 			},
 		},
-		EnableCtDiscount: true,
 	})
 	if err != nil {
 		return "", err

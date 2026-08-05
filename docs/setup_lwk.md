@@ -3,7 +3,17 @@
 **[Liquid Wallet Kit](https://github.com/Blockstream/lwk/tree/master)** is a collection of Rust crates for [Liquid](https://liquid.net) Wallets and is used for PeerSwap L-BTC swaps.  
 To set up `lwk` for PeerSwap, follow the steps here.  
 lwk is currently under development and changes are being made.  
-**peerswap has been tested only with [cli_0.5.1](https://github.com/Blockstream/lwk/releases/tag/cli_0.5.1)**.
+**PeerSwap requires [LWK CLI 0.18.1](https://github.com/Blockstream/lwk/releases/tag/cli_0.18.1) or newer.**
+
+Confirm the installed CLI version before starting PeerSwap:
+
+```sh
+lwk_cli --version
+```
+
+LWK CLI 0.18.1 reports app version `0.18.0` through its JSON-RPC
+`version` method. PeerSwap therefore cannot distinguish CLI 0.18.0 from
+0.18.1 through RPC and the CLI version must be checked directly.
 
 > [!IMPORTANT]
 > Liquid mainnet L-BTC swaps require the LWK/Electrum backend to follow the post-[ELIP 203](https://raw.githubusercontent.com/ElementsProject/ELIPs/main/elip-0203.mediawiki) chain tip. If you run your own backend, make sure it is backed by an Elements node that supports the active Liquid mainnet hard fork.

@@ -25,7 +25,7 @@ func NewLWK(testDir string, id int, electrs *Electrs) (*LWK, error) {
 		fmt.Sprintf("--addr=%s", u.Host),
 		"server",
 		"start",
-		fmt.Sprintf("--electrum-url=%s", electrs.RPCURL.Host),
+		"--server-url=" + electrs.RPCURL.String(),
 		fmt.Sprintf("--datadir=%s", testDir),
 	}
 	return &LWK{
