@@ -18,7 +18,7 @@
     };
 
     lwk-flake = {
-      url = "github:blockstream/lwk/9ddd20a806625bb40cd063ad61d80d106809a9fd";
+      url = "github:blockstream/lwk/1095b82575fdddc38534ea266d38eee5332350bf";
     };
   };
 
@@ -43,7 +43,7 @@
         electrs-liquid = blockstream-electrs.packages.${system}.binLiquid;
 
         # Liquid Wallet Kit CLI (pinned to the commit in `inputs.lwk-flake.url`).
-        # Version check (inside `nix develop`): `lwk --version`
+        # Version check (inside `nix develop`): `lwk_cli --version`
         lwk = lwk-flake.packages.${system}.bin;
       in
       with pkgs;
@@ -74,7 +74,7 @@
             clightning
             lnd
 
-            # Wallet / Liquid tooling (lwk_cli 0.8.0).
+            # Wallet / Liquid tooling (lwk_cli 0.18.1).
             lwk
           ];
 
