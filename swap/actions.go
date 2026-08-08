@@ -423,6 +423,34 @@ func (c *CreateSwapOutFromRequestAction) Execute(services *SwapServices, swap *S
 		return swap.HandleError(errors.New("insufficient walletbalance"))
 	}
 
+	// Dry-run the opening transaction (fund and sign, but never broadcast)
+	// so that wallet problems like a locked wallet or unspendable coins
+	// cancel the swap before the peer pays the fee invoice (issue #324).
+	// The payment hash is a placeholder as the claim preimage does not
+	// exist yet; it only shapes the never-broadcast output script.
+	var blindingKey *btcec.PrivateKey
+	if swap.GetChain() == l_btc_chain {
+		blindingKeyBytes, err := hex.DecodeString(swap.BlindingKeyHex)
+		if err != nil {
+			return swap.HandleError(err)
+		}
+		blindingKey, _ = btcec.PrivKeyFromBytes(blindingKeyBytes)
+	}
+	dummyPreimage, err := lightning.GetPreimage()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	err = wallet.PrecheckOpeningTransaction(&OpeningParams{
+		TakerPubkey:      swap.GetTakerPubkey(),
+		MakerPubkey:      hex.EncodeToString(swap.GetPrivkey().PubKey().SerializeCompressed()),
+		ClaimPaymentHash: dummyPreimage.Hash().String(),
+		Amount:           swap.GetOpeningTXAmount(),
+		BlindingKey:      blindingKey,
+	})
+	if err != nil {
+		return swap.HandleError(fmt.Errorf("opening transaction precheck failed: %v", err))
+	}
+
 	// Construct memo
 	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_FEE, swap.GetScidInBoltFormat(), swap.GetId())
 
@@ -906,5 +934,25 @@ func (c *AddSuspiciousPeerAction) Execute(services *SwapServices, swap *SwapData
 		return c.next.Execute(services, swap)
 	}
 	log.Infof("added peer %s to suspicious peer list", swap.PeerNodeId)
+	return c.next.Execute(services, swap)
+}
+
+// AddSuspiciousPeerOnPrepaymentLossAction adds the peer to the suspicious
+// peer list iff the swap-out sender paid the prepayment (fee invoice) and
+// the peer then canceled before broadcasting the opening transaction, i.e.
+// the prepayment is lost (issue #324). All other cancel paths pass through
+// untouched.
+type AddSuspiciousPeerOnPrepaymentLossAction struct {
+	next Action
+}
+
+func (c *AddSuspiciousPeerOnPrepaymentLossAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if swap.FeePreimage != "" && swap.OpeningTxBroadcasted == nil && swap.Cancel != nil {
+		if err := services.policy.AddToSuspiciousPeerList(swap.PeerNodeId); err != nil {
+			log.Infof("error adding peer %s to suspicious peer list: %v", swap.PeerNodeId, err)
+		} else {
+			log.Infof("added peer %s to suspicious peer list: peer canceled swap-out after the prepayment was paid", swap.PeerNodeId)
+		}
+	}
 	return c.next.Execute(services, swap)
 }

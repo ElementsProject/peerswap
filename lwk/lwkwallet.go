@@ -196,6 +196,36 @@ func (r *LWKRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningPar
 	return broadcasted.Txid, hex, 0, nil
 }
 
+// PrecheckTransaction funds and signs (but never broadcasts) a throwaway
+// version of the opening transaction to verify that the wallet can construct
+// it right now.
+func (r *LWKRpcWallet) PrecheckTransaction(swapParams *swap.OpeningParams, _ []byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
+	defer cancel()
+	feerate := r.getFeeSatPerVByte(ctx).getValue() * kb
+	fundedTx, err := r.lwkClient.send(ctx, &sendRequest{
+		Addressees: []*unvalidatedAddressee{
+			{
+				Address: swapParams.OpeningAddress,
+				Satoshi: swapParams.Amount,
+			},
+		},
+		WalletName:       r.c.GetWalletName(),
+		FeeRate:          &feerate,
+		EnableCtDiscount: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fund transaction: %w", err)
+	}
+	if _, err := r.lwkClient.sign(ctx, &signRequest{
+		SignerName: r.c.GetSignerName(),
+		Pset:       fundedTx.Pset,
+	}); err != nil {
+		return fmt.Errorf("failed to sign transaction: %w", err)
+	}
+	return nil
+}
+
 // GetBalance returns the balance in sats
 func (r *LWKRpcWallet) GetBalance() (Satoshi, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)

@@ -149,6 +149,96 @@ func Test_Cancel1(t *testing.T) {
 	msg = <-msgChan
 	assert.Equal(t, messages.MESSAGETYPE_CANCELED, msg.MessageType())
 	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
+	// A swap we canceled ourselves does not mark the peer as suspicious.
+	assert.Equal(t, 0, swapServices.policy.(*dummyPolicy).addToSuspiciousPeerListCalled)
+}
+
+// Test_SwapOutSender_CancelAfterPrepaymentAddsSuspiciousPeer checks that the
+// peer is added to the suspicious peer list if it cancels the swap after the
+// fee invoice (prepayment) was paid but before the opening transaction was
+// broadcast, i.e. the prepayment is lost.
+func Test_SwapOutSender_CancelAfterPrepaymentAddsSuspiciousPeer(t *testing.T) {
+	swapAmount := uint64(100000)
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
+	FeeInvoice := "fee"
+	msgChan := make(chan PeerMessage)
+
+	swapServices := getSwapServices(t, msgChan)
+	swapServices.toService = &timeOutDummy{}
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
+
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+		PremiumLimit:    10000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = swapFSM.SendEvent(Event_OnFeeInvoiceReceived, &SwapOutAgreementMessage{
+		Payreq:  FeeInvoice,
+		Pubkey:  peer,
+		Premium: 1000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, State_SwapOutSender_AwaitTxBroadcastedMessage, swapFSM.Data.GetCurrentState())
+	assert.NotEqual(t, "", swapFSM.Data.FeePreimage)
+
+	_, err = swapFSM.SendEvent(Event_OnCancelReceived, &CancelMessage{
+		SwapId:  swapFSM.SwapId,
+		Message: "opening transaction precheck failed: wallet locked",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
+
+	pol := swapServices.policy.(*dummyPolicy)
+	assert.Equal(t, 1, pol.addToSuspiciousPeerListCalled)
+	assert.Equal(t, peer, pol.addToSuspiciousPeerListParam)
+}
+
+// Test_SwapOutSender_CancelBeforePrepaymentNotSuspicious checks that a peer
+// that cancels the swap before the fee invoice was paid is not added to the
+// suspicious peer list.
+func Test_SwapOutSender_CancelBeforePrepaymentNotSuspicious(t *testing.T) {
+	swapAmount := uint64(100000)
+	initiator, peer, takerpubkeyhash, _, chanId := getTestParams()
+	msgChan := make(chan PeerMessage)
+
+	swapServices := getSwapServices(t, msgChan)
+	swapFSM := newSwapOutSenderFSM(swapServices, initiator, peer)
+
+	_, err := swapFSM.SendEvent(Event_OnSwapOutStarted, &SwapOutRequestMessage{
+		Amount:          swapAmount,
+		Scid:            chanId,
+		SwapId:          swapFSM.SwapId,
+		Pubkey:          takerpubkeyhash,
+		Network:         "mainnet",
+		ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := <-msgChan
+	assert.Equal(t, messages.MESSAGETYPE_SWAPOUTREQUEST, msg.MessageType())
+
+	_, err = swapFSM.SendEvent(Event_OnCancelReceived, &CancelMessage{
+		SwapId:  swapFSM.SwapId,
+		Message: "no swaps allowed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, State_SwapCanceled, swapFSM.Data.GetCurrentState())
+	assert.Equal(t, 0, swapServices.policy.(*dummyPolicy).addToSuspiciousPeerListCalled)
 }
 
 func Test_AbortCsvClaim(t *testing.T) {
@@ -372,6 +462,9 @@ type dummyPolicy struct {
 
 	newSwapsAllowedCalled int
 	newSwapsAllowedReturn bool
+
+	addToSuspiciousPeerListCalled int
+	addToSuspiciousPeerListParam  string
 }
 
 func (d *dummyPolicy) NewSwapsAllowed() bool {
@@ -393,6 +486,8 @@ func (d *dummyPolicy) IsPeerAllowed(peer string) bool {
 }
 
 func (d *dummyPolicy) AddToSuspiciousPeerList(pubkey string) error {
+	d.addToSuspiciousPeerListCalled++
+	d.addToSuspiciousPeerListParam = pubkey
 	return nil
 }
 
@@ -416,6 +511,10 @@ type dummyChain struct {
 
 	calledGetCSVHeight int64
 	returnGetCSVHeight uint32
+
+	precheckOpeningTxCalled int64
+	precheckOpeningTxParams *OpeningParams
+	precheckOpeningTxErr    error
 }
 
 func (d *dummyChain) StartWatchingTxs() error {
@@ -491,6 +590,12 @@ func (d *dummyChain) GetFlatOpeningTXFee() (uint64, error) {
 
 func (d *dummyChain) CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address, txid string, fee uint64, vout uint32, err error) {
 	return "txhex", "address", getRandom32ByteHexString(), 0, 0, nil
+}
+
+func (d *dummyChain) PrecheckOpeningTransaction(swapParams *OpeningParams) error {
+	d.precheckOpeningTxCalled++
+	d.precheckOpeningTxParams = swapParams
+	return d.precheckOpeningTxErr
 }
 
 func (d *dummyChain) AddCsvCallback(f func(swapId string) error) {

@@ -75,16 +75,16 @@ func (r *ElementsRpcWallet) FinalizeTransaction(rawTx string) (string, error) {
 	return finalized.Hex, nil
 }
 
-// CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
-func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
-	asset []byte) (txid, rawTx string, fee uint64, err error) {
+// buildOpeningTxTemplate builds the raw transaction template holding the
+// single blinded opening output that funding is based on.
+func buildOpeningTxTemplate(swapParams *swap.OpeningParams, asset []byte) (string, error) {
 	outputscript, err := address.ToOutputScript(swapParams.OpeningAddress)
 	if err != nil {
-		return "", "", 0, err
+		return "", err
 	}
 	sats, err := elementsutil.ValueToBytes(swapParams.Amount)
 	if err != nil {
-		return "", "", 0, err
+		return "", err
 	}
 	output := transaction.NewTxOutput(asset, sats, outputscript)
 	output.Nonce = swapParams.BlindingKey.PubKey().SerializeCompressed()
@@ -92,24 +92,39 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 	tx := transaction.NewTx(2)
 	tx.Outputs = append(tx.Outputs, output)
 
-	txHex, err := tx.ToHex()
-	if err != nil {
-		return "", "", 0, err
-	}
+	return tx.ToHex()
+}
+
+// fundAndFinalizeTransaction funds, blinds and signs the given tx template
+// and returns the finalized tx along with the funding result.
+func (r *ElementsRpcWallet) fundAndFinalizeTransaction(txHex string) (finalized string, fundedTx *gelements.FundRawResult, err error) {
 	feerate, err := r.getFeeRate()
 	if err != nil {
-		return "", "", 0, err
+		return "", nil, err
 	}
 	// Round BTC/kB to nearest sat/kB so the string format is exact
 	satPerKb := uint64(math.Round(feerate * satsPerBTC))
-	fundedTx, err := r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
+	fundedTx, err = r.rpcClient.FundRawWithOptions(txHex, &gelements.FundRawOptions{
 		FeeRate: SatsToBTCString(satPerKb),
 	}, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	finalized, err = r.FinalizeTransaction(fundedTx.TxString)
+	if err != nil {
+		return "", nil, err
+	}
+	return finalized, fundedTx, nil
+}
 
+// CreateAndBroadcastTransaction takes a tx with outputs and adds inputs in order to spend the tx
+func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.OpeningParams,
+	asset []byte) (txid, rawTx string, fee uint64, err error) {
+	txHex, err := buildOpeningTxTemplate(swapParams, asset)
 	if err != nil {
 		return "", "", 0, err
 	}
-	finalized, err := r.FinalizeTransaction(fundedTx.TxString)
+	finalized, fundedTx, err := r.fundAndFinalizeTransaction(txHex)
 	if err != nil {
 		return "", "", 0, err
 	}
@@ -118,6 +133,20 @@ func (r *ElementsRpcWallet) CreateAndBroadcastTransaction(swapParams *swap.Openi
 		return "", "", 0, err
 	}
 	return txid, finalized, gelements.ConvertBtc(fundedTx.Fee), nil
+}
+
+// PrecheckTransaction funds, blinds and signs (but never broadcasts) a
+// throwaway version of the opening transaction to verify that the wallet can
+// construct it right now, e.g. that it is not locked and has enough
+// spendable coins. FundRawWithOptions does not lock the selected utxos, so
+// there is nothing to release afterwards.
+func (r *ElementsRpcWallet) PrecheckTransaction(swapParams *swap.OpeningParams, asset []byte) error {
+	txHex, err := buildOpeningTxTemplate(swapParams, asset)
+	if err != nil {
+		return err
+	}
+	_, _, err = r.fundAndFinalizeTransaction(txHex)
+	return err
 }
 
 // setupWallet checks if the swap wallet is already loaded in elementsd, if not it loads/creates it

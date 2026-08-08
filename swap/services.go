@@ -73,6 +73,12 @@ type Validator interface {
 type Wallet interface {
 	SetLabel(txID, address, label string) error
 	CreateOpeningTransaction(swapParams *OpeningParams) (unpreparedTxHex, address, txid string, fee uint64, vout uint32, err error)
+	// PrecheckOpeningTransaction funds and signs (but never broadcasts) a
+	// throwaway opening transaction to verify that the wallet can construct
+	// it right now, e.g. that it is not locked and has enough spendable
+	// coins. Any inputs reserved during the check are released before
+	// returning.
+	PrecheckOpeningTransaction(swapParams *OpeningParams) error
 	CreatePreimageSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex, address string, err error)
 	CreateCsvSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams) (txId, txHex, address string, error error)
 	CreateCoopSpendingTransaction(swapParams *OpeningParams, claimParams *ClaimParams, takerSigner Signer) (txId, txHex, address string, error error)
