@@ -8,7 +8,9 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/elementsproject/peerswap/swap"
 	"github.com/vulpemventures/go-elements/confidential"
+	"github.com/vulpemventures/go-elements/elementsutil"
 	"github.com/vulpemventures/go-elements/network"
+	"github.com/vulpemventures/go-elements/payment"
 	"github.com/vulpemventures/go-elements/transaction"
 	secp256k1 "github.com/vulpemventures/go-secp256k1-zkp"
 )
@@ -130,6 +132,11 @@ func TestLiquidOpeningOutputValidation(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("explicit policy asset", func(t *testing.T) {
+		txHex := newExplicitOpeningTx(t, liquidOnChain, openingParams)
+		assertOpeningTransactionAccepted(t, liquidOnChain, openingParams, txHex)
+	})
 }
 
 func newLiquidOpeningParams(t *testing.T) *swap.OpeningParams {
@@ -208,6 +215,94 @@ func newBlindedOpeningTx(
 	checkNoError(t, err)
 
 	return txHex
+}
+
+func assertOpeningTransactionAccepted(
+	t *testing.T,
+	liquidOnChain *LiquidOnChain,
+	openingParams *swap.OpeningParams,
+	openingTxHex string,
+) {
+	t.Helper()
+
+	valid, err := liquidOnChain.ValidateTx(openingParams, openingTxHex)
+	checkNoError(t, err)
+	if !valid {
+		t.Fatal("ValidateTx() = false, want true")
+	}
+
+	assertCsvSpendingTransactionAccepted(
+		t, liquidOnChain, openingParams, openingTxHex,
+	)
+}
+
+func newExplicitOpeningTx(
+	t *testing.T,
+	liquidOnChain *LiquidOnChain,
+	openingParams *swap.OpeningParams,
+) string {
+	t.Helper()
+
+	value, err := elementsutil.ValueToBytes(openingParams.Amount)
+	checkNoError(t, err)
+	outputScript, err := liquidOnChain.GetOutputScript(openingParams)
+	checkNoError(t, err)
+
+	openingTx := transaction.NewTx(2)
+	openingTx.AddInput(transaction.NewTxInput(make([]byte, 32), 0))
+	openingTx.AddOutput(transaction.NewTxOutput(
+		liquidOnChain.asset, value, outputScript,
+	))
+	txHex, err := openingTx.ToHex()
+	checkNoError(t, err)
+
+	return txHex
+}
+
+func assertCsvSpendingTransactionAccepted(
+	t *testing.T,
+	liquidOnChain *LiquidOnChain,
+	openingParams *swap.OpeningParams,
+	openingTxHex string,
+) {
+	t.Helper()
+
+	redeemScript, err := ParamsToTxScript(openingParams, LiquidCsv)
+	checkNoError(t, err)
+	receiverKey, err := btcec.NewPrivateKey()
+	checkNoError(t, err)
+	receiverBlindingKey, err := btcec.NewPrivateKey()
+	checkNoError(t, err)
+	receiverPayment := payment.FromPublicKey(
+		receiverKey.PubKey(),
+		liquidOnChain.network,
+		receiverBlindingKey.PubKey(),
+	)
+	receiverAddress, err := receiverPayment.ConfidentialWitnessPubKeyHash()
+	checkNoError(t, err)
+	ephemeralKey, err := btcec.NewPrivateKey()
+	checkNoError(t, err)
+
+	tx, _, err := liquidOnChain.createSpendingTransaction(
+		openingTxHex,
+		openingParams.Amount,
+		LiquidCsv,
+		liquidOnChain.asset,
+		redeemScript,
+		receiverAddress,
+		100,
+		openingParams.BlindingKey,
+		ephemeralKey,
+		testScalar(5),
+		testScalar(6),
+	)
+	checkNoError(t, err)
+	if tx == nil {
+		t.Fatal("createSpendingTransaction() returned a nil transaction")
+	}
+	if got := tx.Inputs[0].Sequence; got != LiquidCsv {
+		t.Fatalf("input sequence = %d, want %d", got, LiquidCsv)
+	}
 }
 
 func assertSpendingTransactionRejected(
