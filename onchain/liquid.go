@@ -489,17 +489,28 @@ func (l *LiquidOnChain) validateOpeningOutput(
 		)
 	}
 
-	assetCommitment, err := confidential.AssetCommitment(
-		unblinded.Asset, unblinded.AssetBlindingFactor,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reconstruct asset commitment: %w", err)
-	}
-	if !bytes.Equal(assetCommitment, output.Asset) {
-		return nil, fmt.Errorf(
-			"invalid asset commitment got: %x, expected %x",
-			output.Asset, assetCommitment,
+	if !output.IsConfidential() {
+		if !bytes.Equal(output.Asset, l.asset) {
+			return nil, fmt.Errorf(
+				"invalid explicit asset got: %x, expected %x",
+				output.Asset, l.asset,
+			)
+		}
+	} else {
+		assetCommitment, err := confidential.AssetCommitment(
+			unblinded.Asset, unblinded.AssetBlindingFactor,
 		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to reconstruct asset commitment: %w", err,
+			)
+		}
+		if !bytes.Equal(assetCommitment, output.Asset) {
+			return nil, fmt.Errorf(
+				"invalid asset commitment got: %x, expected %x",
+				output.Asset, assetCommitment,
+			)
+		}
 	}
 
 	if unblinded.Value != expectedAmount {
