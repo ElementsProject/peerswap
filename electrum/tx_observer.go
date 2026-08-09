@@ -17,7 +17,7 @@ type TXObserver interface {
 	GetSwapID() swap.SwapId
 	// Callback calls the callback function if the condition is match.
 	// Returns true if the callback function is called.
-	Callback(context.Context, BlocKHeight) (bool, error)
+	Callback(context.Context, BlockHeight) (bool, error)
 }
 
 type scriptPubKey struct {
@@ -71,33 +71,61 @@ func (o *observeOpeningTX) GetSwapID() swap.SwapId {
 	return o.swapID
 }
 
-func getHeight(hs []*electrum.GetMempoolResult, txID *chainhash.Hash) BlocKHeight {
+func getHeight(hs []*electrum.GetMempoolResult, txID *chainhash.Hash) (BlockHeight, bool) {
 	for _, h := range hs {
+		if h == nil {
+			continue
+		}
 		hh, err := chainhash.NewHashFromStr(h.Hash)
 		if err != nil {
 			continue
 		}
 		if hh.IsEqual(txID) {
-			return BlocKHeight(h.Height)
+			return BlockHeight(h.Height), true
 		}
 	}
-	return 0
+	return 0, false
 }
 
-func (o *observeOpeningTX) Callback(ctx context.Context, currentHeight BlocKHeight) (bool, error) {
+func hasConfirmations(txHeight, tipHeight BlockHeight, required uint32) (bool, error) {
+	if tipHeight <= 0 {
+		return false, fmt.Errorf("invalid electrum tip height: %d", tipHeight)
+	}
+	if txHeight <= 0 {
+		return false, nil
+	}
+	if txHeight > tipHeight {
+		return false, fmt.Errorf(
+			"electrum transaction height %d is above tip height %d",
+			txHeight, tipHeight,
+		)
+	}
+
+	confirmations := tipHeight - txHeight + 1
+	return confirmations >= BlockHeight(required), nil
+}
+
+func (o *observeOpeningTX) Callback(ctx context.Context, currentHeight BlockHeight) (bool, error) {
 	hs, err := o.electrumClient.GetHistory(ctx, o.scriptPubkey.scriptHash())
 	if err != nil {
 		return false, fmt.Errorf("failed to get history: %w", err)
 	}
-	if !(getHeight(hs, o.txID).Confirmed()) {
-		return false, fmt.Errorf("the transaction is unconfirmed")
+	txHeight, found := getHeight(hs, o.txID)
+	if !found {
+		return false, nil
+	}
+	confirmed, err := hasConfirmations(
+		txHeight, currentHeight, uint32(onchain.LiquidConfs),
+	)
+	if err != nil {
+		return false, err
+	}
+	if !confirmed {
+		return false, nil
 	}
 	rawTx, err := o.electrumClient.GetRawTransaction(ctx, o.txID.String())
 	if err != nil {
 		log.Debugf("failed to get raw transaction: %s", o.txID.String())
-		return false, nil
-	}
-	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidConfs)-1) {
 		return false, nil
 	}
 	return true, o.cb(o.swapID.String(), rawTx, nil)
@@ -134,16 +162,23 @@ func (o *observeCSVTX) GetSwapID() swap.SwapId {
 	return o.swapID
 }
 
-func (o *observeCSVTX) Callback(ctx context.Context, currentHeight BlocKHeight) (bool, error) {
+func (o *observeCSVTX) Callback(ctx context.Context, currentHeight BlockHeight) (bool, error) {
 	hs, err := o.electrumClient.GetHistory(ctx, o.scriptPubkey.scriptHash())
 	if err != nil {
 		return false, fmt.Errorf("failed to get history: %w", err)
 	}
-	if !(getHeight(hs, o.txID).Confirmed()) {
-		log.Debugf("the transaction is unconfirmed. txhash: %s", o.txID.String())
+	txHeight, found := getHeight(hs, o.txID)
+	if !found {
 		return false, nil
 	}
-	if !(currentHeight.Height() >= getHeight(hs, o.txID).Height()+uint32(onchain.LiquidCsv-1)) {
+	mature, err := hasConfirmations(
+		txHeight, currentHeight, uint32(onchain.LiquidCsv),
+	)
+	if err != nil {
+		return false, err
+	}
+	if !mature {
+		log.Debugf("the transaction is unconfirmed. txhash: %s", o.txID.String())
 		return false, nil
 	}
 	return true, o.cb(o.swapID.String())

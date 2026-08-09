@@ -9,20 +9,21 @@ import (
 	"github.com/elementsproject/peerswap/swap"
 )
 
-type BlocKHeight uint32
+// BlockHeight keeps heights received from Electrum signed. Electrum uses
+// negative and zero heights for unconfirmed transactions, so converting a
+// remote height to an unsigned integer before validating it is unsafe.
+type BlockHeight int64
 
-func (b BlocKHeight) Confirmed() bool {
-	return b > 0
-}
-
-func (b BlocKHeight) Height() uint32 {
-	return uint32(b)
-}
+// BlocKHeight is kept as an alias for source compatibility with existing
+// users of the electrum package.
+//
+// Deprecated: use BlockHeight.
+type BlocKHeight = BlockHeight
 
 type BlockHeaderSubscriber interface {
 	Register(tx TXObserver)
 	Deregister(o TXObserver)
-	Update(ctx context.Context, blockHeight BlocKHeight) error
+	Update(ctx context.Context, blockHeight BlockHeight) error
 }
 
 type liquidBlockHeaderSubscriber struct {
@@ -52,7 +53,7 @@ func (h *liquidBlockHeaderSubscriber) Deregister(o TXObserver) {
 	h.txObservers = newObservers
 }
 
-func (h *liquidBlockHeaderSubscriber) Update(ctx context.Context, blockHeight BlocKHeight) error {
+func (h *liquidBlockHeaderSubscriber) Update(ctx context.Context, blockHeight BlockHeight) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, observer := range h.txObservers {
