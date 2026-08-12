@@ -49,7 +49,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
       - [The `claim_by_csv` path](#the-claim_by_csv-path)
 
 ## General
-The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `6`.
+The `protocol_version` is included to allow for possible changes in the future. The `protocol_version` of this document is `7`.
 
 PeerSwap utilizes custom messages as described in [BOLT#1](https://github.com/Lightning/bolts/blob/master/01-messaging.md). The types are in range `42069`-`42085`. The `payload` is JSON encoded.
 
@@ -500,15 +500,23 @@ In the case of Bitcoin:
 * CSV = 1008
 * Min required confirmations for the [`opening_transaction`](#opening-transaction) = 3
 
-In The case of Liquid:
-* CSV = 60
+In the case of Liquid protocol version 7:
+* CSV = 10080
 * Min required confirmations for the [`opening_transaction`](#opening-transaction) = 2
 
 The difference in timings is due to the different fee and consensus models of the Liquid Network and Bitcoin.
 
 #### Timeouts and Invoice expiry
 
-The expiry of the `swap invoice` MUST be less than or equal to half the CSV time to ensure a secure swap.
+For Bitcoin, the expiry of the `swap invoice` MUST be less than or equal to half the CSV time.
+
+For Liquid protocol version 7:
+
+* The claim invoice MUST use a final CLTV delta of at most 29 Bitcoin blocks.
+* The paying peer MUST constrain the actual total CLTV delta, including sender padding, to less than 33 Bitcoin blocks.
+* The paying peer MUST persist the current Liquid height before sending `swap_out_request` or `swap_in_agreement`.
+* It MUST NOT create or retry the claim payment at or after that height plus 60 Liquid blocks.
+* A protocol version 6 Liquid swap keeps its 60-block CSV for recovery, but an upgraded peer MUST NOT create a new claim payment for it.
 
 ### Opening Transaction
 The opening transaction has a pay-to-witness-script-hash<sup>[BIP141](https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program)</sup> (P2WSH) output that locks the on-chain part of the swap. This script has three different spending paths. These are the `claim_by_invoice`, `claim_by_csv` and the `claim_by_coop` paths. The transaction maker may use inputs to his desire.
@@ -567,6 +575,6 @@ This is the way to finish a swap if the invoice was not paid and the taker did n
   * txin[0] outpoint: `tx_id` and `script_output` from the `opening_tx_broadcasted` message
   * txin[0] sequence:
     * for `btc` as asset: 0x3F0 corresponding to the CSV of 1008
-    * for `lbtc` as asset: 0x3C corresponding to the CSV of 60
+    * for `lbtc` as asset in protocol version 7: 0x2760 corresponding to the CSV of 10080
   * txin[0] script bytes: 0
   * txin[0] witness: `<signature_for_B> <redeem_script>`
