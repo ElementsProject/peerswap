@@ -214,7 +214,7 @@ func (l *Client) AddPaymentNotifier(swapId string, payreq string, invoiceType sw
 	l.paymentWatcher.AddWaitForPayment(swapId, payreq, invoiceType)
 }
 
-func (l *Client) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, expiry int64, err error) {
+func (l *Client) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, finalCLTVDelta int64, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
 		return "", 0, 0, err
@@ -300,6 +300,14 @@ func (l *Client) AddPaymentCallback(f func(swapId string, invoiceType swap.Invoi
 // PayInvoiceViaChannel ensures that the invoice is paid via the direct channel
 // to the peer. It takes the desired channel as the enforced first hop route.
 func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err error) {
+	return l.payInvoiceViaChannel(payreq, scid, 0)
+}
+
+func (l *Client) payInvoiceViaChannel(
+	payreq,
+	scid string,
+	maxTotalCLTVDelta uint32,
+) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
 		return "", err
@@ -308,18 +316,49 @@ func (l *Client) PayInvoiceViaChannel(payreq, scid string) (preimage string, err
 	if err != nil {
 		return "", err
 	}
+	request, err := buildDirectClaimPaymentRequest(payreq, decoded, channel, maxTotalCLTVDelta)
+	if err != nil {
+		return "", err
+	}
+	return l.sendPaymentV2(request, "PayInvoiceViaChannel")
+}
+
+func buildDirectClaimPaymentRequest(
+	payreq string,
+	decoded *lnrpc.PayReq,
+	channel *lnrpc.Channel,
+	maxTotalCLTVDelta uint32,
+) (*routerrpc.SendPaymentRequest, error) {
 	// Ensures that the invoice is paid via the direct channel to the peer.
 	if decoded.GetDestination() != channel.RemotePubkey {
-		return "", fmt.Errorf(`destination pubkey in invoice does not match remote pubkey of channel. 
-		destination pubkey in invoice: %s, remote pubkey of channel: %s `, decoded.GetDestination(), channel.RemotePubkey)
+		return nil, fmt.Errorf("destination pubkey in invoice does not match remote pubkey of channel. \n\t\tdestination pubkey in invoice: %s, remote pubkey of channel: %s ", decoded.GetDestination(), channel.RemotePubkey)
 	}
-	return l.sendPaymentV2(&routerrpc.SendPaymentRequest{
+	cltvLimit := int32(decoded.GetCltvExpiry() + int64(routing.BlockPadding) + 1)
+	if maxTotalCLTVDelta != 0 {
+		if decoded.GetCltvExpiry() < 0 {
+			return nil, fmt.Errorf("invalid invoice CLTV delta: %d", decoded.GetCltvExpiry())
+		}
+		requiredCLTVDelta64 := uint64(decoded.GetCltvExpiry()) + // #nosec G115 -- negative values rejected above.
+			uint64(routing.BlockPadding)
+		if requiredCLTVDelta64 > math.MaxUint32 {
+			return nil, fmt.Errorf("invoice CLTV delta is too large: %d", requiredCLTVDelta64)
+		}
+		requiredCLTVDelta := uint32(requiredCLTVDelta64) // #nosec G115 -- bounded above.
+		if err := swap.ValidateTotalCLTVDelta(requiredCLTVDelta, maxTotalCLTVDelta); err != nil {
+			return nil, err
+		}
+		if maxTotalCLTVDelta >= math.MaxInt32 {
+			return nil, errors.New("payment CLTV limit is too large")
+		}
+		cltvLimit = int32(maxTotalCLTVDelta + 1) // #nosec G115 -- bounded above.
+	}
+	return &routerrpc.SendPaymentRequest{
 		PaymentRequest:  payreq,
 		TimeoutSeconds:  30,
-		CltvLimit:       int32(decoded.GetCltvExpiry() + int64(routing.BlockPadding) + 1),
+		CltvLimit:       cltvLimit,
 		OutgoingChanIds: []uint64{channel.ChanId},
 		MaxParts:        1,
-	}, "PayInvoiceViaChannel")
+	}, nil
 }
 
 func (l *Client) sendPaymentV2(req *routerrpc.SendPaymentRequest, operation string) (string, error) {
@@ -348,8 +387,42 @@ func (l *Client) sendPaymentV2(req *routerrpc.SendPaymentRequest, operation stri
 	}
 }
 
-func (l *Client) RebalancePayment(payreq string, channelId string) (preimage string, err error) {
-	return l.PayInvoiceViaChannel(payreq, channelId)
+// RebalancePayment pays a claim invoice over the swap channel.
+func (l *Client) RebalancePayment(
+	payreq string,
+	channelID string,
+	maxTotalCLTVDelta uint32,
+) (preimage string, err error) {
+	return l.payInvoiceViaChannel(payreq, channelID, maxTotalCLTVDelta)
+}
+
+// RecoverClaimPayment waits for an already-created outgoing payment without
+// creating another HTLC. It is used to recover legacy swaps safely.
+func (l *Client) RecoverClaimPayment(payreq string) (preimage string, err error) {
+	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
+	if err != nil {
+		return "", err
+	}
+	paymentHash, err := hex.DecodeString(decoded.GetPaymentHash())
+	if err != nil {
+		return "", fmt.Errorf("decode payment hash: %w", err)
+	}
+
+	stream, err := l.routerClient.TrackPaymentV2(l.ctx, &routerrpc.TrackPaymentRequest{
+		PaymentHash:       paymentHash,
+		NoInflightUpdates: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	payment, err := stream.Recv()
+	if err != nil {
+		return "", fmt.Errorf("track claim payment: %w", err)
+	}
+	if payment.Status != lnrpc.Payment_SUCCEEDED || payment.PaymentPreimage == "" {
+		return "", fmt.Errorf("claim payment did not succeed: %s", payment.Status)
+	}
+	return payment.PaymentPreimage, nil
 }
 
 func (l *Client) SendMessage(peerId string, message []byte, messageType int) error {

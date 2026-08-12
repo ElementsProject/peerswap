@@ -58,7 +58,7 @@ func (l *LiquidOnChain) GetOnchainBalance() (uint64, error) {
 }
 
 func (l *LiquidOnChain) CreateOpeningTransaction(swapParams *swap.OpeningParams) (txHex, address, txid string, fee uint64, vout uint32, err error) {
-	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(swapParams, swapParams.CSV)
 	if err != nil {
 		return "", "", "", 0, 0, err
 	}
@@ -142,7 +142,7 @@ func (l *LiquidOnChain) createCsvSpendingTransaction(swapParams *swap.OpeningPar
 		return "", "", "", err
 	}
 	l.AddBlindingRandomFactors(claimParams)
-	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, LiquidCsv, fee)
+	tx, sigBytes, redeemScript, err := l.prepareSpendingTransaction(swapParams, claimParams, newAddr, swapParams.CSV, fee)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -172,7 +172,7 @@ func (l *LiquidOnChain) createCoopSpendingTransaction(swapParams *swap.OpeningPa
 	if err != nil {
 		return "", "", "", err
 	}
-	redeemScript, err := ParamsToTxScript(swapParams, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(swapParams, swapParams.CSV)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -240,7 +240,7 @@ func (l *LiquidOnChain) NewAddress() (string, error) {
 }
 
 func (l *LiquidOnChain) prepareSpendingTransaction(swapParams *swap.OpeningParams, claimParams *swap.ClaimParams, spendingAddr string, csv uint32, preparedFee uint64) (tx *transaction.Transaction, sigBytes, redeemScript []byte, err error) {
-	redeemScript, err = ParamsToTxScript(swapParams, LiquidCsv)
+	redeemScript, err = ParamsToTxScript(swapParams, swapParams.CSV)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -437,7 +437,7 @@ func (l *LiquidOnChain) TxIdFromHex(txHex string) (string, error) {
 }
 
 func (l *LiquidOnChain) ValidateTx(openingParams *swap.OpeningParams, txHex string) (bool, error) {
-	redeemScript, err := ParamsToTxScript(openingParams, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(openingParams, openingParams.CSV)
 	if err != nil {
 		return false, err
 	}
@@ -536,7 +536,7 @@ func (l *LiquidOnChain) VoutFromTxHex(txHex string, redeemScript []byte) (uint32
 }
 
 func (b *LiquidOnChain) GetOutputScript(params *swap.OpeningParams) ([]byte, error) {
-	redeemScript, err := ParamsToTxScript(params, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(params, params.CSV)
 	if err != nil {
 		return nil, err
 	}

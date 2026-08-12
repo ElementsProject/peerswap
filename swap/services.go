@@ -41,13 +41,14 @@ type Policy interface {
 }
 
 type LightningClient interface {
-	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, expiry int64, err error)
+	DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, finalCLTVDelta int64, err error)
 	PayInvoice(payreq string) (preImage string, err error)
 	GetPayreq(msatAmount uint64, preimage string, swapId string, memo string, invoiceType InvoiceType, expirySeconds, expiryCltv uint64) (string, error)
 	PayInvoiceViaChannel(payreq string, channel string) (preimage string, err error)
 	AddPaymentCallback(f func(swapId string, invoiceType InvoiceType))
 	AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType)
-	RebalancePayment(payreq string, channel string) (preimage string, err error)
+	RebalancePayment(payreq string, channel string, maxTotalCLTVDelta uint32) (preimage string, err error)
+	RecoverClaimPayment(payreq string) (preimage string, err error)
 	CanSpend(amountMsat uint64) error
 	Implementation() string
 	SpendableMsat(scid string) (uint64, error)
@@ -56,8 +57,8 @@ type LightningClient interface {
 }
 
 type TxWatcher interface {
-	AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, scriptpubkey []byte)
-	AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, scriptpubkey []byte)
+	AddWaitForConfirmationTx(swapID, txID string, vout, startingHeight, paymentWindow uint32, scriptpubkey []byte)
+	AddWaitForCsvTx(swapID, txID string, vout, startingHeight, csv uint32, scriptpubkey []byte)
 	AddConfirmationCallback(func(swapId string, txHex string, err error) error)
 	AddCsvCallback(func(swapId string) error)
 	GetBlockHeight() (uint32, error)
@@ -90,6 +91,7 @@ type OpeningParams struct {
 	MakerPubkey      string
 	ClaimPaymentHash string
 	Amount           uint64
+	CSV              uint32
 	BlindingKey      *btcec.PrivateKey
 	OpeningAddress   string
 }

@@ -131,7 +131,7 @@ func TestTxWatcher_AddWaitForConfirmationTx(t *testing.T) {
 		return nil
 	})
 
-	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, script)
+	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, testCsvLimit/2, script)
 
 	// Mine confirmation blocks.
 	bitcoind.GenerateBlocks(3)
@@ -213,7 +213,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect(t *testing.T) {
 		return nil
 	})
 
-	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, script)
+	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, testCsvLimit/2, script)
 
 	// We now kill the lnd node and mine the confirmation blocks. We wait a
 	// random time between 1 and 6 seconds and restart the node. We expect the
@@ -305,7 +305,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 		return nil
 	})
 
-	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, script)
+	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, testCsvLimit/2, script)
 
 	// We now kill the lnd node and mine the confirmation blocks. We wait a
 	// random time between 1 and 6 seconds and restart the node. We expect the
@@ -396,7 +396,7 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_OnGracefulStop(t *testing.
 		return nil
 	})
 
-	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, script)
+	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, testCsvLimit/2, script)
 
 	_, err = lnd.Rpc.StopDaemon(context.Background(), &lnrpc.StopRequest{})
 	if err != nil {
@@ -485,7 +485,7 @@ func TestTxWatcher_AddWaitForCsvTx(t *testing.T) {
 		return nil
 	})
 
-	txwatcher.AddWaitForCsvTx("addwaitforcsvtx", txid, 0, 101, script)
+	txwatcher.AddWaitForCsvTx("addwaitforcsvtx", txid, 0, 101, testCsvLimit, script)
 
 	// Mine confirmation blocks, one less than csv limit.
 	bitcoind.GenerateBlocks(onchain.BitcoinCsv - 1)
@@ -580,7 +580,7 @@ func TestTxWatcher_AddWaitForCsvTx_Reconnect(t *testing.T) {
 		return nil
 	})
 
-	txwatcher.AddWaitForCsvTx("addwaitforcsvtx-reconnect", txid, 0, 101, script)
+	txwatcher.AddWaitForCsvTx("addwaitforcsvtx-reconnect", txid, 0, 101, testCsvLimit, script)
 
 	// We now kill the lnd node and mine the confirmation blocks. We wait a
 	// random time between 1 and 6 seconds and restart the node. We expect the
@@ -658,7 +658,7 @@ func TestTxWatcher_Stop(t *testing.T) {
 		t.Fatalf("Failed DecodeString(): %v", err)
 	}
 
-	txwatcher.AddWaitForCsvTx("addwaitforcsvtx-reconnect", txid, 0, 101, script)
+	txwatcher.AddWaitForCsvTx("addwaitforcsvtx-reconnect", txid, 0, 101, testCsvLimit, script)
 	txwatcher.Stop()
 }
 

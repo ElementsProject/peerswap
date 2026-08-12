@@ -48,6 +48,8 @@ type observeOpeningTX struct {
 	scriptPubkey   scriptPubKey
 	electrumClient RPC
 	cb             confirmationCallback
+	startingHeight uint32
+	paymentWindow  uint32
 }
 
 var _ TXObserver = (*observeOpeningTX)(nil)
@@ -57,13 +59,18 @@ func NewObserveOpeningTX(
 	txID *chainhash.Hash,
 	scriptPubkey scriptPubKey,
 	electrumClient RPC,
-	cb confirmationCallback) observeOpeningTX {
+	cb confirmationCallback,
+	startingHeight,
+	paymentWindow uint32,
+) observeOpeningTX {
 	return observeOpeningTX{
 		swapID:         swapID,
 		txID:           txID,
 		scriptPubkey:   scriptPubkey,
 		electrumClient: electrumClient,
 		cb:             cb,
+		startingHeight: startingHeight,
+		paymentWindow:  paymentWindow,
 	}
 }
 
@@ -106,6 +113,19 @@ func hasConfirmations(txHeight, tipHeight BlockHeight, required uint32) (bool, e
 }
 
 func (o *observeOpeningTX) Callback(ctx context.Context, currentHeight BlockHeight) (bool, error) {
+	if currentHeight <= 0 {
+		return false, fmt.Errorf("invalid electrum tip height: %d", currentHeight)
+	}
+	deadline := BlockHeight(o.startingHeight) + BlockHeight(o.paymentWindow)
+	if currentHeight < BlockHeight(o.startingHeight) || currentHeight >= deadline {
+		err := fmt.Errorf(
+			"claim payment deadline exceeded: current height %d, deadline %d",
+			currentHeight,
+			deadline,
+		)
+		return true, o.cb(o.swapID.String(), "", err)
+	}
+
 	hs, err := o.electrumClient.GetHistory(ctx, o.scriptPubkey.scriptHash())
 	if err != nil {
 		return false, fmt.Errorf("failed to get history: %w", err)
@@ -139,6 +159,7 @@ type observeCSVTX struct {
 	scriptPubkey   scriptPubKey
 	electrumClient RPC
 	cb             csvCallback
+	csv            uint32
 }
 
 var _ TXObserver = (*observeCSVTX)(nil)
@@ -148,13 +169,16 @@ func NewobserveCSVTX(
 	txID *chainhash.Hash,
 	scriptPubkey scriptPubKey,
 	electrumClient RPC,
-	cb csvCallback) observeCSVTX {
+	cb csvCallback,
+	csv uint32,
+) observeCSVTX {
 	return observeCSVTX{
 		swapID:         swapID,
 		txID:           txID,
 		scriptPubkey:   scriptPubkey,
 		electrumClient: electrumClient,
 		cb:             cb,
+		csv:            csv,
 	}
 }
 
@@ -172,7 +196,7 @@ func (o *observeCSVTX) Callback(ctx context.Context, currentHeight BlockHeight) 
 		return false, nil
 	}
 	mature, err := hasConfirmations(
-		txHeight, currentHeight, uint32(onchain.LiquidCsv),
+		txHeight, currentHeight, o.csv,
 	)
 	if err != nil {
 		return false, err

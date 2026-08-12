@@ -186,6 +186,8 @@ func TestObserveOpeningTXConfirmationBoundary(t *testing.T) {
 					callbackCalls++
 					return nil
 				},
+				1,
+				math.MaxUint32,
 			)
 
 			called, err := observer.Callback(context.Background(), tt.tip)
@@ -194,6 +196,49 @@ func TestObserveOpeningTXConfirmationBoundary(t *testing.T) {
 				t, called, tt.wantCallback, callbackCalls, rpc.rawCalls,
 			)
 		})
+	}
+}
+
+func TestObserveOpeningTXPaymentWindowBoundary(t *testing.T) {
+	t.Parallel()
+	txID, err := chainhash.NewHashFromStr("01")
+	if err != nil {
+		t.Fatalf("NewHashFromStr() error = %v", err)
+	}
+	callbackErr := make(chan error, 1)
+	observer := NewObserveOpeningTX(
+		*swap.NewSwapId(), txID, testScriptPubKey(t), &observerRPC{},
+		func(_ string, _ string, err error) error {
+			callbackErr <- err
+			return nil
+		},
+		100,
+		60,
+	)
+
+	called, err := observer.Callback(context.Background(), 159)
+	if err != nil {
+		t.Fatalf("Callback() before deadline error = %v", err)
+	}
+	if called {
+		t.Fatal("Callback() called before deadline")
+	}
+
+	called, err = observer.Callback(context.Background(), 160)
+	if err != nil {
+		t.Fatalf("Callback() at deadline error = %v", err)
+	}
+	if !called {
+		t.Fatal("Callback() not called at deadline")
+	}
+	deadlineErr := <-callbackErr
+	if deadlineErr == nil {
+		t.Fatal("expected deadline error in callback")
+	}
+	got := deadlineErr.Error()
+	want := "claim payment deadline exceeded: current height 160, deadline 160"
+	if got != want {
+		t.Fatalf("deadline error = %q, want %q", got, want)
 	}
 }
 
@@ -208,6 +253,7 @@ func TestObserveCSVTXConfirmationBoundary(t *testing.T) {
 		Hash:   txID.String(),
 		Height: 100,
 	}}}
+	csv := uint32(10080)
 	callbackCalls := 0
 	observer := NewobserveCSVTX(
 		*swap.NewSwapId(), txID, script, rpc,
@@ -215,9 +261,11 @@ func TestObserveCSVTXConfirmationBoundary(t *testing.T) {
 			callbackCalls++
 			return nil
 		},
+		csv,
 	)
 
-	called, err := observer.Callback(context.Background(), 158)
+	oneBlockEarly := BlockHeight(100) + BlockHeight(csv) - 2
+	called, err := observer.Callback(context.Background(), oneBlockEarly)
 	if err != nil {
 		t.Fatalf("Callback() one block early error = %v", err)
 	}
@@ -225,7 +273,8 @@ func TestObserveCSVTXConfirmationBoundary(t *testing.T) {
 		t.Errorf("Callback() one block early called = %v, calls = %d", called, callbackCalls)
 	}
 
-	called, err = observer.Callback(context.Background(), 159)
+	atBoundary := BlockHeight(100) + BlockHeight(csv) - 1
+	called, err = observer.Callback(context.Background(), atBoundary)
 	if err != nil {
 		t.Fatalf("Callback() at boundary error = %v", err)
 	}

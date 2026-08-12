@@ -253,9 +253,16 @@ func (d DummyMessageType) MessageType() messages.MessageType {
 }
 
 type dummyLightningClient struct {
-	preimage        string
-	paymentCallback func(swapId string, invoiceType InvoiceType)
-	failpayment     bool
+	preimage               string
+	paymentCallback        func(swapId string, invoiceType InvoiceType)
+	failpayment            bool
+	decodeAmount           uint64
+	decodeFinalCLTV        int64
+	rebalanceCalled        int
+	rebalanceMaxTotalCLTV  uint32
+	recoverPaymentPreimage string
+	recoverPaymentError    error
+	recoverPaymentCalled   int
 
 	canSpendError  error
 	canSpendCalled int
@@ -286,7 +293,13 @@ func (d *dummyLightningClient) CanSpend(amtMsat uint64) error {
 func (d *dummyLightningClient) AddPaymentNotifier(swapId string, payreq string, invoiceType InvoiceType) {
 }
 
-func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
+func (d *dummyLightningClient) RebalancePayment(
+	payreq string,
+	channel string,
+	maxTotalCLTVDelta uint32,
+) (preimage string, err error) {
+	d.rebalanceCalled++
+	d.rebalanceMaxTotalCLTV = maxTotalCLTVDelta
 	if d.failpayment {
 		return "", errors.New("payment failed")
 	}
@@ -298,6 +311,11 @@ func (d *dummyLightningClient) RebalancePayment(payreq string, channel string) (
 		return "", err
 	}
 	return pi.String(), nil
+}
+
+func (d *dummyLightningClient) RecoverClaimPayment(payreq string) (preimage string, err error) {
+	d.recoverPaymentCalled++
+	return d.recoverPaymentPreimage, d.recoverPaymentError
 }
 
 func (d *dummyLightningClient) TriggerPayment(swapId string, invoiceType InvoiceType) {
@@ -327,6 +345,9 @@ func (d *dummyLightningClient) DecodePayreq(payreq string) (string, uint64, int6
 	}
 	if payreq == "swapin" {
 		return "foo", 100000 * 1000, 10, nil
+	}
+	if d.decodeAmount != 0 || d.decodeFinalCLTV != 0 {
+		return "foo", d.decodeAmount, d.decodeFinalCLTV, nil
 	}
 	return "foo", (100000 + 1000) * 1000, 10, nil
 }
@@ -429,11 +450,11 @@ func (d *dummyChain) SetBalance(balance uint64) {
 func (d *dummyChain) GetOnchainBalance() (uint64, error) {
 	return d.balance, nil
 }
+
 func (d *dummyChain) GetCSVHeight() uint32 {
 	d.calledGetCSVHeight++
 	return d.returnGetCSVHeight
 }
-
 func (d *dummyChain) EstimateTxFee(txSize uint64) (uint64, error) {
 	return 100, nil
 }
@@ -465,7 +486,7 @@ func (d *dummyChain) CreateCoopSpendingTransaction(swapParams *OpeningParams, cl
 	return getRandom32ByteHexString(), "txhex", "addr", nil
 }
 
-func (d *dummyChain) AddWaitForConfirmationTx(swapId, txId string, vout, startingHeight uint32, wantscript []byte) {
+func (d *dummyChain) AddWaitForConfirmationTx(swapID, txID string, vout, startingHeight, paymentWindow uint32, wantscript []byte) {
 
 }
 
@@ -473,7 +494,7 @@ func (d *dummyChain) SetLabel(txID, address, label string) error {
 	return nil
 }
 
-func (d *dummyChain) AddWaitForCsvTx(swapId, txId string, vout uint32, startingHeight uint32, wantscript []byte) {
+func (d *dummyChain) AddWaitForCsvTx(swapID, txID string, vout, startingHeight, csv uint32, wantscript []byte) {
 
 }
 

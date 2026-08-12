@@ -15,6 +15,8 @@ import (
 	secp256k1 "github.com/vulpemventures/go-secp256k1-zkp"
 )
 
+const testLiquidCSV uint32 = 60
+
 func Test_ScriptAddress(t *testing.T) {
 	liquidOnCain := NewLiquidOnChain(nil, &network.Testnet)
 	swapParams := &swap.OpeningParams{
@@ -32,6 +34,21 @@ func Test_ScriptAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("addr %s", addr)
+}
+
+func TestLiquidScriptUsesPerSwapCSV(t *testing.T) {
+	params := newLiquidOpeningParams(t)
+	params.CSV = 60
+	legacyScript, err := ParamsToTxScript(params, params.CSV)
+	checkNoError(t, err)
+
+	params.CSV = 10080
+	currentScript, err := ParamsToTxScript(params, params.CSV)
+	checkNoError(t, err)
+
+	if bytes.Equal(legacyScript, currentScript) {
+		t.Fatal("Liquid scripts with different CSV policies are equal")
+	}
 }
 
 func TestLiquidOpeningOutputValidation(t *testing.T) {
@@ -150,6 +167,7 @@ func newLiquidOpeningParams(t *testing.T) *swap.OpeningParams {
 		MakerPubkey:      "02c30ff537639962f493d326a77f1c6cb591ee3d21ca8d89194bb69cb288f497e8",
 		ClaimPaymentHash: "b94f26d422d5ce3a1e65dd4abb398d0d369aefe8f71d112c5591aa45eea1e75c",
 		Amount:           5000,
+		CSV:              testLiquidCSV,
 		BlindingKey:      blindingKey,
 	}
 }
@@ -267,7 +285,7 @@ func assertCsvSpendingTransactionAccepted(
 ) {
 	t.Helper()
 
-	redeemScript, err := ParamsToTxScript(openingParams, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(openingParams, openingParams.CSV)
 	checkNoError(t, err)
 	receiverKey, err := btcec.NewPrivateKey()
 	checkNoError(t, err)
@@ -286,7 +304,7 @@ func assertCsvSpendingTransactionAccepted(
 	tx, _, err := liquidOnChain.createSpendingTransaction(
 		openingTxHex,
 		openingParams.Amount,
-		LiquidCsv,
+		openingParams.CSV,
 		liquidOnChain.asset,
 		redeemScript,
 		receiverAddress,
@@ -300,8 +318,8 @@ func assertCsvSpendingTransactionAccepted(
 	if tx == nil {
 		t.Fatal("createSpendingTransaction() returned a nil transaction")
 	}
-	if got := tx.Inputs[0].Sequence; got != LiquidCsv {
-		t.Fatalf("input sequence = %d, want %d", got, LiquidCsv)
+	if got := tx.Inputs[0].Sequence; got != openingParams.CSV {
+		t.Fatalf("input sequence = %d, want %d", got, openingParams.CSV)
 	}
 }
 
@@ -314,7 +332,7 @@ func assertSpendingTransactionRejected(
 ) {
 	t.Helper()
 
-	redeemScript, err := ParamsToTxScript(openingParams, LiquidCsv)
+	redeemScript, err := ParamsToTxScript(openingParams, openingParams.CSV)
 	checkNoError(t, err)
 
 	_, _, err = liquidOnChain.createSpendingTransaction(
