@@ -11,7 +11,7 @@ import (
 type testtxo struct {
 	swapid    swap.SwapId
 	getSwapID func() swap.SwapId
-	callback  func(context.Context, BlocKHeight) (bool, error)
+	callback  func(context.Context, BlockHeight) (bool, error)
 }
 
 func (t *testtxo) GetSwapID() swap.SwapId {
@@ -21,7 +21,7 @@ func (t *testtxo) GetSwapID() swap.SwapId {
 	return t.swapid
 }
 
-func (t *testtxo) Callback(ctx context.Context, b BlocKHeight) (bool, error) {
+func (t *testtxo) Callback(ctx context.Context, b BlockHeight) (bool, error) {
 	if t.callback != nil {
 		return t.callback(ctx, b)
 	}
@@ -47,7 +47,7 @@ func TestConcurrentUpdate(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := h.Update(context.Background(), BlocKHeight(0))
+			err := h.Update(context.Background(), BlockHeight(0))
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
@@ -62,7 +62,7 @@ func TestConcurrentUpdate(t *testing.T) {
 
 func Test_liquidBlockHeaderSubscriber_Update(t *testing.T) {
 	t.Parallel()
-	var blockHeight BlocKHeight = 10
+	var blockHeight BlockHeight = 10
 	tests := map[string]struct {
 		txObservers []TXObserver
 		count       int
@@ -80,7 +80,7 @@ func Test_liquidBlockHeaderSubscriber_Update(t *testing.T) {
 		"swap does not exists": {
 			txObservers: []TXObserver{
 				&testtxo{
-					callback: func(context.Context, BlocKHeight) (bool, error) {
+					callback: func(context.Context, BlockHeight) (bool, error) {
 						return true, swap.ErrSwapDoesNotExist
 					},
 				},
@@ -89,7 +89,7 @@ func Test_liquidBlockHeaderSubscriber_Update(t *testing.T) {
 		"error in callback": {
 			txObservers: []TXObserver{
 				&testtxo{
-					callback: func(context.Context, BlocKHeight) (bool, error) {
+					callback: func(context.Context, BlockHeight) (bool, error) {
 						return true, swap.ErrEventRejected
 					},
 				},

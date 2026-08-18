@@ -1,8 +1,10 @@
 package lwk_test
 
 import (
+	"math"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/checksum0/go-electrum/electrum"
 	mock_txwatcher "github.com/elementsproject/peerswap/electrum/mock"
@@ -32,7 +34,7 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 				0x06, 0xf6, 0x96, 0xcd, 0x06, 0xf6, 0x96, 0xcd,
 				0x06, 0xf6, 0x96, 0xcd, 0x06, 0xf6, 0x96, 0xcd,
 			}
-			callbackChan         = make(chan string)
+			callbackChan         = make(chan string, 1)
 			targetTXHeight int32 = 100
 		)
 
@@ -68,7 +70,8 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 		}()
 		r.AddWaitForConfirmationTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
-			Height: onchain.LiquidConfs + targetTXHeight + 1,
+			Height: onchain.LiquidConfs + targetTXHeight - 1,
+			Hex:    "00",
 		}
 		wg.Wait()
 		assert.Equal(t, <-callbackChan, wantSwapID)
@@ -90,7 +93,7 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 				0x06, 0xf6, 0x96, 0xcd, 0x06, 0xf6, 0x96, 0xcd,
 				0x06, 0xf6, 0x96, 0xcd, 0x06, 0xf6, 0x96, 0xcd,
 			}
-			callbackChan   = make(chan string)
+			callbackChan   = make(chan string, 1)
 			targetTXHeight = int32(100)
 		)
 
@@ -123,10 +126,82 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 		}()
 		r.AddWaitForCsvTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
-			Height: onchain.LiquidCsv + targetTXHeight + 1,
+			Height: onchain.LiquidCsv + targetTXHeight - 1,
+			Hex:    "00",
 		}
 		wg.Wait()
 		assert.Equal(t, <-callbackChan, wantSwapID)
 	})
 
+}
+
+func TestElectrumTxWatcherRejectsInvalidInitialHeader(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		header *electrum.SubscribeHeadersResult
+	}{
+		{name: "nil header"},
+		{name: "negative height", header: &electrum.SubscribeHeadersResult{Height: -1, Hex: "00"}},
+		{name: "zero height", header: &electrum.SubscribeHeadersResult{Height: 0, Hex: "00"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rpc := mock_txwatcher.NewMockRPC(gomock.NewController(t))
+			headers := make(chan *electrum.SubscribeHeadersResult, 1)
+			headers <- tt.header
+			rpc.EXPECT().SubscribeHeaders(gomock.Any()).Return(headers, nil)
+			watcher, err := lwk.NewElectrumTxWatcher(rpc)
+			if err != nil {
+				t.Fatalf("NewElectrumTxWatcher() error = %v", err)
+			}
+
+			assert.Error(t, watcher.StartWatchingTxs())
+		})
+	}
+}
+
+func TestElectrumTxWatcherFailsClosedOnNegativeRuntimeHeight(t *testing.T) {
+	t.Parallel()
+	rpc := mock_txwatcher.NewMockRPC(gomock.NewController(t))
+	headers := make(chan *electrum.SubscribeHeadersResult, 2)
+	headers <- &electrum.SubscribeHeadersResult{Height: 100, Hex: "00"}
+	rpc.EXPECT().SubscribeHeaders(gomock.Any()).Return(headers, nil)
+	watcher, err := lwk.NewElectrumTxWatcher(rpc)
+	if err != nil {
+		t.Fatalf("NewElectrumTxWatcher() error = %v", err)
+	}
+	if err := watcher.StartWatchingTxs(); err != nil {
+		t.Fatalf("StartWatchingTxs() error = %v", err)
+	}
+
+	headers <- &electrum.SubscribeHeadersResult{Height: -1, Hex: "00"}
+	assert.Eventually(t, func() bool {
+		_, err := watcher.GetBlockHeight()
+		return err != nil
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestElectrumTxWatcherAcceptsMaxInt32Height(t *testing.T) {
+	t.Parallel()
+	rpc := mock_txwatcher.NewMockRPC(gomock.NewController(t))
+	headers := make(chan *electrum.SubscribeHeadersResult, 1)
+	headers <- &electrum.SubscribeHeadersResult{Height: math.MaxInt32, Hex: "00"}
+	rpc.EXPECT().SubscribeHeaders(gomock.Any()).Return(headers, nil)
+	watcher, err := lwk.NewElectrumTxWatcher(rpc)
+	if err != nil {
+		t.Fatalf("NewElectrumTxWatcher() error = %v", err)
+	}
+	if err := watcher.StartWatchingTxs(); err != nil {
+		t.Fatalf("StartWatchingTxs() error = %v", err)
+	}
+
+	height, err := watcher.GetBlockHeight()
+	if err != nil {
+		t.Fatalf("GetBlockHeight() error = %v", err)
+	}
+	assert.Equal(t, uint32(math.MaxInt32), height)
+	close(headers)
 }

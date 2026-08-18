@@ -2,11 +2,14 @@ package lwk
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	goelectrum "github.com/checksum0/go-electrum/electrum"
 	"github.com/elementsproject/peerswap/electrum"
 	"github.com/elementsproject/peerswap/log"
 	"github.com/elementsproject/peerswap/swap"
@@ -24,7 +27,8 @@ const (
 
 type electrumTxWatcher struct {
 	electrumClient       electrum.RPC
-	blockHeight          electrum.BlocKHeight
+	blockHeight          electrum.BlockHeight
+	terminalErr          error
 	subscriber           electrum.BlockHeaderSubscriber
 	confirmationCallback func(swapId string, txHex string, err error) error
 	csvCallback          func(swapId string) error
@@ -45,12 +49,41 @@ func NewElectrumTxWatcher(electrumClient electrum.RPC) (*electrumTxWatcher, erro
 }
 
 func (r *electrumTxWatcher) StartWatchingTxs() error {
+	started := false
+	defer func() {
+		if !started {
+			r.resubscribeTicker.Stop()
+		}
+	}()
 	ctx := context.Background()
 	headerSubscription, err := r.electrumClient.SubscribeHeaders(ctx)
 	if err != nil {
 		return err
 	}
+
+	initialTimer := time.NewTimer(initialBlockHeaderSubscriptionTimeout)
+	defer initialTimer.Stop()
+	select {
+	case <-initialTimer.C:
+		return errors.New("initial block header subscription timeout")
+	case blockHeader, ok := <-headerSubscription:
+		if !ok {
+			return errors.New("header subscription closed before initial header")
+		}
+		height, changed, err := r.acceptBlockHeight(blockHeader)
+		if err != nil {
+			return err
+		}
+		if changed {
+			log.Debugf("New block received. block height:%d", height)
+			if err := r.subscriber.Update(ctx, height); err != nil {
+				return fmt.Errorf("failed to notify tx observers: %w", err)
+			}
+		}
+	}
+
 	go func() {
+		defer r.resubscribeTicker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -61,14 +94,16 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 					log.Infof("Header subscription closed, stopping watching txs.")
 					return
 				}
-				if r.blockHeight.Confirmed() && blockHeader.Height <= int32(r.blockHeight.Height()) {
+				height, changed, headerErr := r.acceptBlockHeight(blockHeader)
+				if headerErr != nil {
+					r.fail(headerErr)
+					return
+				}
+				if !changed {
 					continue
 				}
-				r.mu.Lock()
-				r.blockHeight = electrum.BlocKHeight(blockHeader.Height)
-				r.mu.Unlock()
-				log.Debugf("New block received. block height:%d", r.blockHeight)
-				err = r.subscriber.Update(ctx, r.blockHeight)
+				log.Debugf("New block received. block height:%d", height)
+				err = r.subscriber.Update(ctx, height)
 				if err != nil {
 					log.Infof("Error notifying tx observers: %v", err)
 					continue
@@ -89,29 +124,51 @@ func (r *electrumTxWatcher) StartWatchingTxs() error {
 			}
 		}
 	}()
-	return r.waitForInitialBlockHeaderSubscription(ctx)
+	started = true
+	return nil
 }
 
-// waitForInitialBlockHeaderSubscription waits for the initial block header subscription to be confirmed.
-func (r *electrumTxWatcher) waitForInitialBlockHeaderSubscription(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, initialBlockHeaderSubscriptionTimeout)
-	const heartbeatInterval = 100 * time.Millisecond
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("Initial block header subscription timeout.")
-			return ctx.Err()
-		default:
-			r.mu.Lock()
-			if r.blockHeight.Confirmed() {
-				r.mu.Unlock()
-				return nil
-			}
-			r.mu.Unlock()
-		}
-		time.Sleep(heartbeatInterval)
+func parseBlockHeight(blockHeader *goelectrum.SubscribeHeadersResult) (electrum.BlockHeight, error) {
+	if blockHeader == nil {
+		return 0, errors.New("electrum returned a nil block header")
 	}
+	if blockHeader.Height <= 0 {
+		return 0, fmt.Errorf(
+			"electrum returned invalid block header height: %d",
+			blockHeader.Height,
+		)
+	}
+	return electrum.BlockHeight(blockHeader.Height), nil
+}
+
+func (r *electrumTxWatcher) acceptBlockHeight(
+	blockHeader *goelectrum.SubscribeHeadersResult,
+) (electrum.BlockHeight, bool, error) {
+	height, err := parseBlockHeight(blockHeader)
+	if err != nil {
+		return 0, false, err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.terminalErr != nil {
+		return 0, false, r.terminalErr
+	}
+	if r.blockHeight > 0 && height <= r.blockHeight {
+		return height, false, nil
+	}
+
+	r.blockHeight = height
+	return height, true, nil
+}
+
+func (r *electrumTxWatcher) fail(err error) {
+	r.mu.Lock()
+	if r.terminalErr == nil {
+		r.terminalErr = err
+	}
+	r.mu.Unlock()
+	log.Infof("Electrum transaction watcher stopped safely: %v", err)
 }
 
 func (r *electrumTxWatcher) AddWaitForConfirmationTx(swapIDStr, txIDStr string, vout, startingHeight uint32, scriptpubkeyByte []byte) {
@@ -147,10 +204,19 @@ func (r *electrumTxWatcher) AddCsvCallback(f func(swapId string) error) {
 }
 
 func (r *electrumTxWatcher) GetBlockHeight() (uint32, error) {
-	if !r.blockHeight.Confirmed() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.terminalErr != nil {
+		return 0, fmt.Errorf("electrum transaction watcher stopped: %w", r.terminalErr)
+	}
+	if r.blockHeight <= 0 {
 		return 0, fmt.Errorf("block height not confirmed")
 	}
-	return r.blockHeight.Height(), nil
+	if r.blockHeight > math.MaxUint32 {
+		return 0, fmt.Errorf("block height exceeds uint32: %d", r.blockHeight)
+	}
+	// #nosec G115 -- the value is checked against both uint32 bounds above.
+	return uint32(r.blockHeight), nil
 }
 
 func (r *electrumTxWatcher) AddWaitForCsvTx(swapIDStr, txIDStr string, vout, startingHeight uint32, scriptpubkeyByte []byte) {
