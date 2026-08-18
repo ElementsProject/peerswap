@@ -56,7 +56,6 @@ type BlockchainRpcTxWatcher struct {
 	observerLoopList map[string]observerInfo
 
 	requiredConfs uint32
-	csv           uint32
 
 	ctx context.Context
 	sync.Mutex
@@ -74,10 +73,14 @@ func (s *BlockchainRpcTxWatcher) GetBlockHeight() (uint32, error) {
 	return uint32(blockheight), nil
 }
 
-func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32, csv uint32) *BlockchainRpcTxWatcher {
+//nolint:revive // Preserve the established exported API name.
+func NewBlockchainRpcTxWatcher(
+	ctx context.Context,
+	blockchain BlockchainRpc,
+	requiredConfs uint32,
+) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
 		ctx:              ctx,
-		csv:              csv,
 		blockchain:       blockchain,
 		txWatchList:      make(map[string]*SwapTxInfo),
 		csvtxWatchList:   make(map[string]*SwapTxInfo),

@@ -197,7 +197,11 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 			return err
 		}
 
-		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
+		liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(
+			ctx,
+			txwatcher.NewElementsCli(liquidCli),
+			onchain.LiquidConfs,
+		)
 
 		// LiquidChain
 		liquidChain, err := getLiquidChain(liquidCli)
@@ -252,7 +256,11 @@ func run(ctx context.Context, lightningPlugin *clightning.ClightningClient) erro
 		supportedAssets = append(supportedAssets, "btc")
 		log.Infof("Bitcoin swaps enabled")
 		bitcoinEnabled = true
-		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewBitcoinRpc(bitcoinCli), onchain.BitcoinMinConfs, onchain.BitcoinCsv)
+		bitcoinTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(
+			ctx,
+			txwatcher.NewBitcoinRpc(bitcoinCli),
+			onchain.BitcoinMinConfs,
+		)
 
 		floor, detectedVersion, floorErr := determineBitcoinFeeFloor(bitcoinCli)
 		if floorErr != nil {

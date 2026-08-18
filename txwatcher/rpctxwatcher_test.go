@@ -16,7 +16,7 @@ func Test_RpcTxWatcherConfirmations(t *testing.T) {
 	db := &DummyBlockchain{}
 	txWatcherChan := make(chan string)
 
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 100)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
 
 	err := txWatcher.StartWatchingTxs()
 	if err != nil {
@@ -51,7 +51,7 @@ func Test_RpcTxWatcherOutOfSyncWaitsForNextBlock(t *testing.T) {
 		},
 		txOutCalls: txOutCalls,
 	}
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1, 100)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1)
 
 	callbackErr := make(chan error, 1)
 	txWatcher.AddConfirmationCallback(func(swapId, txHex string, err error) error {
@@ -92,7 +92,7 @@ func Test_RpcTxWatcherOutOfSyncWaitsForNextBlock(t *testing.T) {
 
 func Test_RpcTxWatcherRejectsAtPaymentDeadline(t *testing.T) {
 	db := &DummyBlockchain{nextBlockheight: 160}
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1, 100)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1)
 
 	callbackErr := make(chan error, 1)
 	txWatcher.AddConfirmationCallback(func(swapID, txHex string, err error) error {
@@ -138,7 +138,7 @@ func Test_RpcTxWatcherCsv(t *testing.T) {
 
 	txWatcherChan := make(chan string)
 
-	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 100)
+	txWatcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
 
 	err := txWatcher.StartWatchingTxs()
 	if err != nil {
@@ -162,7 +162,7 @@ func Test_RpcTxWatcherCsv(t *testing.T) {
 
 func Test_RpcTxWatcherStoresPerSwapCsv(t *testing.T) {
 	db := &DummyBlockchain{nextTxOutResp: &TxOutResp{Confirmations: 0}}
-	watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2, 60)
+	watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 2)
 
 	watcher.AddWaitForCsvTx("legacy", "legacy-tx", 0, 1, 60, nil)
 	watcher.AddWaitForCsvTx("current", "current-tx", 0, 1, 10080, nil)
