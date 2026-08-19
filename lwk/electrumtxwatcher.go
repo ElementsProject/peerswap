@@ -171,7 +171,14 @@ func (r *electrumTxWatcher) fail(err error) {
 	log.Infof("Electrum transaction watcher stopped safely: %v", err)
 }
 
-func (r *electrumTxWatcher) AddWaitForConfirmationTx(swapIDStr, txIDStr string, vout, startingHeight uint32, scriptpubkeyByte []byte) {
+func (r *electrumTxWatcher) AddWaitForConfirmationTx(
+	swapIDStr,
+	txIDStr string,
+	vout,
+	startingHeight,
+	paymentWindow uint32,
+	scriptpubkeyByte []byte,
+) {
 	swapID := swap.NewSwapId()
 	err := swapID.FromString(swapIDStr)
 	if err != nil {
@@ -188,7 +195,15 @@ func (r *electrumTxWatcher) AddWaitForConfirmationTx(swapIDStr, txIDStr string, 
 		log.Infof("Error parsing scriptpubkey: %v", err)
 		return
 	}
-	tx := electrum.NewObserveOpeningTX(*swapID, txID, scrypt, r.electrumClient, r.confirmationCallback)
+	tx := electrum.NewObserveOpeningTX(
+		*swapID,
+		txID,
+		scrypt,
+		r.electrumClient,
+		r.confirmationCallback,
+		startingHeight,
+		paymentWindow,
+	)
 	r.subscriber.Register(&tx)
 }
 
@@ -219,7 +234,14 @@ func (r *electrumTxWatcher) GetBlockHeight() (uint32, error) {
 	return uint32(r.blockHeight), nil
 }
 
-func (r *electrumTxWatcher) AddWaitForCsvTx(swapIDStr, txIDStr string, vout, startingHeight uint32, scriptpubkeyByte []byte) {
+func (r *electrumTxWatcher) AddWaitForCsvTx(
+	swapIDStr,
+	txIDStr string,
+	vout,
+	startingHeight,
+	csv uint32,
+	scriptpubkeyByte []byte,
+) {
 	swapID := swap.NewSwapId()
 	err := swapID.FromString(swapIDStr)
 	if err != nil {
@@ -236,6 +258,6 @@ func (r *electrumTxWatcher) AddWaitForCsvTx(swapIDStr, txIDStr string, vout, sta
 		log.Infof("Error parsing scriptpubkey: %v", err)
 		return
 	}
-	tx := electrum.NewobserveCSVTX(*swapID, txID, scrypt, r.electrumClient, r.csvCallback)
+	tx := electrum.NewobserveCSVTX(*swapID, txID, scrypt, r.electrumClient, r.csvCallback, csv)
 	r.subscriber.Register(&tx)
 }

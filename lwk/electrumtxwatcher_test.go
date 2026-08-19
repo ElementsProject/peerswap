@@ -68,7 +68,14 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 			assert.NoError(t, err)
 			wg.Done()
 		}()
-		r.AddWaitForConfirmationTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
+		r.AddWaitForConfirmationTx(
+			wantSwapID,
+			wantTxID,
+			0,
+			uint32(targetTXHeight-1),
+			60,
+			wantscriptpubkey,
+		)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
 			Height: onchain.LiquidConfs + targetTXHeight - 1,
 			Hex:    "00",
@@ -124,9 +131,9 @@ func TestElectrumTxWatcher_Callback(t *testing.T) {
 			assert.NoError(t, err)
 			wg.Done()
 		}()
-		r.AddWaitForCsvTx(wantSwapID, wantTxID, 0, 0, wantscriptpubkey)
+		r.AddWaitForCsvTx(wantSwapID, wantTxID, 0, 0, 60, wantscriptpubkey)
 		headerResultChan <- &electrum.SubscribeHeadersResult{
-			Height: onchain.LiquidCsv + targetTXHeight - 1,
+			Height: 60 + targetTXHeight - 1,
 			Hex:    "00",
 		}
 		wg.Wait()

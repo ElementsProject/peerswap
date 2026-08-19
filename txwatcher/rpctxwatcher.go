@@ -56,7 +56,6 @@ type BlockchainRpcTxWatcher struct {
 	observerLoopList map[string]observerInfo
 
 	requiredConfs uint32
-	csv           uint32
 
 	ctx context.Context
 	sync.Mutex
@@ -74,10 +73,14 @@ func (s *BlockchainRpcTxWatcher) GetBlockHeight() (uint32, error) {
 	return uint32(blockheight), nil
 }
 
-func NewBlockchainRpcTxWatcher(ctx context.Context, blockchain BlockchainRpc, requiredConfs uint32, csv uint32) *BlockchainRpcTxWatcher {
+//nolint:revive // Preserve the established exported API name.
+func NewBlockchainRpcTxWatcher(
+	ctx context.Context,
+	blockchain BlockchainRpc,
+	requiredConfs uint32,
+) *BlockchainRpcTxWatcher {
 	return &BlockchainRpcTxWatcher{
 		ctx:              ctx,
-		csv:              csv,
 		blockchain:       blockchain,
 		txWatchList:      make(map[string]*SwapTxInfo),
 		csvtxWatchList:   make(map[string]*SwapTxInfo),
@@ -199,7 +202,7 @@ func (s *BlockchainRpcTxWatcher) HandleCsvTx(blockheight uint64) error {
 	return nil
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingBlockheight uint32, _ []byte) {
+func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, vout, startingBlockheight, paymentWindow uint32, _ []byte) {
 	log.Infof("adding tx watcher for %s", swapId)
 	ctx, cancel := context.WithCancel(context.Background())
 	newBlock := make(chan uint32)
@@ -207,7 +210,7 @@ func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, v
 		cancel:    cancel,
 		blockChan: newBlock,
 	}
-	go l.observationLoop(ctx, swapId, txId, vout, startingBlockheight, l.csv/2, newBlock)
+	go l.observationLoop(ctx, swapId, txId, vout, startingBlockheight, paymentWindow, newBlock)
 	l.Lock()
 	defer l.Unlock()
 	l.observerLoopList[swapId] = info
@@ -217,7 +220,7 @@ func (l *BlockchainRpcTxWatcher) AddWaitForConfirmationTx(swapId, txId string, v
 	newBlock <- uint32(height)
 }
 
-func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout uint32) (bool, error) {
+func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout, csv uint32) (bool, error) {
 	res, err := l.blockchain.GetTxOut(txId, vout)
 	if err != nil {
 		return false, err
@@ -225,13 +228,13 @@ func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout uint32) 
 	if res == nil {
 		return false, fmt.Errorf("empty gettxout response")
 	}
-	return res.Confirmations >= l.csv, nil
+	return res.Confirmations >= csv, nil
 }
 
-func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight uint32, _ []byte) {
+func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight, csv uint32, _ []byte) {
 	// Before we add the tx to the watcher we check if the tx is already
 	// above the csv limit.
-	above, err := l.checkTxAboveCsvHight(txId, vout)
+	above, err := l.checkTxAboveCsvHight(txId, vout, csv)
 	if err != nil {
 		log.Infof("[TxWatcher] checkTxAboveCsvHeight returned: %s", err.Error())
 	}
@@ -249,7 +252,7 @@ func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint3
 	l.csvtxWatchList[swapId] = &SwapTxInfo{
 		TxId:                txId,
 		TxVout:              vout,
-		Csv:                 l.csv,
+		Csv:                 csv,
 		StartingBlockHeight: startingBlockheight,
 	}
 }

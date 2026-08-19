@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	log2 "log"
+	"math"
 	"os"
 	"time"
 
@@ -441,7 +442,7 @@ func getLabel(swapId string, invoiceType swap.InvoiceType) string {
 }
 
 // DecodePayreq decodes a Bolt11 Invoice
-func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, expiry int64, err error) {
+func (cl *ClightningClient) DecodePayreq(payreq string) (paymentHash string, amountMsat uint64, finalCLTVDelta int64, err error) {
 	res, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
 		return "", 0, 0, err
@@ -462,27 +463,27 @@ func (cl *ClightningClient) PayInvoice(payreq string) (preimage string, err erro
 // to the peer. It takes the desired channel as the enforced route and uses the
 // `sendpay` api for a direct payment via this route.
 func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (preimage string, err error) {
+	return cl.payInvoiceViaChannel(payreq, scid, 0)
+}
+
+func (cl *ClightningClient) payInvoiceViaChannel(
+	payreq string,
+	scid string,
+	maxTotalCLTVDelta uint32,
+) (preimage string, err error) {
 	bolt11, err := cl.glightning.DecodeBolt11(payreq)
 	if err != nil {
 		return "", err
 	}
 
 	label := randomString()
-
-	// We have to ensure that the `short_channel_id` is divided by `x`es.
-	cid := lightning.Scid(scid)
-	scid = cid.ClnStyle()
+	route, err := buildDirectClaimRoute(bolt11, scid, maxTotalCLTVDelta)
+	if err != nil {
+		return "", err
+	}
 
 	_, err = cl.glightning.SendPay(
-		[]glightning.RouteHop{
-			{
-				Id:             bolt11.Payee,
-				ShortChannelId: scid,
-				AmountMsat:     bolt11.AmountMsat,
-				Delay:          uint32(bolt11.MinFinalCltvExpiry + 1),
-				Direction:      0,
-			},
-		},
+		route,
 		bolt11.PaymentHash,
 		label,
 		bolt11.AmountMsat.MSat(),
@@ -503,10 +504,83 @@ func (cl *ClightningClient) PayInvoiceViaChannel(payreq string, scid string) (pr
 	return preimage, nil
 }
 
+func buildDirectClaimRoute(
+	bolt11 *glightning.DecodedBolt11,
+	scid string,
+	maxTotalCLTVDelta uint32,
+) ([]glightning.RouteHop, error) {
+	delay := uint32(bolt11.MinFinalCltvExpiry + 1)
+	if maxTotalCLTVDelta != 0 {
+		if bolt11.MinFinalCltvExpiry < 0 ||
+			uint64(bolt11.MinFinalCltvExpiry) >= uint64(math.MaxUint32) {
+			return nil, fmt.Errorf(
+				"invalid invoice CLTV delta: %d",
+				bolt11.MinFinalCltvExpiry,
+			)
+		}
+		delay = uint32(bolt11.MinFinalCltvExpiry + 1) // #nosec G115 -- bounded above.
+		if err := swap.ValidateTotalCLTVDelta(delay, maxTotalCLTVDelta); err != nil {
+			return nil, err
+		}
+	}
+
+	// We have to ensure that the `short_channel_id` is divided by `x`es.
+	cid := lightning.Scid(scid)
+	scid = cid.ClnStyle()
+
+	return []glightning.RouteHop{
+		{
+			Id:             bolt11.Payee,
+			ShortChannelId: scid,
+			AmountMsat:     bolt11.AmountMsat,
+			Delay:          delay,
+			Direction:      0,
+		},
+	}, nil
+}
+
 // RebalancePayment handles the lightning payment that should re-balance the
 // channel.
-func (cl *ClightningClient) RebalancePayment(payreq string, channel string) (preimage string, err error) {
-	return cl.PayInvoiceViaChannel(payreq, channel)
+func (cl *ClightningClient) RebalancePayment(
+	payreq string,
+	channel string,
+	maxTotalCLTVDelta uint32,
+) (preimage string, err error) {
+	return cl.payInvoiceViaChannel(payreq, channel, maxTotalCLTVDelta)
+}
+
+// RecoverClaimPayment waits for an already-created outgoing payment without
+// creating another HTLC. It is used to recover legacy swaps safely.
+func (cl *ClightningClient) RecoverClaimPayment(payreq string) (preimage string, err error) {
+	bolt11, err := cl.glightning.DecodeBolt11(payreq)
+	if err != nil {
+		return "", err
+	}
+
+	payments, err := cl.glightning.ListSendPaysByHash(bolt11.PaymentHash)
+	if err != nil {
+		return "", err
+	}
+	if len(payments) == 0 {
+		return "", errors.New("claim payment was not found")
+	}
+
+	for _, payment := range payments {
+		if payment.Status == "complete" && payment.PaymentPreimage != "" {
+			return payment.PaymentPreimage, nil
+		}
+	}
+	for _, payment := range payments {
+		if payment.Status == "pending" {
+			result, err := cl.glightning.WaitSendPay(bolt11.PaymentHash, 0)
+			if err != nil {
+				return "", err
+			}
+			return result.PaymentPreimage, nil
+		}
+	}
+
+	return "", errors.New("claim payment already failed")
 }
 
 // isPeerConnected returns true if the peer is connected to the cln node.

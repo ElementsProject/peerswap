@@ -15,7 +15,7 @@ import (
 
 const (
 	//nolint:revive // Preserve the existing public protocol-version constant.
-	PEERSWAP_PROTOCOL_VERSION = 6
+	PEERSWAP_PROTOCOL_VERSION = 7
 )
 
 var (

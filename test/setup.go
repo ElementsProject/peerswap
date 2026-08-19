@@ -19,7 +19,7 @@ const (
 	BitcoinCsv      = 1008
 	BitcoinConfirms = 3
 
-	LiquidCsv      = 60
+	LiquidCsv      = 10080
 	LiquidConfirms = 2
 )
 

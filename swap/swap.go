@@ -118,6 +118,8 @@ type SwapData struct {
 	ClaimPaymentHash    string    `json:"claim_payment_hash"`
 	ClaimPreimage       string    `json:"claim_preimage"`
 
+	StartingBlockHeightSet bool `json:"opening_block_height_set,omitempty"`
+
 	BlindingKeyHex string `json:"blinding_key"`
 
 	LastMessage EventContext `json:"last_message"`
@@ -258,14 +260,11 @@ func (s *SwapData) GetInvoiceExpiry() uint64 {
 }
 
 func (s *SwapData) GetInvoiceCltv() uint64 {
-	switch s.GetChain() {
-	case btc_chain:
-		return (BitcoinCsv / 2) - 1
-	case l_btc_chain:
-		return (LiquidCsv / 2) - 1
-	default:
+	policy, err := s.getTimelockPolicy()
+	if err != nil {
 		return 0
 	}
+	return policy.InvoiceFinalCLTV
 }
 
 func (s *SwapData) GetNetwork() string {
@@ -342,6 +341,8 @@ func (s *SwapData) GetRequest() PeerMessage {
 }
 
 func (s *SwapData) GetOpeningParams() *OpeningParams {
+	policy, _ := s.getTimelockPolicy()
+
 	var blindingKey *btcec.PrivateKey
 	if s.OpeningTxBroadcasted != nil && s.OpeningTxBroadcasted.BlindingKey != "" {
 		blindingKeyBytes, _ := hex.DecodeString(s.OpeningTxBroadcasted.BlindingKey)
@@ -356,6 +357,7 @@ func (s *SwapData) GetOpeningParams() *OpeningParams {
 		MakerPubkey:      s.GetMakerPubkey(),
 		ClaimPaymentHash: s.GetPaymentHash(),
 		Amount:           s.GetOpeningTXAmount(),
+		CSV:              policy.CSV,
 		BlindingKey:      blindingKey,
 	}
 }

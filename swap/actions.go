@@ -19,11 +19,6 @@ import (
 	"github.com/elementsproject/peerswap/messages"
 )
 
-const (
-	BitcoinCsv = 1008
-	LiquidCsv  = 60
-)
-
 type CheckRequestWrapperAction struct {
 	next Action
 }
@@ -144,7 +139,29 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 // SwapInReceiverInitAction creates the swap-in process
 type SwapInReceiverInitAction struct{}
 
+func setLiquidPaymentWindowAnchor(services *SwapServices, swap *SwapData) error {
+	if swap.GetChain() != l_btc_chain || swap.GetProtocolVersion() != PEERSWAP_PROTOCOL_VERSION {
+		return nil
+	}
+
+	onchain, _, _, err := services.getOnChainServices(swap.GetChain())
+	if err != nil {
+		return err
+	}
+	height, err := onchain.GetBlockHeight()
+	if err != nil {
+		return err
+	}
+	swap.StartingBlockHeight = height
+	swap.StartingBlockHeightSet = true
+	return nil
+}
+
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+		return swap.HandleError(err)
+	}
+
 	var (
 		premiumValue int64
 		err          error
@@ -260,6 +277,11 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 	}
 	swap.ClaimPreimage = hex.EncodeToString(preimage[:])
 
+	policy, err := swap.getTimelockPolicy()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+
 	// Construct memo
 	memo := fmt.Sprintf("peerswap %s %s %s %s", swap.GetChain(), INVOICE_CLAIM, swap.GetScidInBoltFormat(), swap.GetId())
 	payreq, err := services.lightning.GetPayreq(swap.GetClaimAmount()*1000, preimage.String(), swap.GetId().String(), memo, INVOICE_CLAIM, swap.GetInvoiceExpiry(), swap.GetInvoiceCltv())
@@ -280,6 +302,7 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		MakerPubkey:      swap.GetMakerPubkey(),
 		ClaimPaymentHash: preimage.Hash().String(),
 		Amount:           swap.GetOpeningTXAmount(),
+		CSV:              policy.CSV,
 		BlindingKey:      blindingKey,
 	})
 	if err != nil {
@@ -296,6 +319,9 @@ func (c *CreateAndBroadcastOpeningTransaction) Execute(services *SwapServices, s
 		return swap.HandleError(err)
 	}
 	swap.StartingBlockHeight = startingHeight
+	if swap.GetChain() == l_btc_chain && swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
+		swap.StartingBlockHeightSet = true
+	}
 
 	swap.OpeningTxHex = txHex
 
@@ -346,12 +372,23 @@ func (w *AwaitPaymentOrCsvAction) Execute(services *SwapServices, swap *SwapData
 	services.lightning.AddPaymentNotifier(swap.GetId().String(), swap.OpeningTxBroadcasted.Payreq, INVOICE_CLAIM)
 
 	// csv part
+	policy, err := swap.getTimelockPolicy()
+	if err != nil {
+		return swap.HandleError(err)
+	}
 	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	onchain.AddWaitForCsvTx(
+		swap.GetId().String(),
+		swap.OpeningTxBroadcasted.TxId,
+		swap.OpeningTxBroadcasted.ScriptOut,
+		swap.StartingBlockHeight,
+		policy.CSV,
+		wantScript,
+	)
 	return NoOp
 }
 
@@ -374,12 +411,23 @@ func (w *AwaitCsvAction) Execute(services *SwapServices, swap *SwapData) EventTy
 		return swap.HandleError(err)
 	}
 
+	policy, err := swap.getTimelockPolicy()
+	if err != nil {
+		return swap.HandleError(err)
+	}
 	wantScript, err := wallet.GetOutputScript(swap.GetOpeningParams())
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	onchain.AddWaitForCsvTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	onchain.AddWaitForCsvTx(
+		swap.GetId().String(),
+		swap.OpeningTxBroadcasted.TxId,
+		swap.OpeningTxBroadcasted.ScriptOut,
+		swap.StartingBlockHeight,
+		policy.CSV,
+		wantScript,
+	)
 	return NoOp
 }
 
@@ -577,6 +625,10 @@ type CreateSwapRequestAction struct{}
 
 // todo validate data
 func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+		return swap.HandleError(err)
+	}
+
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(swap.GetRequest())
 	if err != nil {
 		return swap.HandleError(err)
@@ -694,6 +746,45 @@ func (r *PayFeeInvoiceAction) Execute(services *SwapServices, swap *SwapData) Ev
 
 type AwaitTxConfirmationAction struct{}
 
+func validateClaimInvoice(paymentAmountMsat uint64, finalCLTVDelta int64, claimAmountSat uint64, policy timelockPolicy) error {
+	if finalCLTVDelta < 0 || uint64(finalCLTVDelta) > policy.InvoiceFinalCLTV {
+		return fmt.Errorf(
+			"unsafe invoice cltv: %d, maximum: %d",
+			finalCLTVDelta, policy.InvoiceFinalCLTV,
+		)
+	}
+	if paymentAmountMsat != claimAmountSat*1000 {
+		return fmt.Errorf(
+			"invoice amount does not equal swap amount, invoice amount: %d msat, swap amount: %d sat",
+			paymentAmountMsat,
+			claimAmountSat,
+		)
+	}
+	return nil
+}
+
+func checkPaymentWindow(swap *SwapData, currentHeight uint32, policy timelockPolicy) error {
+	if !swap.StartingBlockHeightSet {
+		return errors.New("could not get starting block height of the swap")
+	}
+	if currentHeight < swap.StartingBlockHeight {
+		return fmt.Errorf(
+			"current block height %d is below swap starting height %d",
+			currentHeight,
+			swap.StartingBlockHeight,
+		)
+	}
+	deadline := uint64(swap.StartingBlockHeight) + uint64(policy.PaymentWindow)
+	if uint64(currentHeight) >= deadline {
+		return fmt.Errorf(
+			"claim payment deadline exceeded: current height %d, deadline %d",
+			currentHeight,
+			deadline,
+		)
+	}
+	return nil
+}
+
 // todo this will not ever throw an error
 func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	// This is a state that could be called on recovery and needs to be
@@ -704,45 +795,60 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	policy, err := swap.getTimelockPolicy()
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	if !policy.AllowNewClaimPayment {
+		// The event context is stored before the state transition. Therefore, a
+		// crash while paying can leave us in this state with the confirmed
+		// opening transaction already persisted. Only that recovery case may
+		// follow an existing payment; a fresh legacy payment remains forbidden.
+		if swap.OpeningTxHex == "" {
+			return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
+		}
+		preimage, err := services.lightning.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
+		if err != nil {
+			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
+		}
+		swap.ClaimPreimage = preimage
+		return Event_OnTxConfirmed
+	}
 
 	// First check the preconditions, invoice min_final_cltv_expiry needs to be
 	// is a safe range. Safe means that the payee can not hodl the htlc to an
 	// overlap with the on-chain htlc in a way that the payee can claim a refund
 	// on-chain before they accept the payment htlc.
-	phash, msatAmount, expiry, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
+	paymentHash, amountMsat, finalCLTVDelta, err := services.lightning.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
 	}
 
-	safetyLimit := validator.GetCSVHeight() / 2
-	if expiry > int64(safetyLimit) {
-		return swap.HandleError(fmt.Errorf(
-			"unsafe invoice cltv: %d, expected below: %d",
-			expiry, safetyLimit,
-		))
-	}
-
-	// Next we check that the invoice amount matches the requested swap amount.
-	if msatAmount != swap.GetClaimAmount()*1000 {
-		return swap.HandleError(fmt.Errorf(
-			"invoice amount does not equal swap amount, invoice: %v, swap %v",
-			swap.OpeningTxBroadcasted.Payreq,
-			swap.GetClaimAmount(),
-		))
+	if swap.GetChain() == btc_chain {
+		safetyLimit := validator.GetCSVHeight() / 2
+		if finalCLTVDelta > int64(safetyLimit) {
+			return swap.HandleError(fmt.Errorf(
+				"unsafe invoice cltv: %d, expected below: %d",
+				finalCLTVDelta, safetyLimit,
+			))
+		}
+		if amountMsat != swap.GetClaimAmount()*1000 {
+			return swap.HandleError(fmt.Errorf(
+				"invoice amount does not equal swap amount, invoice: %v, swap %v",
+				swap.OpeningTxBroadcasted.Payreq,
+				swap.GetClaimAmount(),
+			))
+		}
+	} else if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
+		return swap.HandleError(err)
 	}
 
 	// Bind the payment hash to the swap (this is legacy code)
-	swap.ClaimPaymentHash = phash
+	swap.ClaimPaymentHash = paymentHash
 
 	// Check that we have a starting block height set. This is to
 	// ensure safety across restarts. If it is not set we better
 	// cancel the swap.
-	if swap.StartingBlockHeight == 0 {
-		return swap.HandleError(fmt.Errorf(
-			"could not get starting block height of the swap.",
-		))
-	}
-
 	// Check if we already passed our safety limit and fail early.
 	// This is a shortcut for recovery scenarios where we already are
 	// above our safety limit.
@@ -753,10 +859,19 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		))
 	}
 
-	if height >= swap.StartingBlockHeight+safetyLimit {
-		return swap.HandleError(fmt.Errorf(
-			"exceeded safe swap range.",
-		))
+	if swap.GetChain() == btc_chain {
+		if swap.StartingBlockHeight == 0 {
+			return swap.HandleError(fmt.Errorf(
+				"could not get starting block height of the swap.",
+			))
+		}
+		if height >= swap.StartingBlockHeight+validator.GetCSVHeight()/2 {
+			return swap.HandleError(fmt.Errorf(
+				"exceeded safe swap range.",
+			))
+		}
+	} else if err := checkPaymentWindow(swap, height, policy); err != nil {
+		return swap.HandleError(err)
 	}
 
 	// We have to extract and add the script to the watcher for LND
@@ -765,7 +880,14 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		return swap.HandleError(err)
 	}
 
-	txWatcher.AddWaitForConfirmationTx(swap.GetId().String(), swap.OpeningTxBroadcasted.TxId, swap.OpeningTxBroadcasted.ScriptOut, swap.StartingBlockHeight, wantScript)
+	txWatcher.AddWaitForConfirmationTx(
+		swap.GetId().String(),
+		swap.OpeningTxBroadcasted.TxId,
+		swap.OpeningTxBroadcasted.ScriptOut,
+		swap.StartingBlockHeight,
+		policy.PaymentWindow,
+		wantScript,
+	)
 	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
 	return NoOp
 }
@@ -779,6 +901,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if err != nil {
 		return swap.HandleError(err)
 	}
+	policy, err := swap.getTimelockPolicy()
+	if err != nil {
+		return swap.HandleError(err)
+	}
 
 	// todo get opening tx hex
 	ok, err := validator.ValidateTx(swap.GetOpeningParams(), swap.OpeningTxHex)
@@ -787,6 +913,17 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
+	}
+	if !policy.AllowNewClaimPayment {
+		if swap.ClaimPreimage != "" {
+			return Event_ActionSucceeded
+		}
+		preimage, err := lc.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
+		if err != nil {
+			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
+		}
+		swap.ClaimPreimage = preimage
+		return Event_ActionSucceeded
 	}
 
 	var retryTime time.Duration = 120 * time.Second
@@ -822,12 +959,22 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			if err != nil {
 				return swap.HandleError(err)
 			}
-			if (now - swap.StartingBlockHeight) > validator.GetCSVHeight()/2 {
+			if swap.GetChain() == btc_chain && (now-swap.StartingBlockHeight) > validator.GetCSVHeight()/2 {
 				log.Debugf("[Swap:%s] passed csv limit blockheight now=%d, blockheight starting=%d", swap.GetId(), now, swap.StartingBlockHeight)
 				swap.LastErr = err
 				return swap.HandleError(err)
 			}
-			preimage, err = lc.RebalancePayment(swap.OpeningTxBroadcasted.Payreq, swap.GetScid())
+			if swap.GetChain() == l_btc_chain {
+				if err := checkPaymentWindow(swap, now, policy); err != nil {
+					log.Debugf("[Swap:%s] claim payment is outside the safe window: %v", swap.GetId(), err)
+					return swap.HandleError(err)
+				}
+			}
+			preimage, err = lc.RebalancePayment(
+				swap.OpeningTxBroadcasted.Payreq,
+				swap.GetScid(),
+				policy.MaxTotalCLTVDelta,
+			)
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
 				payErr = err
@@ -856,9 +1003,23 @@ func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *Swa
 		return Event_ActionFailed
 	}
 
-	// Check if we already set a Blockheight and set if not. This check will
-	// leave the starting block height untouched in case of a restart. In the
-	// case of a restart we check if we already exceeded the csv limit.
+	// Liquid v7 starts its short payment window before the peer can broadcast
+	// the opening transaction. Never replace that persisted anchor here.
+	if swap.GetChain() == l_btc_chain && swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
+		policy, err := swap.getTimelockPolicy()
+		if err != nil {
+			swap.LastErr = err
+			return Event_ActionFailed
+		}
+		if err := checkPaymentWindow(swap, now, policy); err != nil {
+			swap.LastErr = err
+			swap.CancelMessage = err.Error()
+			return Event_ActionFailed
+		}
+		return NoOp
+	}
+
+	// Preserve the legacy Bitcoin and Liquid behavior.
 	if swap.StartingBlockHeight == 0 {
 		swap.StartingBlockHeight = now
 	} else if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {

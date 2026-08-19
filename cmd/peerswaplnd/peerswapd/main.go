@@ -218,7 +218,11 @@ func run() error {
 			}
 
 			// txwatcher
-			liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(ctx, txwatcher.NewElementsCli(liquidCli), onchain.LiquidConfs, onchain.LiquidCsv)
+			liquidTxWatcher = txwatcher.NewBlockchainRpcTxWatcher(
+				ctx,
+				txwatcher.NewElementsCli(liquidCli),
+				onchain.LiquidConfs,
+			)
 
 			// LiquidChain
 			liquidChain, err := getLiquidChain(liquidCli)

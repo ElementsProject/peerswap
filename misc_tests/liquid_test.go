@@ -465,6 +465,7 @@ func Test_RpcWalletPreimage(t *testing.T) {
 		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
+		CSV:              60,
 		BlindingKey:      blindingKey,
 	}
 
@@ -542,6 +543,7 @@ func Test_RpcWalletCsv(t *testing.T) {
 		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
+		CSV:              60,
 		BlindingKey:      blindingKey,
 	}
 
@@ -619,6 +621,7 @@ func Test_RpcWalletCoop(t *testing.T) {
 		MakerPubkey:      hex.EncodeToString(bobPrivkey.PubKey().SerializeCompressed()),
 		ClaimPaymentHash: hex.EncodeToString(pHash[:]),
 		Amount:           100000,
+		CSV:              60,
 		BlindingKey:      blindingKey,
 	}
 
@@ -681,7 +684,7 @@ func Test_RpcWalletCoop(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	redeemScript, err := onchain.ParamsToTxScript(openingParams, onchain.LiquidCsv)
+	redeemScript, err := onchain.ParamsToTxScript(openingParams, openingParams.CSV)
 	if err != nil {
 		t.Fatal(err)
 	}
