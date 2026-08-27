@@ -66,11 +66,11 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	shutdown := make(chan struct{})
-	sigChan := make(chan os.Signal)
+	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigChan)
 	go func() {
 		defer close(shutdown)
-		defer close(sigChan)
 
 		select {
 		case sig := <-sigChan:
