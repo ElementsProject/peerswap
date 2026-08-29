@@ -14,7 +14,7 @@ type DummyPayerWaiter struct {
 	sendPayPartsAndWaitReturn      *glightning.SendPayFields
 	sendPayPartsAndWaitErrorReturn *error
 
-	totalPayed uint64
+	totalPaid uint64
 }
 
 func TestBuildDirectClaimRouteCLTVBoundary(t *testing.T) {
@@ -48,7 +48,7 @@ func (d *DummyPayerWaiter) SendPayPartAndWait(paymentRequest string, bolt11 *gli
 	d.Lock()
 	defer d.Unlock()
 	d.sendPayPartsAndWaitCalled++
-	d.totalPayed += amountMsat
+	d.totalPaid += amountMsat
 
 	if d.sendPayPartsAndWaitErrorReturn != nil {
 		return nil, *d.sendPayPartsAndWaitErrorReturn
