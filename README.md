@@ -1,3 +1,24 @@
+> [!CAUTION]
+> **Liquid network security incident — new L-BTC swaps disabled in v7.0.1.**
+>
+> v7.0.1 disables new L-BTC swap requests in both directions. Existing swap
+> recovery mechanisms remain enabled, but recovery depends on network
+> availability and the state of the recovered chain and is not guaranteed.
+> Keep your PeerSwap data and wallet backups, and keep your Liquid backend
+> configured for recovery. Bitcoin swaps are unchanged by this update.
+>
+> See the [Liquid Network statement](https://x.com/Liquid_BTC/status/2096696272447218108)
+> and follow [@Liquid_BTC](https://x.com/Liquid_BTC) for official updates.
+> This notice will be updated as more information becomes available.
+> Last updated: 2026-09-07 UTC.
+
+<details>
+<summary>Screenshot of the Liquid Network statement (captured 2026-09-07)</summary>
+
+[![Liquid Network's public statement about the security incident](./docs/img/liquid-incident-2026-09-06.jpg)](https://x.com/Liquid_BTC/status/2096696272447218108)
+
+</details>
+
 ![peerswap logo](./docs/img/peerswap-logo.png)
 # PeerSwap
 
