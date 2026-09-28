@@ -12,13 +12,6 @@
 > This notice will be updated as more information becomes available.
 > Last updated: 2026-09-07 UTC.
 
-<details>
-<summary>Screenshot of the Liquid Network statement (captured 2026-09-07)</summary>
-
-[![Liquid Network's public statement about the security incident](./docs/img/liquid-incident-2026-09-06.jpg)](https://x.com/Liquid_BTC/status/2096696272447218108)
-
-</details>
-
 ![peerswap logo](./docs/img/peerswap-logo.png)
 # PeerSwap
 
