@@ -1,7 +1,6 @@
 package swap
 
 import (
-	"errors"
 	"testing"
 )
 
@@ -185,11 +184,11 @@ func TestLegacyLiquidRecoveryDoesNotCreatePayment(t *testing.T) {
 	assertEqual(t, 1, lightning.recoverPaymentCalled)
 	assertEqual(t, 0, lightning.rebalanceCalled)
 
-	lightning.recoverPaymentError = errors.New("payment not found")
+	lightning.recoverPaymentError = ErrClaimPaymentNotFound
 	data.ClaimPreimage = ""
 	event = (&ValidateTxAndPayClaimInvoiceAction{}).Execute(services, data)
 	assertEqual(t, Event_ActionFailed, event)
-	assertError(t, data.LastErr, "recover legacy claim payment: payment not found")
+	assertError(t, data.LastErr, "claim payments are disabled for legacy swaps")
 }
 
 func swapDataForPolicy(chain string, version uint8) *SwapData {

@@ -605,6 +605,16 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerSendPrivkeyAction struct{}
 
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	// A crash can persist the confirmation before persisting the payment
+	// state. Never interpret an RPC/stream error as proof that payment failed.
+	if swap.ClaimPreimage != "" || swap.OpeningTxHex != "" {
+		if event, recovered := recoverClaimPayment(services, swap); recovered {
+			if event == Event_ActionSucceeded {
+				return Event_OnClaimInvoicePaid
+			}
+			return event
+		}
+	}
 	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
 		SwapId:  swap.GetId(),
@@ -618,6 +628,19 @@ func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData)
 	swap.NextMessageType = nextMessageType
 
 	return Event_ActionSucceeded
+}
+
+// TakerSendCoopCloseAction also checks recovery of a persisted, unsent refund
+// message. Older versions may have prepared it while a payment was in flight.
+type TakerSendCoopCloseAction struct{}
+
+// Execute rechecks the payment before sending the cooperative-close key.
+func (s *TakerSendCoopCloseAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	event := (&TakerSendPrivkeyAction{}).Execute(services, swap)
+	if event != Event_ActionSucceeded {
+		return event
+	}
+	return (&SendMessageAction{}).Execute(services, swap)
 }
 
 // CreateSwapRequestAction creates the swap data
@@ -799,20 +822,13 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	if !policy.AllowNewClaimPayment {
-		// The event context is stored before the state transition. Therefore, a
-		// crash while paying can leave us in this state with the confirmed
-		// opening transaction already persisted. Only that recovery case may
-		// follow an existing payment; a fresh legacy payment remains forbidden.
-		if swap.OpeningTxHex == "" {
-			return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
-		}
-		preimage, err := services.lightning.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
-		if err != nil {
-			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
-		}
-		swap.ClaimPreimage = preimage
+	if swap.OpeningTxHex != "" {
+		// The confirmation is persisted before payment starts. On recovery,
+		// follow any existing payment before applying new-payment limits.
 		return Event_OnTxConfirmed
+	}
+	if !policy.AllowNewClaimPayment {
+		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
 	}
 
 	// First check the preconditions, invoice min_final_cltv_expiry needs to be
@@ -892,6 +908,36 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	return NoOp
 }
 
+// recoverClaimPayment returns handled=false only when the backend has established
+// that no payment can settle. All other outcomes must retain the taker's key.
+func recoverClaimPayment(services *SwapServices, swap *SwapData) (event EventType, handled bool) {
+	if swap.ClaimPreimage != "" {
+		return Event_ActionSucceeded, true
+	}
+	preimage, err := services.lightning.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
+	if errors.Is(err, ErrClaimPaymentNotFound) || errors.Is(err, ErrClaimPaymentFailed) {
+		return NoOp, false
+	}
+	if err == nil && preimage != "" {
+		swap.ClaimPreimage = preimage
+		return Event_ActionSucceeded, true
+	}
+	if err == nil {
+		err = errors.New("payment recovery returned an empty preimage")
+	}
+	swap.LastErr = fmt.Errorf("claim payment outcome is unresolved: %w", err)
+	log.Infof("[Swap:%s] %v; retaining taker key", swap.GetId(), swap.LastErr)
+	// Keep checking even across long RPC outages. The ordinary FSM retry
+	// budget is finite and would otherwise strand an accepted payment.
+	if swap.toCancel != nil {
+		swap.toCancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	swap.toCancel = cancel
+	services.toService.addNewTimeOut(ctx, 10*time.Second, swap.GetId().String())
+	return NoOp, true
+}
+
 // ValidateTxAndPayClaimInvoiceAction pays the claim invoice
 type ValidateTxAndPayClaimInvoiceAction struct{}
 
@@ -914,16 +960,11 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
 	}
+	if event, recovered := recoverClaimPayment(services, swap); recovered {
+		return event
+	}
 	if !policy.AllowNewClaimPayment {
-		if swap.ClaimPreimage != "" {
-			return Event_ActionSucceeded
-		}
-		preimage, err := lc.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
-		if err != nil {
-			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
-		}
-		swap.ClaimPreimage = preimage
-		return Event_ActionSucceeded
+		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
 	}
 
 	var retryTime time.Duration = 120 * time.Second
@@ -978,7 +1019,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
 				payErr = err
-				// Another round!
+				if event, recovered := recoverClaimPayment(services, swap); recovered {
+					return event
+				}
+				// Only retry after proving the previous payment cannot settle.
 				continue
 			}
 

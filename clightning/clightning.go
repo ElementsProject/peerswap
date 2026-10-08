@@ -549,38 +549,50 @@ func (cl *ClightningClient) RebalancePayment(
 	return cl.payInvoiceViaChannel(payreq, channel, maxTotalCLTVDelta)
 }
 
-// RecoverClaimPayment waits for an already-created outgoing payment without
-// creating another HTLC. It is used to recover legacy swaps safely.
+// RecoverClaimPayment checks an already-created outgoing payment without
+// creating another HTLC.
 func (cl *ClightningClient) RecoverClaimPayment(payreq string) (preimage string, err error) {
-	bolt11, err := cl.glightning.DecodeBolt11(payreq)
+	return recoverClaimPayment(cl.glightning, payreq)
+}
+
+const (
+	claimPaymentComplete = "complete"
+	claimPaymentFailed   = "failed"
+)
+
+type claimPaymentTracker interface {
+	DecodeBolt11(string) (*glightning.DecodedBolt11, error)
+	ListSendPaysByHash(string) ([]glightning.SendPayFields, error)
+}
+
+func recoverClaimPayment(client claimPaymentTracker, payreq string) (string, error) {
+	bolt11, err := client.DecodeBolt11(payreq)
 	if err != nil {
 		return "", err
 	}
 
-	payments, err := cl.glightning.ListSendPaysByHash(bolt11.PaymentHash)
+	payments, err := client.ListSendPaysByHash(bolt11.PaymentHash)
 	if err != nil {
 		return "", err
 	}
 	if len(payments) == 0 {
-		return "", errors.New("claim payment was not found")
+		return "", swap.ErrClaimPaymentNotFound
 	}
 
+	allFailed := true
 	for _, payment := range payments {
-		if payment.Status == "complete" && payment.PaymentPreimage != "" {
+		if payment.Status == claimPaymentComplete && payment.PaymentPreimage != "" {
 			return payment.PaymentPreimage, nil
 		}
-	}
-	for _, payment := range payments {
-		if payment.Status == "pending" {
-			result, err := cl.glightning.WaitSendPay(bolt11.PaymentHash, 0)
-			if err != nil {
-				return "", err
-			}
-			return result.PaymentPreimage, nil
+		if payment.Status != claimPaymentFailed {
+			allFailed = false
 		}
 	}
-
-	return "", errors.New("claim payment already failed")
+	if allFailed {
+		return "", swap.ErrClaimPaymentFailed
+	}
+	// A held HTLC must not block startup. The swap will check its status again.
+	return "", errors.New("claim payment has an unresolved status")
 }
 
 // isPeerConnected returns true if the peer is connected to the cln node.

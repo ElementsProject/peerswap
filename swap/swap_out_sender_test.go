@@ -315,6 +315,9 @@ func (d *dummyLightningClient) RebalancePayment(
 
 func (d *dummyLightningClient) RecoverClaimPayment(payreq string) (preimage string, err error) {
 	d.recoverPaymentCalled++
+	if d.recoverPaymentError == nil && d.recoverPaymentPreimage == "" {
+		return "", ErrClaimPaymentNotFound
+	}
 	return d.recoverPaymentPreimage, d.recoverPaymentError
 }
 

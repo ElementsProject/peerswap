@@ -97,6 +97,7 @@ func getSwapOutSenderStates() States {
 		State_SwapOutSender_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
+				Event_OnTimeout:       State_SwapOutSender_ValidateTxAndPayClaimInvoice,
 				Event_ActionFailed:    State_SwapOutSender_SendPrivkey,
 				Event_ActionSucceeded: State_SwapOutSender_ClaimSwap,
 			},
@@ -106,21 +107,24 @@ func getSwapOutSenderStates() States {
 			Events: Events{
 				Event_ActionSucceeded: State_ClaimedPreimage,
 				Event_OnRetry:         State_SwapOutSender_ClaimSwap,
-				Event_OnTimeout:       State_SwapOutSender_SendPrivkey,
 			},
 		},
 		State_SwapOutSender_SendPrivkey: {
 			Action: &TakerSendPrivkeyAction{},
 			Events: Events{
-				Event_ActionFailed:    State_SendCancel,
-				Event_ActionSucceeded: State_SwapOutSender_SendCoopClose,
+				Event_OnClaimInvoicePaid: State_SwapOutSender_ClaimSwap,
+				Event_OnTimeout:          State_SwapOutSender_SendPrivkey,
+				Event_ActionFailed:       State_SendCancel,
+				Event_ActionSucceeded:    State_SwapOutSender_SendCoopClose,
 			},
 		},
 		State_SwapOutSender_SendCoopClose: {
-			Action: &SendMessageAction{},
+			Action: &TakerSendCoopCloseAction{},
 			Events: Events{
-				Event_ActionFailed:    State_SendCancel,
-				Event_ActionSucceeded: State_ClaimedCoop,
+				Event_OnTimeout:          State_SwapOutSender_SendCoopClose,
+				Event_OnClaimInvoicePaid: State_SwapOutSender_ClaimSwap,
+				Event_ActionFailed:       State_SendCancel,
+				Event_ActionSucceeded:    State_ClaimedCoop,
 			},
 		},
 		State_SwapCanceled: {

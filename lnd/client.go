@@ -22,6 +22,8 @@ import (
 	"github.com/lightningnetwork/lnd/routing"
 	"github.com/lightningnetwork/lnd/routing/route"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Client combines multiple methods, functions and watchers to a service that
@@ -396,10 +398,15 @@ func (l *Client) RebalancePayment(
 	return l.payInvoiceViaChannel(payreq, channelID, maxTotalCLTVDelta)
 }
 
-// RecoverClaimPayment waits for an already-created outgoing payment without
-// creating another HTLC. It is used to recover legacy swaps safely.
+// RecoverClaimPayment checks an already-created outgoing payment without
+// creating another HTLC. Only a missing or definitively failed payment permits
+// the caller to start a new payment or release the cooperative-close key.
 func (l *Client) RecoverClaimPayment(payreq string) (preimage string, err error) {
-	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
+	// Recovery runs during startup. Return a snapshot so a held HTLC cannot
+	// block startup, and bound the RPC in case the backend does not respond.
+	ctx, cancel := context.WithTimeout(l.ctx, 10*time.Second)
+	defer cancel()
+	decoded, err := l.lndClient.DecodePayReq(ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
 		return "", err
 	}
@@ -408,21 +415,37 @@ func (l *Client) RecoverClaimPayment(payreq string) (preimage string, err error)
 		return "", fmt.Errorf("decode payment hash: %w", err)
 	}
 
-	stream, err := l.routerClient.TrackPaymentV2(l.ctx, &routerrpc.TrackPaymentRequest{
+	stream, err := l.routerClient.TrackPaymentV2(ctx, &routerrpc.TrackPaymentRequest{
 		PaymentHash:       paymentHash,
-		NoInflightUpdates: true,
+		NoInflightUpdates: false,
 	})
 	if err != nil {
-		return "", err
+		return "", claimPaymentTrackingError(err)
 	}
 	payment, err := stream.Recv()
 	if err != nil {
-		return "", fmt.Errorf("track claim payment: %w", err)
+		return "", claimPaymentTrackingError(err)
 	}
-	if payment.Status != lnrpc.Payment_SUCCEEDED || payment.PaymentPreimage == "" {
-		return "", fmt.Errorf("claim payment did not succeed: %s", payment.Status)
+	switch payment.Status {
+	case lnrpc.Payment_SUCCEEDED:
+		if payment.PaymentPreimage == "" {
+			return "", errors.New("successful claim payment has no preimage")
+		}
+		return payment.PaymentPreimage, nil
+	case lnrpc.Payment_FAILED:
+		return "", swap.ErrClaimPaymentFailed
+	default:
+		// Pending and unknown states remain unresolved. The swap action
+		// schedules another check without retrying the payment itself.
+		return "", fmt.Errorf("claim payment has unresolved status: %s", payment.Status)
 	}
-	return payment.PaymentPreimage, nil
+}
+
+func claimPaymentTrackingError(err error) error {
+	if status.Code(err) == codes.NotFound {
+		return swap.ErrClaimPaymentNotFound
+	}
+	return fmt.Errorf("track claim payment: %w", err)
 }
 
 func (l *Client) SendMessage(peerId string, message []byte, messageType int) error {
