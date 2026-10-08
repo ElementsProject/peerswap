@@ -380,7 +380,7 @@ After the peers agreed to the swap conditions, the `swap maker` broadcasts the [
 
 The sending node (swap maker):
 * MUST set `swap_id` matching the ongoing swap.
-* MUST set `payreq` to a valid [BOLT#11](#https://github.com/Lightning/bolts/blob/master/11-payment-encoding.md) invoice with the amount that was requested in `amount` of the swap request and the payment_hash of the [`opening_transaction`](#opening-transaction) and a [reasonable `expiry`](#timeouts-and-invoice-expiry).
+* MUST set `payreq` to a valid [BOLT#11](https://github.com/Lightning/bolts/blob/master/11-payment-encoding.md) invoice with the amount that was requested in `amount` of the swap request and the payment_hash of the [`opening_transaction`](#opening-transaction), satisfying the [invoice timing requirements](#timeouts-and-invoice-expiry).
 * MUST set `tx_id` to the id of the broadcasted [`opening_transaction`](#opening-transaction).
 * MUST set `script_out` to the output index that contains the script for the [`opening_transaction`](#opening-transaction)
 * if `asset` was set in the request:
@@ -410,14 +410,16 @@ The receiving node (swap taker):
 * if this fails:
   * MUST [fail the swap](#failing-a-swap).
 * otherwise:
-  * MUST pay the swap invoice over the channel with the negotiated `scid`.
-    * if this fails:
-      * SHOULD retry to pay the invoice, but MUST NOT pay the invoice if current block height exceeds `CONFIRMATION_HEIGHT + R/2`, where `CONFIRMATION_HEIGHT` is the height of the block at which the [`opening_transaction`](#opening-transaction) counts as [confirmed](#csv-times-and-confirmations), and `R` is the relative locktime of the `claim_by_csv` path of the [`opening_transaction`](#opening-transaction).
-      * if this fails:
-        * MUST  [fail the swap](#failing-a-swap).
-    * otherwise:
-      * MUST broadcast the `claim_by_preimage`[`claim_transaction`](#claim-transaction) with a fee high enough to ensure that the transaction is confirmed before the `claim_by_csv` spending path is possible.
-      * MUST consider the swap finished after the [`claim_transaction`](#claim-transaction) has been confirmed.
+  * MUST check for an existing claim payment, including after a restart.
+  * if no payment exists:
+    * MUST pay the swap invoice over the channel with the negotiated `scid`, or [fail the swap](#failing-a-swap) if the [payment limits](#timeouts-and-invoice-expiry) disallow it.
+  * if all payment attempts have definitively failed:
+    * SHOULD retry within the payment limits; otherwise, MUST [fail the swap](#failing-a-swap).
+  * if a payment is pending or its outcome is unknown:
+    * MUST continue tracking it and MUST NOT start another payment, even after a timeout or RPC error.
+  * if payment succeeds, including on recovery:
+    * MUST broadcast the `claim_by_invoice` [claim transaction](#claim-transaction) with a fee high enough to ensure confirmation before the `claim_by_csv` spending path is possible.
+    * MUST consider the swap finished after the claim transaction has been confirmed.
 
 ## Failing a Swap
 When a node cancels a swap, the most effective way should be used to avoid unnecessary long on-chain locks for the swap partner. This means that if the swap fails after the [`opening_transaction`](#opening-transaction) was broadcasted (e.g. because the invoice can not be paid), the swap taker should be cooperative and fail the swap via the [`coop_close` message](#the-coop_close-message).
@@ -476,6 +478,8 @@ The receiving node:
 
 ##### Requirements
 The sending node (swap taker):
+
+* MUST NOT send `privkey` if a claim payment has succeeded, is pending, or has an unknown outcome, including when resuming a saved `coop_close` after restart.
 * MUST set `swap_id` matching the ongoing swap.
 * SHOULD set a meaningful `message`.
 * if the node is the initiator:
@@ -508,7 +512,13 @@ The difference in timings is due to the different fee and consensus models of th
 
 #### Timeouts and Invoice expiry
 
-For Bitcoin, the expiry of the `swap invoice` MUST be less than or equal to half the CSV time.
+For Bitcoin:
+
+* The claim invoice MUST use a final CLTV delta of at most 503 Bitcoin blocks.
+* The paying peer MUST bound the total sender deadline delta, including backend offsets and padding, to at most 506 Bitcoin blocks.
+* The paying peer MUST persist the current Bitcoin height `S` before sending `swap_out_request` or `swap_in_agreement`, and MUST NOT replace it on recovery.
+* It MUST NOT create or retry the claim payment unless `S <= current_height < S + 60`, checked while waiting for confirmation and immediately before each attempt.
+* An existing swap without this pre-key height MUST NOT start or retry a claim payment. Existing payments MUST still be recovered.
 
 For Liquid protocol version 7:
 
