@@ -139,8 +139,10 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 // SwapInReceiverInitAction creates the swap-in process
 type SwapInReceiverInitAction struct{}
 
-func setLiquidPaymentWindowAnchor(services *SwapServices, swap *SwapData) error {
-	if swap.GetChain() != l_btc_chain || swap.GetProtocolVersion() != PEERSWAP_PROTOCOL_VERSION {
+// setPaymentWindowAnchor runs before the taker public key is sent to the peer.
+// A later anchor could let a peer age its opening output before our clock starts.
+func setPaymentWindowAnchor(services *SwapServices, swap *SwapData) error {
+	if swap.GetChain() != btc_chain && swap.GetProtocolVersion() != PEERSWAP_PROTOCOL_VERSION {
 		return nil
 	}
 
@@ -158,7 +160,7 @@ func setLiquidPaymentWindowAnchor(services *SwapServices, swap *SwapData) error 
 }
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+	if err := setPaymentWindowAnchor(services, swap); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -646,9 +648,9 @@ func (s *TakerSendCoopCloseAction) Execute(services *SwapServices, swap *SwapDat
 // CreateSwapRequestAction creates the swap data
 type CreateSwapRequestAction struct{}
 
-// todo validate data
+// Execute anchors the payment deadline before preparing the request.
 func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+	if err := setPaymentWindowAnchor(services, swap); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -814,7 +816,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	// idempotent.
 
 	// Get the onchain services (depends on the chain).
-	txWatcher, wallet, validator, err := services.getOnChainServices(swap.GetChain())
+	txWatcher, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -840,22 +842,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		return swap.HandleError(err)
 	}
 
-	if swap.GetChain() == btc_chain {
-		safetyLimit := validator.GetCSVHeight() / 2
-		if finalCLTVDelta > int64(safetyLimit) {
-			return swap.HandleError(fmt.Errorf(
-				"unsafe invoice cltv: %d, expected below: %d",
-				finalCLTVDelta, safetyLimit,
-			))
-		}
-		if amountMsat != swap.GetClaimAmount()*1000 {
-			return swap.HandleError(fmt.Errorf(
-				"invoice amount does not equal swap amount, invoice: %v, swap %v",
-				swap.OpeningTxBroadcasted.Payreq,
-				swap.GetClaimAmount(),
-			))
-		}
-	} else if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
+	if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -875,18 +862,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		))
 	}
 
-	if swap.GetChain() == btc_chain {
-		if swap.StartingBlockHeight == 0 {
-			return swap.HandleError(fmt.Errorf(
-				"could not get starting block height of the swap.",
-			))
-		}
-		if height >= swap.StartingBlockHeight+validator.GetCSVHeight()/2 {
-			return swap.HandleError(fmt.Errorf(
-				"exceeded safe swap range.",
-			))
-		}
-	} else if err := checkPaymentWindow(swap, height, policy); err != nil {
+	if err := checkPaymentWindow(swap, height, policy); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -966,6 +942,14 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !policy.AllowNewClaimPayment {
 		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
 	}
+	// Revalidate on recovery as well as before the confirmation watch.
+	_, amountMsat, finalCLTVDelta, err := lc.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
+		return swap.HandleError(err)
+	}
 
 	var retryTime time.Duration = 120 * time.Second
 	var interval time.Duration = 10 * time.Second
@@ -1000,17 +984,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			if err != nil {
 				return swap.HandleError(err)
 			}
-			if swap.GetChain() == btc_chain && (now-swap.StartingBlockHeight) > validator.GetCSVHeight()/2 {
-				log.Debugf("[Swap:%s] passed csv limit blockheight now=%d, blockheight starting=%d", swap.GetId(), now, swap.StartingBlockHeight)
-				swap.LastErr = err
+			if err := checkPaymentWindow(swap, now, policy); err != nil {
 				return swap.HandleError(err)
 			}
-			if swap.GetChain() == l_btc_chain {
-				if err := checkPaymentWindow(swap, now, policy); err != nil {
-					log.Debugf("[Swap:%s] claim payment is outside the safe window: %v", swap.GetId(), err)
-					return swap.HandleError(err)
-				}
-			}
+
 			preimage, err = lc.RebalancePayment(
 				swap.OpeningTxBroadcasted.Payreq,
 				swap.GetScid(),
@@ -1032,8 +1009,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 }
 
+// SetStartingBlockHeightAction checks the persisted payment anchor.
 type SetStartingBlockHeightAction struct{}
 
+// Execute preserves trusted anchors and rejects late or unanchored payments.
 func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
@@ -1047,9 +1026,9 @@ func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *Swa
 		return Event_ActionFailed
 	}
 
-	// Liquid v7 starts its short payment window before the peer can broadcast
-	// the opening transaction. Never replace that persisted anchor here.
-	if swap.GetChain() == l_btc_chain && swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
+	// Bitcoin and Liquid v7 anchor before exposing the taker key. Old Bitcoin
+	// records lack this guarantee and must not initiate a new claim payment.
+	if swap.GetChain() == btc_chain || swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
 		policy, err := swap.getTimelockPolicy()
 		if err != nil {
 			swap.LastErr = err
@@ -1063,7 +1042,7 @@ func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *Swa
 		return NoOp
 	}
 
-	// Preserve the legacy Bitcoin and Liquid behavior.
+	// Preserve legacy Liquid refund recovery behavior.
 	if swap.StartingBlockHeight == 0 {
 		swap.StartingBlockHeight = now
 	} else if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {

@@ -320,7 +320,7 @@ func (l *BlockchainRpcTxWatcher) observationLoop(
 			// Check if we are outside of our safety limits. This can happen on
 			// restart. If the current block height is above our safety limits,
 			// we cancel the swap.
-			if current >= startingHeight+safetyLimit {
+			if current < startingHeight || uint64(current) >= uint64(startingHeight)+uint64(safetyLimit) {
 				l.callbackAndLog(swapId, "", fmt.Errorf("exceeded csv limit"))
 				return
 			}
@@ -347,16 +347,15 @@ func (l *BlockchainRpcTxWatcher) observationLoop(
 				return
 			}
 
-			// Check that the amount of confirmation matches with what we expect
-			// First check that we are in a safe range.
-			if firstSeen > startingHeight+safetyLimit {
+			// Also bound the actual confirmation age, in case the opening
+			// transaction predates the persisted starting height.
+			if firstSeen > current || uint64(current)+1 >= uint64(firstSeen)+uint64(safetyLimit) {
 				l.callbackAndLog(swapId, "", fmt.Errorf("exceeded csv limit"))
 				return
 			}
 
-			// Now check if we got enough confirmations. We use first seen - 1
-			// as this is the block the tx was confirmed in the first time.
-			if current-(firstSeen-1) >= l.requiredConfs {
+			// Include the block in which the transaction first confirmed.
+			if uint64(current)+1-uint64(firstSeen) >= uint64(l.requiredConfs) {
 				// We finally made it, enough confirmations and below the safety
 				// limit!
 				l.callbackAndLog(swapId, rawTx, nil)

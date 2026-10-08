@@ -3,6 +3,7 @@ package lnd
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -155,7 +156,11 @@ func (t *TxWatcher) addTxWatcher(ctx context.Context, swapId string, txId string
 // the callback as soon as the tx is confirmed. The empty uint32 parameter is
 // due to the Watcher interface of swap expecting a signature with a vout
 // parameter.
-func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint32, heightHint uint32, _ uint32, script []byte) {
+//
+//nolint:cyclop,gocognit,revive // Retain existing flow (complexity) and parameter names (revive).
+func (t *TxWatcher) AddWaitForConfirmationTx(
+	swapId string, txId string, _ uint32, heightHint uint32, paymentWindow uint32, script []byte,
+) {
 	t.Lock()
 	if _, ok := t.confirmationWatchers[swapId]; ok {
 		log.Debugf("[TxWatcher] Swap: %s: Tried to resubscribe to tx watcher for tx %s", swapId, txId)
@@ -195,11 +200,9 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 		for {
 			select {
 			case conf := <-confChan:
-				// This tx watcher can also be used on recovery. This can lead to
-				// the situation that the tx is confirmed but also already too close
-				// to the CSV limit. Therefore we have to check on what we trigger
-				// here:  confirmationCallback for the case that we are in the
-				// limits, csvPassedCallback if we are above the csv limit.
+				if t.confirmationCallback == nil {
+					return
+				}
 				currentHeight, err := t.GetBlockHeight()
 				if err != nil {
 					// TODO: Add error return to somehow handle error in swap. Else
@@ -208,27 +211,20 @@ func (t *TxWatcher) AddWaitForConfirmationTx(swapId string, txId string, _ uint3
 					return
 				}
 
-				// We add a +1 as the confirmation block height is the height of
-				// first confirmation.
-				confs := currentHeight - conf.blockHeight + 1
-				if confs >= onchain.BitcoinCsvSafetyLimit {
-					// We are already above half of the csv limit here, it is
-					// unsafe to pay for the invoice now.
-					// TODO: Check if this is handled correctly by the swap state
-					// machine.
-					log.Infof("[TxWatcher] Wait for confirmation on swap %s: Confirmations already above csv limit for tx %s", swapId, txId)
-					_ = t.csvPassedCallback(swapId)
+				// Respect the persisted anchor and the transaction's actual age.
+				// Widen before arithmetic, and reject a tip behind either height.
+				if currentHeight < heightHint || currentHeight < conf.blockHeight ||
+					uint64(currentHeight) >= uint64(heightHint)+uint64(paymentWindow) ||
+					uint64(currentHeight)+1 >= uint64(conf.blockHeight)+uint64(paymentWindow) {
+					_ = t.confirmationCallback(swapId, "", errors.New("exceeded safe payment window"))
 					return
 				}
+				confs := currentHeight - conf.blockHeight + 1
 
 				// Why should a callback have a return? Let the receiving part of
 				// the software decide what to do!
 				// TODO: rework callbacks.
 				log.Infof("[TxWatcher] Wait for confirmation on swap %s: Got %d confirmations call callback", swapId, confs)
-				if t.confirmationCallback == nil {
-					log.Infof("[TxWatcher] Wait for confirmation on swap %s: confirmationCallback is nil", swapId)
-					return
-				}
 				_ = t.confirmationCallback(swapId, hex.EncodeToString(conf.rawTx), nil)
 				return
 			case err := <-errChan:

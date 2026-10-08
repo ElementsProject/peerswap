@@ -124,6 +124,66 @@ func Test_RpcTxWatcherRejectsAtPaymentDeadline(t *testing.T) {
 	}
 }
 
+func Test_RpcTxWatcherConfirmationPaymentWindow(t *testing.T) {
+	tests := []struct {
+		name          string
+		start         uint32
+		current       uint32
+		confirmations uint32
+		window        uint32
+		wantExpired   bool
+	}{
+		{"before deadline", 100, 159, 59, 60, false},
+		{"at deadline", 100, 160, 60, 60, true},
+		{"after deadline", 100, 161, 61, 60, true},
+		{"custom window", 100, 110, 10, 10, true},
+		{"delayed confirmation", 100, 160, 11, 60, true},
+		{"confirmation before anchor", 100, 150, 61, 60, true},
+		{"confirmation age boundary", 100, 159, 60, 60, true},
+		{"height below anchor", 100, 99, 10, 60, true},
+		{"zero window", 100, 100, 1, 0, true},
+		{"height arithmetic does not wrap", ^uint32(0) - 20, ^uint32(0), 20, 30, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &DummyBlockchain{
+				nextBlockheight: uint64(tt.current),
+				nextTxOutResp: &TxOutResp{
+					BestBlockHash: "blockhash",
+					Confirmations: tt.confirmations,
+				},
+			}
+			watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1)
+			callbackErr := make(chan error, 1)
+			watcher.AddConfirmationCallback(func(_ string, rawTx string, err error) error {
+				if err == nil && rawTx != "txhex" {
+					t.Errorf("unexpected transaction: %s", rawTx)
+				}
+				callbackErr <- err
+				return nil
+			})
+			newBlock := make(chan uint32, 1)
+			newBlock <- tt.current
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				watcher.observationLoop(context.Background(), "swap", "tx", 0, tt.start, tt.window, newBlock)
+			}()
+			select {
+			case err := <-callbackErr:
+				if tt.wantExpired {
+					assert.EqualError(t, err, "exceeded csv limit")
+				} else {
+					assert.NoError(t, err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("watcher did not deliver a callback")
+			}
+			<-done
+		})
+	}
+}
+
 func Test_RpcTxWatcherCsv(t *testing.T) {
 	csv := uint32(100)
 	swapId := "foo"

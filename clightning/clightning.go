@@ -511,15 +511,26 @@ func buildDirectClaimRoute(
 ) ([]glightning.RouteHop, error) {
 	delay := uint32(bolt11.MinFinalCltvExpiry + 1)
 	if maxTotalCLTVDelta != 0 {
-		if bolt11.MinFinalCltvExpiry < 0 ||
-			uint64(bolt11.MinFinalCltvExpiry) >= uint64(math.MaxUint32) {
+		if bolt11.MinFinalCltvExpiry < 0 {
 			return nil, fmt.Errorf(
 				"invalid invoice CLTV delta: %d",
 				bolt11.MinFinalCltvExpiry,
 			)
 		}
-		delay = uint32(bolt11.MinFinalCltvExpiry + 1) // #nosec G115 -- bounded above.
-		if err := swap.ValidateTotalCLTVDelta(delay, maxTotalCLTVDelta); err != nil {
+		// The route adds one block to the invoice delta. CLN also uses
+		// current height + 1 as its base and starts the outgoing deadline
+		// handling one block after the resulting HTLC expiry.
+		requiredCLTVDelta := uint64(bolt11.MinFinalCltvExpiry) + 3 // #nosec G115 -- negative values rejected above.
+		if requiredCLTVDelta > math.MaxUint32 {
+			return nil, fmt.Errorf("invoice CLTV delta is too large: %d", requiredCLTVDelta)
+		}
+		delay = uint32(
+			bolt11.MinFinalCltvExpiry + 1,
+		) // #nosec G115 -- bounded above.
+		if err := swap.ValidateTotalCLTVDelta(
+			uint32(requiredCLTVDelta),
+			maxTotalCLTVDelta,
+		); err != nil { // #nosec G115 -- bounded above.
 			return nil, err
 		}
 	}

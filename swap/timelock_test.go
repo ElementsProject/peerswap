@@ -41,8 +41,9 @@ func TestTimelockPolicy(t *testing.T) {
 			version: legacyProtocolVersion,
 			want: timelockPolicy{
 				CSV:                  1008,
-				PaymentWindow:        504,
+				PaymentWindow:        60,
 				InvoiceFinalCLTV:     503,
+				MaxTotalCLTVDelta:    506,
 				AllowNewClaimPayment: true,
 			},
 		},
@@ -52,8 +53,9 @@ func TestTimelockPolicy(t *testing.T) {
 			version: PEERSWAP_PROTOCOL_VERSION,
 			want: timelockPolicy{
 				CSV:                  1008,
-				PaymentWindow:        504,
+				PaymentWindow:        60,
 				InvoiceFinalCLTV:     503,
+				MaxTotalCLTVDelta:    506,
 				AllowNewClaimPayment: true,
 			},
 		},
@@ -118,7 +120,7 @@ func TestSetLiquidPaymentWindowAnchor(t *testing.T) {
 	services := getSwapServices(t, make(chan PeerMessage, 1))
 	data := swapDataForPolicy(l_btc_chain, PEERSWAP_PROTOCOL_VERSION)
 
-	assertNoError(t, setLiquidPaymentWindowAnchor(services, data))
+	assertNoError(t, setPaymentWindowAnchor(services, data))
 	assertEqual(t, uint32(1), data.StartingBlockHeight)
 	assertEqual(t, true, data.StartingBlockHeightSet)
 }
