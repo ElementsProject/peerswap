@@ -4,19 +4,87 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/elementsproject/peerswap/swap"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 const recoveredPreimage = "preimage"
+
+type claimRecoveryServer struct {
+	routerrpc.UnimplementedRouterServer
+	code codes.Code
+}
+
+func (s *claimRecoveryServer) TrackPaymentV2(
+	*routerrpc.TrackPaymentRequest,
+	routerrpc.Router_TrackPaymentV2Server,
+) error {
+	return status.Error(s.code, "payment lookup result")
+}
+
+func TestRecoverClaimPaymentPreservesStatusThroughRetryInterceptor(t *testing.T) {
+	for _, code := range []codes.Code{codes.NotFound, codes.Unknown} {
+		t.Run(code.String(), func(t *testing.T) {
+			listener := bufconn.Listen(1024 * 1024)
+			server := grpc.NewServer()
+			routerrpc.RegisterRouterServer(server, &claimRecoveryServer{code: code})
+			serveErr := make(chan error, 1)
+			go func() { serveErr <- server.Serve(listener) }()
+			t.Cleanup(func() {
+				server.Stop()
+				if err := <-serveErr; err != nil {
+					t.Errorf("gRPC server failed: %v", err)
+				}
+			})
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			conn, err := grpc.DialContext(ctx, "passthrough:///recovery",
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+					return listener.DialContext(ctx)
+				}),
+				grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(
+					grpc_retry.WithAlwaysRetry(),
+					grpc_retry.WithMax(defaultMaxGrpcRetries),
+					grpc_retry.WithBackoff(func(uint) time.Duration { return defaultGrpcBackoffTime }),
+				)),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := conn.Close(); err != nil {
+					t.Error(err)
+				}
+			})
+			client := &Client{ctx: ctx, lndClient: &recoveryLightning{}, routerClient: routerrpc.NewRouterClient(conn)}
+			preimage, err := client.RecoverClaimPayment("invoice")
+			var wantErr error
+			if code == codes.NotFound {
+				wantErr = swap.ErrClaimPaymentNotFound
+			} else if status.Code(err) != code {
+				t.Fatalf("expected original RPC status %s, got %v", code, err)
+			}
+			assertRecoveryOutcome(t, preimage, err, false, wantErr)
+			if ctx.Err() != nil {
+				t.Fatalf("status lookup waited for the retry deadline: %v", ctx.Err())
+			}
+		})
+	}
+}
 
 type recoveryLightning struct{ lnrpc.LightningClient }
 

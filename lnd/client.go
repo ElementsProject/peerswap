@@ -15,6 +15,7 @@ import (
 	"github.com/elementsproject/peerswap/lightning"
 	"github.com/elementsproject/peerswap/onchain"
 	"github.com/elementsproject/peerswap/swap"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
@@ -415,10 +416,12 @@ func (l *Client) RecoverClaimPayment(payreq string) (preimage string, err error)
 		return "", fmt.Errorf("decode payment hash: %w", err)
 	}
 
+	// NotFound is a definitive lookup result. The connection-wide stream
+	// retry interceptor would hide it until this query's deadline expires.
 	stream, err := l.routerClient.TrackPaymentV2(ctx, &routerrpc.TrackPaymentRequest{
 		PaymentHash:       paymentHash,
 		NoInflightUpdates: false,
-	})
+	}, grpc_retry.Disable())
 	if err != nil {
 		return "", claimPaymentTrackingError(err)
 	}
