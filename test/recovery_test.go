@@ -62,21 +62,14 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	}
 	asset := "btc"
 
-	// Do swap.
-	go func() {
-		// We need to run this in a go routine as the Request call is blocking and sometimes does not return.
-		var response map[string]interface{}
-		if err := lightningds[0].Rpc.Request(&clightning.SwapOut{
-			SatAmt:              params.swapAmt,
-			ShortChannelId:      params.scid,
-			Asset:               asset,
-			PremiumLimitRatePPM: params.premiumLimitRatePPM,
-		}, &response); err != nil {
-			if !isAsyncSwapOutRequestCloseError(err) {
-				t.Errorf("SwapOut request failed: %v", err)
-			}
-		}
-	}()
+	// Wait for the opening notification before stopping the maker.
+	var response map[string]interface{}
+	require.NoError(lightningds[0].Rpc.Request(&clightning.SwapOut{
+		SatAmt:              params.swapAmt,
+		ShortChannelId:      params.scid,
+		Asset:               asset,
+		PremiumLimitRatePPM: params.premiumLimitRatePPM,
+	}, &response))
 
 	var premiumAmt uint64
 	if params.swapType == swap.SWAPTYPE_OUT {
@@ -107,7 +100,7 @@ func Test_RestoreFromPassedCSV(t *testing.T) {
 	commitFee, err := waitForTxInMempool(t, params.chainRPC, testframework.TIMEOUT)
 	require.NoError(err)
 
-	// Stop taker peer so that csv can trigger
+	// Stop the maker before confirmation so that csv can trigger.
 	require.NoError(params.makerNode.Stop())
 
 	// Generate one less block than required for csv.

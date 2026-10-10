@@ -232,6 +232,12 @@ func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout, csv uin
 }
 
 func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight, csv uint32, _ []byte) {
+	info := &SwapTxInfo{
+		TxId:                txId,
+		TxVout:              vout,
+		Csv:                 csv,
+		StartingBlockHeight: startingBlockheight,
+	}
 	// Before we add the tx to the watcher we check if the tx is already
 	// above the csv limit.
 	above, err := l.checkTxAboveCsvHight(txId, vout, csv)
@@ -239,22 +245,27 @@ func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint3
 		log.Infof("[TxWatcher] checkTxAboveCsvHeight returned: %s", err.Error())
 	}
 	if above {
-		err = l.csvPassedCallback(swapId)
-		if err == nil {
-			log.Infof("Swap %s already past CSV limit", swapId)
-			return
-		}
-		log.Infof("csv passed callback error: %v", err)
+		// Registration can run while the swap holds its recovery/event lock.
+		// Deliver the callback asynchronously so it can acquire that lock
+		// after the registration returns.
+		go func() {
+			callbackErr := l.csvPassedCallback(swapId)
+			if callbackErr == nil {
+				log.Infof("Swap %s already past CSV limit", swapId)
+				return
+			}
+			log.Infof("csv passed callback error: %v", callbackErr)
+			l.addCsvWatch(swapId, info)
+		}()
+		return
 	}
+	l.addCsvWatch(swapId, info)
+}
 
+func (l *BlockchainRpcTxWatcher) addCsvWatch(swapID string, info *SwapTxInfo) {
 	l.Lock()
 	defer l.Unlock()
-	l.csvtxWatchList[swapId] = &SwapTxInfo{
-		TxId:                txId,
-		TxVout:              vout,
-		Csv:                 csv,
-		StartingBlockHeight: startingBlockheight,
-	}
+	l.csvtxWatchList[swapID] = info
 }
 
 func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
