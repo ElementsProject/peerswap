@@ -520,6 +520,8 @@ For Bitcoin:
 * It MUST NOT create or retry the claim payment unless `S <= current_height < S + 60`, checked while waiting for confirmation and immediately before each attempt.
 * An existing swap without this pre-key height MUST NOT start or retry a claim payment. Existing payments MUST still be recovered.
 
+The earliest opening confirmation at `S + 1` permits a refund at `S + 1009`, while the last payment deadline is `S + 59 + 506 = S + 565`, leaving 444 blocks.
+
 For Liquid protocol version 7:
 
 * The claim invoice MUST use a final CLTV delta of at most 29 Bitcoin blocks.
