@@ -8,6 +8,47 @@ import (
 	"testing"
 )
 
+func TestBitcoinActionsAnchorBeforePreparingKeyMessage(t *testing.T) {
+	for _, direction := range []SwapType{SWAPTYPE_OUT, SWAPTYPE_IN} {
+		t.Run(direction.String(), func(t *testing.T) {
+			const height uint32 = 800_010
+			services, data, _ := bitcoinPaymentFixture(t, height, 503)
+			data.StartingBlockHeight = 0
+			data.StartingBlockHeightSet = false
+			data.PrivkeyBytes = NewSwapData(data.GetId(), "local", "peer").PrivkeyBytes
+			var action Action = &SwapInReceiverInitAction{}
+			if direction == SWAPTYPE_OUT {
+				_, _, pubkey, _, channel := getTestParams()
+				data.SwapOutRequest = &SwapOutRequestMessage{
+					SwapId: data.GetId(), Amount: 100_000, Scid: channel, Pubkey: pubkey,
+					Network: data.GetNetwork(), ProtocolVersion: PEERSWAP_PROTOCOL_VERSION,
+				}
+				data.SwapInRequest = nil
+				data.SwapInAgreement = nil
+				action = &CreateSwapRequestAction{}
+			}
+			assertEqual(t, Event_ActionSucceeded, action.Execute(services, data))
+			assertEqual(t, true, data.StartingBlockHeightSet)
+			assertEqual(t, height, data.StartingBlockHeight)
+			var message struct{ Pubkey string }
+			assertNoError(t, json.Unmarshal(data.NextMessage, &message))
+			if message.Pubkey == "" {
+				t.Fatal("expected the prepared message to contain the taker public key")
+			}
+
+			// The FSM persists this data before sending the prepared message.
+			// #nosec G117 -- The fixture only contains a generated test key.
+			encoded, err := json.Marshal(data)
+			assertNoError(t, err)
+			var restored SwapData
+			assertNoError(t, json.Unmarshal(encoded, &restored))
+			assertEqual(t, true, restored.StartingBlockHeightSet)
+			assertEqual(t, height, restored.StartingBlockHeight)
+			assertEqual(t, string(data.NextMessage), string(restored.NextMessage))
+		})
+	}
+}
+
 func TestBitcoinRejectsRefundOverlap(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
