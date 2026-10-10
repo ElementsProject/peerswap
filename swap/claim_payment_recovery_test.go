@@ -116,6 +116,41 @@ func TestBitcoinTimeoutCannotRefundPaidSwap(t *testing.T) {
 	assertEqual(t, 0, len(data.NextMessage))
 }
 
+func TestBitcoinCoopCloseChecksPaymentBeforeConfirmation(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		preimage string
+		err      error
+		event    EventType
+		sent     bool
+	}{
+		{"paid", bitcoinTestPreimage, nil, Event_OnClaimInvoicePaid, false},
+		{"pending", "", errors.New("payment pending"), NoOp, false},
+		{"RPC error", "", errors.New("RPC disconnected"), NoOp, false},
+		{"missing", "", ErrClaimPaymentNotFound, Event_ActionSucceeded, true},
+		{"failed", "", ErrClaimPaymentFailed, Event_ActionSucceeded, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			services, data, _ := bitcoinPaymentFixture(t, 800_003, 503)
+			assertEqual(t, "", data.OpeningTxHex)
+			// Recovery may resume a previously prepared refund message.
+			data.NextMessage = []byte("saved cooperative close")
+			messenger := &suspensionMessenger{}
+			services.messenger = messenger
+			lc := services.lightning.(*dummyLightningClient)
+			lc.recoverPaymentPreimage = tc.preimage
+			lc.recoverPaymentError = tc.err
+
+			event := (&TakerSendCoopCloseAction{}).Execute(services, data)
+			assertEqual(t, tc.event, event)
+			assertEqual(t, 1, lc.recoverPaymentCalled)
+			assertEqual(t, tc.sent, len(messenger.payload) > 0)
+			assertEqual(t, tc.preimage, data.ClaimPreimage)
+			assertEqual(t, 0, lc.rebalanceCalled)
+		})
+	}
+}
+
 func TestConfirmationErrorCannotStartClaimPayment(t *testing.T) {
 	services, data, _ := bitcoinPaymentFixture(t, 800_003, 503)
 	fsm := newSwapInReceiverFSM(data.GetId(), services, "peer")

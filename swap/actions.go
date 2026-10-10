@@ -607,9 +607,9 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerSendPrivkeyAction struct{}
 
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	// A crash can persist the confirmation before persisting the payment
-	// state. Never interpret an RPC/stream error as proof that payment failed.
-	if swap.ClaimPreimage != "" || swap.OpeningTxHex != "" {
+	// Once the invoice is known, check payment status independently of
+	// confirmation state. An RPC error is not proof that payment failed.
+	if swap.ClaimPreimage != "" || swap.OpeningTxBroadcasted != nil {
 		if event, recovered := recoverClaimPayment(services, swap); recovered {
 			if event == Event_ActionSucceeded {
 				return Event_OnClaimInvoicePaid
