@@ -310,6 +310,7 @@ func (l *Client) payInvoiceViaChannel(
 	payreq,
 	scid string,
 	maxTotalCLTVDelta uint32,
+	opts ...grpc.CallOption,
 ) (preimage string, err error) {
 	decoded, err := l.lndClient.DecodePayReq(l.ctx, &lnrpc.PayReqString{PayReq: payreq})
 	if err != nil {
@@ -323,7 +324,7 @@ func (l *Client) payInvoiceViaChannel(
 	if err != nil {
 		return "", err
 	}
-	return l.sendPaymentV2(request, "PayInvoiceViaChannel")
+	return l.sendPaymentV2(request, "PayInvoiceViaChannel", opts...)
 }
 
 func buildDirectClaimPaymentRequest(
@@ -364,8 +365,12 @@ func buildDirectClaimPaymentRequest(
 	}, nil
 }
 
-func (l *Client) sendPaymentV2(req *routerrpc.SendPaymentRequest, operation string) (string, error) {
-	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, req)
+func (l *Client) sendPaymentV2(
+	req *routerrpc.SendPaymentRequest,
+	operation string,
+	opts ...grpc.CallOption,
+) (string, error) {
+	paymentStream, err := l.routerClient.SendPaymentV2(l.ctx, req, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -396,7 +401,9 @@ func (l *Client) RebalancePayment(
 	channelID string,
 	maxTotalCLTVDelta uint32,
 ) (preimage string, err error) {
-	return l.payInvoiceViaChannel(payreq, channelID, maxTotalCLTVDelta)
+	// A stream retry resends the payment request without checking the swap
+	// deadline. Let the action recover its outcome before another attempt.
+	return l.payInvoiceViaChannel(payreq, channelID, maxTotalCLTVDelta, grpc_retry.Disable())
 }
 
 // RecoverClaimPayment checks an already-created outgoing payment without
