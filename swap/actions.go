@@ -607,9 +607,9 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerSendPrivkeyAction struct{}
 
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	// Once the invoice is known, check payment status independently of
+	// Once the invoice is validated, check payment status independently of
 	// confirmation state. An RPC error is not proof that payment failed.
-	if swap.ClaimPreimage != "" || swap.OpeningTxBroadcasted != nil {
+	if swap.ClaimPreimage != "" || swap.ClaimPaymentHash != "" {
 		if event, recovered := recoverClaimPayment(services, swap); recovered {
 			if event == Event_ActionSucceeded {
 				return Event_OnClaimInvoicePaid
@@ -943,9 +943,12 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
 	}
 	// Revalidate on recovery as well as before the confirmation watch.
-	_, amountMsat, finalCLTVDelta, err := lc.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
+	paymentHash, amountMsat, finalCLTVDelta, err := lc.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
 	if err != nil {
 		return swap.HandleError(err)
+	}
+	if swap.ClaimPaymentHash == "" || paymentHash != swap.ClaimPaymentHash {
+		return swap.HandleError(errors.New("claim invoice payment hash does not match the validated invoice"))
 	}
 	if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
 		return swap.HandleError(err)

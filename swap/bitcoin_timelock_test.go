@@ -62,6 +62,7 @@ func TestBitcoinRejectsRefundOverlap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			services, data, w := bitcoinPaymentFixture(t, tc.height, tc.cltv)
+			data.ClaimPaymentHash = ""
 			assertEqual(t, Event_ActionFailed, (&AwaitTxConfirmationAction{}).Execute(services, data))
 			if err := data.LastErr; err == nil {
 				t.Fatal("expected unsafe invoice or expired window to be rejected")

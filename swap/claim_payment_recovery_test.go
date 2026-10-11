@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	bitcoinTestOpeningHex = "opening"
-	bitcoinTestInvoice    = "claim"
-	bitcoinTestPreimage   = "preimage"
+	bitcoinTestOpeningHex  = "opening"
+	bitcoinTestInvoice     = "claim"
+	bitcoinTestPaymentHash = "foo"
+	bitcoinTestPreimage    = "preimage"
 )
 
 type paymentWindowWatcher struct {
@@ -37,6 +38,7 @@ func bitcoinPaymentFixture(t *testing.T, height uint32, cltv int64) (*SwapServic
 	data.StartingBlockHeight = 800_000
 	data.StartingBlockHeightSet = true
 	data.OpeningTxBroadcasted = &OpeningTxBroadcastedMessage{Payreq: bitcoinTestInvoice}
+	data.ClaimPaymentHash = bitcoinTestPaymentHash
 	return services, data, w
 }
 
