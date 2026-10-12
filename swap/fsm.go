@@ -182,7 +182,11 @@ func (s *SwapStateMachine) EventIsValid(event EventType) bool {
 func (s *SwapStateMachine) SendEvent(event EventType, eventCtx EventContext) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	return s.sendEventLocked(event, eventCtx)
+}
 
+//nolint:cyclop,gocognit // Preserve the existing event loop while sharing its lock with recovery.
+func (s *SwapStateMachine) sendEventLocked(event EventType, eventCtx EventContext) (bool, error) {
 	if event == Event_Done {
 		return true, nil
 	}
@@ -275,6 +279,8 @@ func (s *SwapStateMachine) exponentialBackoffAndJitter() {
 
 // Recover tries to continue from the current state, by doing the associated Action
 func (s *SwapStateMachine) Recover() (bool, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	log.Infof("[Swap:%s]: Recovering from state %s", s.SwapId.String(), s.Current)
 	state, ok := s.States[s.Current]
 	if !ok {
@@ -286,7 +292,7 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 		return false, ErrFsmConfig
 	}
 	if state.FailOnrecover {
-		return s.SendEvent(Event_ActionFailed, nil)
+		return s.sendEventLocked(Event_ActionFailed, nil)
 	}
 
 	nextEvent := state.Action.Execute(s.swapServices, s.Data)
@@ -297,7 +303,7 @@ func (s *SwapStateMachine) Recover() (bool, error) {
 	if nextEvent == NoOp {
 		return false, nil
 	}
-	return s.SendEvent(nextEvent, nil)
+	return s.sendEventLocked(nextEvent, nil)
 }
 
 // IsFinished returns true if the swap is already finished

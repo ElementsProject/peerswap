@@ -70,6 +70,7 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_ValidateTxAndPayClaimInvoice: {
 			Action: &ValidateTxAndPayClaimInvoiceAction{},
 			Events: Events{
+				Event_OnTimeout:       State_SwapInReceiver_ValidateTxAndPayClaimInvoice,
 				Event_ActionSucceeded: State_SwapInReceiver_ClaimSwap,
 				Event_ActionFailed:    State_SwapInReceiver_SendPrivkey,
 			},
@@ -77,15 +78,19 @@ func getSwapInReceiverStates() States {
 		State_SwapInReceiver_SendPrivkey: {
 			Action: &TakerSendPrivkeyAction{},
 			Events: Events{
-				Event_ActionFailed:    State_SendCancel,
-				Event_ActionSucceeded: State_SwapInReceiver_SendCoopClose,
+				Event_OnClaimInvoicePaid: State_SwapInReceiver_ClaimSwap,
+				Event_OnTimeout:          State_SwapInReceiver_SendPrivkey,
+				Event_ActionFailed:       State_SendCancel,
+				Event_ActionSucceeded:    State_SwapInReceiver_SendCoopClose,
 			},
 		},
 		State_SwapInReceiver_SendCoopClose: {
-			Action: &SendMessageAction{},
+			Action: &TakerSendCoopCloseAction{},
 			Events: Events{
-				Event_ActionSucceeded: State_ClaimedCoop,
-				Event_ActionFailed:    State_SendCancel,
+				Event_OnTimeout:          State_SwapInReceiver_SendCoopClose,
+				Event_OnClaimInvoicePaid: State_SwapInReceiver_ClaimSwap,
+				Event_ActionSucceeded:    State_ClaimedCoop,
+				Event_ActionFailed:       State_SendCancel,
 			},
 		},
 		State_SwapInReceiver_ClaimSwap: {

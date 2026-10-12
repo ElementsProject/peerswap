@@ -232,6 +232,12 @@ func (l *BlockchainRpcTxWatcher) checkTxAboveCsvHight(txId string, vout, csv uin
 }
 
 func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint32, startingBlockheight, csv uint32, _ []byte) {
+	info := &SwapTxInfo{
+		TxId:                txId,
+		TxVout:              vout,
+		Csv:                 csv,
+		StartingBlockHeight: startingBlockheight,
+	}
 	// Before we add the tx to the watcher we check if the tx is already
 	// above the csv limit.
 	above, err := l.checkTxAboveCsvHight(txId, vout, csv)
@@ -239,22 +245,27 @@ func (l *BlockchainRpcTxWatcher) AddWaitForCsvTx(swapId, txId string, vout uint3
 		log.Infof("[TxWatcher] checkTxAboveCsvHeight returned: %s", err.Error())
 	}
 	if above {
-		err = l.csvPassedCallback(swapId)
-		if err == nil {
-			log.Infof("Swap %s already past CSV limit", swapId)
-			return
-		}
-		log.Infof("csv passed callback error: %v", err)
+		// Registration can run while the swap holds its recovery/event lock.
+		// Deliver the callback asynchronously so it can acquire that lock
+		// after the registration returns.
+		go func() {
+			callbackErr := l.csvPassedCallback(swapId)
+			if callbackErr == nil {
+				log.Infof("Swap %s already past CSV limit", swapId)
+				return
+			}
+			log.Infof("csv passed callback error: %v", callbackErr)
+			l.addCsvWatch(swapId, info)
+		}()
+		return
 	}
+	l.addCsvWatch(swapId, info)
+}
 
+func (l *BlockchainRpcTxWatcher) addCsvWatch(swapID string, info *SwapTxInfo) {
 	l.Lock()
 	defer l.Unlock()
-	l.csvtxWatchList[swapId] = &SwapTxInfo{
-		TxId:                txId,
-		TxVout:              vout,
-		Csv:                 csv,
-		StartingBlockHeight: startingBlockheight,
-	}
+	l.csvtxWatchList[swapID] = info
 }
 
 func (l *BlockchainRpcTxWatcher) TxClaimed(swaps []string) {
@@ -320,7 +331,7 @@ func (l *BlockchainRpcTxWatcher) observationLoop(
 			// Check if we are outside of our safety limits. This can happen on
 			// restart. If the current block height is above our safety limits,
 			// we cancel the swap.
-			if current >= startingHeight+safetyLimit {
+			if current < startingHeight || uint64(current) >= uint64(startingHeight)+uint64(safetyLimit) {
 				l.callbackAndLog(swapId, "", fmt.Errorf("exceeded csv limit"))
 				return
 			}
@@ -347,16 +358,15 @@ func (l *BlockchainRpcTxWatcher) observationLoop(
 				return
 			}
 
-			// Check that the amount of confirmation matches with what we expect
-			// First check that we are in a safe range.
-			if firstSeen > startingHeight+safetyLimit {
+			// Also bound the actual confirmation age, in case the opening
+			// transaction predates the persisted starting height.
+			if firstSeen > current || uint64(current)+1 >= uint64(firstSeen)+uint64(safetyLimit) {
 				l.callbackAndLog(swapId, "", fmt.Errorf("exceeded csv limit"))
 				return
 			}
 
-			// Now check if we got enough confirmations. We use first seen - 1
-			// as this is the block the tx was confirmed in the first time.
-			if current-(firstSeen-1) >= l.requiredConfs {
+			// Include the block in which the transaction first confirmed.
+			if uint64(current)+1-uint64(firstSeen) >= uint64(l.requiredConfs) {
 				// We finally made it, enough confirmations and below the safety
 				// limit!
 				l.callbackAndLog(swapId, rawTx, nil)

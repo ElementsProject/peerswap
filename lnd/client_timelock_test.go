@@ -37,6 +37,17 @@ func TestBuildDirectClaimPaymentRequestCLTVBoundary(t *testing.T) {
 	}
 
 	invoice.CltvExpiry = 503
+	request, err = buildDirectClaimPaymentRequest("invoice", invoice, channel, 506)
+	if err != nil || request.CltvLimit != 507 {
+		t.Fatalf("Bitcoin request should fit the sender deadline: request=%+v, err=%v", request, err)
+	}
+	invoice.CltvExpiry = 504
+	_, err = buildDirectClaimPaymentRequest("invoice", invoice, channel, 506)
+	if err == nil || err.Error() != "invoice requires CLTV delta 507, maximum is 506" {
+		t.Fatalf("unexpected Bitcoin boundary error: %v", err)
+	}
+
+	invoice.CltvExpiry = 503
 	request, err = buildDirectClaimPaymentRequest("invoice", invoice, channel, 0)
 	if err != nil {
 		t.Fatalf("legacy request failed: %v", err)

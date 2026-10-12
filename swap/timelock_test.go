@@ -1,7 +1,6 @@
 package swap
 
 import (
-	"errors"
 	"testing"
 )
 
@@ -42,8 +41,9 @@ func TestTimelockPolicy(t *testing.T) {
 			version: legacyProtocolVersion,
 			want: timelockPolicy{
 				CSV:                  1008,
-				PaymentWindow:        504,
+				PaymentWindow:        60,
 				InvoiceFinalCLTV:     503,
+				MaxTotalCLTVDelta:    506,
 				AllowNewClaimPayment: true,
 			},
 		},
@@ -53,8 +53,9 @@ func TestTimelockPolicy(t *testing.T) {
 			version: PEERSWAP_PROTOCOL_VERSION,
 			want: timelockPolicy{
 				CSV:                  1008,
-				PaymentWindow:        504,
+				PaymentWindow:        60,
 				InvoiceFinalCLTV:     503,
+				MaxTotalCLTVDelta:    506,
 				AllowNewClaimPayment: true,
 			},
 		},
@@ -119,7 +120,7 @@ func TestSetLiquidPaymentWindowAnchor(t *testing.T) {
 	services := getSwapServices(t, make(chan PeerMessage, 1))
 	data := swapDataForPolicy(l_btc_chain, PEERSWAP_PROTOCOL_VERSION)
 
-	assertNoError(t, setLiquidPaymentWindowAnchor(services, data))
+	assertNoError(t, setPaymentWindowAnchor(services, data))
 	assertEqual(t, uint32(1), data.StartingBlockHeight)
 	assertEqual(t, true, data.StartingBlockHeightSet)
 }
@@ -185,11 +186,11 @@ func TestLegacyLiquidRecoveryDoesNotCreatePayment(t *testing.T) {
 	assertEqual(t, 1, lightning.recoverPaymentCalled)
 	assertEqual(t, 0, lightning.rebalanceCalled)
 
-	lightning.recoverPaymentError = errors.New("payment not found")
+	lightning.recoverPaymentError = ErrClaimPaymentNotFound
 	data.ClaimPreimage = ""
 	event = (&ValidateTxAndPayClaimInvoiceAction{}).Execute(services, data)
 	assertEqual(t, Event_ActionFailed, event)
-	assertError(t, data.LastErr, "recover legacy claim payment: payment not found")
+	assertError(t, data.LastErr, "claim payments are disabled for legacy swaps")
 }
 
 func swapDataForPolicy(chain string, version uint8) *SwapData {

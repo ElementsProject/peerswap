@@ -13,11 +13,113 @@ import (
 	"github.com/elementsproject/peerswap/test"
 	"github.com/elementsproject/peerswap/testframework"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/chainrpc"
 	"google.golang.org/grpc"
 )
 
 const testTargetConf uint32 = 3
 const testCsvLimit uint32 = 1008
+
+// Exercise recovery with a transaction that is already confirmed when the
+// watcher subscribes, without running a Lightning or Bitcoin daemon.
+func TestTxWatcherConfirmationPaymentWindow(t *testing.T) {
+	tests := []struct {
+		name        string
+		start       uint32
+		confirmed   uint32
+		current     uint32
+		window      uint32
+		wantExpired bool
+	}{
+		{"before deadline", 100, 101, 159, 60, false},
+		{"at deadline", 100, 101, 160, 60, true},
+		{"after deadline", 100, 101, 161, 60, true},
+		{"custom window", 100, 101, 110, 10, true},
+		{"delayed confirmation", 100, 150, 160, 60, true},
+		{"confirmation before anchor", 100, 90, 150, 60, true},
+		{"confirmation age boundary", 100, 100, 159, 60, true},
+		{"height below anchor", 100, 90, 99, 60, true},
+		{"height below confirmation", 100, 110, 109, 60, true},
+		{"zero window", 100, 100, 100, 0, true},
+		{"height arithmetic does not wrap", ^uint32(0) - 20, ^uint32(0) - 19, ^uint32(0), 30, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			watcher := &TxWatcher{
+				ctx: ctx, cancel: cancel,
+				lnrpcClient:          &paymentWindowLightningClient{height: tt.current},
+				chainrpcClient:       &paymentWindowChainClient{height: tt.confirmed},
+				targetConfs:          1,
+				confirmationWatchers: make(map[string]bool),
+			}
+			t.Cleanup(func() { _ = watcher.Stop() })
+			expired := make(chan bool, 1)
+			watcher.AddCsvCallback(func(string) error {
+				t.Error("confirmation watcher must report errors through its confirmation callback")
+				expired <- true
+				return nil
+			})
+			watcher.AddConfirmationCallback(func(_ string, rawTx string, err error) error {
+				if err != nil {
+					if rawTx != "" || err.Error() != "exceeded safe payment window" {
+						t.Errorf("unexpected rejection: tx=%s, err=%v", rawTx, err)
+					}
+				} else if rawTx != "01" {
+					t.Errorf("unexpected confirmation transaction: %s", rawTx)
+				}
+				expired <- err != nil
+				return nil
+			})
+			watcher.AddWaitForConfirmationTx("swap", fmt.Sprintf("%064x", 1), 0, tt.start, tt.window, nil)
+			select {
+			case got := <-expired:
+				if got != tt.wantExpired {
+					t.Fatalf("expired=%v, want %v", got, tt.wantExpired)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("watcher did not deliver a callback")
+			}
+		})
+	}
+}
+
+type paymentWindowLightningClient struct {
+	lnrpc.LightningClient
+	height uint32
+}
+
+func (c *paymentWindowLightningClient) GetInfo(
+	context.Context,
+	*lnrpc.GetInfoRequest,
+	...grpc.CallOption,
+) (*lnrpc.GetInfoResponse, error) {
+	return &lnrpc.GetInfoResponse{BlockHeight: c.height}, nil
+}
+
+type paymentWindowChainClient struct {
+	chainrpc.ChainNotifierClient
+	height uint32
+}
+
+func (c *paymentWindowChainClient) RegisterConfirmationsNtfn(
+	context.Context,
+	*chainrpc.ConfRequest,
+	...grpc.CallOption,
+) (chainrpc.ChainNotifier_RegisterConfirmationsNtfnClient, error) {
+	return &paymentWindowConfirmationStream{height: c.height}, nil
+}
+
+type paymentWindowConfirmationStream struct {
+	chainrpc.ChainNotifier_RegisterConfirmationsNtfnClient
+	height uint32
+}
+
+func (s *paymentWindowConfirmationStream) Recv() (*chainrpc.ConfEvent, error) {
+	return &chainrpc.ConfEvent{Event: &chainrpc.ConfEvent_Conf{
+		Conf: &chainrpc.ConfDetails{BlockHeight: s.height, RawTx: []byte{1}},
+	}}, nil
+}
 
 func TestTxWatcher_GetBlockHeight(t *testing.T) {
 	test.IsIntegrationTest(t)
@@ -234,10 +336,9 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect(t *testing.T) {
 	}
 }
 
-// TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed tests that the
-// watcher calls the correct callback if the csv safety limit was reached while
-// the node that the watcher is subscribed to was offline. We expect the "csv
-// limit callback" to be called after the node is restarted.
+// TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed checks
+// that recovery reports a confirmation error when the payment window expired
+// while the node was offline.
 func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 	test.IsIntegrationTest(t)
 	t.Parallel()
@@ -295,21 +396,18 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 		t.Fatalf("Failed DecodeString(): %v", err)
 	}
 
-	// Add a csv callback.
-	// We want to check if the csv callback is called in the case that the csv
-	// limit was reached while lnd was down and in the case of a recover where
-	// the csv limit was reached.
-	var gotCallback bool
-	txwatcher.AddCsvCallback(func(swapId string) error {
-		gotCallback = true
+	// A deadline error must reach the confirmation callback so the waiting
+	// swap state can handle it as an action failure.
+	callbackErr := make(chan error, 1)
+	txwatcher.AddConfirmationCallback(func(_ string, _ string, err error) error {
+		callbackErr <- err
 		return nil
 	})
 
 	txwatcher.AddWaitForConfirmationTx("myswap", txid, 0, 101, testCsvLimit/2, script)
 
-	// We now kill the lnd node and mine the confirmation blocks. We wait a
-	// random time between 1 and 6 seconds and restart the node. We expect the
-	// txwatcher to retry and return with no error.
+	// Expire the payment window while LND is offline, then ensure recovery
+	// rejects the payment instead of reporting a successful confirmation.
 	lnd.Kill()
 	bitcoind.GenerateBlocks(onchain.BitcoinCsvSafetyLimit + 1)
 
@@ -318,11 +416,13 @@ func TestTxWatcher_AddWaitForConfirmationTx_Reconnect_CSVPassed(t *testing.T) {
 	time.Sleep(time.Duration(n) * time.Second)
 	lnd.Run(true, true)
 
-	err = testframework.WaitFor(func() bool {
-		return gotCallback
-	}, 50*time.Second)
-	if err != nil {
-		t.Fatalf("Failed waiting for confirmation callback being called: %v", err)
+	select {
+	case err := <-callbackErr:
+		if err == nil {
+			t.Fatal("expected an expired payment window error")
+		}
+	case <-time.After(50 * time.Second):
+		t.Fatal("confirmation callback was not called")
 	}
 }
 

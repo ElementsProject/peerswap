@@ -2,7 +2,9 @@ package txwatcher
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -124,6 +126,66 @@ func Test_RpcTxWatcherRejectsAtPaymentDeadline(t *testing.T) {
 	}
 }
 
+func Test_RpcTxWatcherConfirmationPaymentWindow(t *testing.T) {
+	tests := []struct {
+		name          string
+		start         uint32
+		current       uint32
+		confirmations uint32
+		window        uint32
+		wantExpired   bool
+	}{
+		{"before deadline", 100, 159, 59, 60, false},
+		{"at deadline", 100, 160, 60, 60, true},
+		{"after deadline", 100, 161, 61, 60, true},
+		{"custom window", 100, 110, 10, 10, true},
+		{"delayed confirmation", 100, 160, 11, 60, true},
+		{"confirmation before anchor", 100, 150, 61, 60, true},
+		{"confirmation age boundary", 100, 159, 60, 60, true},
+		{"height below anchor", 100, 99, 10, 60, true},
+		{"zero window", 100, 100, 1, 0, true},
+		{"height arithmetic does not wrap", ^uint32(0) - 20, ^uint32(0), 20, 30, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &DummyBlockchain{
+				nextBlockheight: uint64(tt.current),
+				nextTxOutResp: &TxOutResp{
+					BestBlockHash: "blockhash",
+					Confirmations: tt.confirmations,
+				},
+			}
+			watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 1)
+			callbackErr := make(chan error, 1)
+			watcher.AddConfirmationCallback(func(_ string, rawTx string, err error) error {
+				if err == nil && rawTx != "txhex" {
+					t.Errorf("unexpected transaction: %s", rawTx)
+				}
+				callbackErr <- err
+				return nil
+			})
+			newBlock := make(chan uint32, 1)
+			newBlock <- tt.current
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				watcher.observationLoop(context.Background(), "swap", "tx", 0, tt.start, tt.window, newBlock)
+			}()
+			select {
+			case err := <-callbackErr:
+				if tt.wantExpired {
+					assert.EqualError(t, err, "exceeded csv limit")
+				} else {
+					assert.NoError(t, err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("watcher did not deliver a callback")
+			}
+			<-done
+		})
+	}
+}
+
 func Test_RpcTxWatcherCsv(t *testing.T) {
 	csv := uint32(100)
 	swapId := "foo"
@@ -169,6 +231,92 @@ func Test_RpcTxWatcherStoresPerSwapCsv(t *testing.T) {
 
 	assert.Equal(t, uint32(60), watcher.csvtxWatchList["legacy"].Csv)
 	assert.Equal(t, uint32(10080), watcher.csvtxWatchList["current"].Csv)
+}
+
+func TestRpcTxWatcherMatureCsvCallbackDoesNotBlockRegistration(t *testing.T) {
+	db := &DummyBlockchain{nextTxOutResp: &TxOutResp{Confirmations: 1008}}
+	watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 3)
+	callbackStarted := make(chan struct{})
+	releaseCallback := make(chan struct{})
+	callbackDone := make(chan struct{})
+	registrationDone := make(chan struct{})
+	watcher.AddCsvCallback(func(string) error {
+		close(callbackStarted)
+		// Model a callback waiting for the calling swap's recovery lock.
+		<-releaseCallback
+		close(callbackDone)
+		return nil
+	})
+	go func() {
+		watcher.AddWaitForCsvTx("mature-swap", "opening", 0, 100, 1008, nil)
+		close(registrationDone)
+	}()
+	t.Cleanup(func() {
+		close(releaseCallback)
+		select {
+		case <-callbackDone:
+		case <-time.After(time.Second):
+			t.Error("CSV callback did not finish after releasing the caller lock")
+		}
+		select {
+		case <-registrationDone:
+		case <-time.After(time.Second):
+			t.Error("CSV registration did not finish after releasing the callback")
+		}
+	})
+
+	select {
+	case <-callbackStarted:
+	case <-time.After(time.Second):
+		t.Fatal("mature CSV callback was not invoked")
+	}
+	select {
+	case <-registrationDone:
+	case <-time.After(time.Second):
+		t.Fatal("CSV registration blocked on its callback; recovery cannot release the swap lock")
+	}
+}
+
+func TestRpcTxWatcherMatureCsvCallbackErrorRetainsWatch(t *testing.T) {
+	db := &DummyBlockchain{nextTxOutResp: &TxOutResp{Confirmations: 1008}}
+	watcher := NewBlockchainRpcTxWatcher(context.Background(), db, 3)
+	var calls atomic.Int32
+	watcher.AddCsvCallback(func(string) error {
+		if calls.Add(1) == 1 {
+			return errors.New("temporary claim failure")
+		}
+		return nil
+	})
+	watcher.AddWaitForCsvTx("retry-swap", "opening", 0, 100, 1008, nil)
+
+	deadline := time.After(time.Second)
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		watcher.Lock()
+		_, registered := watcher.csvtxWatchList["retry-swap"]
+		watcher.Unlock()
+		if registered {
+			break
+		}
+		select {
+		case <-ticker.C:
+		case <-deadline:
+			t.Fatal("failed mature CSV callback did not retain its watch")
+		}
+	}
+	if err := watcher.HandleCsvTx(1108); err != nil {
+		t.Fatal(err)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("callback called %d times, want initial attempt and retry", got)
+	}
+	watcher.Lock()
+	_, registered := watcher.csvtxWatchList["retry-swap"]
+	watcher.Unlock()
+	if registered {
+		t.Fatal("successful CSV retry did not remove its watch")
+	}
 }
 
 type DummyBlockchain struct {

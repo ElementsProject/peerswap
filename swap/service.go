@@ -328,19 +328,12 @@ func (s *SwapService) OnTxConfirmed(swapId string, txHex string, gotErr error) e
 		return err
 	}
 
-	// First check if we got an error!
+	event := Event_OnTxConfirmed
 	if gotErr != nil {
-		swap.Data.LastErr = err
-		log.Infof("[%s]: got an error from the txwatcher, cancel swap: %v", swapId, err)
-		done, _ := swap.SendEvent(Event_ActionFailed, nil)
-		if done {
-			s.RemoveActiveSwap(swap.SwapId.String())
-		}
+		log.Infof("[%s]: got an error from the txwatcher, cancel swap: %v", swapId, gotErr)
+		event = Event_ActionFailed
 	}
-
-	// todo move to eventctx
-	swap.Data.OpeningTxHex = txHex
-	done, err := swap.SendEvent(Event_OnTxConfirmed, nil)
+	done, err := swap.SendEvent(event, &txConfirmationContext{txHex: txHex, err: gotErr})
 	if err == ErrEventRejected {
 		return nil
 	} else if err != nil {
@@ -348,6 +341,24 @@ func (s *SwapService) OnTxConfirmed(swapId string, txHex string, gotErr error) e
 	}
 	if done {
 		s.RemoveActiveSwap(swap.SwapId.String())
+	}
+	return nil
+}
+
+// txConfirmationContext persists confirmation evidence under the FSM lock before
+// any claim payment can start, including when a watcher races with a timeout.
+type txConfirmationContext struct {
+	txHex string
+	err   error
+}
+
+func (c *txConfirmationContext) Validate(*SwapData) error { return nil }
+
+func (c *txConfirmationContext) ApplyToSwapData(data *SwapData) error {
+	if c.err != nil {
+		data.LastErr = c.err
+	} else {
+		data.OpeningTxHex = c.txHex
 	}
 	return nil
 }
@@ -1020,11 +1031,6 @@ func (s *SwapService) createTimeoutCallback(swapId string) func() {
 		if err != nil {
 			log.Debugf("[SwapService] timeout callback: %v", err)
 			return
-		}
-
-		// Reset cancel func
-		if swap != nil && swap.Data != nil {
-			swap.Data.toCancel = nil
 		}
 
 		done, err := swap.SendEvent(Event_OnTimeout, nil)

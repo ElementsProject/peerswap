@@ -139,8 +139,10 @@ func (a CheckRequestWrapperAction) Execute(services *SwapServices, swap *SwapDat
 // SwapInReceiverInitAction creates the swap-in process
 type SwapInReceiverInitAction struct{}
 
-func setLiquidPaymentWindowAnchor(services *SwapServices, swap *SwapData) error {
-	if swap.GetChain() != l_btc_chain || swap.GetProtocolVersion() != PEERSWAP_PROTOCOL_VERSION {
+// setPaymentWindowAnchor runs before the taker public key is sent to the peer.
+// A later anchor could let a peer age its opening output before our clock starts.
+func setPaymentWindowAnchor(services *SwapServices, swap *SwapData) error {
+	if swap.GetChain() != btc_chain && swap.GetProtocolVersion() != PEERSWAP_PROTOCOL_VERSION {
 		return nil
 	}
 
@@ -158,7 +160,7 @@ func setLiquidPaymentWindowAnchor(services *SwapServices, swap *SwapData) error 
 }
 
 func (s *SwapInReceiverInitAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+	if err := setPaymentWindowAnchor(services, swap); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -605,6 +607,16 @@ func (s *SendCancelAction) Execute(services *SwapServices, swap *SwapData) Event
 type TakerSendPrivkeyAction struct{}
 
 func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	// Once the invoice is validated, check payment status independently of
+	// confirmation state. An RPC error is not proof that payment failed.
+	if swap.ClaimPreimage != "" || swap.ClaimPaymentHash != "" {
+		if event, recovered := recoverClaimPayment(services, swap); recovered {
+			if event == Event_ActionSucceeded {
+				return Event_OnClaimInvoicePaid
+			}
+			return event
+		}
+	}
 	privkeystring := hex.EncodeToString(swap.PrivkeyBytes)
 	nextMessage, nextMessageType, err := MarshalPeerswapMessage(&CoopCloseMessage{
 		SwapId:  swap.GetId(),
@@ -620,12 +632,25 @@ func (s *TakerSendPrivkeyAction) Execute(services *SwapServices, swap *SwapData)
 	return Event_ActionSucceeded
 }
 
+// TakerSendCoopCloseAction also checks recovery of a persisted, unsent refund
+// message. Older versions may have prepared it while a payment was in flight.
+type TakerSendCoopCloseAction struct{}
+
+// Execute rechecks the payment before sending the cooperative-close key.
+func (s *TakerSendCoopCloseAction) Execute(services *SwapServices, swap *SwapData) EventType {
+	event := (&TakerSendPrivkeyAction{}).Execute(services, swap)
+	if event != Event_ActionSucceeded {
+		return event
+	}
+	return (&SendMessageAction{}).Execute(services, swap)
+}
+
 // CreateSwapRequestAction creates the swap data
 type CreateSwapRequestAction struct{}
 
-// todo validate data
+// Execute anchors the payment deadline before preparing the request.
 func (a *CreateSwapRequestAction) Execute(services *SwapServices, swap *SwapData) EventType {
-	if err := setLiquidPaymentWindowAnchor(services, swap); err != nil {
+	if err := setPaymentWindowAnchor(services, swap); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -791,7 +816,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	// idempotent.
 
 	// Get the onchain services (depends on the chain).
-	txWatcher, wallet, validator, err := services.getOnChainServices(swap.GetChain())
+	txWatcher, wallet, _, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
 		return swap.HandleError(err)
 	}
@@ -799,20 +824,13 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	if err != nil {
 		return swap.HandleError(err)
 	}
-	if !policy.AllowNewClaimPayment {
-		// The event context is stored before the state transition. Therefore, a
-		// crash while paying can leave us in this state with the confirmed
-		// opening transaction already persisted. Only that recovery case may
-		// follow an existing payment; a fresh legacy payment remains forbidden.
-		if swap.OpeningTxHex == "" {
-			return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
-		}
-		preimage, err := services.lightning.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
-		if err != nil {
-			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
-		}
-		swap.ClaimPreimage = preimage
+	if swap.OpeningTxHex != "" {
+		// The confirmation is persisted before payment starts. On recovery,
+		// follow any existing payment before applying new-payment limits.
 		return Event_OnTxConfirmed
+	}
+	if !policy.AllowNewClaimPayment {
+		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
 	}
 
 	// First check the preconditions, invoice min_final_cltv_expiry needs to be
@@ -824,22 +842,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		return swap.HandleError(err)
 	}
 
-	if swap.GetChain() == btc_chain {
-		safetyLimit := validator.GetCSVHeight() / 2
-		if finalCLTVDelta > int64(safetyLimit) {
-			return swap.HandleError(fmt.Errorf(
-				"unsafe invoice cltv: %d, expected below: %d",
-				finalCLTVDelta, safetyLimit,
-			))
-		}
-		if amountMsat != swap.GetClaimAmount()*1000 {
-			return swap.HandleError(fmt.Errorf(
-				"invoice amount does not equal swap amount, invoice: %v, swap %v",
-				swap.OpeningTxBroadcasted.Payreq,
-				swap.GetClaimAmount(),
-			))
-		}
-	} else if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
+	if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -859,18 +862,7 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 		))
 	}
 
-	if swap.GetChain() == btc_chain {
-		if swap.StartingBlockHeight == 0 {
-			return swap.HandleError(fmt.Errorf(
-				"could not get starting block height of the swap.",
-			))
-		}
-		if height >= swap.StartingBlockHeight+validator.GetCSVHeight()/2 {
-			return swap.HandleError(fmt.Errorf(
-				"exceeded safe swap range.",
-			))
-		}
-	} else if err := checkPaymentWindow(swap, height, policy); err != nil {
+	if err := checkPaymentWindow(swap, height, policy); err != nil {
 		return swap.HandleError(err)
 	}
 
@@ -890,6 +882,36 @@ func (t *AwaitTxConfirmationAction) Execute(services *SwapServices, swap *SwapDa
 	)
 	log.Debugf("Await confirmation for tx with id: %s on swap %s", swap.OpeningTxBroadcasted.TxId, swap.GetId().String())
 	return NoOp
+}
+
+// recoverClaimPayment returns handled=false only when the backend has established
+// that no payment can settle. All other outcomes must retain the taker's key.
+func recoverClaimPayment(services *SwapServices, swap *SwapData) (event EventType, handled bool) {
+	if swap.ClaimPreimage != "" {
+		return Event_ActionSucceeded, true
+	}
+	preimage, err := services.lightning.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
+	if errors.Is(err, ErrClaimPaymentNotFound) || errors.Is(err, ErrClaimPaymentFailed) {
+		return NoOp, false
+	}
+	if err == nil && preimage != "" {
+		swap.ClaimPreimage = preimage
+		return Event_ActionSucceeded, true
+	}
+	if err == nil {
+		err = errors.New("payment recovery returned an empty preimage")
+	}
+	swap.LastErr = fmt.Errorf("claim payment outcome is unresolved: %w", err)
+	log.Infof("[Swap:%s] %v; retaining taker key", swap.GetId(), swap.LastErr)
+	// Keep checking even across long RPC outages. The ordinary FSM retry
+	// budget is finite and would otherwise strand an accepted payment.
+	if swap.toCancel != nil {
+		swap.toCancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	swap.toCancel = cancel
+	services.toService.addNewTimeOut(ctx, 10*time.Second, swap.GetId().String())
+	return NoOp, true
 }
 
 // ValidateTxAndPayClaimInvoiceAction pays the claim invoice
@@ -914,16 +936,22 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	if !ok {
 		return swap.HandleError(errors.New("tx is not valid"))
 	}
+	if event, recovered := recoverClaimPayment(services, swap); recovered {
+		return event
+	}
 	if !policy.AllowNewClaimPayment {
-		if swap.ClaimPreimage != "" {
-			return Event_ActionSucceeded
-		}
-		preimage, err := lc.RecoverClaimPayment(swap.OpeningTxBroadcasted.Payreq)
-		if err != nil {
-			return swap.HandleError(fmt.Errorf("recover legacy claim payment: %w", err))
-		}
-		swap.ClaimPreimage = preimage
-		return Event_ActionSucceeded
+		return swap.HandleError(errors.New("claim payments are disabled for legacy swaps"))
+	}
+	// Revalidate on recovery as well as before the confirmation watch.
+	paymentHash, amountMsat, finalCLTVDelta, err := lc.DecodePayreq(swap.OpeningTxBroadcasted.Payreq)
+	if err != nil {
+		return swap.HandleError(err)
+	}
+	if swap.ClaimPaymentHash == "" || paymentHash != swap.ClaimPaymentHash {
+		return swap.HandleError(errors.New("claim invoice payment hash does not match the validated invoice"))
+	}
+	if err := validateClaimInvoice(amountMsat, finalCLTVDelta, swap.GetClaimAmount(), policy); err != nil {
+		return swap.HandleError(err)
 	}
 
 	var retryTime time.Duration = 120 * time.Second
@@ -959,17 +987,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			if err != nil {
 				return swap.HandleError(err)
 			}
-			if swap.GetChain() == btc_chain && (now-swap.StartingBlockHeight) > validator.GetCSVHeight()/2 {
-				log.Debugf("[Swap:%s] passed csv limit blockheight now=%d, blockheight starting=%d", swap.GetId(), now, swap.StartingBlockHeight)
-				swap.LastErr = err
+			if err := checkPaymentWindow(swap, now, policy); err != nil {
 				return swap.HandleError(err)
 			}
-			if swap.GetChain() == l_btc_chain {
-				if err := checkPaymentWindow(swap, now, policy); err != nil {
-					log.Debugf("[Swap:%s] claim payment is outside the safe window: %v", swap.GetId(), err)
-					return swap.HandleError(err)
-				}
-			}
+
 			preimage, err = lc.RebalancePayment(
 				swap.OpeningTxBroadcasted.Payreq,
 				swap.GetScid(),
@@ -978,7 +999,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 			if err != nil {
 				log.Infof("error trying to pay invoice: %v, retry...", err)
 				payErr = err
-				// Another round!
+				if event, recovered := recoverClaimPayment(services, swap); recovered {
+					return event
+				}
+				// Only retry after proving the previous payment cannot settle.
 				continue
 			}
 
@@ -988,8 +1012,10 @@ func (p *ValidateTxAndPayClaimInvoiceAction) Execute(services *SwapServices, swa
 	}
 }
 
+// SetStartingBlockHeightAction checks the persisted payment anchor.
 type SetStartingBlockHeightAction struct{}
 
+// Execute preserves trusted anchors and rejects late or unanchored payments.
 func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *SwapData) EventType {
 	onchain, _, validator, err := services.getOnChainServices(swap.GetChain())
 	if err != nil {
@@ -1003,9 +1029,9 @@ func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *Swa
 		return Event_ActionFailed
 	}
 
-	// Liquid v7 starts its short payment window before the peer can broadcast
-	// the opening transaction. Never replace that persisted anchor here.
-	if swap.GetChain() == l_btc_chain && swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
+	// Bitcoin and Liquid v7 anchor before exposing the taker key. Old Bitcoin
+	// records lack this guarantee and must not initiate a new claim payment.
+	if swap.GetChain() == btc_chain || swap.GetProtocolVersion() == PEERSWAP_PROTOCOL_VERSION {
 		policy, err := swap.getTimelockPolicy()
 		if err != nil {
 			swap.LastErr = err
@@ -1019,7 +1045,7 @@ func (s *SetStartingBlockHeightAction) Execute(services *SwapServices, swap *Swa
 		return NoOp
 	}
 
-	// Preserve the legacy Bitcoin and Liquid behavior.
+	// Preserve legacy Liquid refund recovery behavior.
 	if swap.StartingBlockHeight == 0 {
 		swap.StartingBlockHeight = now
 	} else if now >= swap.StartingBlockHeight+(validator.GetCSVHeight()/2) {

@@ -118,6 +118,8 @@ type SwapData struct {
 	ClaimPaymentHash    string    `json:"claim_payment_hash"`
 	ClaimPreimage       string    `json:"claim_preimage"`
 
+	// On the paying side, this marks an anchor recorded before the taker key
+	// was disclosed. Old Bitcoin records without it may only recover payments.
 	StartingBlockHeightSet bool `json:"opening_block_height_set,omitempty"`
 
 	BlindingKeyHex string `json:"blinding_key"`

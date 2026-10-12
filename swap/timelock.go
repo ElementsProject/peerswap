@@ -5,9 +5,12 @@ import "fmt"
 const (
 	legacyProtocolVersion = 6
 
-	bitcoinSwapCSV          uint32 = 1008
-	bitcoinPaymentWindow    uint32 = bitcoinSwapCSV / 2
-	bitcoinInvoiceFinalCLTV uint64 = uint64(bitcoinPaymentWindow - 1)
+	bitcoinSwapCSV           uint32 = 1008
+	bitcoinInvoiceFinalCLTV  uint64 = uint64(bitcoinSwapCSV/2 - 1)
+	bitcoinMaxTotalCLTVDelta uint32 = uint32(bitcoinInvoiceFinalCLTV) + 3
+	// Only start payments within 60 blocks of the pre-key anchor. With the
+	// 506-block sender deadline, this leaves at least 443 blocks before CSV.
+	bitcoinPaymentWindow uint32 = 60
 
 	legacyLiquidSwapCSV     uint32 = 60
 	legacyLiquidFinalCLTV   uint64 = uint64(legacyLiquidSwapCSV/2 - 1)
@@ -29,7 +32,7 @@ type timelockPolicy struct {
 }
 
 // ValidateTotalCLTVDelta enforces an inclusive sender-side route limit. A
-// limit of zero preserves the legacy behavior for Bitcoin swaps.
+// limit of zero is reserved for legacy callers without a route limit.
 func ValidateTotalCLTVDelta(required, limit uint32) error {
 	if limit != 0 && required > limit {
 		return fmt.Errorf(
@@ -53,6 +56,7 @@ func (s *SwapData) getTimelockPolicy() (timelockPolicy, error) {
 			CSV:                  bitcoinSwapCSV,
 			PaymentWindow:        bitcoinPaymentWindow,
 			InvoiceFinalCLTV:     bitcoinInvoiceFinalCLTV,
+			MaxTotalCLTVDelta:    bitcoinMaxTotalCLTVDelta,
 			AllowNewClaimPayment: true,
 		}, nil
 
