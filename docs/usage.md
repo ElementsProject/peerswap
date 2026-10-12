@@ -90,6 +90,11 @@ For CLN:
 lightning-cli peerswap-swap-in [short channel id] [amount in sats] [asset: btc or lbtc] [premium limit in ppm]
 ```
 
+For named CLN arguments, both swap commands use `premium_rate_limit_ppm`.
+Update scripts calling `peerswap-swap-in` to replace the old name `premium_limit_ppm`.
+The old name is no longer supported and may be silently ignored, leaving the premium limit at zero.
+Positional arguments are unchanged.
+
 For LND:
 ```bash
 pscli swapin --channel_id [chan_id] --sat_amt [amount in sats] --asset [btc or lbtc] --premium_limit_rate_ppm [premium limit in ppm]
